@@ -1,160 +1,239 @@
+import { invoke } from "@tauri-apps/api/core";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-const projects = [
-  {
-    name: "code-buddy",
-    path: "/home/stefan/code-buddy",
-    sessions: [
-      { name: "Codex planning", agent: "Codex", state: "running" },
-      { name: "Claude review", agent: "Claude", state: "idle" },
-    ],
-  },
-];
+type SessionState = "running" | "exited" | "killed" | "errored";
 
-const transcript = [
-  {
-    role: "assistant",
-    title: "Session initialized",
-    body: "Agent detection and project context are ready for the next prompt.",
-  },
-  {
-    role: "tool",
-    title: "Tool call",
-    body: "resolve_agents_md({ cwd: project.path })",
-  },
-];
+type SessionInfo = {
+  id: string;
+  state: SessionState;
+  pid: number | null;
+  cols: number;
+  rows: number;
+  exitCode: number | null;
+};
+
+const initialSize = {
+  cols: 80,
+  rows: 24,
+};
 
 function App() {
+  const [session, setSession] = useState<SessionInfo | null>(null);
+  const [prompt, setPrompt] = useState("hello from frontend");
+  const [cols, setCols] = useState(initialSize.cols);
+  const [rows, setRows] = useState(initialSize.rows);
+  const [output, setOutput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const canUseSession = session?.state === "running";
+  const statusLabel = useMemo(() => {
+    if (!session) {
+      return "not started";
+    }
+
+    return `${session.state} · ${session.cols}x${session.rows}`;
+  }, [session]);
+
+  useEffect(() => {
+    if (!canUseSession || !session) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void drainOutput(session.id);
+    }, 400);
+
+    return () => window.clearInterval(timer);
+  }, [canUseSession, session?.id]);
+
+  async function runAction(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startSession() {
+    await runAction(async () => {
+      const nextSession = await invoke<SessionInfo>("start_fake_session", {
+        request: { cols, rows },
+      });
+      setSession(nextSession);
+      setOutput("");
+      await drainOutput(nextSession.id);
+    });
+  }
+
+  async function sendInput(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canUseSession || !session) {
+      return;
+    }
+
+    await runAction(async () => {
+      await invoke("write_session_input", {
+        sessionId: session.id,
+        text: `${prompt}\n`,
+      });
+      await drainOutput(session.id);
+    });
+  }
+
+  async function resizeSession() {
+    if (!canUseSession || !session) {
+      return;
+    }
+
+    await runAction(async () => {
+      const nextSession = await invoke<SessionInfo>("resize_session", {
+        sessionId: session.id,
+        cols,
+        rows,
+      });
+      setSession(nextSession);
+    });
+  }
+
+  async function stopSession(force: boolean) {
+    if (!session) {
+      return;
+    }
+
+    await runAction(async () => {
+      const nextSession = await invoke<SessionInfo>("stop_session", {
+        sessionId: session.id,
+        force,
+      });
+      setSession(nextSession);
+      await drainOutput(session.id);
+    });
+  }
+
+  async function drainOutput(sessionId = session?.id) {
+    if (!sessionId) {
+      return;
+    }
+
+    const chunk = await invoke<string>("drain_session_output", { sessionId });
+    if (chunk.length > 0) {
+      setOutput((current) => `${current}${chunk}`);
+    }
+  }
+
   return (
-    <main className="app-shell" aria-label="Code Buddy">
-      <aside className="sidebar" aria-label="Projects">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            CB
-          </span>
+    <main className="app-shell" aria-label="AIadne PTY test">
+      <section className="intro-panel" aria-labelledby="app-title">
+        <p className="eyebrow">AIadne</p>
+        <h1 id="app-title">PTY Test</h1>
+        <dl className="status-list">
           <div>
-            <h1>Code Buddy</h1>
-            <p>Local agent control</p>
+            <dt>Status</dt>
+            <dd>{statusLabel}</dd>
           </div>
+          <div>
+            <dt>Session</dt>
+            <dd>{session?.id.slice(0, 8) ?? "none"}</dd>
+          </div>
+          <div>
+            <dt>PID</dt>
+            <dd>{session?.pid ?? "none"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="control-panel" aria-labelledby="controls-title">
+        <div className="section-heading">
+          <p className="eyebrow">AIA-002</p>
+          <h2 id="controls-title">Fake CLI Controls</h2>
         </div>
 
-        <button className="primary-action" type="button">
-          New session
-        </button>
-
-        <nav className="project-list">
-          {projects.map((project) => (
-            <section className="project-group" key={project.name}>
-              <div className="project-heading">
-                <strong>{project.name}</strong>
-                <span>{project.sessions.length}</span>
-              </div>
-              <p>{project.path}</p>
-              <div className="session-list">
-                {project.sessions.map((session) => (
-                  <button className="session-item" type="button" key={session.name}>
-                    <span className={`state-dot ${session.state}`} aria-hidden="true" />
-                    <span>
-                      <strong>{session.name}</strong>
-                      <small>{session.agent}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
-        </nav>
-      </aside>
-
-      <section className="workspace" aria-label="Session workspace">
-        <header className="topbar">
-          <div className="tab-strip" aria-label="Sessions">
-            <button className="session-tab active" type="button">
-              <span className="agent-badge">Codex</span>
-              <span>Planning</span>
-            </button>
-            <button className="session-tab" type="button">
-              <span className="agent-badge muted">Claude</span>
-              <span>Review</span>
-            </button>
-          </div>
-          <div className="run-controls">
-            <select aria-label="Model">
-              <option>Default model</option>
-              <option>gpt-5-codex</option>
-              <option>sonnet</option>
-            </select>
-            <button className="secondary-action" type="button">
-              Stop
-            </button>
-            <button className="primary-action compact" type="button">
-              Start
-            </button>
-          </div>
-        </header>
-
-        <div className="content-grid">
-          <section className="main-pane" aria-label="Session output">
-            <div className="view-toggle" role="tablist" aria-label="View mode">
-              <button className="active" type="button" role="tab" aria-selected="true">
-                Terminal
-              </button>
-              <button type="button" role="tab" aria-selected="false">
-                Chat
-              </button>
-            </div>
-
-            <div className="terminal-surface" aria-label="Terminal output">
-              <div className="terminal-line muted">code-buddy session ready</div>
-              <div className="terminal-line">$ codex --model default</div>
-              <div className="terminal-line accent">AGENTS.md: active</div>
-              <div className="terminal-line">Waiting for input...</div>
-            </div>
-
-            <div className="command-bar">
-              <textarea aria-label="Prompt" placeholder="Send a prompt to the active agent" />
-              <button className="primary-action compact" type="button">
-                Send
-              </button>
-            </div>
-          </section>
-
-          <aside className="details-panel" aria-label="Session details">
-            <section className="status-block">
-              <h2>Session</h2>
-              <dl>
-                <div>
-                  <dt>State</dt>
-                  <dd>running</dd>
-                </div>
-                <div>
-                  <dt>Agent</dt>
-                  <dd>Codex</dd>
-                </div>
-                <div>
-                  <dt>AGENTS.md</dt>
-                  <dd>active</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section className="status-block">
-              <h2>Activity</h2>
-              <div className="activity-list">
-                {transcript.map((item) => (
-                  <article className="activity-item" key={item.title}>
-                    <span>{item.role}</span>
-                    <strong>{item.title}</strong>
-                    <p>{item.body}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </aside>
+        <div className="button-row">
+          <button type="button" onClick={startSession} disabled={busy || canUseSession}>
+            Start
+          </button>
+          <button type="button" onClick={() => void drainOutput()} disabled={busy || !session}>
+            Drain
+          </button>
+          <button type="button" onClick={() => void stopSession(false)} disabled={busy || !session}>
+            Stop
+          </button>
+          <button type="button" onClick={() => void stopSession(true)} disabled={busy || !session}>
+            Kill
+          </button>
         </div>
+
+        <form className="prompt-form" onSubmit={(event) => void sendInput(event)}>
+          <label htmlFor="prompt">Input</label>
+          <div className="inline-controls">
+            <input
+              id="prompt"
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              disabled={!canUseSession || busy}
+            />
+            <button type="submit" disabled={!canUseSession || busy}>
+              Send
+            </button>
+          </div>
+        </form>
+
+        <div className="size-grid" aria-label="PTY size">
+          <label htmlFor="cols">Cols</label>
+          <input
+            id="cols"
+            type="number"
+            min="1"
+            value={cols}
+            onChange={(event) => setCols(Number(event.target.value))}
+          />
+          <label htmlFor="rows">Rows</label>
+          <input
+            id="rows"
+            type="number"
+            min="1"
+            value={rows}
+            onChange={(event) => setRows(Number(event.target.value))}
+          />
+          <button type="button" onClick={resizeSession} disabled={!canUseSession || busy}>
+            Resize
+          </button>
+        </div>
+
+        {error ? (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </section>
+
+      <section className="output-panel" aria-labelledby="output-title">
+        <div className="section-heading">
+          <p className="eyebrow">Output</p>
+          <h2 id="output-title">PTY Stream</h2>
+        </div>
+        <pre aria-label="PTY output">{output || "No output yet."}</pre>
       </section>
     </main>
   );
+}
+
+function errorText(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return JSON.stringify(error);
 }
 
 export default App;

@@ -1,15 +1,19 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import App from "./App";
 
-describe("App shell", () => {
-  it("renders the multi-agent workspace", () => {
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+
+describe("PTY test panel", () => {
+  it("renders fake CLI controls", () => {
     render(<App />);
 
-    expect(screen.getByRole("main", { name: "Code Buddy" })).toBeInTheDocument();
-    expect(screen.getByRole("navigation")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New session" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Session output" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Terminal output")).toHaveTextContent("AGENTS.md: active");
+    expect(screen.getByRole("main", { name: "AIadne PTY test" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Fake CLI Controls" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByLabelText("PTY output")).toHaveTextContent("No output yet.");
   });
 });

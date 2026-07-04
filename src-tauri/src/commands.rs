@@ -1,65 +1,54 @@
 use crate::{
-    agents_file,
-    domain::{AgentId, AgentInfo, AgentsFileResolution, Message, NewProject, Project},
     errors::AppResult,
-    state::AppState,
+    session::{SessionInfo, SessionManager, StartFakeSessionRequest},
 };
-use std::{path::PathBuf, str::FromStr};
 use tauri::State;
 
 #[tauri::command]
-pub fn list_agents(state: State<'_, AppState>) -> Vec<AgentInfo> {
-    state.adapters.list()
+pub fn start_fake_session(
+    state: State<'_, SessionManager>,
+    request: StartFakeSessionRequest,
+) -> AppResult<SessionInfo> {
+    state.start_fake_session(request)
 }
 
 #[tauri::command]
-pub fn list_projects(state: State<'_, AppState>) -> AppResult<Vec<Project>> {
-    state.storage.list_projects()
+pub fn write_session_input(
+    state: State<'_, SessionManager>,
+    session_id: String,
+    text: String,
+) -> AppResult<()> {
+    state.write_input(&session_id, &text)
 }
 
 #[tauri::command]
-pub fn create_project(
-    state: State<'_, AppState>,
-    path: PathBuf,
-    name: String,
-    default_agent: Option<String>,
-) -> AppResult<Project> {
-    let default_agent = default_agent
-        .as_deref()
-        .map(AgentId::from_str)
-        .transpose()?;
-
-    state.storage.create_project(NewProject {
-        name,
-        path,
-        default_agent,
-    })
+pub fn resize_session(
+    state: State<'_, SessionManager>,
+    session_id: String,
+    cols: u16,
+    rows: u16,
+) -> AppResult<SessionInfo> {
+    state.resize_session(&session_id, cols, rows)
 }
 
 #[tauri::command]
-pub fn get_transcript(state: State<'_, AppState>, session_id: String) -> AppResult<Vec<Message>> {
-    state.storage.list_messages(&session_id)
+pub fn stop_session(
+    state: State<'_, SessionManager>,
+    session_id: String,
+    force: bool,
+) -> AppResult<SessionInfo> {
+    state.stop_session(&session_id, force)
 }
 
 #[tauri::command]
-pub fn set_secret(state: State<'_, AppState>, agent_id: String, key: String) -> AppResult<()> {
-    state
-        .secrets
-        .set_secret(AgentId::from_str(&agent_id)?, &key)
+pub fn drain_session_output(
+    state: State<'_, SessionManager>,
+    session_id: String,
+) -> AppResult<String> {
+    state.drain_output(&session_id)
 }
 
 #[tauri::command]
-pub fn has_secret(state: State<'_, AppState>, agent_id: String) -> AppResult<bool> {
-    state.secrets.has_secret(AgentId::from_str(&agent_id)?)
-}
-
-#[tauri::command]
-pub fn resolve_agents_md(project_root: PathBuf, cwd: PathBuf) -> AppResult<AgentsFileResolution> {
-    agents_file::resolve_agents_file(&cwd, &project_root)
-}
-
-#[tauri::command]
-pub fn create_agents_md(project_root: PathBuf) -> AppResult<AgentsFileResolution> {
-    agents_file::create_agents_file(&project_root)?;
-    agents_file::resolve_agents_file(&project_root, &project_root)
+pub fn list_sessions(state: State<'_, SessionManager>) -> AppResult<Vec<SessionInfo>> {
+    state.list_sessions()
 }

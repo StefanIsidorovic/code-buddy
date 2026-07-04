@@ -2,41 +2,45 @@
 
 ## Identity
 - name: code-buddy
-- path: /home/stefan/code-buddy
+- path: /home/katarina/projects/AIadne
 - branch: setup
 
 ## Architecture
-- Tauri v2 application scaffold exists with React/TypeScript frontend and Rust backend entrypoints.
-- The product spec recommends Tauri v2, Rust backend, React/TypeScript/Vite frontend, xterm.js, Zustand, SQLite, keyring, and portable-pty.
-- Rust backend modules now separate domain types, errors, adapter registry, SQLite storage, keyring secrets, Tauri commands, and app state.
-- AGENTS.md resolver implements nearest-file-wins lookup from session cwd to project root and adapter-driven delivery strategies.
+- Current scaffold is a Tauri v2 desktop app with a Rust backend and React/TypeScript/Vite frontend.
+- Frontend renders a static reset skeleton showing the planned stack and build milestones.
+- Frontend now renders a minimal PTY test panel for AIA-002 manual validation.
+- Backend is reduced to the Tauri run entry and app_status command only.
+- Feature modules for adapters, SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally.
+- AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
+- SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
 - Backend entry: src-tauri/src/main.rs calls code_buddy_lib::run().
-- Tauri command: app_status returns "ready" for baseline backend validation.
-- Initial IPC commands: list_agents, list_projects, create_project, get_transcript, set_secret, has_secret.
-- AGENTS.md IPC commands: resolve_agents_md and create_agents_md.
+- Baseline backend command: app_status.
+- AIA-002 backend commands: start_fake_session, write_session_input, resize_session, stop_session, drain_session_output, list_sessions.
 
 ## Tests
-- Frontend: Vitest + Testing Library; baseline App shell render test.
-- Backend: cargo test covers app_status, adapter command construction, registry lookup errors, SQLite project/config/message CRUD, missing path rejection, memory secret store behavior, empty secret rejection, and redaction.
+- Frontend: Vitest + Testing Library via src/App.test.tsx.
+- Frontend test mocks @tauri-apps/api/core and checks PTY panel controls.
+- Backend: cargo test covers the minimal app_status command.
+- AIA-002 backend tests cover fake session start/output, input, resize, stop, force stop, cleanup, missing session errors, and 8-session concurrency.
 
 ## Current Findings
-- AGENTS.md defines a strict research, planning, implementation, testing, review, commit, and provenance workflow.
-- working_knowledge directories and templates were missing at session start despite being required by AGENTS.md.
-- .gitignore excludes working_knowledge, secrets, tools, .codex, .idea, and .git.
-- Node 24.13.0 and npm 11.6.2 are installed.
-- rustc and cargo are installed under ~/.cargo/bin; source ~/.cargo/env before Rust/Tauri commands in this shell.
-- Tauri Linux dependencies installed: webkit2gtk-4.1, javascriptcoregtk-4.1, gtk+-3.0, libxdo-dev, libayatana-appindicator3-dev, librsvg2-dev.
-- Ubuntu libxdo-dev provides /usr/include/xdo.h and /usr/lib/x86_64-linux-gnu/libxdo.so but no xdo.pc.
-- .gitignore now ignores node_modules, dist, and src-tauri/target while allowing working_knowledge to be tracked.
-- Adapter command tests use binary_path overrides so they do not require real CLIs to be installed.
-- Codex and Claude adapters use Native AGENTS.md delivery; Kimi uses PrependToPrompt.
-- Installed agent CLIs: Codex CLI 0.128.0, Claude Code 2.1.201, Kimi 1.44.0.
+- AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
+- working_knowledge was stale and has been regenerated for the reset task.
+- package-lock.json has a pre-existing metadata-only change unrelated to the reset.
+- HEAD 74ca850 has no provenance note under refs/notes/provenance.
+- docs/linear-tasks.md contains 16 task drafts mapped to the restart build plan.
+- README documents the reset skeleton and validation commands.
+- portable-pty 0.9.0 docs confirm native_pty_system/openpty, spawn_command, reader/writer handles, resize, try_wait, and kill APIs.
+- portable-pty 0.9.0 was added to Cargo.toml and Cargo.lock.
+- Validation passed: cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, npm run build.
+- Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 
 ## Constraints
-- Every implementation plan item must include tests and an adversarial review.
-- Every completed implementation plan item must be committed with a provenance git note under refs/notes/provenance.
-- The full v1 spec is too large to safely implement as one plan item.
-- Tauri validation should source ~/.cargo/env before npm/cargo commands.
+- Preserve user changes and do not revert package-lock.json.
+- Keep reset narrow: no new product functionality in this pass.
+- Use apply_patch for manual file edits.
+- User will commit after reviewing local changes.
+- Linux-first fake CLI is implemented with /bin/sh; Windows placeholder needs later hardening.

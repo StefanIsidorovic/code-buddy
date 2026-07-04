@@ -1,44 +1,48 @@
 # Status
 
 ## Session
-- session_id: codex-20260704T135305Z
+- session_id: codex-20260704T224654Z
 - date_utc: 2026-07-04
 - agent_model: codex
 
 ## Target Repositories
-- code-buddy: single repository in the current workspace.
+- code-buddy: /home/katarina/projects/AIadne
 
 ## Repository State
 - branch: setup
-- head: 92ebef7 merge init into main
-- worktree: clean for tracked files; working_knowledge is ignored by .gitignore until tracking policy is implemented.
-- relevant files: AGENTS.md defines workflow; README.md only contains the project name; no app scaffold exists.
+- head: 74ca850 step 3: add agents file resolution
+- worktree: dirty; reset skeleton changes and docs are local/uncommitted; package-lock.json has a pre-existing metadata-only change.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend is currently reduced to app_status and Tauri run entry.
 
 ## Current Task
-- request: implement the Multi-Agent Coding UI desktop app specification as a staged full v1 slice.
-- phase: implementation
-- active plan step: 4
+- request: add a minimal frontend test panel for AIA-002 PTY session core.
+- phase: complete
+- active plan step: none
 
 ## Risks And Constraints
-- User selected a staged full v1 slice with Linux-first acceptance.
-- User selected tracking working_knowledge despite the current .gitignore rule.
-- Tauri Linux native prerequisites are installed; Ubuntu libxdo-dev provides headers/library but no xdo.pc pkg-config file.
-- Rust is installed under ~/.cargo/bin; commands must source ~/.cargo/env in this shell.
-- working_knowledge templates were absent and had to be initialized from repository instructions.
-- working_knowledge is now trackable after .gitignore update.
-- Exact CLI flags for Codex, Kimi, and Claude Code must be verified when implementing adapters.
+- AIA-002 builds on local uncommitted reset skeleton changes.
+- package-lock.json was dirty before this task; avoid touching it unless dependency changes are required.
+- Existing HEAD lacks a provenance note under refs/notes/provenance; this must be reported or repaired before final validation.
+- Keep changes scoped to PTY session core, fake CLI support, minimal frontend test panel, tests, IPC shell, and working knowledge.
+- User explicitly asked the agent not to commit; all changes remain local for user review and commit.
+- portable-pty is not currently in the local Cargo registry cache; Cargo may need network access to fetch it.
+- portable-pty 0.9.0 was fetched with approved cargo network access.
 
 ## Last Verification
-- 2026-07-04T13:53:05Z: git status --short --branch -> branch init, no tracked changes.
-- 2026-07-04T13:53:05Z: file discovery -> only AGENTS.md, README.md, and .gitignore are tracked project files.
-- 2026-07-04T13:57:00Z: local toolchain check -> Node 24.13.0 and npm 11.6.2 installed; rustc and cargo not found.
-- 2026-07-04T13:57:00Z: Tauri Linux dependency check -> WebKitGTK pkg-config entries not found; sudo requires a password.
-- 2026-07-04T13:57:00Z: agent CLI check -> Codex CLI 0.128.0, Claude Code 2.1.201, Kimi 1.44.0 installed.
-- 2026-07-04T14:04:57Z: ~/.cargo/bin/rustc --version -> rustc 1.96.1 installed.
-- 2026-07-04T14:04:57Z: pkg-config Tauri dependency check -> webkit2gtk-4.1, javascriptcoregtk-4.1, gtk+-3.0, and xdo still not found.
-- 2026-07-04T14:16:35Z: installed Tauri Linux packages -> webkit2gtk-4.1 2.52.3, javascriptcoregtk-4.1 2.52.3, gtk+-3.0 3.24.41; libxdo headers/library present.
-- 2026-07-04T14:30:49Z: step 1 validation -> npm run typecheck, npm run test -- --run, npm run build, and cargo test passed.
-- 2026-07-04T14:30:49Z: step 1 commit -> 6208716 with provenance note under refs/notes/provenance.
-- 2026-07-04T14:48:06Z: step 2 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
-- 2026-07-04T14:48:06Z: step 2 commit -> d72b673 with provenance note under refs/notes/provenance.
-- 2026-07-04T14:59:01Z: step 3 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
+- 2026-07-04T22:30:18Z: git status --short --branch -> setup branch, package-lock.json modified.
+- 2026-07-04T22:30:18Z: git log -1 --oneline -> 74ca850 step 3: add agents file resolution.
+- 2026-07-04T22:30:18Z: git notes --ref=provenance show HEAD -> no note found for 74ca850.
+- 2026-07-04T22:30:18Z: file discovery -> existing product code spans src/App.*, src-tauri/src/{adapters,agents_file,commands,domain,errors,secrets,state,storage}.rs.
+- 2026-07-04T22:35:05Z: npm frontend validation via NVM PATH -> typecheck, test, and build passed.
+- 2026-07-04T22:35:xxZ: cargo test and cargo clippy -- -D warnings -> passed.
+- 2026-07-04T22:36:xxZ: git add src src-tauri/src -> blocked by read-only .git; escalation request rejected.
+- 2026-07-04T22:39:xxZ: user instructed agent to leave changes uncommitted for review.
+- 2026-07-04T22:39:xxZ: docs/linear-tasks.md added with 16 Linear-ready task drafts.
+- 2026-07-04T22:39:xxZ: final validation -> npm typecheck/test/build, cargo test, and cargo clippy passed.
+- 2026-07-04T22:46:54Z: AIA-002 research -> no existing PTY/session code; backend skeleton only.
+- 2026-07-04T22:46:54Z: docs.rs portable-pty 0.9.0 research -> supports native_pty_system, openpty, spawn_command, read/write, resize, try_wait, kill.
+- 2026-07-04T22:54:xxZ: cargo test -> 9 passed, including fake session IO, resize, stop, force stop, cleanup, and 8-session concurrency.
+- 2026-07-04T22:54:xxZ: cargo clippy -- -D warnings -> passed.
+- 2026-07-04T22:54:xxZ: npm run typecheck, npm run test -- --run, npm run build -> passed via NVM PATH.
+- 2026-07-04T23:05:xxZ: minimal PTY frontend panel added; npm typecheck/test/build, cargo test, and cargo clippy passed.
+- 2026-07-04T23:06:xxZ: Vite dev server started at http://127.0.0.1:1420/; PTY backend calls require Tauri runtime.
