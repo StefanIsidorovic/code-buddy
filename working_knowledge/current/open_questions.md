@@ -9,7 +9,7 @@
 
 ## Resolved
 - Target repository: code-buddy.
-- Current branch: init.
+- Current branch: setup.
 - First implementation target: staged full v1 slice.
 - First acceptance target: Linux first, with portability preserved.
 - working_knowledge policy: track in repository despite the current ignore rule.

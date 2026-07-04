@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: setup
-- head: 92ebef7 merge init into main
-- worktree: clean for tracked files; working_knowledge is ignored by .gitignore until tracking policy is implemented.
-- relevant files: AGENTS.md defines workflow; README.md only contains the project name; no app scaffold exists.
+- head: 74ca850 step 3 AGENTS.md resolution
+- worktree: step 4 PTY/session changes implemented and ready to commit.
+- relevant files: Tauri/React scaffold, Rust backend modules, AGENTS.md resolver, and PTY session manager are present.
 
 ## Current Task
 - request: implement the Multi-Agent Coding UI desktop app specification as a staged full v1 slice.
 - phase: implementation
-- active plan step: 4
+- active plan step: 5
 
 ## Risks And Constraints
 - User selected a staged full v1 slice with Linux-first acceptance.
@@ -42,3 +42,6 @@
 - 2026-07-04T14:48:06Z: step 2 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
 - 2026-07-04T14:48:06Z: step 2 commit -> d72b673 with provenance note under refs/notes/provenance.
 - 2026-07-04T14:59:01Z: step 3 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
+- 2026-07-04T14:59:01Z: step 3 commit -> 74ca850 with provenance note under refs/notes/provenance.
+- 2026-07-04T15:14:40Z: step 4 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
+- 2026-07-04T15:16:18Z: step 4 review -> fixed killed-to-exited state regression and manager drop orphan risk; review passed.

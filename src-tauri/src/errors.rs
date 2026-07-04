@@ -16,6 +16,8 @@ pub enum AppError {
     Io(String),
     #[error("keyring error: {0}")]
     Keyring(String),
+    #[error("process error: {0}")]
+    Process(String),
     #[error("storage error: {0}")]
     Storage(String),
 }

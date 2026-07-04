@@ -105,6 +105,21 @@ pub struct SessionConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StartSessionRequest {
+    pub agent_id: AgentId,
+    pub cwd: PathBuf,
+    pub mode: RunMode,
+    pub project_id: Option<String>,
+    pub binary_path: Option<PathBuf>,
+    pub model: Option<String>,
+    pub prompt: Option<String>,
+    #[serde(default)]
+    pub extra_args: Vec<String>,
+    #[serde(default)]
+    pub extra_env: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum InputDelivery {
     PtyBytes(Vec<u8>),

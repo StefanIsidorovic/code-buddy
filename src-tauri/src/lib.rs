@@ -3,7 +3,9 @@ pub mod agents_file;
 pub mod commands;
 pub mod domain;
 pub mod errors;
+pub mod events;
 pub mod secrets;
+pub mod session;
 pub mod state;
 pub mod storage;
 
@@ -38,6 +40,11 @@ pub fn run() {
             commands::has_secret,
             commands::resolve_agents_md,
             commands::create_agents_md,
+            commands::start_session,
+            commands::write_input,
+            commands::write_raw,
+            commands::resize_session,
+            commands::stop_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

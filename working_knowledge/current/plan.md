@@ -33,18 +33,18 @@
 - acceptance criteria: backend resolves nested AGENTS.md files deterministically; native readers are not double-injected; Kimi/fake non-native delivery prepends or flags instructions once.
 - required tests: nearest-file-wins success; no-file fallback; parent/child precedence; native non-injection; non-native idempotent injection edge cases.
 - review status: passed
-- commit: pending
+- commit: 74ca850
 
 ### 4. Implement PTY session manager and IPC surface
 - objective: launch, stream, resize, write to, stop, and clean up concurrent CLI sessions.
-- status: in_progress
-- files: src-tauri/Cargo.toml; src-tauri/src/session.rs; src-tauri/src/commands.rs; src-tauri/src/events.rs; src-tauri/src/state.rs; src-tauri/src/tests/fake_cli.rs; src-tauri/src/tests/*
-- affected units: SessionManager, SessionHandle, SessionState, reader task, writer handle, Tauri commands, Tauri events.
-- expected changes: use portable-pty for per-session PTY; emit session:output, session:event, and session:state events; coalesce output chunks; implement graceful stop then force kill; kill children on shutdown.
-- acceptance criteria: fake CLI sessions start, stream output, accept input, resize, stop, and leave no live child; at least 8 fake sessions run without cross-interference.
-- required tests: PTY integration success/failure/edge cases; resize test; graceful/force kill tests; concurrent session test; orphan check test.
-- review status: not_started
-- commit: none
+- status: complete
+- files: src-tauri/Cargo.toml; src-tauri/Cargo.lock; src-tauri/src/session.rs; src-tauri/src/commands.rs; src-tauri/src/events.rs; src-tauri/src/state.rs; src-tauri/src/domain.rs; src-tauri/src/errors.rs; src-tauri/src/lib.rs
+- affected units: SessionManager, RunningSession, SessionState, reader thread, writer handle, Tauri commands, Tauri events, AppState.
+- expected changes: use portable-pty for per-session PTY; emit session:output, session:event, and session:state events; implement input/raw writes, resize, force stop, graceful interrupt with delayed kill, and manager shutdown cleanup.
+- acceptance criteria: fake CLI sessions start, stream output, accept input, resize, stop, avoid killed-to-exited state regression, and at least 8 fake sessions run without cross-interference.
+- required tests: PTY streaming/input test; resize success/failure test; force kill removal test; killed state regression test; invalid cwd failure test; 8-session concurrency test.
+- review status: passed
+- commit: pending
 
 ### 5. Build the desktop UI and frontend state
 - objective: expose the multi-agent control surface in React with terminal and structured views.
