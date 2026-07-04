@@ -13,6 +13,7 @@
 - PTY session orchestration uses portable-pty with one running child per session, reader threads for streamed output, writer handles for input, resize support, and forced cleanup on manager drop.
 - Structured event parsing uses per-session AgentOutputParser instances so partial JSONL reads are buffered independently for each running session.
 - Frontend modules now separate typed Tauri API wrappers, shared TS domain types, Zustand runtime state, and componentized sidebar/topbar/terminal/chat/details surfaces.
+- README documents Linux-first setup, validation, architecture, security notes, and provenance workflow.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -47,6 +48,8 @@
 - Force-stopped sessions are removed before the reader thread reports process exit, preventing killed sessions from reverting to exited in the UI.
 - SessionManager is intentionally not cloneable; dropping it kills active child sessions for shutdown cleanup.
 - UI start blocks missing CLIs, resolves AGENTS.md before launch, and resets headless mode when the selected agent does not support it.
+- Tauri identifier is com.codebuddy.desktop.
+- Linux packaging validation produced deb, rpm, and AppImage bundles under src-tauri/target/release/bundle/.
 
 ## Constraints
 - Every implementation plan item must include tests and an adversarial review.

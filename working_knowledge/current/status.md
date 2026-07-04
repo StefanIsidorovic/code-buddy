@@ -10,9 +10,9 @@
 
 ## Repository State
 - branch: setup
-- head: baaef46 step 5 desktop control surface
-- worktree: step 6 parser changes implemented and ready to commit.
-- relevant files: Tauri/React scaffold, Rust backend modules, AGENTS.md resolver, and PTY session manager are present.
+- head: 02ee5b4 step 6 structured event parsers
+- worktree: step 7 documentation/config changes implemented and ready to commit.
+- relevant files: Tauri/React UI, Rust backend modules, AGENTS.md resolver, PTY session manager, structured parsers, and README are present.
 
 ## Current Task
 - request: implement the Multi-Agent Coding UI desktop app specification as a staged full v1 slice.
@@ -52,3 +52,7 @@
 - 2026-07-04T15:50:00Z: step 6 CLI help verification -> Codex exec --json, Claude --print stream-json, and Kimi --print stream-json are supported by installed CLIs.
 - 2026-07-04T15:59:04Z: step 6 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
 - 2026-07-04T15:59:04Z: step 6 review -> fixed Codex user-role message misclassification; review passed.
+- 2026-07-04T16:01:25Z: step 6 commit -> 02ee5b4 with provenance note under refs/notes/provenance.
+- 2026-07-04T16:04:25Z: step 7 validation -> npm run typecheck, npm run test -- --run, npm run build, cargo test, and cargo clippy -- -D warnings passed.
+- 2026-07-04T16:09:00Z: step 7 packaging -> npm run tauri build passed and produced deb, rpm, and AppImage bundles.
+- 2026-07-04T16:10:07Z: step 7 review -> fixed Tauri identifier warning by changing identifier to com.codebuddy.desktop; review passed.

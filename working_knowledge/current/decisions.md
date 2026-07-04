@@ -12,6 +12,7 @@
 - Use Zustand for frontend runtime state and keep Tauri command/event calls behind src/lib/api.ts.
 - Load xterm.js dynamically in the terminal component so tests and non-browser contexts do not depend on canvas/WebGL.
 - Use one AgentOutputParser per running session instead of parsing through shared adapter instances, so structured JSONL buffering cannot leak across sessions.
+- Use com.codebuddy.desktop as the Tauri identifier to avoid the macOS .app bundle-extension warning.
 
 ## Deferred
 - Session resume inclusion: not yet decided.

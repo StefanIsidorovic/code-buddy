@@ -66,18 +66,18 @@
 - acceptance criteria: Codex, Claude, and Kimi adapters build commands matching installed help; structured fixtures produce normalized messages/tool calls/results/completion; malformed and partial JSONL does not panic.
 - required tests: parser fixture tests for all three agents; malformed JSON warning test; partial-line buffering test; Codex user-role regression test; existing command construction tests.
 - review status: passed
-- commit: pending
+- commit: 02ee5b4
 
 ### 7. Hardening, final validation, and packaging readiness
 - objective: finish the Linux-first v1 slice with validation, docs, and knowledge updates.
-- status: pending
-- files: README.md; src-tauri/tauri.conf.json; src-tauri/Cargo.toml; package.json; working_knowledge/current/*
-- affected units: documentation, scripts, final config, all previously added modules.
-- expected changes: document install/run/test steps; add doctor notes for missing CLIs; run full validation; update working knowledge; verify provenance notes for completed commits.
-- acceptance criteria: npm run typecheck, npm run test, npm run build, cargo test, and cargo clippy pass where available; Tauri dev/build reaches compile stage on Linux; each completed plan item has one commit with a provenance note.
-- required tests: full frontend/backend test suite; cargo clippy; npm build; manual smoke launch if dev server/app starts cleanly.
-- review status: not_started
-- commit: none
+- status: complete
+- files: README.md; src-tauri/tauri.conf.json; working_knowledge/current/*
+- affected units: documentation, final Tauri bundle identifier, validation evidence, provenance audit.
+- expected changes: document install/run/test steps; document current scope, architecture, security notes, and provenance workflow; run full validation; update working knowledge; verify provenance notes for completed commits.
+- acceptance criteria: npm run typecheck, npm run test -- --run, npm run build, cargo test, cargo clippy -- -D warnings, and npm run tauri build pass; each completed plan item has one commit with a provenance note.
+- required tests: full frontend/backend test suite; cargo clippy; npm build; Tauri Linux bundle build; provenance note audit.
+- review status: passed
+- commit: pending
 
 ## Plan Assumptions
 - Linux is the acceptance-critical platform for this pass; macOS and Windows portability is preserved through portable-pty and Tauri abstractions but not validated locally.
