@@ -2,14 +2,15 @@
 
 ## Current State
 - User selected a staged full v1 slice, Linux-first acceptance, and tracking working_knowledge.
-- Current branch is setup at 74ca850.
+- Current branch is setup at f3ed039.
 - Step 1 is committed as 6208716 with a verified provenance note.
 - Step 2 is committed as d72b673 with a verified provenance note.
 - Step 3 is committed as 74ca850 with a verified provenance note.
-- Step 4 PTY session manager and IPC are implemented, tested, reviewed, and ready to commit.
+- Step 4 is committed as f3ed039 with a verified provenance note.
+- Step 5 UI/control surface is implemented, tested, reviewed, and ready to commit.
 
 ## Next Step
-- Commit step 4 with a provenance note, then implement step 5 desktop UI and frontend state.
+- Commit step 5 with a provenance note, then implement step 6 adapter fixtures and structured-event parsing.
 
 ## Commands To Re-Run
 - git status --short --branch: verify worktree state.
@@ -24,3 +25,5 @@
 - Ensure every implementation plan item has tests, review, one commit, and a provenance note.
 - Verify real CLI flags from installed tools before hardcoding adapter behavior.
 - PTY force-stop must not emit an exited state after killed; keep the regression test.
+- Frontend tests mock src/lib/api.ts; reset Zustand state with useAppStore.getState().resetForTest().
+- Browser preview outside Tauri shows backend-unavailable state by design.

@@ -9,6 +9,8 @@
 - Stay on the Tauri/Rust architecture and pause until dependencies are installed.
 - Keep SessionManager as the single process lifecycle owner; it is not cloneable and kills active child sessions on drop.
 - For force stop, emit killed and remove the session before reader-thread exit handling so the UI does not receive a later exited state for a killed session.
+- Use Zustand for frontend runtime state and keep Tauri command/event calls behind src/lib/api.ts.
+- Load xterm.js dynamically in the terminal component so tests and non-browser contexts do not depend on canvas/WebGL.
 
 ## Deferred
 - Session resume inclusion: not yet decided.
