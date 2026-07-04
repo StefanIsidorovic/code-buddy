@@ -11,6 +11,7 @@
 - For force stop, emit killed and remove the session before reader-thread exit handling so the UI does not receive a later exited state for a killed session.
 - Use Zustand for frontend runtime state and keep Tauri command/event calls behind src/lib/api.ts.
 - Load xterm.js dynamically in the terminal component so tests and non-browser contexts do not depend on canvas/WebGL.
+- Use one AgentOutputParser per running session instead of parsing through shared adapter instances, so structured JSONL buffering cannot leak across sessions.
 
 ## Deferred
 - Session resume inclusion: not yet decided.

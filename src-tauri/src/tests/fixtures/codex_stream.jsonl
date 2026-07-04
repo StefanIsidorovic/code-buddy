@@ -1,0 +1,6 @@
+{"type":"thread.started","thread_id":"codex-thread-1"}
+{"type":"assistant_message.delta","delta":"I will inspect the project."}
+{"type":"tool_call","name":"shell","input":{"cmd":"cargo test"}}
+{"type":"tool_result","name":"shell","output":"28 passed","is_error":false}
+{"type":"assistant_message","message":{"content":[{"type":"text","text":"Tests passed."}]}}
+{"type":"turn.completed","exit_code":0}

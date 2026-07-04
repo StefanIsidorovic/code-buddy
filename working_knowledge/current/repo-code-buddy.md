@@ -11,6 +11,7 @@
 - Rust backend modules now separate domain types, errors, adapter registry, SQLite storage, keyring secrets, Tauri commands, and app state.
 - AGENTS.md resolver implements nearest-file-wins lookup from session cwd to project root and adapter-driven delivery strategies.
 - PTY session orchestration uses portable-pty with one running child per session, reader threads for streamed output, writer handles for input, resize support, and forced cleanup on manager drop.
+- Structured event parsing uses per-session AgentOutputParser instances so partial JSONL reads are buffered independently for each running session.
 - Frontend modules now separate typed Tauri API wrappers, shared TS domain types, Zustand runtime state, and componentized sidebar/topbar/terminal/chat/details surfaces.
 
 ## Entry Points
@@ -28,6 +29,7 @@
 - Frontend component tests now mock the Tauri API and cover bootstrap, project creation, session start request mapping, prompt dispatch, and streamed output updates.
 - Backend: cargo test covers app_status, adapter command construction, registry lookup errors, SQLite project/config/message CRUD, missing path rejection, memory secret store behavior, empty secret rejection, and redaction.
 - PTY tests cover fake session streaming/input, resize validation, force stop removal, killed-state regression, invalid cwd rejection, and 8 concurrent fake sessions.
+- Structured parser tests cover Codex, Claude, and Kimi JSONL fixtures, malformed JSON warnings, partial-line buffering, and Codex user-role mapping.
 
 ## Current Findings
 - AGENTS.md defines a strict research, planning, implementation, testing, review, commit, and provenance workflow.
@@ -41,6 +43,7 @@
 - Adapter command tests use binary_path overrides so they do not require real CLIs to be installed.
 - Codex and Claude adapters use Native AGENTS.md delivery; Kimi uses PrependToPrompt.
 - Installed agent CLIs: Codex CLI 0.128.0, Claude Code 2.1.201, Kimi 1.44.0.
+- Verified local help: Codex supports exec --json; Claude supports --print with stream-json and partial messages; Kimi supports --print with stream-json.
 - Force-stopped sessions are removed before the reader thread reports process exit, preventing killed sessions from reverting to exited in the UI.
 - SessionManager is intentionally not cloneable; dropping it kills active child sessions for shutdown cleanup.
 - UI start blocks missing CLIs, resolves AGENTS.md before launch, and resets headless mode when the selected agent does not support it.

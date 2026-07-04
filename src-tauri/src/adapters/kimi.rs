@@ -1,4 +1,6 @@
-use super::{base_command, detect_binary, resolve_program, AgentAdapter};
+use super::{
+    base_command, detect_binary, resolve_program, structured, AgentAdapter, AgentOutputParser,
+};
 use crate::{
     domain::{
         AgentId, AgentsFileDelivery, Capabilities, CommandSpec, Detection, InputDelivery, RunMode,
@@ -73,6 +75,10 @@ impl AgentAdapter for KimiAdapter {
 
     fn agents_file_delivery(&self) -> AgentsFileDelivery {
         AgentsFileDelivery::PrependToPrompt
+    }
+
+    fn create_parser(&self) -> Box<dyn AgentOutputParser> {
+        structured::kimi_parser()
     }
 }
 

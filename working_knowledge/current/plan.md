@@ -55,18 +55,18 @@
 - acceptance criteria: UI can create/select project, start agent sessions, stream terminal output, submit prompts, switch terminal/chat views, show detection and AGENTS status, and avoid layout overlap on desktop widths.
 - required tests: component tests for bootstrap, project creation, session start request mapping, prompt dispatch, and streamed output; typecheck and build.
 - review status: passed
-- commit: pending
+- commit: baaef46
 
 ### 6. Add real adapter fixtures and structured-event parsing
 - objective: normalize structured output for agents that support stream/json modes while preserving terminal fallback.
-- status: pending
-- files: src-tauri/src/adapters/codex.rs; src-tauri/src/adapters/claude.rs; src-tauri/src/adapters/kimi.rs; src-tauri/src/tests/fixtures/codex_stream.jsonl; src-tauri/src/tests/fixtures/claude_stream.jsonl; src-tauri/src/tests/fixtures/kimi_stream.jsonl; src-tauri/src/tests/*
-- affected units: parse_chunk implementations, capabilities, RunMode handling, model flags, approval/sandbox flags, command construction.
-- expected changes: parse representative JSONL/stream-json events into AgentEvent; keep raw-output fallback for terminal mode; verify installed CLI flags from local help output; avoid hardcoding unverified secret env names beyond configurable defaults.
-- acceptance criteria: Codex, Claude, and Kimi adapters build commands matching installed help; structured fixtures produce normalized messages/tool calls/results/completion; malformed JSON falls back to notices/raw output without panics.
-- required tests: parser success/failure/edge fixtures; command construction edge cases; malformed/partial chunk tests.
-- review status: not_started
-- commit: none
+- status: complete
+- files: src-tauri/src/adapters/mod.rs; src-tauri/src/adapters/structured.rs; src-tauri/src/adapters/codex.rs; src-tauri/src/adapters/claude.rs; src-tauri/src/adapters/kimi.rs; src-tauri/src/session.rs; src-tauri/src/tests/fixtures/codex_stream.jsonl; src-tauri/src/tests/fixtures/claude_stream.jsonl; src-tauri/src/tests/fixtures/kimi_stream.jsonl
+- affected units: AgentAdapter parser factory, AgentOutputParser, per-session reader parser state, Codex/Claude/Kimi parser implementations, command construction.
+- expected changes: parse representative JSONL/stream-json events into AgentEvent; keep raw-output fallback for terminal mode; verify installed CLI flags from local help output; add Claude partial-message flag.
+- acceptance criteria: Codex, Claude, and Kimi adapters build commands matching installed help; structured fixtures produce normalized messages/tool calls/results/completion; malformed and partial JSONL does not panic.
+- required tests: parser fixture tests for all three agents; malformed JSON warning test; partial-line buffering test; Codex user-role regression test; existing command construction tests.
+- review status: passed
+- commit: pending
 
 ### 7. Hardening, final validation, and packaging readiness
 - objective: finish the Linux-first v1 slice with validation, docs, and knowledge updates.

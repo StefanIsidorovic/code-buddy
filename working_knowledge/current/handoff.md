@@ -2,15 +2,16 @@
 
 ## Current State
 - User selected a staged full v1 slice, Linux-first acceptance, and tracking working_knowledge.
-- Current branch is setup at f3ed039.
+- Current branch is setup at baaef46 with step 6 changes ready to commit.
 - Step 1 is committed as 6208716 with a verified provenance note.
 - Step 2 is committed as d72b673 with a verified provenance note.
 - Step 3 is committed as 74ca850 with a verified provenance note.
 - Step 4 is committed as f3ed039 with a verified provenance note.
-- Step 5 UI/control surface is implemented, tested, reviewed, and ready to commit.
+- Step 5 is committed as baaef46 with a verified provenance note.
+- Step 6 structured parser work is implemented, tested, reviewed, and ready to commit.
 
 ## Next Step
-- Commit step 5 with a provenance note, then implement step 6 adapter fixtures and structured-event parsing.
+- Commit step 6 with a provenance note, then implement step 7 hardening, final validation, and packaging readiness.
 
 ## Commands To Re-Run
 - git status --short --branch: verify worktree state.
@@ -27,3 +28,4 @@
 - PTY force-stop must not emit an exited state after killed; keep the regression test.
 - Frontend tests mock src/lib/api.ts; reset Zustand state with useAppStore.getState().resetForTest().
 - Browser preview outside Tauri shows backend-unavailable state by design.
+- Structured parser fixtures live under src-tauri/src/tests/fixtures/*.jsonl.

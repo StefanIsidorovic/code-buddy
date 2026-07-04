@@ -1,4 +1,6 @@
-use super::{base_command, detect_binary, resolve_program, AgentAdapter};
+use super::{
+    base_command, detect_binary, resolve_program, structured, AgentAdapter, AgentOutputParser,
+};
 use crate::{
     domain::{
         AgentId, AgentsFileDelivery, Capabilities, CommandSpec, Detection, InputDelivery, RunMode,
@@ -44,6 +46,7 @@ impl AgentAdapter for ClaudeAdapter {
             spec.args.push("stream-json".to_string());
             spec.args.push("--input-format".to_string());
             spec.args.push("text".to_string());
+            spec.args.push("--include-partial-messages".to_string());
         }
 
         if let Some(model) = &cfg.model {
@@ -72,6 +75,10 @@ impl AgentAdapter for ClaudeAdapter {
     fn agents_file_delivery(&self) -> AgentsFileDelivery {
         AgentsFileDelivery::Native
     }
+
+    fn create_parser(&self) -> Box<dyn AgentOutputParser> {
+        structured::claude_parser()
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +106,9 @@ mod tests {
         assert!(spec.args.contains(&"--print".to_string()));
         assert!(spec.args.contains(&"stream-json".to_string()));
         assert!(spec.args.contains(&"text".to_string()));
+        assert!(spec
+            .args
+            .contains(&"--include-partial-messages".to_string()));
         assert_eq!(spec.args.last(), Some(&"review".to_string()));
     }
 }

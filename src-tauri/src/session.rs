@@ -105,11 +105,12 @@ impl SessionManager {
         let sessions = self.sessions.clone();
         let thread_session_id = session_id.clone();
         thread::spawn(move || {
+            let parser = adapter.create_parser();
             reader_loop(
                 thread_session_id,
                 reader,
                 &mut child,
-                adapter,
+                parser,
                 emitter,
                 sessions,
             );
@@ -293,7 +294,7 @@ fn reader_loop(
     session_id: String,
     mut reader: Box<dyn Read + Send>,
     child: &mut Box<dyn portable_pty::Child + Send + Sync>,
-    adapter: Arc<dyn AgentAdapter>,
+    mut parser: Box<dyn crate::adapters::AgentOutputParser>,
     emitter: Arc<dyn SessionEventEmitter>,
     sessions: SharedSessions,
 ) {
@@ -307,7 +308,7 @@ fn reader_loop(
                     session_id: session_id.clone(),
                     bytes: bytes.clone(),
                 });
-                for event in adapter.parse_chunk(&bytes) {
+                for event in parser.parse_chunk(&bytes) {
                     emitter.emit_agent_event(SessionEventPayload {
                         session_id: session_id.clone(),
                         event,
@@ -316,6 +317,13 @@ fn reader_loop(
             }
             Err(_) => break,
         }
+    }
+
+    for event in parser.flush() {
+        emitter.emit_agent_event(SessionEventPayload {
+            session_id: session_id.clone(),
+            event,
+        });
     }
 
     let exit_code = child.wait().ok().map(|status| status.exit_code() as i32);

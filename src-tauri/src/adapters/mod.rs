@@ -12,6 +12,7 @@ mod codex;
 #[cfg(test)]
 mod fake;
 mod kimi;
+mod structured;
 
 #[cfg(test)]
 pub use fake::FakeAdapter;
@@ -24,8 +25,28 @@ pub trait AgentAdapter: Send + Sync {
     fn build_command(&self, cfg: &SessionConfig, mode: RunMode) -> AppResult<CommandSpec>;
     fn encode_input(&self, text: &str, mode: RunMode) -> InputDelivery;
     fn agents_file_delivery(&self) -> AgentsFileDelivery;
+    fn create_parser(&self) -> Box<dyn AgentOutputParser> {
+        Box::new(RawOutputParser)
+    }
 
     fn parse_chunk(&self, chunk: &[u8]) -> Vec<AgentEvent> {
+        let mut parser = self.create_parser();
+        parser.parse_chunk(chunk)
+    }
+}
+
+pub trait AgentOutputParser: Send {
+    fn parse_chunk(&mut self, chunk: &[u8]) -> Vec<AgentEvent>;
+
+    fn flush(&mut self) -> Vec<AgentEvent> {
+        Vec::new()
+    }
+}
+
+struct RawOutputParser;
+
+impl AgentOutputParser for RawOutputParser {
+    fn parse_chunk(&mut self, chunk: &[u8]) -> Vec<AgentEvent> {
         vec![AgentEvent::RawOutput {
             bytes: chunk.to_vec(),
         }]

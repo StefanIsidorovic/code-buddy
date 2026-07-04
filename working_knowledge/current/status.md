@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: setup
-- head: f3ed039 step 4 PTY session manager
-- worktree: step 5 UI changes implemented and ready to commit.
+- head: baaef46 step 5 desktop control surface
+- worktree: step 6 parser changes implemented and ready to commit.
 - relevant files: Tauri/React scaffold, Rust backend modules, AGENTS.md resolver, and PTY session manager are present.
 
 ## Current Task
 - request: implement the Multi-Agent Coding UI desktop app specification as a staged full v1 slice.
 - phase: implementation
-- active plan step: 6
+- active plan step: 7
 
 ## Risks And Constraints
 - User selected a staged full v1 slice with Linux-first acceptance.
@@ -48,3 +48,7 @@
 - 2026-07-04T15:18:50Z: step 4 commit -> f3ed039 with provenance note under refs/notes/provenance.
 - 2026-07-04T15:44:20Z: step 5 validation -> npm run typecheck, npm run test -- --run, npm run build, cargo test, and cargo clippy -- -D warnings passed.
 - 2026-07-04T15:45:55Z: step 5 review -> fixed invalid headless mode carryover and added AGENTS.md create action; browser preview console had no runtime errors.
+- 2026-07-04T15:48:02Z: step 5 commit -> baaef46 with provenance note under refs/notes/provenance.
+- 2026-07-04T15:50:00Z: step 6 CLI help verification -> Codex exec --json, Claude --print stream-json, and Kimi --print stream-json are supported by installed CLIs.
+- 2026-07-04T15:59:04Z: step 6 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
+- 2026-07-04T15:59:04Z: step 6 review -> fixed Codex user-role message misclassification; review passed.

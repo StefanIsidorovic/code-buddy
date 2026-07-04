@@ -1,0 +1,6 @@
+{"event":"session_started","session_id":"kimi-session-1"}
+{"event":"assistant_delta","delta":"Checking workspace."}
+{"event":"tool_call","name":"shell","input":{"cmd":"ls"}}
+{"event":"tool_result","name":"shell","output":"src\nsrc-tauri","is_error":false}
+{"event":"assistant_message","content":"Workspace checked."}
+{"event":"completed","exit_code":0}
