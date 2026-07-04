@@ -1,7 +1,8 @@
 use super::{base_command, detect_binary, resolve_program, AgentAdapter};
 use crate::{
     domain::{
-        AgentId, Capabilities, CommandSpec, Detection, InputDelivery, RunMode, SessionConfig,
+        AgentId, AgentsFileDelivery, Capabilities, CommandSpec, Detection, InputDelivery, RunMode,
+        SessionConfig,
     },
     errors::AppResult,
 };
@@ -66,6 +67,10 @@ impl AgentAdapter for CodexAdapter {
             RunMode::Interactive => InputDelivery::PtyBytes(format!("{text}\n").into_bytes()),
             RunMode::Headless => InputDelivery::HeadlessPromptArg(text.to_string()),
         }
+    }
+
+    fn agents_file_delivery(&self) -> AgentsFileDelivery {
+        AgentsFileDelivery::Native
     }
 }
 

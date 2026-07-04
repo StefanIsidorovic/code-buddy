@@ -1,7 +1,8 @@
 use super::{base_command, AgentAdapter};
 use crate::{
     domain::{
-        AgentId, Capabilities, CommandSpec, Detection, InputDelivery, RunMode, SessionConfig,
+        AgentId, AgentsFileDelivery, Capabilities, CommandSpec, Detection, InputDelivery, RunMode,
+        SessionConfig,
     },
     errors::AppResult,
 };
@@ -46,5 +47,9 @@ impl AgentAdapter for FakeAdapter {
 
     fn encode_input(&self, text: &str, _mode: RunMode) -> InputDelivery {
         InputDelivery::PtyBytes(format!("{text}\n").into_bytes())
+    }
+
+    fn agents_file_delivery(&self) -> AgentsFileDelivery {
+        AgentsFileDelivery::PrependToPrompt
     }
 }

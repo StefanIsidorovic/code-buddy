@@ -112,6 +112,46 @@ pub enum InputDelivery {
     HeadlessPromptArg(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum AgentsFileDelivery {
+    Native,
+    InstructionsFlag(String),
+    PrependToPrompt,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentsFileStatus {
+    Active,
+    NotFound,
+    Injected,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentsFileEntry {
+    pub path: PathBuf,
+    pub relative_dir: PathBuf,
+    pub priority: usize,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentsFileResolution {
+    pub status: AgentsFileStatus,
+    pub active_path: Option<PathBuf>,
+    pub files: Vec<AgentsFileEntry>,
+    pub combined_content: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentsFileApplication {
+    pub prompt: String,
+    pub args: Vec<String>,
+    pub injected: bool,
+    pub status: AgentsFileStatus,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {

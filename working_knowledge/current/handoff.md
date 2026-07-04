@@ -7,10 +7,11 @@
 - Rust and native Tauri Linux dependencies are installed enough to proceed.
 - Current branch is setup at 92ebef7.
 - Step 1 is committed as 6208716 with a verified provenance note.
-- Step 2 backend domain/storage/secrets/adapters is implemented, tested, and ready to commit.
+- Step 2 is committed as d72b673 with a verified provenance note.
+- Step 3 AGENTS.md resolution/delivery is implemented, tested, and ready to commit.
 
 ## Next Step
-- Commit step 2 with a provenance note, then implement step 3 AGENTS.md resolution and delivery.
+- Commit step 3 with a provenance note, then implement step 4 PTY session manager and IPC.
 
 ## Commands To Re-Run
 - git status --short --branch: verify worktree state.

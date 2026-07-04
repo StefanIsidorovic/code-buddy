@@ -17,7 +17,7 @@
 ## Current Task
 - request: implement the Multi-Agent Coding UI desktop app specification as a staged full v1 slice.
 - phase: implementation
-- active plan step: 3
+- active plan step: 4
 
 ## Risks And Constraints
 - User selected a staged full v1 slice with Linux-first acceptance.
@@ -40,3 +40,5 @@
 - 2026-07-04T14:30:49Z: step 1 validation -> npm run typecheck, npm run test -- --run, npm run build, and cargo test passed.
 - 2026-07-04T14:30:49Z: step 1 commit -> 6208716 with provenance note under refs/notes/provenance.
 - 2026-07-04T14:48:06Z: step 2 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
+- 2026-07-04T14:48:06Z: step 2 commit -> d72b673 with provenance note under refs/notes/provenance.
+- 2026-07-04T14:59:01Z: step 3 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.

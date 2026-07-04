@@ -22,22 +22,22 @@
 - acceptance criteria: backend can list agents, detect installed CLIs, create/list projects, persist config/messages, store/check secrets without plaintext database writes.
 - required tests: adapter command unit tests for success/failure/edge cases; storage migration and CRUD tests; secret redaction tests.
 - review status: passed
-- commit: pending
+- commit: d72b673
 
 ### 3. Implement AGENTS.md resolution and delivery strategy
 - objective: apply project instructions uniformly across native and non-native agents.
-- status: in_progress
+- status: complete
 - files: src-tauri/src/agents_file.rs; src-tauri/src/adapters/mod.rs; src-tauri/src/adapters/codex.rs; src-tauri/src/adapters/claude.rs; src-tauri/src/adapters/kimi.rs; src-tauri/src/commands.rs; src-tauri/src/tests/fixtures/agents_md/*
 - affected units: AgentsFileResolution, AgentsFileDelivery, adapter capability declarations, session config preparation.
 - expected changes: implement nearest-file-wins collection from cwd to project root; expose Native, InstructionsFlag, and PrependToPrompt strategies; add create-template helper and reload-needed metadata.
 - acceptance criteria: backend resolves nested AGENTS.md files deterministically; native readers are not double-injected; Kimi/fake non-native delivery prepends or flags instructions once.
 - required tests: nearest-file-wins success; no-file fallback; parent/child precedence; native non-injection; non-native idempotent injection edge cases.
-- review status: not_started
-- commit: none
+- review status: passed
+- commit: pending
 
 ### 4. Implement PTY session manager and IPC surface
 - objective: launch, stream, resize, write to, stop, and clean up concurrent CLI sessions.
-- status: pending
+- status: in_progress
 - files: src-tauri/Cargo.toml; src-tauri/src/session.rs; src-tauri/src/commands.rs; src-tauri/src/events.rs; src-tauri/src/state.rs; src-tauri/src/tests/fake_cli.rs; src-tauri/src/tests/*
 - affected units: SessionManager, SessionHandle, SessionState, reader task, writer handle, Tauri commands, Tauri events.
 - expected changes: use portable-pty for per-session PTY; emit session:output, session:event, and session:state events; coalesce output chunks; implement graceful stop then force kill; kill children on shutdown.

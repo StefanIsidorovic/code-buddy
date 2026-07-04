@@ -1,7 +1,7 @@
 use crate::{
     domain::{
-        AgentEvent, AgentId, AgentInfo, Capabilities, CommandSpec, Detection, InputDelivery,
-        RunMode, SessionConfig,
+        AgentEvent, AgentId, AgentInfo, AgentsFileDelivery, Capabilities, CommandSpec, Detection,
+        InputDelivery, RunMode, SessionConfig,
     },
     errors::{AppError, AppResult},
 };
@@ -23,6 +23,7 @@ pub trait AgentAdapter: Send + Sync {
     fn capabilities(&self) -> Capabilities;
     fn build_command(&self, cfg: &SessionConfig, mode: RunMode) -> AppResult<CommandSpec>;
     fn encode_input(&self, text: &str, mode: RunMode) -> InputDelivery;
+    fn agents_file_delivery(&self) -> AgentsFileDelivery;
 
     fn parse_chunk(&self, chunk: &[u8]) -> Vec<AgentEvent> {
         vec![AgentEvent::RawOutput {
@@ -122,6 +123,7 @@ fn base_command(program: PathBuf, cfg: &SessionConfig) -> CommandSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::AgentsFileDelivery;
 
     #[test]
     fn registry_returns_fake_adapter() {
@@ -135,5 +137,32 @@ mod tests {
         let registry = AdapterRegistry::with_fake();
         let result = registry.get(AgentId::Codex);
         assert!(matches!(result, Err(AppError::AdapterNotFound(_))));
+    }
+
+    #[test]
+    fn production_adapters_expose_agents_file_delivery_strategy() {
+        let registry = AdapterRegistry::production();
+
+        assert_eq!(
+            registry
+                .get(AgentId::Codex)
+                .expect("codex adapter")
+                .agents_file_delivery(),
+            AgentsFileDelivery::Native
+        );
+        assert_eq!(
+            registry
+                .get(AgentId::ClaudeCode)
+                .expect("claude adapter")
+                .agents_file_delivery(),
+            AgentsFileDelivery::Native
+        );
+        assert_eq!(
+            registry
+                .get(AgentId::Kimi)
+                .expect("kimi adapter")
+                .agents_file_delivery(),
+            AgentsFileDelivery::PrependToPrompt
+        );
     }
 }

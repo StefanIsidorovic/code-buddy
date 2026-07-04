@@ -1,5 +1,6 @@
 use crate::{
-    domain::{AgentId, AgentInfo, Message, NewProject, Project},
+    agents_file,
+    domain::{AgentId, AgentInfo, AgentsFileResolution, Message, NewProject, Project},
     errors::AppResult,
     state::AppState,
 };
@@ -50,4 +51,15 @@ pub fn set_secret(state: State<'_, AppState>, agent_id: String, key: String) -> 
 #[tauri::command]
 pub fn has_secret(state: State<'_, AppState>, agent_id: String) -> AppResult<bool> {
     state.secrets.has_secret(AgentId::from_str(&agent_id)?)
+}
+
+#[tauri::command]
+pub fn resolve_agents_md(project_root: PathBuf, cwd: PathBuf) -> AppResult<AgentsFileResolution> {
+    agents_file::resolve_agents_file(&cwd, &project_root)
+}
+
+#[tauri::command]
+pub fn create_agents_md(project_root: PathBuf) -> AppResult<AgentsFileResolution> {
+    agents_file::create_agents_file(&project_root)?;
+    agents_file::resolve_agents_file(&project_root, &project_root)
 }

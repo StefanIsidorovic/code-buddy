@@ -1,4 +1,5 @@
 pub mod adapters;
+pub mod agents_file;
 pub mod commands;
 pub mod domain;
 pub mod errors;
@@ -35,6 +36,8 @@ pub fn run() {
             commands::get_transcript,
             commands::set_secret,
             commands::has_secret,
+            commands::resolve_agents_md,
+            commands::create_agents_md,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
