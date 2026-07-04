@@ -1,6 +1,8 @@
-working_knowledge/
 .idea/
 .git/
 .codex/
 secrets/
 tools/
+node_modules/
+dist/
+src-tauri/target/
