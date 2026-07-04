@@ -6,10 +6,11 @@
 - User selected a staged full v1 slice, Linux-first acceptance, and tracking working_knowledge.
 - Rust and native Tauri Linux dependencies are installed enough to proceed.
 - Current branch is setup at 92ebef7.
-- Step 1 implementation is complete and ready to commit: working_knowledge is trackable, Tauri/React scaffold exists, and baseline tests pass.
+- Step 1 is committed as 6208716 with a verified provenance note.
+- Step 2 backend domain/storage/secrets/adapters is implemented, tested, and ready to commit.
 
 ## Next Step
-- Commit step 1 with a provenance note, then implement step 2 backend domain/storage/secrets/adapters.
+- Commit step 2 with a provenance note, then implement step 3 AGENTS.md resolution and delivery.
 
 ## Commands To Re-Run
 - git status --short --branch: verify worktree state.

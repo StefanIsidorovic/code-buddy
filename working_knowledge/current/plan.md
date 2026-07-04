@@ -11,22 +11,22 @@
 - acceptance criteria: working_knowledge files are trackable; app compiles as a scaffold; initial UI renders without runtime errors.
 - required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test from src-tauri.
 - review status: passed
-- commit: pending
+- commit: 6208716
 
 ### 2. Add backend domain, config persistence, secrets, and adapter registry
 - objective: implement core Rust data structures and storage boundaries before process orchestration.
-- status: in_progress
+- status: complete
 - files: src-tauri/Cargo.toml; src-tauri/src/lib.rs; src-tauri/src/domain.rs; src-tauri/src/errors.rs; src-tauri/src/state.rs; src-tauri/src/storage.rs; src-tauri/src/secrets.rs; src-tauri/src/adapters/mod.rs; src-tauri/src/adapters/codex.rs; src-tauri/src/adapters/claude.rs; src-tauri/src/adapters/kimi.rs; src-tauri/src/adapters/fake.rs; src-tauri/src/commands.rs; src-tauri/src/tests/*
 - affected units: Project, AgentId, SessionConfig, AgentEvent, Message, Detection, Capabilities, CommandSpec, AgentAdapter, ConfigStore, SecretStore.
 - expected changes: add SQLite-backed projects/config/messages store; add keyring-backed secret store with redaction helpers; add adapter detection/build_command/encode_input/parse_chunk foundations for Codex, Claude, Kimi, and fake test adapter.
 - acceptance criteria: backend can list agents, detect installed CLIs, create/list projects, persist config/messages, store/check secrets without plaintext database writes.
 - required tests: adapter command unit tests for success/failure/edge cases; storage migration and CRUD tests; secret redaction tests.
-- review status: not_started
-- commit: none
+- review status: passed
+- commit: pending
 
 ### 3. Implement AGENTS.md resolution and delivery strategy
 - objective: apply project instructions uniformly across native and non-native agents.
-- status: pending
+- status: in_progress
 - files: src-tauri/src/agents_file.rs; src-tauri/src/adapters/mod.rs; src-tauri/src/adapters/codex.rs; src-tauri/src/adapters/claude.rs; src-tauri/src/adapters/kimi.rs; src-tauri/src/commands.rs; src-tauri/src/tests/fixtures/agents_md/*
 - affected units: AgentsFileResolution, AgentsFileDelivery, adapter capability declarations, session config preparation.
 - expected changes: implement nearest-file-wins collection from cwd to project root; expose Native, InstructionsFlag, and PrependToPrompt strategies; add create-template helper and reload-needed metadata.

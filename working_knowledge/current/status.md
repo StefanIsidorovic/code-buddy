@@ -17,7 +17,7 @@
 ## Current Task
 - request: implement the Multi-Agent Coding UI desktop app specification as a staged full v1 slice.
 - phase: implementation
-- active plan step: 2
+- active plan step: 3
 
 ## Risks And Constraints
 - User selected a staged full v1 slice with Linux-first acceptance.
@@ -38,3 +38,5 @@
 - 2026-07-04T14:04:57Z: pkg-config Tauri dependency check -> webkit2gtk-4.1, javascriptcoregtk-4.1, gtk+-3.0, and xdo still not found.
 - 2026-07-04T14:16:35Z: installed Tauri Linux packages -> webkit2gtk-4.1 2.52.3, javascriptcoregtk-4.1 2.52.3, gtk+-3.0 3.24.41; libxdo headers/library present.
 - 2026-07-04T14:30:49Z: step 1 validation -> npm run typecheck, npm run test -- --run, npm run build, and cargo test passed.
+- 2026-07-04T14:30:49Z: step 1 commit -> 6208716 with provenance note under refs/notes/provenance.
+- 2026-07-04T14:48:06Z: step 2 validation -> cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, and npm run build passed.
