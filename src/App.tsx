@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import "@xterm/xterm/css/xterm.css";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 type SessionState = "running" | "exited" | "killed" | "errored";
@@ -19,10 +22,13 @@ const initialSize = {
 };
 
 function App() {
+  const terminalElement = useRef<HTMLDivElement | null>(null);
+  const terminal = useRef<Terminal | null>(null);
+  const fitAddon = useRef<FitAddon | null>(null);
+  const sessionRef = useRef<SessionInfo | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const [prompt, setPrompt] = useState("hello from frontend");
-  const [cols, setCols] = useState(initialSize.cols);
-  const [rows, setRows] = useState(initialSize.rows);
+  const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
+  const [terminalSize, setTerminalSize] = useState(initialSize);
   const [output, setOutput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,8 +39,77 @@ function App() {
       return "not started";
     }
 
-    return `${session.state} · ${session.cols}x${session.rows}`;
+    return `${sessionKind ?? "session"} · ${session.state} · ${session.cols}x${session.rows}`;
+  }, [session, sessionKind]);
+
+  useEffect(() => {
+    sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    if (!terminalElement.current) {
+      return;
+    }
+
+    const nextTerminal = new Terminal({
+      cursorBlink: true,
+      convertEol: true,
+      fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
+      fontSize: 13,
+      scrollback: 1_000,
+      theme: {
+        background: "#111c18",
+        foreground: "#d7ede3",
+        cursor: "#d7ede3",
+        selectionBackground: "#31584d",
+      },
+    });
+    const nextFitAddon = new FitAddon();
+
+    nextTerminal.loadAddon(nextFitAddon);
+    nextTerminal.open(terminalElement.current);
+    nextFitAddon.fit();
+    setTerminalSize(readTerminalSize(nextTerminal));
+    nextTerminal.writeln("No session yet.");
+
+    terminal.current = nextTerminal;
+    fitAddon.current = nextFitAddon;
+
+    const inputDisposable = nextTerminal.onData((text) => {
+      const activeSession = sessionRef.current;
+      if (!activeSession || activeSession.state !== "running") {
+        return;
+      }
+
+      void invoke("write_session_input", {
+        sessionId: activeSession.id,
+        text,
+      }).catch((err) => setError(errorText(err)));
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitAddon.current?.fit();
+      const nextSize = readTerminalSize(nextTerminal);
+      setTerminalSize(nextSize);
+
+      const activeSession = sessionRef.current;
+      if (
+        activeSession?.state === "running" &&
+        (activeSession.cols !== nextSize.cols || activeSession.rows !== nextSize.rows)
+      ) {
+        void resizeSessionTo(activeSession.id, nextSize);
+      }
+    });
+    resizeObserver.observe(terminalElement.current);
+
+    return () => {
+      inputDisposable.dispose();
+      resizeObserver.disconnect();
+      nextTerminal.dispose();
+      terminal.current = null;
+      fitAddon.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!canUseSession || !session) {
@@ -60,29 +135,19 @@ function App() {
     }
   }
 
-  async function startSession() {
+  async function startSession(kind: "fake" | "codex") {
     await runAction(async () => {
-      const nextSession = await invoke<SessionInfo>("start_fake_session", {
-        request: { cols, rows },
+      const command = kind === "fake" ? "start_fake_session" : "start_codex_session";
+      const size = fitTerminal();
+      const nextSession = await invoke<SessionInfo>(command, {
+        request: { cols: size.cols, rows: size.rows },
       });
       setSession(nextSession);
+      setSessionKind(kind);
       setOutput("");
+      terminal.current?.reset();
+      terminal.current?.focus();
       await drainOutput(nextSession.id);
-    });
-  }
-
-  async function sendInput(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canUseSession || !session) {
-      return;
-    }
-
-    await runAction(async () => {
-      await invoke("write_session_input", {
-        sessionId: session.id,
-        text: `${prompt}\n`,
-      });
-      await drainOutput(session.id);
     });
   }
 
@@ -92,12 +157,8 @@ function App() {
     }
 
     await runAction(async () => {
-      const nextSession = await invoke<SessionInfo>("resize_session", {
-        sessionId: session.id,
-        cols,
-        rows,
-      });
-      setSession(nextSession);
+      const size = fitTerminal();
+      await resizeSessionTo(session.id, size);
     });
   }
 
@@ -124,7 +185,24 @@ function App() {
     const chunk = await invoke<string>("drain_session_output", { sessionId });
     if (chunk.length > 0) {
       setOutput((current) => `${current}${chunk}`);
+      terminal.current?.write(chunk);
     }
+  }
+
+  function fitTerminal() {
+    fitAddon.current?.fit();
+    const size = readTerminalSize(terminal.current);
+    setTerminalSize(size);
+    return size;
+  }
+
+  async function resizeSessionTo(sessionId: string, size: typeof initialSize) {
+    const nextSession = await invoke<SessionInfo>("resize_session", {
+      sessionId,
+      cols: size.cols,
+      rows: size.rows,
+    });
+    setSession(nextSession);
   }
 
   return (
@@ -151,15 +229,29 @@ function App() {
       <section className="control-panel" aria-labelledby="controls-title">
         <div className="section-heading">
           <p className="eyebrow">AIA-002</p>
-          <h2 id="controls-title">Fake CLI Controls</h2>
+          <h2 id="controls-title">PTY Controls</h2>
         </div>
 
         <div className="button-row">
-          <button type="button" onClick={startSession} disabled={busy || canUseSession}>
-            Start
+          <button
+            type="button"
+            onClick={() => void startSession("fake")}
+            disabled={busy || canUseSession}
+          >
+            Start Fake
+          </button>
+          <button
+            type="button"
+            onClick={() => void startSession("codex")}
+            disabled={busy || canUseSession}
+          >
+            Start Codex
           </button>
           <button type="button" onClick={() => void drainOutput()} disabled={busy || !session}>
             Drain
+          </button>
+          <button type="button" onClick={resizeSession} disabled={busy || !canUseSession}>
+            Resize
           </button>
           <button type="button" onClick={() => void stopSession(false)} disabled={busy || !session}>
             Stop
@@ -169,42 +261,12 @@ function App() {
           </button>
         </div>
 
-        <form className="prompt-form" onSubmit={(event) => void sendInput(event)}>
-          <label htmlFor="prompt">Input</label>
-          <div className="inline-controls">
-            <input
-              id="prompt"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              disabled={!canUseSession || busy}
-            />
-            <button type="submit" disabled={!canUseSession || busy}>
-              Send
-            </button>
+        <dl className="terminal-meta" aria-label="Terminal state">
+          <div>
+            <dt>Terminal</dt>
+            <dd>{terminalSize.cols}x{terminalSize.rows}</dd>
           </div>
-        </form>
-
-        <div className="size-grid" aria-label="PTY size">
-          <label htmlFor="cols">Cols</label>
-          <input
-            id="cols"
-            type="number"
-            min="1"
-            value={cols}
-            onChange={(event) => setCols(Number(event.target.value))}
-          />
-          <label htmlFor="rows">Rows</label>
-          <input
-            id="rows"
-            type="number"
-            min="1"
-            value={rows}
-            onChange={(event) => setRows(Number(event.target.value))}
-          />
-          <button type="button" onClick={resizeSession} disabled={!canUseSession || busy}>
-            Resize
-          </button>
-        </div>
+        </dl>
 
         {error ? (
           <p className="error-message" role="alert">
@@ -218,10 +280,23 @@ function App() {
           <p className="eyebrow">Output</p>
           <h2 id="output-title">PTY Stream</h2>
         </div>
-        <pre aria-label="PTY output">{output || "No output yet."}</pre>
+        <div
+          className="terminal-frame"
+          aria-label="Interactive PTY terminal"
+          onClick={() => terminal.current?.focus()}
+          ref={terminalElement}
+        />
+        <span className="sr-only">{output || "No output yet."}</span>
       </section>
     </main>
   );
+}
+
+function readTerminalSize(activeTerminal: Terminal | null) {
+  return {
+    cols: Math.max(1, activeTerminal?.cols ?? initialSize.cols),
+    rows: Math.max(1, activeTerminal?.rows ?? initialSize.rows),
+  };
 }
 
 function errorText(error: unknown) {

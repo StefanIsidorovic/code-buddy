@@ -17,6 +17,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_status,
             commands::start_fake_session,
+            commands::start_codex_session,
             commands::write_session_input,
             commands::resize_session,
             commands::stop_session,

@@ -1,6 +1,6 @@
 use crate::{
     errors::AppResult,
-    session::{SessionInfo, SessionManager, StartFakeSessionRequest},
+    session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
 };
 use tauri::State;
 
@@ -10,6 +10,14 @@ pub fn start_fake_session(
     request: StartFakeSessionRequest,
 ) -> AppResult<SessionInfo> {
     state.start_fake_session(request)
+}
+
+#[tauri::command]
+pub fn start_codex_session(
+    state: State<'_, SessionManager>,
+    request: StartCodexSessionRequest,
+) -> AppResult<SessionInfo> {
+    state.start_codex_session(request)
 }
 
 #[tauri::command]

@@ -13,7 +13,7 @@ Kept:
 - Rust backend entry point
 - portable-pty backend session manager
 - fake PTY-backed echo CLI for integration tests
-- minimal PTY test panel in the Tauri UI
+- minimal xterm-backed PTY test panel in the Tauri UI
 - React frontend
 - TypeScript
 - Vite
@@ -62,6 +62,17 @@ npm run tauri dev
 The PTY controls require the Tauri desktop runtime. Opening the Vite URL in a
 normal browser shows the frontend, but backend command calls are available in
 the Tauri window.
+
+Manual smoke test:
+
+- Click `Start Fake` to verify the PTY echo session.
+- Click `Start Codex` to launch the installed Codex CLI in the same PTY path.
+- Type directly inside the terminal panel; keyboard data is sent through xterm
+  to the PTY instead of through a separate HTML input field.
+- If Codex does not start, run `codex --version` in the same terminal used for
+  `npm run tauri dev` and confirm the CLI is on `PATH`.
+- Codex output is rendered through xterm.js so ANSI/TUI control sequences are
+  interpreted instead of shown as raw text.
 
 ## Restart Backlog
 

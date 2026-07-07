@@ -27,6 +27,14 @@ pub struct StartFakeSessionRequest {
     pub rows: Option<u16>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartCodexSessionRequest {
+    pub cwd: Option<PathBuf>,
+    pub cols: Option<u16>,
+    pub rows: Option<u16>,
+}
+
 impl Default for StartFakeSessionRequest {
     fn default() -> Self {
         Self {
@@ -64,17 +72,22 @@ pub struct SessionManager {
 
 impl SessionManager {
     pub fn start_fake_session(&self, request: StartFakeSessionRequest) -> AppResult<SessionInfo> {
-        let cwd = request.cwd.unwrap_or(std::env::current_dir()?);
-        if !cwd.is_dir() {
-            return Err(AppError::InvalidInput(format!(
-                "session cwd is not a directory: {}",
-                cwd.display()
-            )));
-        }
-
-        let cols = request.cols.unwrap_or(DEFAULT_COLS);
-        let rows = request.rows.unwrap_or(DEFAULT_ROWS);
+        let cwd = resolve_cwd(request.cwd)?;
+        let (cols, rows) = resolve_size(request.cols, request.rows)?;
         let session = Arc::new(PtySession::spawn_fake(cwd, cols, rows)?);
+        let info = session.info()?;
+
+        self.sessions()?.insert(info.id.clone(), session);
+        Ok(info)
+    }
+
+    pub fn start_codex_session(
+        &self,
+        request: StartCodexSessionRequest,
+    ) -> AppResult<SessionInfo> {
+        let cwd = resolve_cwd(request.cwd)?;
+        let (cols, rows) = resolve_size(request.cols, request.rows)?;
+        let session = Arc::new(PtySession::spawn_codex(cwd, cols, rows)?);
         let info = session.info()?;
 
         self.sessions()?.insert(info.id.clone(), session);
@@ -158,6 +171,14 @@ impl RuntimeState {
 
 impl PtySession {
     fn spawn_fake(cwd: PathBuf, cols: u16, rows: u16) -> AppResult<Self> {
+        Self::spawn_command(fake_command(&cwd), cols, rows)
+    }
+
+    fn spawn_codex(cwd: PathBuf, cols: u16, rows: u16) -> AppResult<Self> {
+        Self::spawn_command(codex_command(&cwd)?, cols, rows)
+    }
+
+    fn spawn_command(command: CommandBuilder, cols: u16, rows: u16) -> AppResult<Self> {
         let id = Uuid::new_v4().to_string();
         let pty_system = native_pty_system();
         let pair = pty_system
@@ -171,7 +192,7 @@ impl PtySession {
 
         let child = pair
             .slave
-            .spawn_command(fake_command(&cwd))
+            .spawn_command(command)
             .map_err(|err| AppError::Pty(err.to_string()))?;
         let reader = pair
             .master
@@ -393,6 +414,39 @@ fn append_output(output: &Arc<Mutex<VecDeque<u8>>>, bytes: &[u8]) {
         output.pop_front();
     }
     output.extend(bytes);
+}
+
+fn resolve_cwd(cwd: Option<PathBuf>) -> AppResult<PathBuf> {
+    let cwd = cwd.unwrap_or(std::env::current_dir()?);
+    if !cwd.is_dir() {
+        return Err(AppError::InvalidInput(format!(
+            "session cwd is not a directory: {}",
+            cwd.display()
+        )));
+    }
+    Ok(cwd)
+}
+
+fn resolve_size(cols: Option<u16>, rows: Option<u16>) -> AppResult<(u16, u16)> {
+    let cols = cols.unwrap_or(DEFAULT_COLS);
+    let rows = rows.unwrap_or(DEFAULT_ROWS);
+    if cols == 0 || rows == 0 {
+        return Err(AppError::InvalidInput(
+            "pty cols and rows must be greater than zero".to_string(),
+        ));
+    }
+    Ok((cols, rows))
+}
+
+fn codex_command(cwd: &std::path::Path) -> AppResult<CommandBuilder> {
+    let codex = which::which("codex")
+        .map_err(|_| AppError::InvalidInput("codex CLI was not found on PATH".to_string()))?;
+    let mut command = CommandBuilder::new(codex);
+    command.arg("--no-alt-screen");
+    command.arg("--cd");
+    command.arg(cwd.display().to_string());
+    command.cwd(cwd);
+    Ok(command)
 }
 
 #[cfg(unix)]

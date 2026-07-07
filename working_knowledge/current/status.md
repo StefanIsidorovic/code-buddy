@@ -9,21 +9,21 @@
 - code-buddy: /home/katarina/projects/AIadne
 
 ## Repository State
-- branch: setup
-- head: 74ca850 step 3: add agents file resolution
-- worktree: dirty; reset skeleton changes and docs are local/uncommitted; package-lock.json has a pre-existing metadata-only change.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend is currently reduced to app_status and Tauri run entry.
+- branch: new/start
+- head: 6e0c0b6 Add PTY session core with fake CLI
+- worktree: dirty; local uncommitted changes add minimal PTY frontend, temporary Codex launch path, xterm rendering, scroll constraints, README updates, and knowledge updates.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status plus AIA-002 PTY session commands.
 
 ## Current Task
-- request: add a minimal frontend test panel for AIA-002 PTY session core.
+- request: make Codex PTY output readable, prevent page-level infinite scroll, and send input through the xterm terminal instead of a separate HTML input.
 - phase: complete
 - active plan step: none
 
 ## Risks And Constraints
 - AIA-002 builds on local uncommitted reset skeleton changes.
 - package-lock.json was dirty before this task; avoid touching it unless dependency changes are required.
-- Existing HEAD lacks a provenance note under refs/notes/provenance; this must be reported or repaired before final validation.
-- Keep changes scoped to PTY session core, fake CLI support, minimal frontend test panel, tests, IPC shell, and working knowledge.
+- Existing HEAD lacks a provenance note under refs/notes/provenance; user asked to handle commits manually, so no provenance note is being added by this agent.
+- Keep changes scoped to PTY session core, fake CLI support, minimal xterm frontend test panel, direct xterm keyboard input, a temporary Codex launch path, tests, IPC shell, and working knowledge.
 - User explicitly asked the agent not to commit; all changes remain local for user review and commit.
 - portable-pty is not currently in the local Cargo registry cache; Cargo may need network access to fetch it.
 - portable-pty 0.9.0 was fetched with approved cargo network access.
@@ -46,3 +46,13 @@
 - 2026-07-04T22:54:xxZ: npm run typecheck, npm run test -- --run, npm run build -> passed via NVM PATH.
 - 2026-07-04T23:05:xxZ: minimal PTY frontend panel added; npm typecheck/test/build, cargo test, and cargo clippy passed.
 - 2026-07-04T23:06:xxZ: Vite dev server started at http://127.0.0.1:1420/; PTY backend calls require Tauri runtime.
+- 2026-07-04T23:17:xxZ: codex --version -> codex-cli 0.142.5.
+- 2026-07-04T23:17:xxZ: codex --help -> interactive CLI starts when no subcommand is specified; --cd and --no-alt-screen are supported.
+- 2026-07-04T23:18:xxZ: temporary Start Codex path added; npm typecheck/test/build, cargo test, and cargo clippy passed.
+- 2026-07-04T23:26:xxZ: @xterm/xterm and @xterm/addon-fit installed; Codex output panel now renders ANSI/TUI sequences through xterm.
+- 2026-07-04T23:26:xxZ: npm typecheck/test/build, cargo test, and cargo clippy passed; Vite reported expected >500 kB chunk warning after xterm.
+- 2026-07-04T23:32:xxZ: fixed xterm panel infinite page scroll by constraining html/body/root/app-shell to viewport height and moving scroll into terminal viewport; validation passed.
+- 2026-07-04T23:35:xxZ: git status --short --branch -> new/start branch with local uncommitted frontend/Codex/xterm/knowledge changes.
+- 2026-07-04T23:34:23Z: npm run typecheck and npm run test -- --run passed after knowledge updates.
+- 2026-07-04T23:41:xxZ: replaced separate HTML input with xterm onData -> write_session_input, started sessions with fitted terminal size, and made Resize sync the real xterm size.
+- 2026-07-04T23:41:xxZ: validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings. Vite still reports the expected xterm chunk-size warning.
