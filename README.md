@@ -74,6 +74,8 @@ Manual smoke test:
 - Click `Start Codex` to launch the installed Codex CLI in the same PTY path.
 - Check `Agent Doctor` to see installed, missing, or error states for local CLIs.
 - Check `ACP Registry` to see ACP-compatible candidates before launching real ACP adapters.
+- Use `Select` in `ACP Registry`, then click `Start Selected ACP` to try a launchable ACP candidate.
+- npx-backed ACP candidates may download their package on first launch.
 - Click `Start Fake ACP`, send a prompt, and confirm structured ACP events appear.
 - Type directly inside the terminal panel; keyboard data is sent through xterm
   to the PTY instead of through a separate HTML input field.

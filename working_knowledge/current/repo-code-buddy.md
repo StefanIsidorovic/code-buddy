@@ -21,6 +21,8 @@
 - Frontend now has a temporary ACP Test panel and structured ACP event list.
 - Backend now exposes AIA-018 ACP registry candidates without launching or downloading adapter packages.
 - Frontend now has a temporary ACP Registry panel with candidate status, command preview, install guidance, and selected candidate state.
+- Backend now exposes AIA-019 selected ACP registry launch through the existing AcpSessionManager.
+- Frontend now has Start Selected ACP for launchable selected ACP candidates.
 - Older product feature modules for SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally; a new focused adapter boundary now exists for AIA-003.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
 - SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
@@ -30,6 +32,9 @@
 - Codex smoke-test command construction now goes through CodexAdapter.
 - AcpSessionManager stores fake ACP sessions, pending JSON-RPC responses, buffered structured events, process handles, and session metadata.
 - ACP registry discovery uses curated official-registry candidates for codex-acp, claude-acp, kimi, and gemini.
+- Selected ACP launch builds a backend-owned command from the candidate id and rejects missing runners before spawning.
+- ACP event normalization merges adjacent agent/user message chunks and filters technical session/command/usage updates.
+- ACP Tauri commands use spawn_blocking for operations that may wait on real agent processes.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -40,6 +45,7 @@
 - Doctor backend command: list_agent_doctor_reports.
 - ACP backend commands: start_fake_acp_session, send_acp_prompt, drain_acp_events, stop_acp_session, list_acp_sessions.
 - ACP registry backend command: list_acp_registry_candidates.
+- ACP selected launch backend command: start_acp_registry_session.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
 
@@ -56,6 +62,9 @@
 - Frontend tests cover fake ACP start, prompt send, and structured event rendering.
 - AIA-018 backend tests cover npx installable/missing-runner candidates and binary ready/missing candidates.
 - Frontend tests cover ACP Registry rendering with command preview, missing binary status, and candidate selection without launch.
+- AIA-019 backend tests cover selected ACP launch command construction, unknown candidate rejection, and missing runner/binary rejection.
+- Frontend tests cover Start Selected ACP invoking start_acp_registry_session with the selected candidate id.
+- AIA-019 backend tests cover ACP event chunk merging and technical update filtering.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -70,6 +79,7 @@
 - AIA-017 validation passed with 23 Rust tests and 4 frontend tests.
 - AIA-018 uses the official ACP registry as research input and keeps discovery side-effect-free.
 - AIA-018 validation passed with 26 Rust tests and 5 frontend tests, plus clippy, typecheck, build, and git diff --check.
+- AIA-019 first validation passed with 29 Rust tests and 6 frontend tests.
 - Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 - Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
@@ -90,3 +100,5 @@
 - ACP should start as a separate stdio transport spike with a fake fixture; PTY remains required for terminal-only agents.
 - Real adapter ACP support remains Unknown until each CLI or adapter wrapper passes ACP initialize/session/prompt validation.
 - npx-backed ACP candidates are marked installable, not ready, because first real launch may download the package.
+- Starting an npx-backed ACP candidate is now possible only through Start Selected ACP and may download the package on first launch.
+- Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.

@@ -328,3 +328,27 @@ Suggested labels: `backend`, `frontend`, `agents`, `acp`
 Depends on: AIA-017
 
 Recommended before: real ACP adapter launch tasks
+
+## AIA-019: Start selected ACP registry candidate
+
+Description:
+Connect the selected ACP registry candidate to the existing ACP stdio runtime
+so a user can try a real ACP-compatible adapter from the test panel. Keep fake
+ACP available as the deterministic test path.
+
+Acceptance criteria:
+
+- Backend can start a selected registry candidate by id.
+- Backend rejects unknown candidates and candidates whose runner/binary is missing.
+- Backend reuses the existing ACP initialize and session/new flow.
+- Frontend exposes Start Selected ACP for the selected launchable candidate.
+- Missing candidates keep Start Selected ACP disabled.
+- Agent message chunks are merged into readable messages and technical session updates are hidden from the event list.
+- Long ACP start/send operations do not freeze the app window.
+- Tests cover command construction, missing runner/binary rejection, event normalization, frontend invoke, and fake ACP regression.
+
+Suggested labels: `backend`, `frontend`, `agents`, `acp`
+
+Depends on: AIA-018
+
+Recommended before: adapter-specific ACP validation

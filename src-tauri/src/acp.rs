@@ -18,7 +18,7 @@ use std::{
 };
 use uuid::Uuid;
 
-const ACP_REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
+const ACP_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const ACP_STOP_TIMEOUT: Duration = Duration::from_millis(750);
 const ACP_WAIT_POLL_INTERVAL: Duration = Duration::from_millis(25);
 const ACP_EVENT_BUFFER_LIMIT: usize = 512;
@@ -29,6 +29,13 @@ pub type AcpSessionId = String;
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartFakeAcpSessionRequest {
+    pub cwd: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartAcpRegistrySessionRequest {
+    pub candidate_id: String,
     pub cwd: Option<PathBuf>,
 }
 
@@ -136,8 +143,26 @@ enum AcpRegistryDistribution {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AcpRegistryLaunchCommand {
+    program: String,
+    args: Vec<String>,
+}
+
 pub fn list_acp_registry_candidates() -> Vec<AcpRegistryCandidate> {
     acp_registry_candidates_with_resolver(&SystemAcpCommandResolver)
+}
+
+fn acp_registry_launch_command(
+    candidate_id: &str,
+    resolver: &dyn AcpCommandResolver,
+) -> AppResult<AcpRegistryLaunchCommand> {
+    let spec = ACP_REGISTRY_SPECS
+        .iter()
+        .find(|spec| spec.id == candidate_id)
+        .ok_or_else(|| AppError::InvalidInput(format!("unknown ACP candidate: {candidate_id}")))?;
+
+    spec.build_launch_command(resolver)
 }
 
 fn acp_registry_candidates_with_resolver(
@@ -213,6 +238,42 @@ impl AcpRegistrySpec {
             }
         }
     }
+
+    fn build_launch_command(
+        &self,
+        resolver: &dyn AcpCommandResolver,
+    ) -> AppResult<AcpRegistryLaunchCommand> {
+        match self.distribution {
+            AcpRegistryDistribution::Npx { package, args } => {
+                let runner_path = resolver.resolve("npx").ok_or_else(|| {
+                    AppError::InvalidInput(format!(
+                        "ACP candidate {} requires `npx` on PATH",
+                        self.id
+                    ))
+                })?;
+                let mut launch_args = vec!["-y".to_string(), package.to_string()];
+                launch_args.extend(args.iter().map(|arg| (*arg).to_string()));
+
+                Ok(AcpRegistryLaunchCommand {
+                    program: runner_path.display().to_string(),
+                    args: launch_args,
+                })
+            }
+            AcpRegistryDistribution::Binary { executable, args } => {
+                let runner_path = resolver.resolve(executable).ok_or_else(|| {
+                    AppError::InvalidInput(format!(
+                        "ACP candidate {} requires `{executable}` on PATH",
+                        self.id
+                    ))
+                })?;
+
+                Ok(AcpRegistryLaunchCommand {
+                    program: runner_path.display().to_string(),
+                    args: args.iter().map(|arg| (*arg).to_string()).collect(),
+                })
+            }
+        }
+    }
 }
 
 const ACP_REGISTRY_SPECS: &[AcpRegistrySpec] = &[
@@ -274,6 +335,22 @@ impl AcpSessionManager {
     ) -> AppResult<AcpSessionInfo> {
         let cwd = resolve_cwd(request.cwd)?;
         let session = Arc::new(AcpSession::spawn_fake(cwd)?);
+        let info = session.info()?;
+
+        self.sessions()?.insert(info.id.clone(), session);
+        Ok(info)
+    }
+
+    pub fn start_registry_session(
+        &self,
+        request: StartAcpRegistrySessionRequest,
+    ) -> AppResult<AcpSessionInfo> {
+        let cwd = resolve_cwd(request.cwd)?;
+        let session = Arc::new(AcpSession::spawn_registry_candidate(
+            &request.candidate_id,
+            cwd,
+            &SystemAcpCommandResolver,
+        )?);
         let info = session.info()?;
 
         self.sessions()?.insert(info.id.clone(), session);
@@ -374,6 +451,18 @@ struct JsonRpcResponse {
 impl AcpSession {
     fn spawn_fake(cwd: PathBuf) -> AppResult<Self> {
         Self::spawn_script(cwd, fake_acp_script())
+    }
+
+    fn spawn_registry_candidate(
+        candidate_id: &str,
+        cwd: PathBuf,
+        resolver: &dyn AcpCommandResolver,
+    ) -> AppResult<Self> {
+        let launch = acp_registry_launch_command(candidate_id, resolver)?;
+        let mut command = Command::new(&launch.program);
+        command.args(&launch.args);
+        command.current_dir(&cwd);
+        Self::spawn_command(command, cwd)
     }
 
     #[cfg(test)]
@@ -770,11 +859,13 @@ fn handle_acp_line(
     }
 
     if value.get("method").and_then(Value::as_str) == Some("session/update") {
-        append_event(events, event_from_session_update(&value));
+        if let Some(event) = event_from_session_update(&value) {
+            append_event(events, event);
+        }
     }
 }
 
-fn event_from_session_update(value: &Value) -> AcpSessionEvent {
+fn event_from_session_update(value: &Value) -> Option<AcpSessionEvent> {
     let update = value.pointer("/params/update").unwrap_or(&Value::Null);
     let update_kind = update
         .get("sessionUpdate")
@@ -811,6 +902,9 @@ fn event_from_session_update(value: &Value) -> AcpSessionEvent {
                 .unwrap_or_default();
             (AcpEventKind::Plan, entries)
         }
+        "available_commands_update" | "session_info_update" | "usage_update" => {
+            return None;
+        }
         "tool_call" | "tool_call_update" => (
             AcpEventKind::ToolCall,
             update
@@ -820,17 +914,31 @@ fn event_from_session_update(value: &Value) -> AcpSessionEvent {
                 .unwrap_or(update_kind)
                 .to_string(),
         ),
-        "usage_update" => (AcpEventKind::Usage, "usage update".to_string()),
         _ => (AcpEventKind::Notice, update.to_string()),
     };
 
-    AcpSessionEvent { kind, content }
+    Some(AcpSessionEvent { kind, content })
 }
 
 fn append_event(events: &Arc<Mutex<VecDeque<AcpSessionEvent>>>, event: AcpSessionEvent) {
+    if event.content.is_empty() && event.kind != AcpEventKind::Error {
+        return;
+    }
+
     let Ok(mut events) = events.lock() else {
         return;
     };
+    if let Some(last_event) = events.back_mut() {
+        if matches!(
+            event.kind,
+            AcpEventKind::AgentMessage | AcpEventKind::UserMessage
+        ) && last_event.kind == event.kind
+        {
+            last_event.content.push_str(&event.content);
+            return;
+        }
+    }
+
     while events.len() >= ACP_EVENT_BUFFER_LIMIT {
         events.pop_front();
     }
@@ -1011,6 +1119,75 @@ mod tests {
             AcpRegistryCandidateStatus::MissingBinary
         );
         assert_eq!(missing_kimi.command, vec!["kimi", "acp"]);
+    }
+
+    #[test]
+    fn registry_launch_command_uses_resolved_npx_runner() {
+        let resolver =
+            FakeCommandResolver::default().with_path("npx", PathBuf::from("/usr/bin/npx"));
+
+        let command =
+            acp_registry_launch_command("codex-acp", &resolver).expect("launch command exists");
+
+        assert_eq!(command.program, "/usr/bin/npx");
+        assert_eq!(
+            command.args,
+            vec!["-y", "@agentclientprotocol/codex-acp@1.1.0"]
+        );
+    }
+
+    #[test]
+    fn registry_launch_command_rejects_missing_runner_or_binary() {
+        let resolver = FakeCommandResolver::default();
+
+        let codex_error = acp_registry_launch_command("codex-acp", &resolver)
+            .expect_err("missing npx is rejected");
+        assert!(codex_error.to_string().contains("requires `npx`"));
+
+        let kimi_error =
+            acp_registry_launch_command("kimi", &resolver).expect_err("missing kimi is rejected");
+        assert!(kimi_error.to_string().contains("requires `kimi`"));
+    }
+
+    #[test]
+    fn registry_launch_command_rejects_unknown_candidate() {
+        let resolver = FakeCommandResolver::default();
+
+        let error = acp_registry_launch_command("unknown-agent", &resolver)
+            .expect_err("unknown candidate is rejected");
+
+        assert!(error.to_string().contains("unknown ACP candidate"));
+    }
+
+    #[test]
+    fn acp_event_buffer_merges_message_chunks_and_filters_technical_updates() {
+        let responses = Arc::new(ResponseQueue {
+            pending: Mutex::new(HashMap::new()),
+            available: Condvar::new(),
+        });
+        let events = Arc::new(Mutex::new(VecDeque::new()));
+
+        handle_acp_line(
+            r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"session_info_update","_meta":{"codex":{"threadStatus":{"type":"active"}}}}}}"#,
+            &responses,
+            &events,
+        );
+        handle_acp_line(
+            r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Hello"}}}}"#,
+            &responses,
+            &events,
+        );
+        handle_acp_line(
+            r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":" there"}}}}"#,
+            &responses,
+            &events,
+        );
+
+        let events = events.lock().expect("event buffer locks");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, AcpEventKind::AgentMessage);
+        assert_eq!(events[0].content, "Hello there");
     }
 
     #[test]

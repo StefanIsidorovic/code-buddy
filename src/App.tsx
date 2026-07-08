@@ -104,6 +104,7 @@ function App() {
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
   const [selectedAcpCandidateId, setSelectedAcpCandidateId] = useState<string | null>(null);
   const [acpSession, setAcpSession] = useState<AcpSessionInfo | null>(null);
+  const [acpSessionSource, setAcpSessionSource] = useState<string | null>(null);
   const [acpEvents, setAcpEvents] = useState<AcpSessionEvent[]>([]);
   const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
   const [acpPromptResult, setAcpPromptResult] = useState<AcpPromptResult | null>(null);
@@ -118,6 +119,15 @@ function App() {
       acpRegistryCandidates.find((candidate) => candidate.id === selectedAcpCandidateId) ?? null,
     [acpRegistryCandidates, selectedAcpCandidateId],
   );
+  const canStartSelectedAcpCandidate =
+    !!selectedAcpCandidate &&
+    isLaunchableAcpCandidate(selectedAcpCandidate) &&
+    !canUseAcpSession;
+  const acpStatusLabel = acpSession
+    ? `${acpSessionSource ?? acpSession.agentName ?? "acp"} · ${acpSession.state} · ${
+        acpSession.agentSessionId ?? "no agent session"
+      }`
+    : "not started";
   const statusLabel = useMemo(() => {
     if (!session) {
       return "not started";
@@ -334,6 +344,27 @@ function App() {
         request: {},
       });
       setAcpSession(nextSession);
+      setAcpSessionSource("fake");
+      setAcpEvents([]);
+      setAcpPromptResult(null);
+      await drainAcpEvents(nextSession.id);
+    });
+  }
+
+  async function startSelectedAcpSession() {
+    if (!selectedAcpCandidate || !isLaunchableAcpCandidate(selectedAcpCandidate)) {
+      setError(selectedAcpCandidate?.installHint ?? "Select an ACP candidate first.");
+      return;
+    }
+
+    await runAction(async () => {
+      const nextSession = await invoke<AcpSessionInfo>("start_acp_registry_session", {
+        request: {
+          candidateId: selectedAcpCandidate.id,
+        },
+      });
+      setAcpSession(nextSession);
+      setAcpSessionSource(selectedAcpCandidate.name);
       setAcpEvents([]);
       setAcpPromptResult(null);
       await drainAcpEvents(nextSession.id);
@@ -564,10 +595,17 @@ function App() {
         <section className="acp-panel" aria-labelledby="acp-title">
           <div className="doctor-heading">
             <h3 id="acp-title">ACP Test</h3>
-            <span>{acpSession ? `${acpSession.state} · ${acpSession.agentSessionId}` : "not started"}</span>
+            <span>{acpStatusLabel}</span>
           </div>
 
           <div className="button-row">
+            <button
+              type="button"
+              onClick={() => void startSelectedAcpSession()}
+              disabled={busy || !canStartSelectedAcpCandidate}
+            >
+              Start Selected ACP
+            </button>
             <button type="button" onClick={() => void startFakeAcpSession()} disabled={busy || canUseAcpSession}>
               Start Fake ACP
             </button>
@@ -581,6 +619,10 @@ function App() {
               Stop ACP
             </button>
           </div>
+
+          {canUseAcpSession ? (
+            <p className="acp-result">Active ACP: {acpStatusLabel}. Stop it before starting another ACP session.</p>
+          ) : null}
 
           <label className="prompt-field">
             <span>Prompt</span>
@@ -690,6 +732,10 @@ function acpCandidateStatusLabel(status: AcpRegistryCandidateStatus) {
   }
 
   return "Missing binary";
+}
+
+function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
+  return candidate.status === "ready" || candidate.status === "installable";
 }
 
 function formatCommand(command: string[]) {

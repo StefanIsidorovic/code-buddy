@@ -134,6 +134,17 @@
 - review status: passed
 - commit: user will commit
 
+### 13. Start selected ACP registry candidate
+- objective: connect selected ACP registry candidates to the existing ACP stdio runtime so a real ACP-compatible adapter can be smoke-tested from the app.
+- status: complete
+- files: README.md; src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: StartAcpRegistrySessionRequest; AcpRegistryLaunchCommand; acp_registry_launch_command; AcpSessionManager::start_registry_session; AcpSession::spawn_registry_candidate; start_acp_registry_session Tauri command; ACP event normalization; Start Selected ACP frontend control; backend/frontend tests.
+- expected changes: build launch commands for selected registry candidates; reject unknown or missing-runner candidates before spawn; reuse ACP initialize/session/new flow; allow the frontend to start the selected launchable ACP candidate; keep fake ACP as deterministic fallback; merge agent message chunks; hide technical session updates; run blocking ACP operations off the UI thread.
+- acceptance criteria: backend can start a selected registry candidate by id; backend rejects unknown candidates and missing runner/binary cases; frontend exposes Start Selected ACP for launchable selected candidates; missing candidates keep launch disabled; agent message chunks render as readable messages; technical session updates do not spam the event list; long ACP calls do not freeze the app window; tests cover command construction, rejection, event normalization, frontend invoke, and fake ACP regression.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -150,3 +161,4 @@
 - ACP should be introduced as a separate transport path first; PTY stays available for terminal-only CLIs.
 - AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
 - ACP registry discovery is curated from the official registry for now; it reports what could be launched later but does not install, download, or start real ACP adapters.
+- Starting npx-backed ACP registry candidates is an explicit user action and may download the adapter package on first launch.

@@ -10,12 +10,12 @@
 
 ## Repository State
 - branch: new/start
-- head: 6312803 step 11: add ACP stdio fake runtime
-- worktree: local uncommitted AIA-018 ACP registry discovery changes; LOCAL_PROGRESS.md remains intentionally ignored.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, and ACP registry discovery.
+- head: ed5c16d step 12: add ACP registry discovery and selection
+- worktree: local uncommitted AIA-019 selected ACP registry launch changes; LOCAL_PROGRESS.md remains intentionally ignored.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery, and selected ACP registry launch.
 
 ## Current Task
-- request: continue after ACP fake runtime by adding ACP registry discovery.
+- request: continue after ACP registry discovery by wiring selected candidates to ACP launch.
 - phase: complete
 - active plan step: none
 
@@ -42,3 +42,7 @@
 - 2026-07-08T14:17:22Z: AIA-018 frontend checks passed: cargo fmt --check; npm run typecheck; npm run test -- --run.
 - 2026-07-08T14:20:38Z: AIA-018 final validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Vite still reports expected xterm chunk-size warning.
 - 2026-07-08T14:39:06Z: ACP Registry selection UX added; validation passed with npm run typecheck, npm run test -- --run, and git diff --check.
+- 2026-07-08T14:48:41Z: AIA-019 first validation passed: cargo fmt --check; cargo test; npm run typecheck; npm run test -- --run. Rust tests: 29 passed. Frontend tests: 6 passed.
+- 2026-07-08T14:51:23Z: AIA-019 final validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Vite still reports expected xterm chunk-size warning.
+- 2026-07-08T15:03:36Z: manual Codex ACP smoke test started a real Codex ACP session and returned message chunks; follow-up fix merges message chunks, filters technical updates, and runs blocking ACP commands off the UI thread.
+- 2026-07-08T15:09:22Z: ACP normalization/responsiveness fix validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Rust tests: 30 passed. Frontend tests: 6 passed.

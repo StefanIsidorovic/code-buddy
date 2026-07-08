@@ -35,7 +35,9 @@
 - Built-in Codex, Claude Code, and Kimi ACP support remains Unknown until real adapter validation.
 - AIA-018 adds side-effect-free ACP registry discovery for codex-acp, claude-acp, kimi, and gemini candidates.
 - npx candidates are reported as installable when npx exists; binary candidates are ready only when the executable is present.
-- Candidate selection exists in the frontend as the future launch target, but selection does not start an ACP process.
+- Candidate selection exists in the frontend as the chosen launch target, but selection itself does not start an ACP process.
+- AIA-019 adds Start Selected ACP, which turns the selected candidate id into a backend-owned launch command and reuses the existing initialize/session/new flow.
+- Real Codex ACP emits tokenized agent_message_chunk updates plus technical available_commands/session_info updates; backend now merges adjacent message chunks and filters those technical updates from the UI event list.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -45,3 +47,7 @@
 - The fake ACP fixture is shell-based for local Linux validation; replace with real ACP agent process validation before claiming support for a real CLI.
 - Client-side ACP requests from agents, such as permission requests, are not implemented yet; the first slice handles responses and session/update notifications only.
 - Registry discovery must not run npx or download packages; real adapter launch needs an explicit later step and user approval if network/package install is required.
+- Start Selected ACP is now that explicit launch action; npx candidates may download packages on first launch.
+- Passing initialize/session/new does not yet mean a candidate is fully product-supported; prompt, auth, permission, and tool-call behavior still need adapter-specific validation.
+- ACP request timeout is currently 30 seconds for smoke testing; long-running real prompts may need a later streaming/lifecycle refinement.
+- Blocking ACP start/send/stop/list operations are run via Tauri async spawn_blocking so the desktop window stays responsive during real agent waits.

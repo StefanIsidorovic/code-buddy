@@ -429,6 +429,10 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.acp-events-panel span {
+  white-space: pre-wrap;
+}
+
 .terminal-frame .xterm {
   height: 100%;
   padding: 2px;

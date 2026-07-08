@@ -76,6 +76,7 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Start Fake" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Interactive PTY terminal")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
@@ -106,7 +107,58 @@ describe("PTY test panel", () => {
     expect(selectedCandidate).toHaveTextContent("Kimi CLI");
     expect(screen.getByRole("button", { name: "Select Kimi CLI ACP candidate" }))
       .toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeDisabled();
     expect(invokeMock).not.toHaveBeenCalledWith("start_fake_acp_session", expect.anything());
+  });
+
+  it("starts the selected ACP registry candidate", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_acp_registry_session") {
+        return Promise.resolve({
+          id: "acp-session-2",
+          state: "running",
+          pid: 789,
+          protocolVersion: 1,
+          agentSessionId: "codex-acp-session",
+          agentName: "codex-acp",
+          agentVersion: "1.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByLabelText("Selected ACP candidate");
+    fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("start_acp_registry_session", {
+        request: {
+          candidateId: "codex-acp",
+        },
+      });
+    });
+    expect(await screen.findByText("Codex · running · codex-acp-session")).toBeInTheDocument();
   });
 
   it("writes xterm keyboard data to the active PTY session", async () => {
@@ -241,7 +293,7 @@ describe("PTY test panel", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    await screen.findByText("running · fake-acp-session");
+    await screen.findByText("fake · running · fake-acp-session");
 
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
       target: { value: "hello acp" },

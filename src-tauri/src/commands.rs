@@ -2,12 +2,13 @@ use crate::{
     acp::{
         list_acp_registry_candidates as build_acp_registry_candidates, AcpPromptResult,
         AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
-        StartFakeAcpSessionRequest,
+        StartAcpRegistrySessionRequest, StartFakeAcpSessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
-    errors::AppResult,
+    errors::{AppError, AppResult},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
 };
+use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
@@ -73,45 +74,70 @@ pub fn list_agent_doctor_reports() -> Vec<AgentDoctorReport> {
 }
 
 #[tauri::command]
-pub fn start_fake_acp_session(
-    state: State<'_, AcpSessionManager>,
+pub async fn start_fake_acp_session(
+    state: State<'_, Arc<AcpSessionManager>>,
     request: StartFakeAcpSessionRequest,
 ) -> AppResult<AcpSessionInfo> {
-    state.start_fake_session(request)
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.start_fake_session(request)).await
 }
 
 #[tauri::command]
-pub fn send_acp_prompt(
-    state: State<'_, AcpSessionManager>,
+pub async fn start_acp_registry_session(
+    state: State<'_, Arc<AcpSessionManager>>,
+    request: StartAcpRegistrySessionRequest,
+) -> AppResult<AcpSessionInfo> {
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.start_registry_session(request)).await
+}
+
+#[tauri::command]
+pub async fn send_acp_prompt(
+    state: State<'_, Arc<AcpSessionManager>>,
     session_id: String,
     prompt: String,
 ) -> AppResult<AcpPromptResult> {
-    state.send_prompt(&session_id, &prompt)
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.send_prompt(&session_id, &prompt)).await
 }
 
 #[tauri::command]
-pub fn drain_acp_events(
-    state: State<'_, AcpSessionManager>,
+pub async fn drain_acp_events(
+    state: State<'_, Arc<AcpSessionManager>>,
     session_id: String,
 ) -> AppResult<Vec<AcpSessionEvent>> {
-    state.drain_events(&session_id)
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.drain_events(&session_id)).await
 }
 
 #[tauri::command]
-pub fn stop_acp_session(
-    state: State<'_, AcpSessionManager>,
+pub async fn stop_acp_session(
+    state: State<'_, Arc<AcpSessionManager>>,
     session_id: String,
     force: bool,
 ) -> AppResult<AcpSessionInfo> {
-    state.stop_session(&session_id, force)
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.stop_session(&session_id, force)).await
 }
 
 #[tauri::command]
-pub fn list_acp_sessions(state: State<'_, AcpSessionManager>) -> AppResult<Vec<AcpSessionInfo>> {
-    state.list_sessions()
+pub async fn list_acp_sessions(
+    state: State<'_, Arc<AcpSessionManager>>,
+) -> AppResult<Vec<AcpSessionInfo>> {
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.list_sessions()).await
 }
 
 #[tauri::command]
 pub fn list_acp_registry_candidates() -> Vec<AcpRegistryCandidate> {
     build_acp_registry_candidates()
+}
+
+async fn run_acp_task<T>(task: impl FnOnce() -> AppResult<T> + Send + 'static) -> AppResult<T>
+where
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|err| AppError::Acp(format!("acp task failed: {err}")))?
 }

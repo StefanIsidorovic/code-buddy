@@ -21,12 +21,14 @@
 - AIA-017 is added to the backlog as an ACP stdio transport spike; ACP is documented as structured transport beside PTY, not a PTY replacement.
 - AIA-017 is committed as 6312803: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
 - AIA-018 is implemented locally: ACP registry candidates for codex-acp, claude-acp, kimi, and gemini; backend discovery command; ACP Registry UI panel with selectable candidates; Rust/frontend tests.
+- AIA-019 is implemented locally: selected ACP registry candidates can be started through the existing ACP stdio runtime with Start Selected ACP.
+- Manual Codex ACP smoke test reached a real Codex ACP session and response; backend now merges message chunks, filters technical updates, and runs ACP process waits off the UI thread.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 6312803.
-- Worktree has uncommitted AIA-018 discovery changes and prior knowledge-preference edits; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is ed5c16d.
+- Worktree has uncommitted AIA-019 selected ACP launch changes; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Validate AIA-018, let the user review it, then choose the first real ACP launch candidate.
+- Restart the Tauri app and manually smoke-test Codex ACP Send again with the normalized event display.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -40,6 +42,8 @@
 - In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
 - In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
 - In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
+- In the Tauri app, select Codex ACP and click Start Selected ACP; first npx launch may download @agentclientprotocol/codex-acp.
+- After Codex ACP starts, click Send ACP and confirm ACP Events shows a readable agent message rather than many token rows, and the window stays responsive.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -57,8 +61,10 @@
 - Fake ACP fixture is Unix shell-based; Windows fake ACP behavior still needs a packaging/cross-platform pass.
 - Built-in Codex/Claude/Kimi ACP support remains Unknown until a real ACP path is validated.
 - ACP Registry is side-effect-free discovery; it must not run npx, download packages, or start real agents.
-- ACP Registry selection is frontend-only until a real ACP launch command is implemented.
-- npx-backed ACP candidates are installable, not ready, until a later launch step actually validates them.
+- ACP Registry selection itself is side-effect-free; Start Selected ACP is the explicit launch action.
+- Start Selected ACP is the explicit launch action; npx-backed ACP candidates may download their package on first launch.
+- Fake ACP remains the deterministic no-network regression path.
+- Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.
