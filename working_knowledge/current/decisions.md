@@ -22,6 +22,7 @@
 - ACP direction: add Agent Client Protocol as a structured transport spike beside PTY; keep PTY as the universal fallback for terminal-only agents.
 - AIA-017 ACP implementation: keep ACP in a separate AcpSessionManager instead of mixing JSON-RPC sessions into the PTY SessionManager.
 - AIA-017 fixture scope: use a fake ACP stdio subprocess first; built-in real adapters keep ACP support Unknown until validated.
+- Knowledge hygiene: whenever a new concept, technology, runtime path, workflow, or architectural rule is introduced, update all relevant docs, Linear task drafts, working_knowledge files, mind map files, and LOCAL_PROGRESS.md in the same work step.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.

@@ -55,7 +55,7 @@
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
 - AGENTS.md requires mind_map.md and mind_map/ to be maintained when an active mind map exists.
 - working_knowledge was stale and has been regenerated for the reset task.
-- HEAD 045f1ae has a provenance note under refs/notes/provenance.
+- HEAD 6312803 has a provenance note under refs/notes/provenance.
 - docs/linear-tasks.md contains 17 task drafts mapped to the restart build plan.
 - README documents the reset skeleton and validation commands.
 - portable-pty 0.9.0 docs confirm native_pty_system/openpty, spawn_command, reader/writer handles, resize, try_wait, and kill APIs.

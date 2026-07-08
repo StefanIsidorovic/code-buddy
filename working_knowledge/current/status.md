@@ -10,8 +10,8 @@
 
 ## Repository State
 - branch: new/start
-- head: 045f1ae step 9: add agent doctor CLI detection
-- worktree: dirty; local uncommitted changes add AIA-017 ACP stdio runtime, frontend ACP test panel, ACP backlog/knowledge notes, and local progress notes.
+- head: 6312803 step 11: add ACP stdio fake runtime
+- worktree: clean; LOCAL_PROGRESS.md remains intentionally ignored.
 - relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, and ACP stdio session commands.
 
 ## Current Task
@@ -20,8 +20,8 @@
 - active plan step: none
 
 ## Risks And Constraints
-- AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, and AIA-004 doctor detection are committed through 045f1ae.
-- User explicitly asked the agent not to commit; all changes remain local for user review and commit.
+- AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, and AIA-017 ACP stdio fake runtime are committed through 6312803.
+- User explicitly asked the agent not to commit; user committed reviewed changes manually.
 - portable-pty 0.9.0 was fetched previously with approved cargo network access.
 - Active mind map files must be updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow knowledge changes.
 - Active mind map now also includes ACP transport knowledge.
@@ -38,3 +38,4 @@
 - 2026-07-08T12:39:26Z: AIA-017 ACP transport spike added to docs/linear-tasks.md and ACP transport mind map added; validation passed with git diff --check and rg reference checks.
 - 2026-07-08T13:29:10Z: AIA-017 ACP stdio spike implemented with fake ACP subprocess, JSON-RPC initialize/session/prompt flow, event drain, transport metadata, and ACP Test UI.
 - 2026-07-08T13:32:13Z: validation passed: git diff --check; cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build. Vite still reports expected xterm chunk-size warning.
+- 2026-07-08T13:47:00Z: AIA-017 committed as 6312803 with provenance note under refs/notes/provenance.

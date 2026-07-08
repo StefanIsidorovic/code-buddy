@@ -19,13 +19,13 @@
 - Frontend active-session ref is updated synchronously after start/resize/stop so immediate xterm input is not dropped.
 - AIA-004 is committed as 045f1ae: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
 - AIA-017 is added to the backlog as an ACP stdio transport spike; ACP is documented as structured transport beside PTY, not a PTY replacement.
-- AIA-017 is implemented locally: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
+- AIA-017 is committed as 6312803: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 045f1ae.
-- User requested no agent commit; changes remain local for user review.
+- HEAD is 6312803.
+- Worktree is clean except LOCAL_PROGRESS.md, which is intentionally git-ignored.
 
 ## Next Step
-- User reviews AIA-017 local changes and commits if satisfied; next backlog choice is the first real adapter/ACP-compatible agent validation path.
+- Next backlog choice is the first real adapter/ACP-compatible agent validation path.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -42,7 +42,8 @@
 
 ## Watchouts
 - No fake agent sessions, mock project data, storage/secrets commands, or AGENTS.md resolver code remain in the reset skeleton.
-- This session intentionally skipped commits and provenance notes because the user asked to commit after review.
+- User has been committing reviewed changes manually; keep providing commit messages and provenance notes unless asked to commit directly.
+- When introducing a new concept, technology, runtime path, workflow, or architectural rule, update relevant docs, Linear tasks, working_knowledge, mind map, and LOCAL_PROGRESS.md in the same step.
 - portable-pty 0.9.0 was fetched and Cargo.lock changed.
 - The Windows fake command is a placeholder; local validation is Linux-first.
 - The PTY panel backend calls work in Tauri runtime, not a normal browser tab.
