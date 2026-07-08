@@ -71,6 +71,197 @@ pub struct AcpPromptResult {
     pub stop_reason: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpRegistryCandidateStatus {
+    Ready,
+    Installable,
+    MissingRunner,
+    MissingBinary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpRegistryDistributionKind {
+    Npx,
+    Binary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpRegistryCandidate {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub version: &'static str,
+    pub description: &'static str,
+    pub distribution: AcpRegistryDistributionKind,
+    pub status: AcpRegistryCandidateStatus,
+    pub command: Vec<String>,
+    pub runner_path: Option<PathBuf>,
+    pub install_hint: String,
+    pub source_url: &'static str,
+}
+
+trait AcpCommandResolver {
+    fn resolve(&self, executable: &str) -> Option<PathBuf>;
+}
+
+struct SystemAcpCommandResolver;
+
+impl AcpCommandResolver for SystemAcpCommandResolver {
+    fn resolve(&self, executable: &str) -> Option<PathBuf> {
+        which::which(executable).ok()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AcpRegistrySpec {
+    id: &'static str,
+    name: &'static str,
+    version: &'static str,
+    description: &'static str,
+    source_url: &'static str,
+    distribution: AcpRegistryDistribution,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum AcpRegistryDistribution {
+    Npx {
+        package: &'static str,
+        args: &'static [&'static str],
+    },
+    Binary {
+        executable: &'static str,
+        args: &'static [&'static str],
+    },
+}
+
+pub fn list_acp_registry_candidates() -> Vec<AcpRegistryCandidate> {
+    acp_registry_candidates_with_resolver(&SystemAcpCommandResolver)
+}
+
+fn acp_registry_candidates_with_resolver(
+    resolver: &dyn AcpCommandResolver,
+) -> Vec<AcpRegistryCandidate> {
+    ACP_REGISTRY_SPECS
+        .iter()
+        .map(|spec| spec.build_candidate(resolver))
+        .collect()
+}
+
+impl AcpRegistrySpec {
+    fn build_candidate(&self, resolver: &dyn AcpCommandResolver) -> AcpRegistryCandidate {
+        match self.distribution {
+            AcpRegistryDistribution::Npx { package, args } => {
+                let runner_path = resolver.resolve("npx");
+                let status = if runner_path.is_some() {
+                    AcpRegistryCandidateStatus::Installable
+                } else {
+                    AcpRegistryCandidateStatus::MissingRunner
+                };
+                let mut command = vec!["npx".to_string(), "-y".to_string(), package.to_string()];
+                command.extend(args.iter().map(|arg| (*arg).to_string()));
+
+                AcpRegistryCandidate {
+                    id: self.id,
+                    name: self.name,
+                    version: self.version,
+                    description: self.description,
+                    distribution: AcpRegistryDistributionKind::Npx,
+                    status,
+                    command,
+                    runner_path,
+                    install_hint: if status == AcpRegistryCandidateStatus::Installable {
+                        "Available through npx; first launch may download the ACP package."
+                            .to_string()
+                    } else {
+                        "Install Node/npm so `npx` is available on PATH.".to_string()
+                    },
+                    source_url: self.source_url,
+                }
+            }
+            AcpRegistryDistribution::Binary { executable, args } => {
+                let runner_path = resolver.resolve(executable);
+                let status = if runner_path.is_some() {
+                    AcpRegistryCandidateStatus::Ready
+                } else {
+                    AcpRegistryCandidateStatus::MissingBinary
+                };
+                let executable_display = runner_path
+                    .as_ref()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_else(|| executable.to_string());
+                let mut command = vec![executable_display];
+                command.extend(args.iter().map(|arg| (*arg).to_string()));
+
+                AcpRegistryCandidate {
+                    id: self.id,
+                    name: self.name,
+                    version: self.version,
+                    description: self.description,
+                    distribution: AcpRegistryDistributionKind::Binary,
+                    status,
+                    command,
+                    runner_path,
+                    install_hint: if status == AcpRegistryCandidateStatus::Ready {
+                        "Binary is available on PATH and can be launched in ACP mode.".to_string()
+                    } else {
+                        format!("Install `{executable}` and make sure it is available on PATH.")
+                    },
+                    source_url: self.source_url,
+                }
+            }
+        }
+    }
+}
+
+const ACP_REGISTRY_SPECS: &[AcpRegistrySpec] = &[
+    AcpRegistrySpec {
+        id: "codex-acp",
+        name: "Codex",
+        version: "1.1.0",
+        description: "ACP adapter for OpenAI's coding assistant",
+        source_url: "https://github.com/agentclientprotocol/codex-acp",
+        distribution: AcpRegistryDistribution::Npx {
+            package: "@agentclientprotocol/codex-acp@1.1.0",
+            args: &[],
+        },
+    },
+    AcpRegistrySpec {
+        id: "claude-acp",
+        name: "Claude Agent",
+        version: "0.57.0",
+        description: "ACP wrapper for Anthropic's Claude",
+        source_url: "https://github.com/agentclientprotocol/claude-agent-acp",
+        distribution: AcpRegistryDistribution::Npx {
+            package: "@agentclientprotocol/claude-agent-acp@0.57.0",
+            args: &[],
+        },
+    },
+    AcpRegistrySpec {
+        id: "kimi",
+        name: "Kimi CLI",
+        version: "1.48.0",
+        description: "Moonshot AI's coding assistant",
+        source_url: "https://github.com/MoonshotAI/kimi-cli",
+        distribution: AcpRegistryDistribution::Binary {
+            executable: "kimi",
+            args: &["acp"],
+        },
+    },
+    AcpRegistrySpec {
+        id: "gemini",
+        name: "Gemini CLI",
+        version: "0.49.0",
+        description: "Google's official CLI for Gemini",
+        source_url: "https://github.com/google-gemini/gemini-cli",
+        distribution: AcpRegistryDistribution::Npx {
+            package: "@google/gemini-cli@0.49.0",
+            args: &["--acp"],
+        },
+    },
+];
+
 #[derive(Default)]
 pub struct AcpSessionManager {
     sessions: Mutex<HashMap<AcpSessionId, Arc<AcpSession>>>,
@@ -742,6 +933,85 @@ done"#
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    #[derive(Default)]
+    struct FakeCommandResolver {
+        paths: HashMap<String, PathBuf>,
+    }
+
+    impl FakeCommandResolver {
+        fn with_path(mut self, executable: &str, path: PathBuf) -> Self {
+            self.paths.insert(executable.to_string(), path);
+            self
+        }
+    }
+
+    impl AcpCommandResolver for FakeCommandResolver {
+        fn resolve(&self, executable: &str) -> Option<PathBuf> {
+            self.paths.get(executable).cloned()
+        }
+    }
+
+    #[test]
+    fn registry_candidates_report_npx_installable_when_runner_exists() {
+        let resolver =
+            FakeCommandResolver::default().with_path("npx", PathBuf::from("/usr/bin/npx"));
+
+        let candidates = acp_registry_candidates_with_resolver(&resolver);
+        let codex = candidates
+            .iter()
+            .find(|candidate| candidate.id == "codex-acp")
+            .expect("codex candidate exists");
+
+        assert_eq!(codex.status, AcpRegistryCandidateStatus::Installable);
+        assert_eq!(codex.distribution, AcpRegistryDistributionKind::Npx);
+        assert_eq!(
+            codex.command,
+            vec!["npx", "-y", "@agentclientprotocol/codex-acp@1.1.0"]
+        );
+        assert_eq!(codex.runner_path, Some(PathBuf::from("/usr/bin/npx")));
+    }
+
+    #[test]
+    fn registry_candidates_report_missing_runner_for_npx_packages() {
+        let candidates = acp_registry_candidates_with_resolver(&FakeCommandResolver::default());
+        let claude = candidates
+            .iter()
+            .find(|candidate| candidate.id == "claude-acp")
+            .expect("claude candidate exists");
+
+        assert_eq!(claude.status, AcpRegistryCandidateStatus::MissingRunner);
+        assert!(claude.install_hint.contains("npx"));
+    }
+
+    #[test]
+    fn registry_candidates_report_binary_ready_and_missing() {
+        let ready_resolver =
+            FakeCommandResolver::default().with_path("kimi", PathBuf::from("/usr/local/bin/kimi"));
+        let ready_candidates = acp_registry_candidates_with_resolver(&ready_resolver);
+        let ready_kimi = ready_candidates
+            .iter()
+            .find(|candidate| candidate.id == "kimi")
+            .expect("kimi candidate exists");
+
+        assert_eq!(ready_kimi.status, AcpRegistryCandidateStatus::Ready);
+        assert_eq!(ready_kimi.distribution, AcpRegistryDistributionKind::Binary);
+        assert_eq!(ready_kimi.command, vec!["/usr/local/bin/kimi", "acp"]);
+
+        let missing_candidates =
+            acp_registry_candidates_with_resolver(&FakeCommandResolver::default());
+        let missing_kimi = missing_candidates
+            .iter()
+            .find(|candidate| candidate.id == "kimi")
+            .expect("kimi candidate exists");
+
+        assert_eq!(
+            missing_kimi.status,
+            AcpRegistryCandidateStatus::MissingBinary
+        );
+        assert_eq!(missing_kimi.command, vec!["kimi", "acp"]);
+    }
 
     #[test]
     #[cfg(unix)]

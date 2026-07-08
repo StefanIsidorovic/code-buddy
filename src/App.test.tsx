@@ -51,6 +51,10 @@ beforeEach(() => {
       return Promise.resolve(defaultDoctorReports());
     }
 
+    if (command === "list_acp_registry_candidates") {
+      return Promise.resolve(defaultAcpRegistryCandidates());
+    }
+
     if (command === "drain_session_output") {
       return Promise.resolve("");
     }
@@ -74,13 +78,35 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Interactive PTY terminal")).toBeInTheDocument();
+    expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(screen.getByText("No output yet.")).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
     expect(await screen.findByText("codex 1.2.3")).toBeInTheDocument();
+    expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
+      .not.toHaveLength(0);
+    expect(screen.getByText("Available through npx; first launch may download the ACP package."))
+      .toBeInTheDocument();
+    expect(screen.getByText("Missing binary")).toBeInTheDocument();
     expect(screen.getByText("PTY: Supported · ACP: Unknown")).toBeInTheDocument();
     expect(screen.getByText("Install Claude Code and make sure `claude` is available on PATH."))
       .toBeInTheDocument();
+  });
+
+  it("selects ACP registry candidates without launching them", async () => {
+    const invokeMock = vi.mocked(invoke);
+
+    render(<App />);
+
+    const selectedCandidate = await screen.findByLabelText("Selected ACP candidate");
+    expect(selectedCandidate).toHaveTextContent("Codex");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Kimi CLI ACP candidate" }));
+
+    expect(selectedCandidate).toHaveTextContent("Kimi CLI");
+    expect(screen.getByRole("button", { name: "Select Kimi CLI ACP candidate" }))
+      .toHaveAttribute("aria-pressed", "true");
+    expect(invokeMock).not.toHaveBeenCalledWith("start_fake_acp_session", expect.anything());
   });
 
   it("writes xterm keyboard data to the active PTY session", async () => {
@@ -88,6 +114,10 @@ describe("PTY test panel", () => {
     invokeMock.mockImplementation((command) => {
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
       }
 
       if (command === "start_fake_session") {
@@ -136,6 +166,10 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultDoctorReports({ codexStatus: "missing" }));
       }
 
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
       if (command === "drain_acp_events") {
         return Promise.resolve([]);
       }
@@ -156,6 +190,10 @@ describe("PTY test panel", () => {
     invokeMock.mockImplementation((command) => {
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
       }
 
       if (command === "start_fake_acp_session") {
@@ -274,6 +312,35 @@ function defaultDoctorReports({
       version: null,
       error: "version command failed",
       installHint: "Install Kimi CLI and make sure `kimi` is available on PATH.",
+    },
+  ];
+}
+
+function defaultAcpRegistryCandidates() {
+  return [
+    {
+      id: "codex-acp",
+      name: "Codex",
+      version: "1.1.0",
+      description: "ACP adapter for OpenAI's coding assistant",
+      distribution: "npx",
+      status: "installable",
+      command: ["npx", "-y", "@agentclientprotocol/codex-acp@1.1.0"],
+      runnerPath: "/usr/bin/npx",
+      installHint: "Available through npx; first launch may download the ACP package.",
+      sourceUrl: "https://github.com/agentclientprotocol/codex-acp",
+    },
+    {
+      id: "kimi",
+      name: "Kimi CLI",
+      version: "1.48.0",
+      description: "Moonshot AI's coding assistant",
+      distribution: "binary",
+      status: "missing_binary",
+      command: ["kimi", "acp"],
+      runnerPath: null,
+      installHint: "Install `kimi` and make sure it is available on PATH.",
+      sourceUrl: "https://github.com/MoonshotAI/kimi-cli",
     },
   ];
 }

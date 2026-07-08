@@ -305,3 +305,26 @@ Suggested labels: `backend`, `architecture`, `agents`, `acp`
 Depends on: AIA-003, AIA-004
 
 Recommended before: AIA-005, AIA-006, AIA-007, AIA-013, AIA-014
+
+## AIA-018: Add ACP registry discovery
+
+Description:
+Expose a local ACP registry candidate list so the app can show which
+ACP-compatible adapters are ready, installable, or missing before launching a
+real agent. Discovery must not download packages or start agents.
+
+Acceptance criteria:
+
+- Backend exposes curated candidates from the official ACP registry.
+- Candidate status distinguishes ready binary, installable npx package,
+  missing runner, and missing binary states.
+- Frontend shows candidate status, command preview, and install guidance.
+- Frontend lets the user select a candidate without launching it.
+- Discovery never downloads packages or launches candidate adapters.
+- Tests cover npx and binary candidate status mapping.
+
+Suggested labels: `backend`, `frontend`, `agents`, `acp`
+
+Depends on: AIA-017
+
+Recommended before: real ACP adapter launch tasks

@@ -107,6 +107,7 @@ button:disabled {
 h1,
 .status-list,
 .doctor-list,
+.registry-list,
 .terminal-meta,
 .error-message {
   margin: 0;
@@ -187,7 +188,8 @@ dd {
   padding-top: 10px;
 }
 
-.doctor-panel {
+.doctor-panel,
+.registry-panel {
   margin-top: 16px;
   display: grid;
   gap: 10px;
@@ -218,14 +220,16 @@ dd {
   font-size: 1rem;
 }
 
-.doctor-list {
+.doctor-list,
+.registry-list {
   display: grid;
   gap: 8px;
   padding: 0;
   list-style: none;
 }
 
-.doctor-item {
+.doctor-item,
+.registry-item {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.5fr);
   gap: 8px;
@@ -239,7 +243,25 @@ dd {
   border-left-color: #1e6f5c;
 }
 
+.registry-item[data-status="ready"] {
+  border-left-color: #1e6f5c;
+}
+
+.registry-item[data-status="installable"] {
+  border-left-color: #2f6f93;
+}
+
+.registry-item[data-selected="true"] {
+  border-color: #84a99c;
+  background: #f7faf6;
+}
+
 .doctor-item[data-status="missing"] {
+  border-left-color: #b58522;
+}
+
+.registry-item[data-status="missing_runner"],
+.registry-item[data-status="missing_binary"] {
   border-left-color: #b58522;
 }
 
@@ -247,21 +269,53 @@ dd {
   border-left-color: #aa3f35;
 }
 
-.doctor-item div {
+.doctor-item div,
+.registry-item div {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
 
 .doctor-item strong,
+.registry-item strong,
 .doctor-status {
   color: #1f2b26;
   font-weight: 800;
 }
 
-.doctor-item span {
+.doctor-item span,
+.registry-item span {
   color: #5f6e66;
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.registry-item code {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #dfe5df;
+  border-radius: 6px;
+  padding: 2px 5px;
+  color: #1f2b26;
+  background: #f7faf6;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.selected-candidate {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.selected-candidate div {
+  border-top: 1px solid #dfe5df;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.selected-candidate code {
   overflow-wrap: anywhere;
 }
 
@@ -416,7 +470,12 @@ dd {
     width: 100%;
   }
 
-  .doctor-item {
+  .doctor-item,
+  .registry-item {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-candidate {
     grid-template-columns: 1fr;
   }
 

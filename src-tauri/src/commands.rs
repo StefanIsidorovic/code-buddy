@@ -1,6 +1,7 @@
 use crate::{
     acp::{
-        AcpPromptResult, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
+        list_acp_registry_candidates as build_acp_registry_candidates, AcpPromptResult,
+        AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
         StartFakeAcpSessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
@@ -108,4 +109,9 @@ pub fn stop_acp_session(
 #[tauri::command]
 pub fn list_acp_sessions(state: State<'_, AcpSessionManager>) -> AppResult<Vec<AcpSessionInfo>> {
     state.list_sessions()
+}
+
+#[tauri::command]
+pub fn list_acp_registry_candidates() -> Vec<AcpRegistryCandidate> {
+    build_acp_registry_candidates()
 }

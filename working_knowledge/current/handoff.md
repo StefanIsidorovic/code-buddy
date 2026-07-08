@@ -20,12 +20,13 @@
 - AIA-004 is committed as 045f1ae: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
 - AIA-017 is added to the backlog as an ACP stdio transport spike; ACP is documented as structured transport beside PTY, not a PTY replacement.
 - AIA-017 is committed as 6312803: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
+- AIA-018 is implemented locally: ACP registry candidates for codex-acp, claude-acp, kimi, and gemini; backend discovery command; ACP Registry UI panel with selectable candidates; Rust/frontend tests.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
 - HEAD is 6312803.
-- Worktree is clean except LOCAL_PROGRESS.md, which is intentionally git-ignored.
+- Worktree has uncommitted AIA-018 discovery changes and prior knowledge-preference edits; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Next backlog choice is the first real adapter/ACP-compatible agent validation path.
+- Validate AIA-018, let the user review it, then choose the first real ACP launch candidate.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -38,12 +39,14 @@
 - npm run tauri dev: launch the desktop PTY test panel.
 - In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
 - In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
+- In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
 - No fake agent sessions, mock project data, storage/secrets commands, or AGENTS.md resolver code remain in the reset skeleton.
 - User has been committing reviewed changes manually; keep providing commit messages and provenance notes unless asked to commit directly.
 - When introducing a new concept, technology, runtime path, workflow, or architectural rule, update relevant docs, Linear tasks, working_knowledge, mind map, and LOCAL_PROGRESS.md in the same step.
+- When there are multiple viable implementation paths, compare the stable/default path with newer relevant approaches and suggest the newer approach when it meaningfully helps AIadne without adding avoidable risk.
 - portable-pty 0.9.0 was fetched and Cargo.lock changed.
 - The Windows fake command is a placeholder; local validation is Linux-first.
 - The PTY panel backend calls work in Tauri runtime, not a normal browser tab.
@@ -53,6 +56,9 @@
 - ACP should be proven with a fake stdio fixture before depending on real agent behavior.
 - Fake ACP fixture is Unix shell-based; Windows fake ACP behavior still needs a packaging/cross-platform pass.
 - Built-in Codex/Claude/Kimi ACP support remains Unknown until a real ACP path is validated.
+- ACP Registry is side-effect-free discovery; it must not run npx, download packages, or start real agents.
+- ACP Registry selection is frontend-only until a real ACP launch command is implemented.
+- npx-backed ACP candidates are installable, not ready, until a later launch step actually validates them.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.

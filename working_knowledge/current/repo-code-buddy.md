@@ -19,6 +19,8 @@
 - Backlog now includes AIA-017 for an ACP stdio transport spike beside PTY.
 - Backend now has an AIA-017 ACP stdio runtime in src-tauri/src/acp.rs.
 - Frontend now has a temporary ACP Test panel and structured ACP event list.
+- Backend now exposes AIA-018 ACP registry candidates without launching or downloading adapter packages.
+- Frontend now has a temporary ACP Registry panel with candidate status, command preview, install guidance, and selected candidate state.
 - Older product feature modules for SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally; a new focused adapter boundary now exists for AIA-003.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
 - SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
@@ -27,6 +29,7 @@
 - Adapter descriptors include transport support for pty and acp_stdio.
 - Codex smoke-test command construction now goes through CodexAdapter.
 - AcpSessionManager stores fake ACP sessions, pending JSON-RPC responses, buffered structured events, process handles, and session metadata.
+- ACP registry discovery uses curated official-registry candidates for codex-acp, claude-acp, kimi, and gemini.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -36,6 +39,7 @@
 - Temporary Codex backend command: start_codex_session.
 - Doctor backend command: list_agent_doctor_reports.
 - ACP backend commands: start_fake_acp_session, send_acp_prompt, drain_acp_events, stop_acp_session, list_acp_sessions.
+- ACP registry backend command: list_acp_registry_candidates.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
 
@@ -50,6 +54,8 @@
 - Frontend tests cover Agent Doctor display and missing Codex blocking.
 - AIA-017 backend tests cover fake ACP initialize/session/prompt, malformed JSON event handling, missing sessions, empty prompts, and child cleanup.
 - Frontend tests cover fake ACP start, prompt send, and structured event rendering.
+- AIA-018 backend tests cover npx installable/missing-runner candidates and binary ready/missing candidates.
+- Frontend tests cover ACP Registry rendering with command preview, missing binary status, and candidate selection without launch.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -62,6 +68,8 @@
 - portable-pty 0.9.0 was added to Cargo.toml and Cargo.lock.
 - Validation passed: cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, npm run build.
 - AIA-017 validation passed with 23 Rust tests and 4 frontend tests.
+- AIA-018 uses the official ACP registry as research input and keeps discovery side-effect-free.
+- AIA-018 validation passed with 26 Rust tests and 5 frontend tests, plus clippy, typecheck, build, and git diff --check.
 - Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 - Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
@@ -81,3 +89,4 @@
 - Generic doctor version checks can report error for CLIs whose `--version` behavior differs; this is surfaced to the UI without crashing.
 - ACP should start as a separate stdio transport spike with a fake fixture; PTY remains required for terminal-only agents.
 - Real adapter ACP support remains Unknown until each CLI or adapter wrapper passes ACP initialize/session/prompt validation.
+- npx-backed ACP candidates are marked installable, not ready, because first real launch may download the package.

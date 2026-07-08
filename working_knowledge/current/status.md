@@ -11,11 +11,11 @@
 ## Repository State
 - branch: new/start
 - head: 6312803 step 11: add ACP stdio fake runtime
-- worktree: clean; LOCAL_PROGRESS.md remains intentionally ignored.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, and ACP stdio session commands.
+- worktree: local uncommitted AIA-018 ACP registry discovery changes; LOCAL_PROGRESS.md remains intentionally ignored.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, and ACP registry discovery.
 
 ## Current Task
-- request: implement ACP transport spike.
+- request: continue after ACP fake runtime by adding ACP registry discovery.
 - phase: complete
 - active plan step: none
 
@@ -39,3 +39,6 @@
 - 2026-07-08T13:29:10Z: AIA-017 ACP stdio spike implemented with fake ACP subprocess, JSON-RPC initialize/session/prompt flow, event drain, transport metadata, and ACP Test UI.
 - 2026-07-08T13:32:13Z: validation passed: git diff --check; cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build. Vite still reports expected xterm chunk-size warning.
 - 2026-07-08T13:47:00Z: AIA-017 committed as 6312803 with provenance note under refs/notes/provenance.
+- 2026-07-08T14:17:22Z: AIA-018 frontend checks passed: cargo fmt --check; npm run typecheck; npm run test -- --run.
+- 2026-07-08T14:20:38Z: AIA-018 final validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Vite still reports expected xterm chunk-size warning.
+- 2026-07-08T14:39:06Z: ACP Registry selection UX added; validation passed with npm run typecheck, npm run test -- --run, and git diff --check.

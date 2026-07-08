@@ -23,7 +23,10 @@
 - AIA-017 ACP implementation: keep ACP in a separate AcpSessionManager instead of mixing JSON-RPC sessions into the PTY SessionManager.
 - AIA-017 fixture scope: use a fake ACP stdio subprocess first; built-in real adapters keep ACP support Unknown until validated.
 - Knowledge hygiene: whenever a new concept, technology, runtime path, workflow, or architectural rule is introduced, update all relevant docs, Linear task drafts, working_knowledge files, mind map files, and LOCAL_PROGRESS.md in the same work step.
+- Approach selection: when a task can be solved in multiple ways, compare the stable/default path with newer relevant approaches and propose the newer option when it offers real product or architecture value without unnecessary risk.
+- AIA-018 ACP registry discovery: use a curated candidate list from the official ACP registry before real launches; report ready/installable/missing states without downloading packages or starting agents.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
+- Real ACP adapter launch: defer until the user chooses a candidate and approves any network/package installation required by npx-based adapters.

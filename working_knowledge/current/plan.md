@@ -123,6 +123,17 @@
 - review status: passed
 - commit: user will commit
 
+### 12. Add ACP registry discovery
+- objective: show which ACP-compatible adapters are ready, installable, or missing before attempting a real agent launch.
+- status: complete
+- files: README.md; src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: AcpRegistryCandidate; AcpRegistrySpec; AcpCommandResolver; list_acp_registry_candidates Tauri command; ACP Registry frontend panel; frontend/Rust tests; ACP mind map.
+- expected changes: add curated ACP registry candidates based on the official registry; classify npx packages as installable when npx exists; classify binary adapters as ready or missing; expose command previews and install hints without downloading or launching adapters; render the candidate list in the temporary frontend panel; allow selecting a candidate as the future launch target.
+- acceptance criteria: backend exposes registry candidates; candidate status distinguishes ready, installable, missing runner, and missing binary; frontend shows status, command preview, install guidance, and selected candidate state; discovery performs no package download or agent launch; tests cover npx and binary status mapping plus candidate selection.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -138,3 +149,4 @@
 - AIA-004 uses `--version` for readiness checks with a timeout; later adapter tasks can refine per-CLI version/help probing.
 - ACP should be introduced as a separate transport path first; PTY stays available for terminal-only CLIs.
 - AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
+- ACP registry discovery is curated from the official registry for now; it reports what could be launched later but does not install, download, or start real ACP adapters.

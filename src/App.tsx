@@ -18,6 +18,8 @@ type SessionInfo = {
 
 type AgentDoctorStatus = "installed" | "missing" | "error";
 type CapabilityStatus = "supported" | "unsupported" | "unknown";
+type AcpRegistryCandidateStatus = "ready" | "installable" | "missing_runner" | "missing_binary";
+type AcpRegistryDistributionKind = "npx" | "binary";
 
 type AgentDoctorReport = {
   adapter: {
@@ -34,6 +36,19 @@ type AgentDoctorReport = {
   version: string | null;
   error: string | null;
   installHint: string;
+};
+
+type AcpRegistryCandidate = {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  distribution: AcpRegistryDistributionKind;
+  status: AcpRegistryCandidateStatus;
+  command: string[];
+  runnerPath: string | null;
+  installHint: string;
+  sourceUrl: string;
 };
 
 type AcpSessionInfo = {
@@ -84,6 +99,10 @@ function App() {
   const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
   const [doctorError, setDoctorError] = useState<string | null>(null);
   const [doctorLoading, setDoctorLoading] = useState(false);
+  const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
+  const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
+  const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
+  const [selectedAcpCandidateId, setSelectedAcpCandidateId] = useState<string | null>(null);
   const [acpSession, setAcpSession] = useState<AcpSessionInfo | null>(null);
   const [acpEvents, setAcpEvents] = useState<AcpSessionEvent[]>([]);
   const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
@@ -94,6 +113,11 @@ function App() {
   const canUseAcpSession = acpSession?.state === "running";
   const codexReport = doctorReports.find((report) => report.adapter.id === "codex") ?? null;
   const canStartCodex = codexReport?.status === "installed";
+  const selectedAcpCandidate = useMemo(
+    () =>
+      acpRegistryCandidates.find((candidate) => candidate.id === selectedAcpCandidateId) ?? null,
+    [acpRegistryCandidates, selectedAcpCandidateId],
+  );
   const statusLabel = useMemo(() => {
     if (!session) {
       return "not started";
@@ -108,6 +132,7 @@ function App() {
 
   useEffect(() => {
     void refreshAgentDoctor();
+    void refreshAcpRegistryCandidates();
   }, []);
 
   useEffect(() => {
@@ -283,6 +308,26 @@ function App() {
     }
   }
 
+  async function refreshAcpRegistryCandidates() {
+    setAcpRegistryLoading(true);
+    setAcpRegistryError(null);
+    try {
+      const candidates = await invoke<AcpRegistryCandidate[]>("list_acp_registry_candidates");
+      setAcpRegistryCandidates(candidates);
+      setSelectedAcpCandidateId((current) => {
+        if (current && candidates.some((candidate) => candidate.id === current)) {
+          return current;
+        }
+
+        return candidates[0]?.id ?? null;
+      });
+    } catch (err) {
+      setAcpRegistryError(errorText(err));
+    } finally {
+      setAcpRegistryLoading(false);
+    }
+  }
+
   async function startFakeAcpSession() {
     await runAction(async () => {
       const nextSession = await invoke<AcpSessionInfo>("start_fake_acp_session", {
@@ -451,6 +496,71 @@ function App() {
           </ul>
         </section>
 
+        <section className="registry-panel" aria-labelledby="acp-registry-title">
+          <div className="doctor-heading">
+            <h3 id="acp-registry-title">ACP Registry</h3>
+            <span>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</span>
+            <button
+              type="button"
+              onClick={() => void refreshAcpRegistryCandidates()}
+              disabled={acpRegistryLoading}
+            >
+              Refresh
+            </button>
+          </div>
+
+          {acpRegistryError ? (
+            <p className="error-message" role="alert">
+              {acpRegistryError}
+            </p>
+          ) : null}
+
+          <ul className="registry-list" aria-label="ACP registry candidates">
+            {acpRegistryCandidates.map((candidate) => (
+              <li
+                className="registry-item"
+                data-selected={candidate.id === selectedAcpCandidate?.id}
+                data-status={candidate.status}
+                key={candidate.id}
+              >
+                <div>
+                  <strong>{candidate.name}</strong>
+                  <span>{candidate.description}</span>
+                </div>
+                <div>
+                  <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
+                  <span>{candidate.version} · {candidate.distribution}</span>
+                  <code>{formatCommand(candidate.command)}</code>
+                  <span>{candidate.installHint}</span>
+                  <button
+                    aria-label={`Select ${candidate.name} ACP candidate`}
+                    aria-pressed={candidate.id === selectedAcpCandidate?.id}
+                    type="button"
+                    onClick={() => setSelectedAcpCandidateId(candidate.id)}
+                  >
+                    {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {selectedAcpCandidate ? (
+            <dl className="selected-candidate" aria-label="Selected ACP candidate">
+              <div>
+                <dt>Selected ACP</dt>
+                <dd>{selectedAcpCandidate.name}</dd>
+              </div>
+              <div>
+                <dt>Command</dt>
+                <dd>
+                  <code>{formatCommand(selectedAcpCandidate.command)}</code>
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+        </section>
+
         <section className="acp-panel" aria-labelledby="acp-title">
           <div className="doctor-heading">
             <h3 id="acp-title">ACP Test</h3>
@@ -564,6 +674,26 @@ function capabilityLabel(status: CapabilityStatus) {
   }
 
   return "Unknown";
+}
+
+function acpCandidateStatusLabel(status: AcpRegistryCandidateStatus) {
+  if (status === "ready") {
+    return "Ready";
+  }
+
+  if (status === "installable") {
+    return "Installable";
+  }
+
+  if (status === "missing_runner") {
+    return "Missing runner";
+  }
+
+  return "Missing binary";
+}
+
+function formatCommand(command: string[]) {
+  return command.map((part) => (part.includes(" ") ? JSON.stringify(part) : part)).join(" ");
 }
 
 function acpEventLabel(kind: AcpEventKind) {

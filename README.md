@@ -5,7 +5,8 @@ Fresh foundation for the AIadne multi-agent coding desktop app.
 ## Current State
 
 This repository is intentionally early-stage. It keeps the desktop app
-foundation and now includes the first backend PTY session core with a fake CLI.
+foundation and now includes the first backend PTY session core, adapter
+boundary, agent doctor, and ACP transport spike.
 
 Kept:
 
@@ -14,6 +15,10 @@ Kept:
 - portable-pty backend session manager
 - fake PTY-backed echo CLI for integration tests
 - minimal xterm-backed PTY test panel in the Tauri UI
+- adapter registry metadata for Codex, Claude Code, and Kimi
+- agent doctor readiness checks
+- fake ACP stdio runtime and ACP test panel
+- ACP registry discovery for compatible adapter candidates
 - React frontend
 - TypeScript
 - Vite
@@ -21,11 +26,11 @@ Kept:
 
 Still out of scope:
 
-- agent adapters
+- full real-agent adapter behavior
 - project/session persistence
 - keychain secret handling
 - AGENTS.md resolver and injector
-- terminal/session frontend UI
+- final terminal/session frontend UI
 - storage and domain model modules
 
 Planned stack for upcoming milestones:
@@ -67,6 +72,9 @@ Manual smoke test:
 
 - Click `Start Fake` to verify the PTY echo session.
 - Click `Start Codex` to launch the installed Codex CLI in the same PTY path.
+- Check `Agent Doctor` to see installed, missing, or error states for local CLIs.
+- Check `ACP Registry` to see ACP-compatible candidates before launching real ACP adapters.
+- Click `Start Fake ACP`, send a prompt, and confirm structured ACP events appear.
 - Type directly inside the terminal panel; keyboard data is sent through xterm
   to the PTY instead of through a separate HTML input field.
 - If Codex does not start, run `codex --version` in the same terminal used for

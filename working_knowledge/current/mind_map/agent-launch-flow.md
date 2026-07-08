@@ -13,8 +13,10 @@
 - Fake CLI is the reliable test target for AIA-002.
 - Codex CLI launch is still a temporary smoke-test path, but command construction now goes through CodexAdapter.
 - Fake ACP launch is now a separate stdio/JSON-RPC smoke-test path.
+- ACP registry discovery is a side-effect-free candidate list before real ACP launches.
 - The frontend chooses fake or Codex by invoking start_fake_session or start_codex_session.
 - The frontend starts fake ACP by invoking start_fake_acp_session and sends prompts through send_acp_prompt.
+- The frontend lists ACP candidates by invoking list_acp_registry_candidates.
 - Frontend blocks Start Codex when Agent Doctor reports Codex missing or errored.
 - Backend command registration exposes PTY and ACP launch paths through Tauri.
 
@@ -40,6 +42,12 @@
 - Frontend displays ACP events in a structured list instead of writing them to xterm.
 - stop_acp_session sends session/cancel, waits briefly, then force-kills if needed.
 
+## ACP Registry Flow
+- list_acp_registry_candidates returns curated candidates based on the official ACP registry.
+- npx candidates include codex-acp, claude-acp, and gemini; they are installable when npx exists.
+- Binary candidates include kimi; they are ready only when the executable is available on PATH.
+- Discovery shows command previews and install hints but does not start a process or download packages.
+
 ## Boundaries
 - AgentAdapter abstraction exists for detection, capabilities, command construction, input encoding, structured parsing hook, and AGENTS.md delivery strategy.
 - Adapter descriptors expose transport support for pty and acp_stdio.
@@ -53,6 +61,7 @@
 ## Deferred Work
 - Replace temporary start_codex_session with the full adapter-driven session start path from later Linear tasks.
 - Replace fake ACP with real ACP-compatible adapter launches after each CLI is validated.
+- Add a real ACP launch path for the chosen registry-backed candidate after discovery is reviewed.
 - Add explicit workspace/project cwd selection before launching real agents.
 - Add event-streamed PTY output instead of drain polling.
 - Move doctor UI from the temporary PTY panel into the final first-run/workspace UI.

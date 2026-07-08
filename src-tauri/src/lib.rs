@@ -33,6 +33,7 @@ pub fn run() {
             commands::drain_acp_events,
             commands::stop_acp_session,
             commands::list_acp_sessions,
+            commands::list_acp_registry_candidates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

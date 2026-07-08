@@ -10,6 +10,7 @@
 - Which full real-agent adapter should be implemented first: Claude Code, Codex, or Kimi?
 - Which real agent or fixture should be used first for ACP stdio validation after the fake ACP fixture proves the transport?
 - Should fake ACP support Windows before packaging, or is Linux-first enough while the ACP spike stays local?
+- Which registry-backed ACP candidate should be launched first after discovery: codex-acp, claude-acp, kimi, or gemini?
 
 ## Resolved
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
@@ -22,3 +23,4 @@
 - AIA-004 includes both backend detection and the first temporary Agent Doctor UI panel.
 - ACP should be tracked as a structured transport spike rather than replacing PTY immediately.
 - AIA-017 first slice uses a fake ACP stdio fixture and keeps real adapter ACP support Unknown until validated.
+- AIA-018 discovery should not install, download, or launch ACP adapters; it only reports local readiness and command previews.
