@@ -5,7 +5,7 @@
 - working_knowledge/current is focused on the PTY session core task.
 - Frontend mock functionality and backend feature modules have been removed locally from the previous reset task.
 - README documents the reset skeleton.
-- docs/linear-tasks.md contains 16 Linear-ready task drafts, including AIA-002.
+- docs/linear-tasks.md contains 17 Linear-ready task drafts, including AIA-017 ACP transport spike.
 - AIA-002 is implemented locally: portable-pty dependency, SessionManager, fake PTY CLI, Tauri commands, and backend tests.
 - Minimal Tauri frontend PTY test panel is implemented locally.
 - Temporary Codex PTY launch path is implemented locally for manual smoke testing.
@@ -17,13 +17,15 @@
 - AIA-003 is implemented locally: AgentAdapter trait, AgentRegistry, built-in codex/claude_code/kimi metadata, test fake adapter, and adapter unit tests.
 - Temporary Codex launch now uses CodexAdapter for detection and command construction.
 - Frontend active-session ref is updated synchronously after start/resize/stop so immediate xterm input is not dropped.
-- AIA-004 is implemented locally: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
+- AIA-004 is committed as 045f1ae: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
+- AIA-017 is added to the backlog as an ACP stdio transport spike; ACP is documented as structured transport beside PTY, not a PTY replacement.
+- AIA-017 is implemented locally: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 8cdd5f5.
+- HEAD is 045f1ae.
 - User requested no agent commit; changes remain local for user review.
 
 ## Next Step
-- User reviews AIA-004 local changes and commits if satisfied; next backlog task is the first full real-agent adapter path.
+- User reviews AIA-017 local changes and commits if satisfied; next backlog choice is the first real adapter/ACP-compatible agent validation path.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -35,6 +37,7 @@
 - cargo clippy -- -D warnings: validate Rust lint status.
 - npm run tauri dev: launch the desktop PTY test panel.
 - In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
+- In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -46,6 +49,9 @@
 - Start Codex uses codex --no-alt-screen --cd <cwd>; full adapter behavior is still deferred.
 - AIA-003 does not validate real Claude Code, Codex, or Kimi CLI flags beyond the existing Codex smoke path; those checks belong to AIA-005/AIA-006/AIA-007.
 - AIA-004 uses generic `--version` readiness checks; real adapter tasks can refine per-CLI detection after help/version validation.
+- ACP should be proven with a fake stdio fixture before depending on real agent behavior.
+- Fake ACP fixture is Unix shell-based; Windows fake ACP behavior still needs a packaging/cross-platform pass.
+- Built-in Codex/Claude/Kimi ACP support remains Unknown until a real ACP path is validated.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.

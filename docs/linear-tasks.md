@@ -281,3 +281,27 @@ Acceptance criteria:
 Suggested labels: `release`, `desktop`, `security`
 
 Depends on: AIA-015
+
+## AIA-017: Spike ACP transport support
+
+Description:
+Investigate and add the first minimal Agent Client Protocol transport path
+beside the existing PTY fallback. ACP should be treated as the structured
+agent-client path for compatible agents, while PTY remains the universal
+terminal fallback for CLIs that do not support ACP.
+
+Acceptance criteria:
+
+- Backend records whether each adapter supports `pty`, `acp_stdio`, or both.
+- Doctor can show ACP support as available, unavailable, or unknown per adapter.
+- A minimal ACP stdio client can launch one compatible agent or fixture process.
+- Backend can complete ACP initialization and create a test session.
+- Backend can send one prompt and receive streamed session updates from a fake ACP agent fixture.
+- Existing PTY fake and Codex smoke paths continue to work unchanged.
+- Tests cover ACP initialization success, malformed JSON-RPC, unsupported adapter, process exit, and PTY fallback behavior.
+
+Suggested labels: `backend`, `architecture`, `agents`, `acp`
+
+Depends on: AIA-003, AIA-004
+
+Recommended before: AIA-005, AIA-006, AIA-007, AIA-013, AIA-014

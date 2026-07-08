@@ -10,6 +10,7 @@
 - mind_map/frontend-terminal.md: React/xterm terminal panel, keyboard input path, output rendering path, layout constraints, and UI risks.
 - mind_map/adapter-boundary.md: AgentAdapter trait, registry, detection, command construction, input encoding, structured parsing hook, and capability metadata.
 - mind_map/agent-launch-flow.md: fake CLI and temporary Codex launch flow, current adapter boundary, cwd/PATH constraints, and deferred agent integration.
+- mind_map/acp-transport.md: Agent Client Protocol meaning, fit beside PTY, first spike scope, and risks.
 
 ## Update Rules
 - Update the relevant topic file whenever code changes alter that topic's data flow, ownership, constraints, or risks.

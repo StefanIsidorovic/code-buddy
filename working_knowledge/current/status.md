@@ -10,20 +10,21 @@
 
 ## Repository State
 - branch: new/start
-- head: 8cdd5f5 step 7-8: add mind map and adapter registry
-- worktree: dirty; local uncommitted changes add AIA-004 doctor/detection, .gitignore LOCAL_PROGRESS.md, and local progress notes.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, and agent doctor reports.
+- head: 045f1ae step 9: add agent doctor CLI detection
+- worktree: dirty; local uncommitted changes add AIA-017 ACP stdio runtime, frontend ACP test panel, ACP backlog/knowledge notes, and local progress notes.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, and ACP stdio session commands.
 
 ## Current Task
-- request: continue to AIA-004 by adding first-run doctor and CLI detection.
+- request: implement ACP transport spike.
 - phase: complete
 - active plan step: none
 
 ## Risks And Constraints
-- AIA-002, Codex xterm smoke test, mind map, and AIA-003 adapter boundary are committed through 8cdd5f5.
+- AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, and AIA-004 doctor detection are committed through 045f1ae.
 - User explicitly asked the agent not to commit; all changes remain local for user review and commit.
 - portable-pty 0.9.0 was fetched previously with approved cargo network access.
 - Active mind map files must be updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow knowledge changes.
+- Active mind map now also includes ACP transport knowledge.
 - LOCAL_PROGRESS.md is intentionally ignored by git and maintained as a local human-readable progress log.
 
 ## Last Verification
@@ -34,3 +35,6 @@
 - 2026-07-08T10:27:27Z: validation passed: cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build. Vite still reports expected xterm chunk-size warning.
 - 2026-07-08T10:51:08Z: AIA-004 doctor/detection added with backend doctor reports, version timeout, Tauri command, Agent Doctor UI, Codex start blocking, and install guidance placeholders.
 - 2026-07-08T10:54:59Z: final validation passed: git diff --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build. Vite still reports expected xterm chunk-size warning.
+- 2026-07-08T12:39:26Z: AIA-017 ACP transport spike added to docs/linear-tasks.md and ACP transport mind map added; validation passed with git diff --check and rg reference checks.
+- 2026-07-08T13:29:10Z: AIA-017 ACP stdio spike implemented with fake ACP subprocess, JSON-RPC initialize/session/prompt flow, event drain, transport metadata, and ACP Test UI.
+- 2026-07-08T13:32:13Z: validation passed: git diff --check; cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build. Vite still reports expected xterm chunk-size warning.

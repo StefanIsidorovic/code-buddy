@@ -84,10 +84,7 @@ impl SessionManager {
         Ok(info)
     }
 
-    pub fn start_codex_session(
-        &self,
-        request: StartCodexSessionRequest,
-    ) -> AppResult<SessionInfo> {
+    pub fn start_codex_session(&self, request: StartCodexSessionRequest) -> AppResult<SessionInfo> {
         let cwd = resolve_cwd(request.cwd)?;
         let (cols, rows) = resolve_size(request.cols, request.rows)?;
         let session = Arc::new(PtySession::spawn_codex(cwd, cols, rows)?);

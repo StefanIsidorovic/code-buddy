@@ -96,6 +96,11 @@ button:disabled {
   padding: 18px 20px;
 }
 
+.control-panel {
+  max-height: min(52vh, 520px);
+  overflow: auto;
+}
+
 .eyebrow,
 .section-heading h2,
 .doctor-heading h3,
@@ -188,11 +193,24 @@ dd {
   gap: 10px;
 }
 
+.acp-panel {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
 .doctor-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.doctor-heading span {
+  color: #5f6e66;
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .doctor-heading h3 {
@@ -257,6 +275,34 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.prompt-field {
+  display: grid;
+  gap: 6px;
+}
+
+.prompt-field textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid #b8c4bc;
+  border-radius: 8px;
+  padding: 10px;
+  color: #1f2b26;
+  background: #ffffff;
+}
+
+.prompt-field textarea:focus {
+  outline: 2px solid #84a99c;
+  outline-offset: 1px;
+}
+
+.acp-result {
+  margin: 0;
+  color: #1f2b26;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .output-panel {
   min-height: 0;
   overflow: hidden;
@@ -272,6 +318,61 @@ dd {
   padding: 6px;
   overflow: hidden;
   background: #111c18;
+}
+
+.acp-events-panel {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.acp-events-panel h3,
+.acp-events-panel ul {
+  margin: 0;
+}
+
+.acp-events-panel h3 {
+  color: #222a2e;
+  font-size: 1rem;
+}
+
+.acp-events-panel ul {
+  max-height: 132px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.acp-events-panel li {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+  border-left: 4px solid #7a8c84;
+  padding: 6px 8px;
+  background: #f7faf6;
+}
+
+.acp-events-panel li[data-kind="agent_message"] {
+  border-left-color: #1e6f5c;
+}
+
+.acp-events-panel li[data-kind="error"] {
+  border-left-color: #aa3f35;
+}
+
+.acp-events-panel strong {
+  color: #1f2b26;
+  font-size: 0.82rem;
+}
+
+.acp-events-panel span,
+.acp-events-panel li {
+  color: #5f6e66;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .terminal-frame .xterm {
@@ -316,6 +417,10 @@ dd {
   }
 
   .doctor-item {
+    grid-template-columns: 1fr;
+  }
+
+  .acp-events-panel li {
     grid-template-columns: 1fr;
   }
 }

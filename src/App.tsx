@@ -17,18 +17,53 @@ type SessionInfo = {
 };
 
 type AgentDoctorStatus = "installed" | "missing" | "error";
+type CapabilityStatus = "supported" | "unsupported" | "unknown";
 
 type AgentDoctorReport = {
   adapter: {
     id: string;
     displayName: string;
     executable: string;
+    transports: {
+      pty: CapabilityStatus;
+      acpStdio: CapabilityStatus;
+    };
   };
   status: AgentDoctorStatus;
   path: string | null;
   version: string | null;
   error: string | null;
   installHint: string;
+};
+
+type AcpSessionInfo = {
+  id: string;
+  state: SessionState;
+  pid: number | null;
+  protocolVersion: number | null;
+  agentSessionId: string | null;
+  agentName: string | null;
+  agentVersion: string | null;
+  exitCode: number | null;
+};
+
+type AcpEventKind =
+  | "agent_message"
+  | "user_message"
+  | "plan"
+  | "tool_call"
+  | "usage"
+  | "notice"
+  | "error";
+
+type AcpSessionEvent = {
+  kind: AcpEventKind;
+  content: string;
+};
+
+type AcpPromptResult = {
+  sessionId: string;
+  stopReason: string;
 };
 
 const initialSize = {
@@ -49,9 +84,14 @@ function App() {
   const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
   const [doctorError, setDoctorError] = useState<string | null>(null);
   const [doctorLoading, setDoctorLoading] = useState(false);
+  const [acpSession, setAcpSession] = useState<AcpSessionInfo | null>(null);
+  const [acpEvents, setAcpEvents] = useState<AcpSessionEvent[]>([]);
+  const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
+  const [acpPromptResult, setAcpPromptResult] = useState<AcpPromptResult | null>(null);
   const [busy, setBusy] = useState(false);
 
   const canUseSession = session?.state === "running";
+  const canUseAcpSession = acpSession?.state === "running";
   const codexReport = doctorReports.find((report) => report.adapter.id === "codex") ?? null;
   const canStartCodex = codexReport?.status === "installed";
   const statusLabel = useMemo(() => {
@@ -147,6 +187,18 @@ function App() {
     return () => window.clearInterval(timer);
   }, [canUseSession, session?.id]);
 
+  useEffect(() => {
+    if (!canUseAcpSession || !acpSession) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void drainAcpEvents(acpSession.id);
+    }, 400);
+
+    return () => window.clearInterval(timer);
+  }, [acpSession?.id, canUseAcpSession]);
+
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -231,6 +283,59 @@ function App() {
     }
   }
 
+  async function startFakeAcpSession() {
+    await runAction(async () => {
+      const nextSession = await invoke<AcpSessionInfo>("start_fake_acp_session", {
+        request: {},
+      });
+      setAcpSession(nextSession);
+      setAcpEvents([]);
+      setAcpPromptResult(null);
+      await drainAcpEvents(nextSession.id);
+    });
+  }
+
+  async function sendAcpPrompt() {
+    if (!canUseAcpSession || !acpSession) {
+      return;
+    }
+
+    await runAction(async () => {
+      const result = await invoke<AcpPromptResult>("send_acp_prompt", {
+        sessionId: acpSession.id,
+        prompt: acpPrompt,
+      });
+      setAcpPromptResult(result);
+      await drainAcpEvents(acpSession.id);
+    });
+  }
+
+  async function drainAcpEvents(sessionId = acpSession?.id) {
+    if (!sessionId) {
+      return;
+    }
+
+    const events = await invoke<AcpSessionEvent[]>("drain_acp_events", { sessionId });
+    if (events.length > 0) {
+      setAcpEvents((current) => [...current, ...events]);
+    }
+  }
+
+  async function stopAcpSession(force: boolean) {
+    if (!acpSession) {
+      return;
+    }
+
+    await runAction(async () => {
+      const nextSession = await invoke<AcpSessionInfo>("stop_acp_session", {
+        sessionId: acpSession.id,
+        force,
+      });
+      setAcpSession(nextSession);
+      await drainAcpEvents(acpSession.id);
+    });
+  }
+
   function fitTerminal() {
     fitAddon.current?.fit();
     const size = readTerminalSize(terminal.current);
@@ -253,10 +358,10 @@ function App() {
   }
 
   return (
-    <main className="app-shell" aria-label="AIadne PTY test">
+    <main className="app-shell" aria-label="AIadne runtime test">
       <section className="intro-panel" aria-labelledby="app-title">
         <p className="eyebrow">AIadne</p>
-        <h1 id="app-title">PTY Test</h1>
+        <h1 id="app-title">Runtime Test</h1>
         <dl className="status-list">
           <div>
             <dt>Status</dt>
@@ -339,10 +444,47 @@ function App() {
                 <div>
                   <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
                   <span>{doctorDetail(report)}</span>
+                  <span>{transportDetail(report.adapter.transports)}</span>
                 </div>
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="acp-panel" aria-labelledby="acp-title">
+          <div className="doctor-heading">
+            <h3 id="acp-title">ACP Test</h3>
+            <span>{acpSession ? `${acpSession.state} · ${acpSession.agentSessionId}` : "not started"}</span>
+          </div>
+
+          <div className="button-row">
+            <button type="button" onClick={() => void startFakeAcpSession()} disabled={busy || canUseAcpSession}>
+              Start Fake ACP
+            </button>
+            <button type="button" onClick={() => void sendAcpPrompt()} disabled={busy || !canUseAcpSession}>
+              Send ACP
+            </button>
+            <button type="button" onClick={() => void drainAcpEvents()} disabled={busy || !acpSession}>
+              Drain ACP
+            </button>
+            <button type="button" onClick={() => void stopAcpSession(false)} disabled={busy || !acpSession}>
+              Stop ACP
+            </button>
+          </div>
+
+          <label className="prompt-field">
+            <span>Prompt</span>
+            <textarea
+              aria-label="ACP prompt"
+              onChange={(event) => setAcpPrompt(event.target.value)}
+              rows={3}
+              value={acpPrompt}
+            />
+          </label>
+
+          {acpPromptResult ? (
+            <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>
+          ) : null}
         </section>
 
         {error ? (
@@ -364,6 +506,21 @@ function App() {
           ref={terminalElement}
         />
         <span className="sr-only">{output || "No output yet."}</span>
+        <section className="acp-events-panel" aria-labelledby="acp-events-title">
+          <h3 id="acp-events-title">ACP Events</h3>
+          <ul aria-label="ACP events">
+            {acpEvents.length === 0 ? (
+              <li>No ACP events yet.</li>
+            ) : (
+              acpEvents.map((event, index) => (
+                <li data-kind={event.kind} key={`${event.kind}-${index}`}>
+                  <strong>{acpEventLabel(event.kind)}</strong>
+                  <span>{event.content}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
       </section>
     </main>
   );
@@ -391,6 +548,42 @@ function doctorDetail(report: AgentDoctorReport) {
   }
 
   return report.error ?? report.installHint;
+}
+
+function transportDetail(transports: AgentDoctorReport["adapter"]["transports"]) {
+  return `PTY: ${capabilityLabel(transports.pty)} · ACP: ${capabilityLabel(transports.acpStdio)}`;
+}
+
+function capabilityLabel(status: CapabilityStatus) {
+  if (status === "supported") {
+    return "Supported";
+  }
+
+  if (status === "unsupported") {
+    return "Unsupported";
+  }
+
+  return "Unknown";
+}
+
+function acpEventLabel(kind: AcpEventKind) {
+  if (kind === "agent_message") {
+    return "Agent";
+  }
+
+  if (kind === "user_message") {
+    return "User";
+  }
+
+  if (kind === "tool_call") {
+    return "Tool";
+  }
+
+  if (kind === "error") {
+    return "Error";
+  }
+
+  return kind.replace("_", " ");
 }
 
 function readTerminalSize(activeTerminal: Terminal | null) {

@@ -6,6 +6,8 @@ pub type AppResult<T> = Result<T, AppError>;
 #[derive(Debug, Error, Serialize)]
 #[serde(tag = "code", content = "message", rename_all = "snake_case")]
 pub enum AppError {
+    #[error("acp error: {0}")]
+    Acp(String),
     #[error("adapter not found: {0}")]
     AdapterNotFound(String),
     #[error("invalid input: {0}")]

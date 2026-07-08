@@ -34,6 +34,13 @@ pub struct AgentCapabilities {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTransportCapabilities {
+    pub pty: CapabilityStatus,
+    pub acp_stdio: CapabilityStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentsMdDelivery {
     Native,
@@ -49,6 +56,7 @@ pub struct AgentAdapterDescriptor {
     pub display_name: &'static str,
     pub executable: &'static str,
     pub capabilities: AgentCapabilities,
+    pub transports: AgentTransportCapabilities,
     pub agents_md_delivery: AgentsMdDelivery,
 }
 
@@ -219,6 +227,7 @@ pub trait AgentAdapter: Send + Sync {
     fn display_name(&self) -> &'static str;
     fn executable(&self) -> &'static str;
     fn capabilities(&self) -> AgentCapabilities;
+    fn transports(&self) -> AgentTransportCapabilities;
     fn agents_md_delivery(&self) -> AgentsMdDelivery;
     fn install_hint(&self) -> &'static str;
     fn build_command(&self, request: &AgentCommandRequest) -> AppResult<AgentCommand>;
@@ -229,6 +238,7 @@ pub trait AgentAdapter: Send + Sync {
             display_name: self.display_name(),
             executable: self.executable(),
             capabilities: self.capabilities(),
+            transports: self.transports(),
             agents_md_delivery: self.agents_md_delivery(),
         }
     }
@@ -367,6 +377,13 @@ impl AgentAdapter for CodexAdapter {
         }
     }
 
+    fn transports(&self) -> AgentTransportCapabilities {
+        AgentTransportCapabilities {
+            pty: CapabilityStatus::Supported,
+            acp_stdio: CapabilityStatus::Unknown,
+        }
+    }
+
     fn agents_md_delivery(&self) -> AgentsMdDelivery {
         AgentsMdDelivery::Unknown
     }
@@ -416,6 +433,13 @@ impl AgentAdapter for ClaudeCodeAdapter {
         }
     }
 
+    fn transports(&self) -> AgentTransportCapabilities {
+        AgentTransportCapabilities {
+            pty: CapabilityStatus::Unknown,
+            acp_stdio: CapabilityStatus::Unknown,
+        }
+    }
+
     fn agents_md_delivery(&self) -> AgentsMdDelivery {
         AgentsMdDelivery::Unknown
     }
@@ -451,6 +475,13 @@ impl AgentAdapter for KimiAdapter {
             headless: CapabilityStatus::Unknown,
             structured_output: CapabilityStatus::Unknown,
             native_agents_md: CapabilityStatus::Unsupported,
+        }
+    }
+
+    fn transports(&self) -> AgentTransportCapabilities {
+        AgentTransportCapabilities {
+            pty: CapabilityStatus::Unknown,
+            acp_stdio: CapabilityStatus::Unknown,
         }
     }
 
@@ -507,6 +538,13 @@ mod tests {
                 headless: CapabilityStatus::Unsupported,
                 structured_output: CapabilityStatus::Unknown,
                 native_agents_md: CapabilityStatus::Unsupported,
+            }
+        }
+
+        fn transports(&self) -> AgentTransportCapabilities {
+            AgentTransportCapabilities {
+                pty: CapabilityStatus::Supported,
+                acp_stdio: CapabilityStatus::Unsupported,
             }
         }
 
@@ -578,7 +616,10 @@ mod tests {
 
         assert_eq!(ids, vec!["codex", "claude_code", "kimi"]);
         assert_eq!(
-            registry.resolve("codex").expect("codex adapter").display_name(),
+            registry
+                .resolve("codex")
+                .expect("codex adapter")
+                .display_name(),
             "Codex"
         );
     }
@@ -683,10 +724,18 @@ mod tests {
             descriptor.capabilities.interactive_pty,
             CapabilityStatus::Supported
         );
-        assert_eq!(descriptor.capabilities.headless, CapabilityStatus::Unsupported);
+        assert_eq!(
+            descriptor.capabilities.headless,
+            CapabilityStatus::Unsupported
+        );
         assert_eq!(
             descriptor.capabilities.structured_output,
             CapabilityStatus::Unknown
+        );
+        assert_eq!(descriptor.transports.pty, CapabilityStatus::Supported);
+        assert_eq!(
+            descriptor.transports.acp_stdio,
+            CapabilityStatus::Unsupported
         );
         assert_eq!(descriptor.agents_md_delivery, AgentsMdDelivery::Unsupported);
         assert_eq!(

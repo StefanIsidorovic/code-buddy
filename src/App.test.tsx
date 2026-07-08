@@ -55,6 +55,10 @@ beforeEach(() => {
       return Promise.resolve("");
     }
 
+    if (command === "drain_acp_events") {
+      return Promise.resolve([]);
+    }
+
     return Promise.resolve(undefined);
   });
 });
@@ -63,14 +67,18 @@ describe("PTY test panel", () => {
   it("renders fake and Codex PTY controls with agent doctor status", async () => {
     render(<App />);
 
-    expect(screen.getByRole("main", { name: "AIadne PTY test" })).toBeInTheDocument();
+    expect(screen.getByRole("main", { name: "AIadne runtime test" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "PTY Controls" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Interactive PTY terminal")).toBeInTheDocument();
+    expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(screen.getByText("No output yet.")).toBeInTheDocument();
+    expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
     expect(await screen.findByText("codex 1.2.3")).toBeInTheDocument();
+    expect(screen.getByText("PTY: Supported · ACP: Unknown")).toBeInTheDocument();
     expect(screen.getByText("Install Claude Code and make sure `claude` is available on PATH."))
       .toBeInTheDocument();
   });
@@ -91,6 +99,10 @@ describe("PTY test panel", () => {
           rows: 18,
           exitCode: null,
         });
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
       }
 
       return Promise.resolve(undefined);
@@ -124,6 +136,10 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultDoctorReports({ codexStatus: "missing" }));
       }
 
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
       return Promise.resolve("");
     });
 
@@ -131,6 +147,77 @@ describe("PTY test panel", () => {
 
     await screen.findByText("Install the Codex CLI and make sure `codex` is available on PATH.");
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeDisabled();
+  });
+
+  it("starts fake ACP and renders structured events", async () => {
+    const invokeMock = vi.mocked(invoke);
+    let promptSent = false;
+    let eventDrained = false;
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve({
+          id: "acp-session-1",
+          state: "running",
+          pid: 456,
+          protocolVersion: 1,
+          agentSessionId: "fake-acp-session",
+          agentName: "fake-acp",
+          agentVersion: "0.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "send_acp_prompt") {
+        promptSent = true;
+        return Promise.resolve({
+          sessionId: "acp-session-1",
+          stopReason: "end_turn",
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        if (promptSent && !eventDrained) {
+          eventDrained = true;
+          return Promise.resolve([
+            {
+              kind: "agent_message",
+              content: "fake acp received prompt",
+            },
+          ]);
+        }
+
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    await screen.findByText("running · fake-acp-session");
+
+    fireEvent.change(screen.getByLabelText("ACP prompt"), {
+      target: { value: "hello acp" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("send_acp_prompt", {
+        sessionId: "acp-session-1",
+        prompt: "hello acp",
+      });
+    });
+    expect(await screen.findByText("fake acp received prompt")).toBeInTheDocument();
+    expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
   });
 });
 
@@ -145,6 +232,10 @@ function defaultDoctorReports({
         id: "codex",
         displayName: "Codex",
         executable: "codex",
+        transports: {
+          pty: "supported",
+          acpStdio: "unknown",
+        },
       },
       status: codexStatus,
       path: codexStatus === "missing" ? null : "/usr/bin/codex",
@@ -157,6 +248,10 @@ function defaultDoctorReports({
         id: "claude_code",
         displayName: "Claude Code",
         executable: "claude",
+        transports: {
+          pty: "unknown",
+          acpStdio: "unknown",
+        },
       },
       status: "missing",
       path: null,
@@ -169,6 +264,10 @@ function defaultDoctorReports({
         id: "kimi",
         displayName: "Kimi",
         executable: "kimi",
+        transports: {
+          pty: "unknown",
+          acpStdio: "unknown",
+        },
       },
       status: "error",
       path: "/usr/bin/kimi",

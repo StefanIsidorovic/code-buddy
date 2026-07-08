@@ -1,4 +1,8 @@
 use crate::{
+    acp::{
+        AcpPromptResult, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
+        StartFakeAcpSessionRequest,
+    },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::AppResult,
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
@@ -65,4 +69,43 @@ pub fn list_sessions(state: State<'_, SessionManager>) -> AppResult<Vec<SessionI
 #[tauri::command]
 pub fn list_agent_doctor_reports() -> Vec<AgentDoctorReport> {
     AgentRegistry::default().doctor_reports(&SystemBinaryResolver, &SystemVersionRunner)
+}
+
+#[tauri::command]
+pub fn start_fake_acp_session(
+    state: State<'_, AcpSessionManager>,
+    request: StartFakeAcpSessionRequest,
+) -> AppResult<AcpSessionInfo> {
+    state.start_fake_session(request)
+}
+
+#[tauri::command]
+pub fn send_acp_prompt(
+    state: State<'_, AcpSessionManager>,
+    session_id: String,
+    prompt: String,
+) -> AppResult<AcpPromptResult> {
+    state.send_prompt(&session_id, &prompt)
+}
+
+#[tauri::command]
+pub fn drain_acp_events(
+    state: State<'_, AcpSessionManager>,
+    session_id: String,
+) -> AppResult<Vec<AcpSessionEvent>> {
+    state.drain_events(&session_id)
+}
+
+#[tauri::command]
+pub fn stop_acp_session(
+    state: State<'_, AcpSessionManager>,
+    session_id: String,
+    force: bool,
+) -> AppResult<AcpSessionInfo> {
+    state.stop_session(&session_id, force)
+}
+
+#[tauri::command]
+pub fn list_acp_sessions(state: State<'_, AcpSessionManager>) -> AppResult<Vec<AcpSessionInfo>> {
+    state.list_sessions()
 }

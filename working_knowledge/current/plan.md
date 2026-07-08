@@ -101,6 +101,28 @@
 - review status: passed
 - commit: user will commit
 
+### 10. Add ACP transport spike to backlog and knowledge
+- objective: capture Agent Client Protocol as the next structured transport investigation without replacing PTY.
+- status: complete
+- files: docs/linear-tasks.md; LOCAL_PROGRESS.md; working_knowledge/current/mind_map.md; working_knowledge/current/mind_map/acp-transport.md; working_knowledge/current/decisions.md; working_knowledge/current/open_questions.md; working_knowledge/current/handoff.md; working_knowledge/current/repo-code-buddy.md; working_knowledge/current/status.md.
+- affected units: Linear task drafts; active mind map index; ACP transport topic note; session decisions; open questions; local progress diary.
+- expected changes: add AIA-017 ACP spike with acceptance criteria; record ACP as a structured JSON-RPC transport beside PTY; document first-slice scope and risks.
+- acceptance criteria: backlog includes ACP spike; mind map explains ACP vs PTY and first implementation slice; knowledge files point future work toward ACP without treating it as a replacement for PTY.
+- required tests: git diff --check; rg for AIA-017 and acp-transport references.
+- review status: passed
+- commit: user will commit
+
+### 11. Implement AIA-017 ACP stdio spike
+- objective: add a minimal ACP stdio runtime beside PTY so AIadne can prove structured agent-client communication with a fake agent.
+- status: complete
+- files: src-tauri/src/acp.rs; src-tauri/src/adapters.rs; src-tauri/src/commands.rs; src-tauri/src/errors.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: AcpSessionManager; AcpSession; fake ACP stdio fixture; JSON-RPC request/response handling; ACP event buffer; Tauri ACP commands; AgentTransportCapabilities; Agent Doctor transport display; ACP Test frontend panel; frontend/Rust tests.
+- expected changes: launch fake ACP subprocess over stdio; perform initialize and session/new; send session/prompt; collect session/update as structured events; handle malformed JSON without crashing; clean up child processes; expose minimal UI for manual fake ACP testing; keep PTY unchanged.
+- acceptance criteria: backend starts fake ACP stdio session; backend completes initialize/session/new; backend sends a prompt and receives streamed update events; malformed ACP output becomes an error event; missing session and empty prompt are rejected; adapter descriptors report PTY/ACP transport status; frontend displays ACP events outside xterm; existing PTY tests still pass.
+- required tests: cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -114,3 +136,5 @@
 - Mind map files should now be kept current when PTY runtime, frontend terminal, or agent launch flow changes.
 - AIA-003 intentionally keeps real Claude/Codex/Kimi behavior conservative; later adapter tasks validate CLI flags and structured modes before hardcoding them.
 - AIA-004 uses `--version` for readiness checks with a timeout; later adapter tasks can refine per-CLI version/help probing.
+- ACP should be introduced as a separate transport path first; PTY stays available for terminal-only CLIs.
+- AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
