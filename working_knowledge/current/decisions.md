@@ -16,6 +16,9 @@
 - Mind map usage: maintain an active mind map for cross-cutting PTY runtime, frontend terminal, and agent launch flow knowledge.
 - AIA-003 adapter boundary: add AgentAdapter and AgentRegistry before full real-agent adapters; keep unvalidated Claude/Codex/Kimi capabilities as Unknown where appropriate.
 - Codex smoke integration: route the temporary Codex command construction through CodexAdapter, but defer full Codex adapter behavior to AIA-006.
+- AIA-004 doctor: use backend-owned detection/version reports and keep frontend as a display/blocking layer.
+- AIA-004 version checks: use `<binary> --version` with a timeout and convert failures into error states rather than panics.
+- Local progress: maintain LOCAL_PROGRESS.md as a git-ignored human-readable project diary.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.

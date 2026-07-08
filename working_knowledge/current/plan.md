@@ -90,6 +90,17 @@
 - review status: passed
 - commit: user will commit
 
+### 9. Implement AIA-004 first-run doctor and CLI detection
+- objective: expose installed, missing, and error states for agent CLIs so users know which agents are ready.
+- status: complete
+- files: src-tauri/src/adapters.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md
+- affected units: AgentDoctorReport; AgentDoctorStatus; VersionRunner; SystemVersionRunner; AgentAdapter::doctor_report; AgentRegistry::doctor_reports; list_agent_doctor_reports Tauri command; Agent Doctor panel; Start Codex disabled state; frontend tests.
+- expected changes: backend resolves binary path and version for each built-in adapter; version failures become error reports; missing binaries become missing reports with install hints; UI shows installed/missing/error states; missing Codex blocks Start Codex; detection command failure displays an error instead of crashing.
+- acceptance criteria: backend detection resolves binary path and version; UI shows installed, missing, and error states; missing CLI state blocks session start and shows install guidance placeholders; detection errors do not crash the app.
+- required tests: cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -102,3 +113,4 @@
 - Codex TUI input requires xterm keyboard data; a separate HTML line input is insufficient for interactive agent CLIs.
 - Mind map files should now be kept current when PTY runtime, frontend terminal, or agent launch flow changes.
 - AIA-003 intentionally keeps real Claude/Codex/Kimi behavior conservative; later adapter tasks validate CLI flags and structured modes before hardcoding them.
+- AIA-004 uses `--version` for readiness checks with a timeout; later adapter tasks can refine per-CLI version/help probing.

@@ -24,6 +24,7 @@ pub fn run() {
             commands::stop_session,
             commands::drain_session_output,
             commands::list_sessions,
+            commands::list_agent_doctor_reports,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

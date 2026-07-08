@@ -98,8 +98,10 @@ button:disabled {
 
 .eyebrow,
 .section-heading h2,
+.doctor-heading h3,
 h1,
 .status-list,
+.doctor-list,
 .terminal-meta,
 .error-message {
   margin: 0;
@@ -180,6 +182,71 @@ dd {
   padding-top: 10px;
 }
 
+.doctor-panel {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.doctor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.doctor-heading h3 {
+  color: #222a2e;
+  font-size: 1rem;
+}
+
+.doctor-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.doctor-item {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.5fr);
+  gap: 8px;
+  border: 1px solid #dfe5df;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.doctor-item[data-status="installed"] {
+  border-left-color: #1e6f5c;
+}
+
+.doctor-item[data-status="missing"] {
+  border-left-color: #b58522;
+}
+
+.doctor-item[data-status="error"] {
+  border-left-color: #aa3f35;
+}
+
+.doctor-item div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.doctor-item strong,
+.doctor-status {
+  color: #1f2b26;
+  font-weight: 800;
+}
+
+.doctor-item span {
+  color: #5f6e66;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
 .error-message {
   margin-top: 14px;
   border: 1px solid #d9aaa5;
@@ -246,5 +313,9 @@ dd {
 
   .button-row button {
     width: 100%;
+  }
+
+  .doctor-item {
+    grid-template-columns: 1fr;
   }
 }

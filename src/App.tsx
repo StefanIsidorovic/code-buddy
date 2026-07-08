@@ -16,6 +16,21 @@ type SessionInfo = {
   exitCode: number | null;
 };
 
+type AgentDoctorStatus = "installed" | "missing" | "error";
+
+type AgentDoctorReport = {
+  adapter: {
+    id: string;
+    displayName: string;
+    executable: string;
+  };
+  status: AgentDoctorStatus;
+  path: string | null;
+  version: string | null;
+  error: string | null;
+  installHint: string;
+};
+
 const initialSize = {
   cols: 80,
   rows: 24,
@@ -31,9 +46,14 @@ function App() {
   const [terminalSize, setTerminalSize] = useState(initialSize);
   const [output, setOutput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
+  const [doctorError, setDoctorError] = useState<string | null>(null);
+  const [doctorLoading, setDoctorLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const canUseSession = session?.state === "running";
+  const codexReport = doctorReports.find((report) => report.adapter.id === "codex") ?? null;
+  const canStartCodex = codexReport?.status === "installed";
   const statusLabel = useMemo(() => {
     if (!session) {
       return "not started";
@@ -45,6 +65,10 @@ function App() {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    void refreshAgentDoctor();
+  }, []);
 
   useEffect(() => {
     if (!terminalElement.current) {
@@ -136,6 +160,11 @@ function App() {
   }
 
   async function startSession(kind: "fake" | "codex") {
+    if (kind === "codex" && !canStartCodex) {
+      setError("Codex CLI is not ready. Check Agent Doctor.");
+      return;
+    }
+
     await runAction(async () => {
       const command = kind === "fake" ? "start_fake_session" : "start_codex_session";
       const size = fitTerminal();
@@ -186,6 +215,19 @@ function App() {
     if (chunk.length > 0) {
       setOutput((current) => `${current}${chunk}`);
       terminal.current?.write(chunk);
+    }
+  }
+
+  async function refreshAgentDoctor() {
+    setDoctorLoading(true);
+    setDoctorError(null);
+    try {
+      const reports = await invoke<AgentDoctorReport[]>("list_agent_doctor_reports");
+      setDoctorReports(reports);
+    } catch (err) {
+      setDoctorError(errorText(err));
+    } finally {
+      setDoctorLoading(false);
     }
   }
 
@@ -248,7 +290,7 @@ function App() {
           <button
             type="button"
             onClick={() => void startSession("codex")}
-            disabled={busy || canUseSession}
+            disabled={busy || canUseSession || !canStartCodex}
           >
             Start Codex
           </button>
@@ -273,6 +315,36 @@ function App() {
           </div>
         </dl>
 
+        <section className="doctor-panel" aria-labelledby="doctor-title">
+          <div className="doctor-heading">
+            <h3 id="doctor-title">Agent Doctor</h3>
+            <button type="button" onClick={() => void refreshAgentDoctor()} disabled={doctorLoading}>
+              Refresh
+            </button>
+          </div>
+
+          {doctorError ? (
+            <p className="error-message" role="alert">
+              {doctorError}
+            </p>
+          ) : null}
+
+          <ul className="doctor-list" aria-label="Agent CLI status">
+            {doctorReports.map((report) => (
+              <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
+                <div>
+                  <strong>{report.adapter.displayName}</strong>
+                  <span>{report.adapter.executable}</span>
+                </div>
+                <div>
+                  <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
+                  <span>{doctorDetail(report)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         {error ? (
           <p className="error-message" role="alert">
             {error}
@@ -295,6 +367,30 @@ function App() {
       </section>
     </main>
   );
+}
+
+function doctorStatusLabel(status: AgentDoctorStatus) {
+  if (status === "installed") {
+    return "Installed";
+  }
+
+  if (status === "missing") {
+    return "Missing";
+  }
+
+  return "Error";
+}
+
+function doctorDetail(report: AgentDoctorReport) {
+  if (report.status === "installed") {
+    return report.version ?? report.path ?? "Ready";
+  }
+
+  if (report.status === "missing") {
+    return report.installHint;
+  }
+
+  return report.error ?? report.installHint;
 }
 
 function readTerminalSize(activeTerminal: Terminal | null) {

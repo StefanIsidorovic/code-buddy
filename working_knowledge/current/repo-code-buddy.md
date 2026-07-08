@@ -15,10 +15,12 @@
 - Session start and manual Resize use the fitted xterm cols/rows so Codex draws to the visible terminal size.
 - Backend exposes the Tauri run entry, app_status, AIA-002 PTY commands, and the temporary Codex command.
 - Backend now has an AIA-003 adapter boundary in src-tauri/src/adapters.rs.
+- Backend now exposes AIA-004 agent doctor reports through list_agent_doctor_reports.
 - Older product feature modules for SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally; a new focused adapter boundary now exists for AIA-003.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
 - SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
 - AgentRegistry lists compiled-in codex, claude_code, and kimi adapter metadata.
+- Agent doctor reports include installed/missing/error status, binary path, version, error, and install hint.
 - Codex smoke-test command construction now goes through CodexAdapter.
 
 ## Entry Points
@@ -27,6 +29,7 @@
 - Baseline backend command: app_status.
 - AIA-002 backend commands: start_fake_session, write_session_input, resize_session, stop_session, drain_session_output, list_sessions.
 - Temporary Codex backend command: start_codex_session.
+- Doctor backend command: list_agent_doctor_reports.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 
 ## Tests
@@ -36,6 +39,8 @@
 - Backend: cargo test covers the minimal app_status command.
 - AIA-002 backend tests cover fake session start/output, input, resize, stop, force stop, cleanup, missing session errors, and 8-session concurrency.
 - AIA-003 backend tests cover adapter registry list/resolve/default, missing adapter, fake resolver detection, Codex command construction, input encoding, capability edge cases, and structured hook fallback.
+- AIA-004 backend tests cover doctor installed, missing, and error states.
+- Frontend tests cover Agent Doctor display and missing Codex blocking.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -52,6 +57,7 @@
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
 - Frontend validation now includes a test that xterm keyboard data is forwarded to write_session_input for the active session.
 - Active mind map files now cover PTY runtime, frontend terminal, adapter boundary, and agent launch flow.
+- LOCAL_PROGRESS.md is a git-ignored local progress diary.
 
 ## Constraints
 - Keep reset narrow: no new product functionality in this pass.
@@ -62,3 +68,4 @@
 - xterm dependencies are now in package.json/package-lock.json.
 - Keep working_knowledge/current/mind_map.md synchronized with every file under working_knowledge/current/mind_map/.
 - Real adapter behavior remains deferred to AIA-005/AIA-006/AIA-007 after checking each CLI help surface.
+- Generic doctor version checks can report error for CLIs whose `--version` behavior differs; this is surfaced to the UI without crashing.

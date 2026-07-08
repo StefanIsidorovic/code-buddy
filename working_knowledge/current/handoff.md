@@ -17,11 +17,13 @@
 - AIA-003 is implemented locally: AgentAdapter trait, AgentRegistry, built-in codex/claude_code/kimi metadata, test fake adapter, and adapter unit tests.
 - Temporary Codex launch now uses CodexAdapter for detection and command construction.
 - Frontend active-session ref is updated synchronously after start/resize/stop so immediate xterm input is not dropped.
-- HEAD is c51b78a and has a provenance note under refs/notes/provenance.
+- AIA-004 is implemented locally: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
+- LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
+- HEAD is 8cdd5f5.
 - User requested no agent commit; changes remain local for user review.
 
 ## Next Step
-- User reviews AIA-003 local changes and commits if satisfied; next backlog task is AIA-004 first-run doctor and CLI detection.
+- User reviews AIA-004 local changes and commits if satisfied; next backlog task is the first full real-agent adapter path.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -32,6 +34,7 @@
 - cargo test: validate Rust backend skeleton.
 - cargo clippy -- -D warnings: validate Rust lint status.
 - npm run tauri dev: launch the desktop PTY test panel.
+- In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -42,6 +45,7 @@
 - The PTY panel backend calls work in Tauri runtime, not a normal browser tab.
 - Start Codex uses codex --no-alt-screen --cd <cwd>; full adapter behavior is still deferred.
 - AIA-003 does not validate real Claude Code, Codex, or Kimi CLI flags beyond the existing Codex smoke path; those checks belong to AIA-005/AIA-006/AIA-007.
+- AIA-004 uses generic `--version` readiness checks; real adapter tasks can refine per-CLI detection after help/version validation.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.

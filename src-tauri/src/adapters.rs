@@ -1,7 +1,12 @@
 use crate::errors::{AppError, AppResult};
 use portable_pty::CommandBuilder;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    thread,
+    time::{Duration, Instant},
+};
 
 pub const CODEX_ADAPTER_ID: &str = "codex";
 pub const CLAUDE_CODE_ADAPTER_ID: &str = "claude_code";
@@ -54,6 +59,25 @@ pub struct AgentDetection {
     pub executable: &'static str,
     pub path: Option<PathBuf>,
     pub available: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentDoctorStatus {
+    Installed,
+    Missing,
+    Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentDoctorReport {
+    pub adapter: AgentAdapterDescriptor,
+    pub status: AgentDoctorStatus,
+    pub path: Option<PathBuf>,
+    pub version: Option<String>,
+    pub error: Option<String>,
+    pub install_hint: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,12 +158,69 @@ impl BinaryResolver for SystemBinaryResolver {
     }
 }
 
+pub trait VersionRunner {
+    fn version(&self, path: &Path) -> Result<String, String>;
+}
+
+pub struct SystemVersionRunner;
+
+const VERSION_TIMEOUT: Duration = Duration::from_secs(2);
+const VERSION_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+impl VersionRunner for SystemVersionRunner {
+    fn version(&self, path: &Path) -> Result<String, String> {
+        let mut child = Command::new(path)
+            .arg("--version")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|err| err.to_string())?;
+
+        let start = Instant::now();
+        while start.elapsed() < VERSION_TIMEOUT {
+            if child.try_wait().map_err(|err| err.to_string())?.is_some() {
+                let output = child.wait_with_output().map_err(|err| err.to_string())?;
+                return parse_version_output(output.status, &output.stdout, &output.stderr);
+            }
+            thread::sleep(VERSION_POLL_INTERVAL);
+        }
+
+        let _ = child.kill();
+        let _ = child.wait();
+        Err("version command timed out".to_string())
+    }
+}
+
+fn parse_version_output(
+    status: std::process::ExitStatus,
+    stdout: &[u8],
+    stderr: &[u8],
+) -> Result<String, String> {
+    if !status.success() {
+        let stderr = String::from_utf8_lossy(stderr).trim().to_string();
+        let detail = if stderr.is_empty() {
+            format!("version command exited with status {status}")
+        } else {
+            stderr
+        };
+        return Err(detail);
+    }
+
+    let stdout = String::from_utf8_lossy(stdout).trim().to_string();
+    if stdout.is_empty() {
+        Ok("unknown".to_string())
+    } else {
+        Ok(stdout)
+    }
+}
+
 pub trait AgentAdapter: Send + Sync {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
     fn executable(&self) -> &'static str;
     fn capabilities(&self) -> AgentCapabilities;
     fn agents_md_delivery(&self) -> AgentsMdDelivery;
+    fn install_hint(&self) -> &'static str;
     fn build_command(&self, request: &AgentCommandRequest) -> AppResult<AgentCommand>;
 
     fn descriptor(&self) -> AgentAdapterDescriptor {
@@ -159,6 +240,43 @@ pub trait AgentAdapter: Send + Sync {
             executable: self.executable(),
             available: path.is_some(),
             path,
+        }
+    }
+
+    fn doctor_report(
+        &self,
+        resolver: &dyn BinaryResolver,
+        version_runner: &dyn VersionRunner,
+    ) -> AgentDoctorReport {
+        let detection = self.detect(resolver);
+        let Some(path) = detection.path else {
+            return AgentDoctorReport {
+                adapter: self.descriptor(),
+                status: AgentDoctorStatus::Missing,
+                path: None,
+                version: None,
+                error: None,
+                install_hint: self.install_hint(),
+            };
+        };
+
+        match version_runner.version(&path) {
+            Ok(version) => AgentDoctorReport {
+                adapter: self.descriptor(),
+                status: AgentDoctorStatus::Installed,
+                path: Some(path),
+                version: Some(version),
+                error: None,
+                install_hint: self.install_hint(),
+            },
+            Err(error) => AgentDoctorReport {
+                adapter: self.descriptor(),
+                status: AgentDoctorStatus::Error,
+                path: Some(path),
+                version: None,
+                error: Some(error),
+                install_hint: self.install_hint(),
+            },
         }
     }
 
@@ -204,6 +322,17 @@ impl AgentRegistry {
             .collect()
     }
 
+    pub fn doctor_reports(
+        &self,
+        resolver: &dyn BinaryResolver,
+        version_runner: &dyn VersionRunner,
+    ) -> Vec<AgentDoctorReport> {
+        self.adapters
+            .iter()
+            .map(|adapter| adapter.doctor_report(resolver, version_runner))
+            .collect()
+    }
+
     pub fn resolve(&self, id: &str) -> AppResult<&dyn AgentAdapter> {
         self.adapters
             .iter()
@@ -240,6 +369,10 @@ impl AgentAdapter for CodexAdapter {
 
     fn agents_md_delivery(&self) -> AgentsMdDelivery {
         AgentsMdDelivery::Unknown
+    }
+
+    fn install_hint(&self) -> &'static str {
+        "Install the Codex CLI and make sure `codex` is available on PATH."
     }
 
     fn build_command(&self, request: &AgentCommandRequest) -> AppResult<AgentCommand> {
@@ -287,6 +420,10 @@ impl AgentAdapter for ClaudeCodeAdapter {
         AgentsMdDelivery::Unknown
     }
 
+    fn install_hint(&self) -> &'static str {
+        "Install Claude Code and make sure `claude` is available on PATH."
+    }
+
     fn build_command(&self, request: &AgentCommandRequest) -> AppResult<AgentCommand> {
         Ok(generic_command(request))
     }
@@ -319,6 +456,10 @@ impl AgentAdapter for KimiAdapter {
 
     fn agents_md_delivery(&self) -> AgentsMdDelivery {
         AgentsMdDelivery::PromptPrefix
+    }
+
+    fn install_hint(&self) -> &'static str {
+        "Install Kimi CLI and make sure `kimi` is available on PATH."
     }
 
     fn build_command(&self, request: &AgentCommandRequest) -> AppResult<AgentCommand> {
@@ -373,6 +514,10 @@ mod tests {
             AgentsMdDelivery::Unsupported
         }
 
+        fn install_hint(&self) -> &'static str {
+            "Install fake-cli for tests."
+        }
+
         fn build_command(&self, request: &AgentCommandRequest) -> AppResult<AgentCommand> {
             Ok(generic_command(request))
         }
@@ -393,6 +538,32 @@ mod tests {
     impl BinaryResolver for FakeResolver {
         fn resolve(&self, executable: &str) -> Option<PathBuf> {
             self.paths.get(executable).cloned()
+        }
+    }
+
+    #[derive(Default)]
+    struct FakeVersionRunner {
+        versions: HashMap<PathBuf, Result<String, String>>,
+    }
+
+    impl FakeVersionRunner {
+        fn with_version(mut self, path: PathBuf, version: &str) -> Self {
+            self.versions.insert(path, Ok(version.to_string()));
+            self
+        }
+
+        fn with_error(mut self, path: PathBuf, error: &str) -> Self {
+            self.versions.insert(path, Err(error.to_string()));
+            self
+        }
+    }
+
+    impl VersionRunner for FakeVersionRunner {
+        fn version(&self, path: &Path) -> Result<String, String> {
+            self.versions
+                .get(path)
+                .cloned()
+                .unwrap_or_else(|| Err("version not configured".to_string()))
         }
     }
 
@@ -445,6 +616,37 @@ mod tests {
         let missing = adapter.detect(&FakeResolver::default());
         assert!(!missing.available);
         assert_eq!(missing.path, None);
+    }
+
+    #[test]
+    fn doctor_reports_installed_missing_and_error_states() {
+        let registry = AgentRegistry::with_adapters(vec![&FAKE_ADAPTER]);
+        let fake_path = PathBuf::from("/bin/fake");
+        let resolver = FakeResolver::default().with_path("fake-cli", fake_path.clone());
+        let version_runner =
+            FakeVersionRunner::default().with_version(fake_path.clone(), "fake-cli 1.2.3");
+
+        let installed = registry.doctor_reports(&resolver, &version_runner);
+
+        assert_eq!(installed[0].status, AgentDoctorStatus::Installed);
+        assert_eq!(installed[0].path, Some(fake_path.clone()));
+        assert_eq!(installed[0].version.as_deref(), Some("fake-cli 1.2.3"));
+        assert_eq!(installed[0].error, None);
+
+        let missing =
+            registry.doctor_reports(&FakeResolver::default(), &FakeVersionRunner::default());
+
+        assert_eq!(missing[0].status, AgentDoctorStatus::Missing);
+        assert_eq!(missing[0].path, None);
+        assert_eq!(missing[0].version, None);
+        assert_eq!(missing[0].install_hint, "Install fake-cli for tests.");
+
+        let error_runner =
+            FakeVersionRunner::default().with_error(fake_path, "version command failed");
+        let errored = registry.doctor_reports(&resolver, &error_runner);
+
+        assert_eq!(errored[0].status, AgentDoctorStatus::Error);
+        assert_eq!(errored[0].error.as_deref(), Some("version command failed"));
     }
 
     #[test]

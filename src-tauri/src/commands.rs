@@ -1,4 +1,5 @@
 use crate::{
+    adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::AppResult,
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
 };
@@ -59,4 +60,9 @@ pub fn drain_session_output(
 #[tauri::command]
 pub fn list_sessions(state: State<'_, SessionManager>) -> AppResult<Vec<SessionInfo>> {
     state.list_sessions()
+}
+
+#[tauri::command]
+pub fn list_agent_doctor_reports() -> Vec<AgentDoctorReport> {
+    AgentRegistry::default().doctor_reports(&SystemBinaryResolver, &SystemVersionRunner)
 }
