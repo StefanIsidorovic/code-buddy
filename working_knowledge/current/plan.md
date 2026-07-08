@@ -68,6 +68,28 @@
 - review status: passed
 - commit: user will commit
 
+### 7. Add active mind map knowledge
+- objective: create the active mind map requested by the user so cross-cutting PTY/xterm/agent-launch knowledge has a stable home.
+- status: complete
+- files: working_knowledge/current/mind_map.md; working_knowledge/current/mind_map/pty-runtime.md; working_knowledge/current/mind_map/frontend-terminal.md; working_knowledge/current/mind_map/agent-launch-flow.md; working_knowledge/current/*
+- affected units: working knowledge index; PTY runtime topic map; frontend terminal topic map; agent launch topic map; handoff/status/decisions/repo notes.
+- expected changes: add a mind_map.md index; add concise source-backed topic files; record that future changes to these areas must update the relevant topic file.
+- acceptance criteria: mind_map.md maps every file under working_knowledge/current/mind_map/; topic files describe current data flow, constraints, tests, and watchouts; existing knowledge files point to the active map.
+- required tests: rg --files working_knowledge/current; rg for mind_map references; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 8. Implement AIA-003 adapter interface and registry
+- objective: create the backend adapter boundary for Codex, Claude Code, and Kimi before adding full real-agent adapters.
+- status: complete
+- files: src-tauri/src/adapters.rs; src-tauri/src/errors.rs; src-tauri/src/lib.rs; src-tauri/src/session.rs; src/App.tsx; working_knowledge/current/*
+- affected units: AgentAdapter trait; AgentRegistry; BinaryResolver; AgentCapabilities; AgentsMdDelivery; AgentCommand; AgentInput; StructuredParseResult; AppError; Codex smoke-test command construction; xterm active session ref handling; adapter and frontend tests.
+- expected changes: add adapter trait coverage for detection, capabilities, command construction, input encoding, structured parsing hook, and AGENTS.md delivery strategy; add built-in registry for codex, claude_code, and kimi; add test-only fake adapter; route current Codex launch command construction through CodexAdapter; fix immediate xterm input race after session start.
+- acceptance criteria: registry can list and resolve compiled-in adapters; missing adapter returns AdapterNotFound; fake adapter exists in tests; unit tests cover success, missing adapter, detection success/missing, command construction, input encoding, and capability edge cases; existing PTY smoke path still works.
+- required tests: cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -78,3 +100,5 @@
 - xterm increases the production JS chunk size; Vite warns about >500 kB but build succeeds.
 - The page itself should not scroll in the desktop test panel; long terminal output belongs inside xterm's viewport.
 - Codex TUI input requires xterm keyboard data; a separate HTML line input is insufficient for interactive agent CLIs.
+- Mind map files should now be kept current when PTY runtime, frontend terminal, or agent launch flow changes.
+- AIA-003 intentionally keeps real Claude/Codex/Kimi behavior conservative; later adapter tasks validate CLI flags and structured modes before hardcoding them.

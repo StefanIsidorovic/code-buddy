@@ -142,7 +142,7 @@ function App() {
       const nextSession = await invoke<SessionInfo>(command, {
         request: { cols: size.cols, rows: size.rows },
       });
-      setSession(nextSession);
+      setActiveSession(nextSession);
       setSessionKind(kind);
       setOutput("");
       terminal.current?.reset();
@@ -172,7 +172,7 @@ function App() {
         sessionId: session.id,
         force,
       });
-      setSession(nextSession);
+      setActiveSession(nextSession);
       await drainOutput(session.id);
     });
   }
@@ -202,6 +202,11 @@ function App() {
       cols: size.cols,
       rows: size.rows,
     });
+    setActiveSession(nextSession);
+  }
+
+  function setActiveSession(nextSession: SessionInfo) {
+    sessionRef.current = nextSession;
     setSession(nextSession);
   }
 

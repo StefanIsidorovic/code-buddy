@@ -1,4 +1,7 @@
-use crate::errors::{AppError, AppResult};
+use crate::{
+    adapters::{AgentAdapter, AgentCommandRequest, CodexAdapter, SystemBinaryResolver},
+    errors::{AppError, AppResult},
+};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -439,14 +442,14 @@ fn resolve_size(cols: Option<u16>, rows: Option<u16>) -> AppResult<(u16, u16)> {
 }
 
 fn codex_command(cwd: &std::path::Path) -> AppResult<CommandBuilder> {
-    let codex = which::which("codex")
-        .map_err(|_| AppError::InvalidInput("codex CLI was not found on PATH".to_string()))?;
-    let mut command = CommandBuilder::new(codex);
-    command.arg("--no-alt-screen");
-    command.arg("--cd");
-    command.arg(cwd.display().to_string());
-    command.cwd(cwd);
-    Ok(command)
+    let adapter = CodexAdapter;
+    let detection = adapter.detect(&SystemBinaryResolver);
+    let executable_path = detection
+        .path
+        .ok_or_else(|| AppError::InvalidInput("codex CLI was not found on PATH".to_string()))?;
+    let request = AgentCommandRequest::new(executable_path, cwd.to_path_buf());
+
+    Ok(adapter.build_command(&request)?.into_command_builder())
 }
 
 #[cfg(unix)]

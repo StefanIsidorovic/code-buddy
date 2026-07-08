@@ -13,8 +13,10 @@
 - PTY rendering: introduce xterm.js early for the smoke-test panel because real Codex output is ANSI/TUI and is not readable in a raw pre block.
 - PTY panel scrolling: keep the desktop test page fixed to the viewport and let long output scroll only inside xterm.
 - PTY input: route keyboard data through xterm onData directly into the backend PTY; a separate HTML input form cannot support Codex TUI interactions reliably.
+- Mind map usage: maintain an active mind map for cross-cutting PTY runtime, frontend terminal, and agent launch flow knowledge.
+- AIA-003 adapter boundary: add AgentAdapter and AgentRegistry before full real-agent adapters; keep unvalidated Claude/Codex/Kimi capabilities as Unknown where appropriate.
+- Codex smoke integration: route the temporary Codex command construction through CodexAdapter, but defer full Codex adapter behavior to AIA-006.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
-- Retrospective provenance repair for 74ca850: report and defer unless requested.
