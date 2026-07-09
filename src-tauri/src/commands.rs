@@ -7,6 +7,7 @@ use crate::{
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
+    storage::{CreateProjectRequest, ProjectInfo, ProjectStore},
 };
 use std::sync::Arc;
 use tauri::State;
@@ -71,6 +72,24 @@ pub fn list_sessions(state: State<'_, SessionManager>) -> AppResult<Vec<SessionI
 #[tauri::command]
 pub fn list_agent_doctor_reports() -> Vec<AgentDoctorReport> {
     AgentRegistry::default().doctor_reports(&SystemBinaryResolver, &SystemVersionRunner)
+}
+
+#[tauri::command]
+pub fn create_project(
+    state: State<'_, ProjectStore>,
+    request: CreateProjectRequest,
+) -> AppResult<ProjectInfo> {
+    state.create_project(request)
+}
+
+#[tauri::command]
+pub fn list_projects(state: State<'_, ProjectStore>) -> AppResult<Vec<ProjectInfo>> {
+    state.list_projects()
+}
+
+#[tauri::command]
+pub fn delete_project(state: State<'_, ProjectStore>, project_id: String) -> AppResult<()> {
+    state.delete_project(&project_id)
 }
 
 #[tauri::command]

@@ -81,6 +81,14 @@ type AcpPromptResult = {
   stopReason: string;
 };
 
+type ProjectInfo = {
+  id: string;
+  name: string;
+  path: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 const initialSize = {
   cols: 80,
   rows: 24,
@@ -99,6 +107,12 @@ function App() {
   const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
   const [doctorError, setDoctorError] = useState<string | null>(null);
   const [doctorLoading, setDoctorLoading] = useState(false);
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [projectPath, setProjectPath] = useState("");
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [projectLoading, setProjectLoading] = useState(false);
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
   const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
@@ -119,6 +133,10 @@ function App() {
     () =>
       acpRegistryCandidates.find((candidate) => candidate.id === selectedAcpCandidateId) ?? null,
     [acpRegistryCandidates, selectedAcpCandidateId],
+  );
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId],
   );
   const canStartSelectedAcpCandidate =
     !!selectedAcpCandidate &&
@@ -142,6 +160,7 @@ function App() {
   }, [session]);
 
   useEffect(() => {
+    void refreshProjects();
     void refreshAgentDoctor();
     void refreshAcpRegistryCandidates();
   }, []);
@@ -247,6 +266,49 @@ function App() {
     }
   }
 
+  async function refreshProjects() {
+    setProjectLoading(true);
+    setProjectError(null);
+    try {
+      const nextProjects = await invoke<ProjectInfo[]>("list_projects");
+      setProjects(nextProjects);
+      setSelectedProjectId((current) => {
+        if (current && nextProjects.some((project) => project.id === current)) {
+          return current;
+        }
+
+        return nextProjects[0]?.id ?? null;
+      });
+    } catch (err) {
+      setProjectError(errorText(err));
+    } finally {
+      setProjectLoading(false);
+    }
+  }
+
+  async function createProject() {
+    await runAction(async () => {
+      const project = await invoke<ProjectInfo>("create_project", {
+        request: {
+          name: projectName,
+          path: projectPath,
+        },
+      });
+      setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
+      setSelectedProjectId(project.id);
+      setProjectName("");
+      setProjectPath("");
+    });
+  }
+
+  async function deleteProject(projectId: string) {
+    await runAction(async () => {
+      await invoke("delete_project", { projectId });
+      setProjects((current) => current.filter((project) => project.id !== projectId));
+      setSelectedProjectId((current) => (current === projectId ? null : current));
+    });
+  }
+
   async function startSession(kind: "fake" | "codex") {
     if (kind === "codex" && !canStartCodex) {
       setError("Codex CLI is not ready. Check Agent Doctor.");
@@ -257,7 +319,11 @@ function App() {
       const command = kind === "fake" ? "start_fake_session" : "start_codex_session";
       const size = fitTerminal();
       const nextSession = await invoke<SessionInfo>(command, {
-        request: { cols: size.cols, rows: size.rows },
+        request: {
+          cols: size.cols,
+          rows: size.rows,
+          ...selectedProjectCwd(selectedProject),
+        },
       });
       setActiveSession(nextSession);
       setSessionKind(kind);
@@ -342,7 +408,9 @@ function App() {
   async function startFakeAcpSession() {
     await runAction(async () => {
       const nextSession = await invoke<AcpSessionInfo>("start_fake_acp_session", {
-        request: {},
+        request: {
+          ...selectedProjectCwd(selectedProject),
+        },
       });
       setAcpSession(nextSession);
       setAcpSessionSource("fake");
@@ -362,6 +430,7 @@ function App() {
       const nextSession = await invoke<AcpSessionInfo>("start_acp_registry_session", {
         request: {
           candidateId: selectedAcpCandidate.id,
+          ...selectedProjectCwd(selectedProject),
         },
       });
       setAcpSession(nextSession);
@@ -458,6 +527,10 @@ function App() {
             <dt>PID</dt>
             <dd>{session?.pid ?? "none"}</dd>
           </div>
+          <div>
+            <dt>Workspace</dt>
+            <dd>{selectedProject?.name ?? "none"}</dd>
+          </div>
         </dl>
       </section>
 
@@ -502,6 +575,82 @@ function App() {
             <dd>{terminalSize.cols}x{terminalSize.rows}</dd>
           </div>
         </dl>
+
+        <section className="workspace-panel" aria-labelledby="workspace-title">
+          <div className="doctor-heading">
+            <h3 id="workspace-title">Workspace</h3>
+            <span>{selectedProject ? selectedProject.name : "none selected"}</span>
+            <button type="button" onClick={() => void refreshProjects()} disabled={projectLoading}>
+              Refresh
+            </button>
+          </div>
+
+          {projectError ? (
+            <p className="error-message" role="alert">
+              {projectError}
+            </p>
+          ) : null}
+
+          <div className="workspace-form">
+            <label>
+              <span>Name</span>
+              <input
+                aria-label="Project name"
+                onChange={(event) => setProjectName(event.target.value)}
+                value={projectName}
+              />
+            </label>
+            <label>
+              <span>Path</span>
+              <input
+                aria-label="Project path"
+                onChange={(event) => setProjectPath(event.target.value)}
+                value={projectPath}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void createProject()}
+              disabled={busy || !projectName.trim() || !projectPath.trim()}
+            >
+              Add Project
+            </button>
+          </div>
+
+          <ul className="project-list" aria-label="Projects">
+            {projects.length === 0 ? (
+              <li>No projects yet.</li>
+            ) : (
+              projects.map((project) => (
+                <li data-selected={project.id === selectedProject?.id} key={project.id}>
+                  <div>
+                    <strong>{project.name}</strong>
+                    <span>{project.path}</span>
+                  </div>
+                  <div className="project-actions">
+                    <button
+                      aria-label={`Select ${project.name} project`}
+                      aria-pressed={project.id === selectedProject?.id}
+                      type="button"
+                      onClick={() => setSelectedProjectId(project.id)}
+                      disabled={busy || canUseSession || canUseAcpSession}
+                    >
+                      {project.id === selectedProject?.id ? "Selected" : "Select"}
+                    </button>
+                    <button
+                      aria-label={`Delete ${project.name} project`}
+                      type="button"
+                      onClick={() => void deleteProject(project.id)}
+                      disabled={busy || canUseSession || canUseAcpSession}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
 
         <section className="doctor-panel" aria-labelledby="doctor-title">
           <div className="doctor-heading">
@@ -748,6 +897,10 @@ function acpCandidateStatusLabel(status: AcpRegistryCandidateStatus) {
 
 function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
   return candidate.status === "ready" || candidate.status === "installable";
+}
+
+function selectedProjectCwd(project: ProjectInfo | null) {
+  return project ? { cwd: project.path } : {};
 }
 
 function formatCommand(command: string[]) {

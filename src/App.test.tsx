@@ -47,6 +47,10 @@ beforeEach(() => {
   onTerminalData = undefined;
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockImplementation((command) => {
+    if (command === "list_projects") {
+      return Promise.resolve(defaultProjects());
+    }
+
     if (command === "list_agent_doctor_reports") {
       return Promise.resolve(defaultDoctorReports());
     }
@@ -77,10 +81,13 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Interactive PTY terminal")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
+    expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
     expect(screen.getByText("No output yet.")).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
     expect(await screen.findByText("codex 1.2.3")).toBeInTheDocument();
@@ -92,6 +99,113 @@ describe("PTY test panel", () => {
     expect(screen.getByText("PTY: Supported · ACP: Unknown")).toBeInTheDocument();
     expect(screen.getByText("Install Claude Code and make sure `claude` is available on PATH."))
       .toBeInTheDocument();
+  });
+
+  it("creates and selects a project workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "create_project") {
+        return Promise.resolve(defaultProject());
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByText("No projects yet.");
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "AIadne" },
+    });
+    fireEvent.change(screen.getByLabelText("Project path"), {
+      target: { value: "/home/katarina/projects/AIadne" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Project" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("create_project", {
+        request: {
+          name: "AIadne",
+          path: "/home/katarina/projects/AIadne",
+        },
+      });
+    });
+    expect(await screen.findByText("/home/katarina/projects/AIadne")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select AIadne project" }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("passes the selected project cwd when launching a PTY session", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_fake_session") {
+        return Promise.resolve({
+          id: "session-with-cwd",
+          state: "running",
+          pid: 123,
+          cols: 92,
+          rows: 18,
+          exitCode: null,
+        });
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByText("/home/katarina/projects/AIadne");
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("start_fake_session", {
+        request: {
+          cols: 92,
+          rows: 18,
+          cwd: "/home/katarina/projects/AIadne",
+        },
+      });
+    });
   });
 
   it("selects ACP registry candidates without launching them", async () => {
@@ -114,6 +228,10 @@ describe("PTY test panel", () => {
   it("starts the selected ACP registry candidate", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -155,6 +273,7 @@ describe("PTY test panel", () => {
       expect(invokeMock).toHaveBeenCalledWith("start_acp_registry_session", {
         request: {
           candidateId: "codex-acp",
+          cwd: "/home/katarina/projects/AIadne",
         },
       });
     });
@@ -164,6 +283,10 @@ describe("PTY test panel", () => {
   it("starts a non-default launchable ACP registry candidate", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -216,6 +339,10 @@ describe("PTY test panel", () => {
   it("locks ACP candidate selection while a session is running", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -257,6 +384,10 @@ describe("PTY test panel", () => {
   it("writes xterm keyboard data to the active PTY session", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -307,6 +438,10 @@ describe("PTY test panel", () => {
 
   it("blocks Codex start when the CLI is missing", async () => {
     vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports({ codexStatus: "missing" }));
       }
@@ -333,6 +468,10 @@ describe("PTY test panel", () => {
     let promptSent = false;
     let eventDrained = false;
     invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -407,6 +546,10 @@ describe("PTY test panel", () => {
     const invokeMock = vi.mocked(invoke);
     let resolvePrompt: ((result: unknown) => void) | undefined;
     invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -469,6 +612,20 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
   });
 });
+
+function defaultProject() {
+  return {
+    id: "project-aiadne",
+    name: "AIadne",
+    path: "/home/katarina/projects/AIadne",
+    createdAt: 1_785_000_000,
+    updatedAt: 1_785_000_000,
+  };
+}
+
+function defaultProjects() {
+  return [];
+}
 
 function defaultDoctorReports({
   codexStatus = "installed",

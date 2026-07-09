@@ -28,8 +28,11 @@
 - AIA-019 ACP launch boundary: starting a registry-backed ACP candidate must happen only through an explicit user action; discovery and selection remain side-effect-free.
 - AIA-020 generic ACP launch: keep `Start Selected ACP` as the single registry-backed ACP launch action instead of adding per-agent direct buttons; this keeps the same flow usable for Codex, Claude, Kimi, Gemini, and future candidates.
 - AIA-021 Codex ACP runtime: harden the validated Codex ACP path before UI polish by using longer prompt waits, short control waits, child-exit-aware response waiting, and duplicate prompt rejection.
+- AIA-022 workspace persistence: use a small Rust-owned SQLite ProjectStore for saved project folders before building final session UI or transcript history.
+- AIA-022 launch cwd: PTY and ACP sessions should run in the selected project directory when a workspace is selected, and should still work without a selected workspace.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
+- Session transcript/history persistence: defer until the workspace model and runtime launch flow are stable.

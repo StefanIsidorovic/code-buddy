@@ -20,6 +20,8 @@ pub enum AppError {
     SessionNotFound(String),
     #[error("session error: {0}")]
     Session(String),
+    #[error("storage error: {0}")]
+    Storage(String),
 }
 
 impl From<std::io::Error> for AppError {

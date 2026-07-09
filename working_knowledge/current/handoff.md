@@ -5,7 +5,7 @@
 - working_knowledge/current is focused on the PTY session core task.
 - Frontend mock functionality and backend feature modules have been removed locally from the previous reset task.
 - README documents the reset skeleton.
-- docs/linear-tasks.md contains 20 Linear-ready task drafts, including AIA-017 through AIA-020 ACP work.
+- docs/linear-tasks.md contains Linear-ready task drafts, including ACP work through AIA-021 and workspace persistence as AIA-022.
 - AIA-002 is implemented locally: portable-pty dependency, SessionManager, fake PTY CLI, Tauri commands, and backend tests.
 - Minimal Tauri frontend PTY test panel is implemented locally.
 - Temporary Codex PTY launch path is implemented locally for manual smoke testing.
@@ -23,17 +23,17 @@
 - AIA-018 is committed as ed5c16d: ACP registry candidates for codex-acp, claude-acp, kimi, and gemini; backend discovery command; ACP Registry UI panel with selectable candidates; Rust/frontend tests.
 - AIA-019 is committed as 1ce5f36: selected ACP registry candidates can be started through the existing ACP stdio runtime with Start Selected ACP.
 - Manual Codex ACP smoke test reached a real Codex ACP session and response; backend now merges message chunks, filters technical updates, and runs ACP process waits off the UI thread.
-- AIA-020 is implemented locally in the generic direction: Start Selected ACP remains the only registry-backed real-agent ACP launch button, non-default launchable candidates are tested, and candidate selection locks while an ACP session is active.
+- AIA-020/AIA-021 are committed in b0f845d: Start Selected ACP remains generic, Codex ACP events are normalized, prompt waits are longer, child exits release waits, and duplicate prompts are rejected.
 - Codex ACP thought/text-array updates now normalize into readable events instead of raw JSON notices.
-- AIA-021 is implemented locally: Codex ACP prompt waits are longer than control waits, child process exit releases pending waits, duplicate prompts are rejected, and Stop/Drain stay available while prompt sending is in flight.
+- AIA-022 is implemented locally: SQLite ProjectStore, create/list/delete project commands, minimal Workspace panel, and selected workspace cwd wiring for PTY/ACP launches.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 1ce5f36.
-- Worktree has local AIA-020 changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is b0f845d.
+- Worktree has local AIA-022 changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Manually test Start Selected ACP with Codex and any other launchable ACP candidate available locally, then commit AIA-020 if it behaves as expected.
-- After AIA-020 review, choose the next product direction: real workspace/session UI, adapter-specific ACP hardening, or persistence/projects.
-- After AIA-021 review, the next backend/runtime step is likely persistence/projects or Codex-specific adapter hardening; UI polish can remain deferred.
+- Manually add `/home/katarina/projects/AIadne` as a Workspace project in the Tauri app, select it, then start fake PTY and selected Codex ACP to confirm cwd behavior.
+- If AIA-022 behaves as expected, user can commit the local workspace persistence changes.
+- Next product direction after AIA-022: native folder picker, session transcript persistence, or final workspace/session UI shell.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -45,12 +45,14 @@
 - cargo clippy -- -D warnings: validate Rust lint status.
 - npm run tauri dev: launch the desktop PTY test panel.
 - In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
+- In the Tauri app, add a Workspace project with an existing folder path and select it before launching runtime sessions.
 - In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
 - In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
 - In the Tauri app, select Codex ACP and click Start Selected ACP; first npx launch may download @agentclientprotocol/codex-acp.
 - After Codex ACP starts, click Send ACP and confirm ACP Events shows a readable agent message rather than many token rows, and the window stays responsive.
 - Confirm ACP Events does not show raw JSON for agent_thought_chunk/content-array updates; it should show readable Plan or Agent rows.
 - While a Codex ACP prompt is in flight, confirm Send ACP is disabled but Stop ACP and Drain ACP remain enabled.
+- Confirm selected Workspace name appears in the sidebar and launch requests use that folder as cwd.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -75,6 +77,8 @@
 - Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
 - Real Codex ACP can emit content arrays and agent_thought_chunk updates; these should be normalized by the backend before the frontend sees them.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
+- Project storage currently persists only project name/path; transcript history, model defaults, folder picker, and richer workspace settings are deferred.
+- Selected project path is passed as cwd to PTY and ACP launches; old no-project launch behavior still works.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.
 - Keep working_knowledge/current/mind_map.md and working_knowledge/current/mind_map/* updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow changes.

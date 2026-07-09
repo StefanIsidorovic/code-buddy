@@ -41,6 +41,7 @@
 - Real Codex ACP can emit content as an array of text blocks and can send agent_thought_chunk updates; backend normalizes those into readable Agent/Plan events instead of raw notice JSON.
 - AIA-020 keeps Start Selected ACP as the generic launch action and tests a non-default launchable candidate.
 - Candidate selection is disabled while an ACP session is running so the selected label does not drift from the active session source.
+- AIA-022 passes selected Workspace cwd into fake ACP and selected registry ACP launches.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -58,3 +59,4 @@
 - Control requests use a short timeout; session/prompt uses a longer timeout for real Codex work.
 - Response waits poll child process exit so stop/kill or agent crashes release pending waits promptly.
 - Each ACP session allows only one prompt in flight at a time.
+- ACP launch cwd is project-selected when available; ACP itself does not persist transcripts yet.

@@ -11,6 +11,7 @@
 - mind_map/adapter-boundary.md: AgentAdapter trait, registry, detection, command construction, input encoding, structured parsing hook, and capability metadata.
 - mind_map/agent-launch-flow.md: fake CLI, temporary Codex PTY, selected ACP launch flow, cwd/PATH constraints, and deferred agent integration.
 - mind_map/acp-transport.md: Agent Client Protocol meaning, fit beside PTY, fake runtime, registry discovery, selected launch, and risks.
+- mind_map/workspace-persistence.md: SQLite project storage, Workspace UI state, selected cwd launch wiring, and deferred persistence scope.
 
 ## Update Rules
 - Update the relevant topic file whenever code changes alter that topic's data flow, ownership, constraints, or risks.

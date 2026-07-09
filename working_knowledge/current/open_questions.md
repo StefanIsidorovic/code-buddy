@@ -10,6 +10,8 @@
 - Which full real-agent adapter should be implemented first: Claude Code, Codex, or Kimi?
 - Which real agent or fixture should be used first for ACP stdio validation after the fake ACP fixture proves the transport?
 - Should fake ACP support Windows before packaging, or is Linux-first enough while the ACP spike stays local?
+- Should Workspace add-project use a native folder picker next, or is manual path entry enough until the final UI?
+- What project metadata belongs in the first real workspace model beyond name and path: default agent, model, instructions, or last session?
 
 ## Resolved
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
@@ -25,3 +27,4 @@
 - AIA-018 discovery should not install, download, or launch ACP adapters; it only reports local readiness and command previews.
 - AIA-019 adds the explicit Start Selected ACP launch action; discovery and selection still do not launch processes.
 - Codex ACP is the first manually validated registry-backed ACP candidate, but launch should stay generic through Start Selected ACP rather than a Codex-specific button.
+- AIA-022 first workspace slice stores only project name/path and uses the selected project path as PTY/ACP launch cwd.

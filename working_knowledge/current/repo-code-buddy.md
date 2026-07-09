@@ -25,7 +25,10 @@
 - Frontend now has Start Selected ACP for launchable selected ACP candidates.
 - AIA-020 keeps Start Selected ACP as the generic registry-backed launch action for all ACP candidates.
 - Frontend now locks ACP candidate selection while an ACP session is running.
-- Older product feature modules for SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally; a new focused adapter boundary now exists for AIA-003.
+- Backend now has a SQLite-backed ProjectStore in src-tauri/src/storage.rs for saved workspace folders.
+- Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
+- PTY and ACP launch requests include selected project cwd when a workspace is selected.
+- Older product feature modules for keyring secrets, AGENTS.md resolution, broad domain types, and app state were removed during reset; the new storage module is a narrow AIA-022 ProjectStore only.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
 - SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
 - AgentRegistry lists compiled-in codex, claude_code, and kimi adapter metadata.
@@ -41,6 +44,8 @@
 - Codex ACP prompt requests now have a longer timeout than control requests.
 - ACP response waits poll for child process exit so killed/exited agents do not hold pending waits until the full prompt timeout.
 - AcpSession rejects a second prompt while one prompt is already in flight.
+- ProjectStore creates the app database under AIADNE_DB_PATH when set, otherwise under XDG_DATA_HOME/HOME local data path.
+- ProjectStore validates project names, canonicalizes existing directory paths, and rejects duplicate paths.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -52,8 +57,10 @@
 - ACP backend commands: start_fake_acp_session, send_acp_prompt, drain_acp_events, stop_acp_session, list_acp_sessions.
 - ACP registry backend command: list_acp_registry_candidates.
 - ACP selected launch backend command: start_acp_registry_session.
+- Project storage backend commands: create_project, list_projects, delete_project.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, SQLite migration, and project path validation.
 
 ## Tests
 - Frontend: Vitest + Testing Library via src/App.test.tsx.
@@ -75,13 +82,15 @@
 - AIA-021 backend tests cover timeout selection, duplicate prompt rejection, and child-exit-aware prompt waiting.
 - Frontend tests cover keeping Stop ACP and Drain ACP available while a prompt request is in flight.
 - Frontend tests cover Start Selected ACP launching a non-default launchable candidate and locking candidate selection while an ACP session is running.
+- AIA-022 backend tests cover project create/list/delete, invalid input, missing path, and duplicate path rejection.
+- Frontend tests cover Workspace panel rendering, project creation/selection, and selected project cwd being passed into PTY and ACP launch requests.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
 - AGENTS.md requires mind_map.md and mind_map/ to be maintained when an active mind map exists.
 - working_knowledge was stale and has been regenerated for the reset task.
 - HEAD 6312803 has a provenance note under refs/notes/provenance.
-- docs/linear-tasks.md contains 17 task drafts mapped to the restart build plan.
+- docs/linear-tasks.md contains Linear-ready task drafts mapped to the restart build plan, including AIA-022 workspace persistence.
 - README documents the reset skeleton and validation commands.
 - portable-pty 0.9.0 docs confirm native_pty_system/openpty, spawn_command, reader/writer handles, resize, try_wait, and kill APIs.
 - portable-pty 0.9.0 was added to Cargo.toml and Cargo.lock.
@@ -92,6 +101,7 @@
 - AIA-019 first validation passed with 29 Rust tests and 6 frontend tests.
 - AIA-020 validation passed with 31 Rust tests and 8 frontend tests after the ACP thought/text-array normalization fix.
 - AIA-021 validation passed with 34 Rust tests and 9 frontend tests.
+- AIA-022 validation passed with 37 Rust tests and 11 frontend tests.
 - Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 - Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
@@ -116,3 +126,4 @@
 - Generic ACP launch stays behind Start Selected ACP; avoid per-agent direct ACP buttons until the product UI explicitly needs them.
 - Codex ACP prompt waits are intentionally longer than initialize/session/new waits because real tasks can take longer than setup.
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
+- Workspace project persistence is intentionally minimal: no transcript history, default agent/model settings, or native folder picker yet.

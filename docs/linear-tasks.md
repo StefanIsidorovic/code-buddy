@@ -400,3 +400,27 @@ Suggested labels: `backend`, `frontend`, `agents`, `acp`, `codex`
 Depends on: AIA-020
 
 Recommended before: workspace/session UI and Codex-specific adapter hardening
+
+## AIA-022: Add project workspace persistence
+
+Description:
+Add the first real app workspace model so users can save local project folders
+and launch PTY/ACP sessions in the selected project directory. Keep this slice
+small: project list persistence only, not transcript or session history.
+
+Acceptance criteria:
+
+- Backend stores projects in a local SQLite database.
+- Backend can create, list, and delete projects.
+- Project paths are validated as existing directories and canonicalized before storage.
+- Duplicate project paths are rejected.
+- Frontend shows a minimal Workspace panel with add, select, refresh, and delete controls.
+- Starting PTY and ACP sessions passes the selected project path as `cwd`.
+- Existing fake PTY, Codex PTY, fake ACP, and selected ACP launch paths still work without a selected project.
+- Tests cover storage success, invalid input, duplicate paths, project creation UI, and launch `cwd` wiring.
+
+Suggested labels: `backend`, `frontend`, `storage`, `desktop`
+
+Depends on: AIA-021
+
+Recommended before: final workspace/session UI and session history persistence

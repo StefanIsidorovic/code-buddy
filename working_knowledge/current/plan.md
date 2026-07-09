@@ -167,6 +167,17 @@
 - review status: passed
 - commit: user will commit
 
+### 16. Add project workspace persistence
+- objective: add the first real app project/workspace model so agent sessions can start in a user-selected repository folder.
+- status: complete
+- files: README.md; docs/linear-tasks.md; src-tauri/src/storage.rs; src-tauri/src/errors.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore; CreateProjectRequest; ProjectInfo; project storage Tauri commands; Tauri managed state; Workspace frontend panel; PTY/ACP launch request cwd wiring; frontend/Rust tests.
+- expected changes: add SQLite-backed project create/list/delete storage; validate and canonicalize project directories; reject duplicate paths; expose create_project/list_projects/delete_project; render a minimal Workspace panel; keep selected workspace state in the frontend; pass selected project path as cwd when starting PTY and ACP sessions; document AIA-022.
+- acceptance criteria: backend stores projects in SQLite; backend can create/list/delete projects; invalid names, missing paths, and duplicate paths are rejected; frontend can add/select/delete a project; PTY and ACP launch requests include selected cwd; old runtime paths still work without a selected project.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; tsc --noEmit; vitest run; vite build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -184,3 +195,4 @@
 - AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
 - ACP registry discovery is curated from the official registry for now; it reports what could be launched later but does not install, download, or start real ACP adapters.
 - Starting npx-backed ACP registry candidates is an explicit user action and may download the adapter package on first launch.
+- Project storage is intentionally narrow: it persists project folders only, while transcript/session history and richer workspace metadata stay deferred.

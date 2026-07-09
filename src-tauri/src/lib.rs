@@ -3,10 +3,12 @@ pub mod adapters;
 pub mod commands;
 pub mod errors;
 pub mod session;
+pub mod storage;
 
 use acp::AcpSessionManager;
 use session::SessionManager;
 use std::sync::Arc;
+use storage::{default_database_path, ProjectStore};
 
 #[tauri::command]
 fn app_status() -> &'static str {
@@ -19,8 +21,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(SessionManager::default())
         .manage(Arc::new(AcpSessionManager::default()))
+        .manage(
+            ProjectStore::open(default_database_path().expect("aiadne database path resolves"))
+                .expect("aiadne project store opens"),
+        )
         .invoke_handler(tauri::generate_handler![
             app_status,
+            commands::create_project,
+            commands::list_projects,
+            commands::delete_project,
             commands::start_fake_session,
             commands::start_codex_session,
             commands::write_session_input,
