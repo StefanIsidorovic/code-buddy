@@ -145,6 +145,28 @@
 - review status: passed
 - commit: user will commit
 
+### 14. Harden generic selected ACP launch flow
+- objective: keep Start Selected ACP as the single generic registry-backed launch action for Codex, Claude, Kimi, Gemini, and future ACP candidates.
+- status: complete
+- files: src-tauri/src/acp.rs; src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP Registry selection controls; Start Selected ACP frontend control; active ACP status display; ACP event normalization; frontend/Rust tests; ACP launch mind map.
+- expected changes: remove the Codex-specific direct launch direction from local work; keep registry launch generic; prove a non-default launchable candidate can start through start_acp_registry_session; disable candidate selection while an ACP session is running; render Codex ACP text-array and thought chunks as readable events instead of raw JSON.
+- acceptance criteria: no adapter-specific direct ACP launch button is added; frontend invokes start_acp_registry_session for any launchable selected candidate; active session source remains the launched candidate; candidate selection is locked while an ACP session is active; Codex thought/text-block updates do not render raw JSON notices; fake ACP remains available.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 15. Harden Codex ACP runtime behavior
+- objective: make the validated Codex ACP path safer for real tasks before UI polish.
+- status: complete
+- files: src-tauri/src/acp.rs; src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP request timeout constants; AcpSession::send_request; AcpSession::wait_for_response; prompt in-flight guard; ACP Test prompt controls; Rust/frontend tests.
+- expected changes: keep control request timeout short; give session/prompt a longer timeout; detect ACP child process exit while waiting for responses; reject concurrent prompts on the same ACP session; keep Stop ACP and Drain ACP enabled while prompt sending is in flight.
+- acceptance criteria: long Codex prompts are not limited by the short control timeout; killed/exited ACP child processes release pending response waits promptly; duplicate prompts are rejected; frontend can still stop/drain during an active prompt request.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.

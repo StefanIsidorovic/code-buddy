@@ -55,6 +55,7 @@
 - Backend resolves the candidate id, rejects missing runner/binary states, and builds the process command.
 - The selected process is launched over stdio and then uses the same initialize/session/new flow as fake ACP.
 - npx candidates may download their package on first explicit launch.
+- Candidate selection is disabled while an ACP session is running.
 
 ## Boundaries
 - AgentAdapter abstraction exists for detection, capabilities, command construction, input encoding, structured parsing hook, and AGENTS.md delivery strategy.

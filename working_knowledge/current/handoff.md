@@ -5,7 +5,7 @@
 - working_knowledge/current is focused on the PTY session core task.
 - Frontend mock functionality and backend feature modules have been removed locally from the previous reset task.
 - README documents the reset skeleton.
-- docs/linear-tasks.md contains 17 Linear-ready task drafts, including AIA-017 ACP transport spike.
+- docs/linear-tasks.md contains 20 Linear-ready task drafts, including AIA-017 through AIA-020 ACP work.
 - AIA-002 is implemented locally: portable-pty dependency, SessionManager, fake PTY CLI, Tauri commands, and backend tests.
 - Minimal Tauri frontend PTY test panel is implemented locally.
 - Temporary Codex PTY launch path is implemented locally for manual smoke testing.
@@ -20,15 +20,20 @@
 - AIA-004 is committed as 045f1ae: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
 - AIA-017 is added to the backlog as an ACP stdio transport spike; ACP is documented as structured transport beside PTY, not a PTY replacement.
 - AIA-017 is committed as 6312803: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
-- AIA-018 is implemented locally: ACP registry candidates for codex-acp, claude-acp, kimi, and gemini; backend discovery command; ACP Registry UI panel with selectable candidates; Rust/frontend tests.
-- AIA-019 is implemented locally: selected ACP registry candidates can be started through the existing ACP stdio runtime with Start Selected ACP.
+- AIA-018 is committed as ed5c16d: ACP registry candidates for codex-acp, claude-acp, kimi, and gemini; backend discovery command; ACP Registry UI panel with selectable candidates; Rust/frontend tests.
+- AIA-019 is committed as 1ce5f36: selected ACP registry candidates can be started through the existing ACP stdio runtime with Start Selected ACP.
 - Manual Codex ACP smoke test reached a real Codex ACP session and response; backend now merges message chunks, filters technical updates, and runs ACP process waits off the UI thread.
+- AIA-020 is implemented locally in the generic direction: Start Selected ACP remains the only registry-backed real-agent ACP launch button, non-default launchable candidates are tested, and candidate selection locks while an ACP session is active.
+- Codex ACP thought/text-array updates now normalize into readable events instead of raw JSON notices.
+- AIA-021 is implemented locally: Codex ACP prompt waits are longer than control waits, child process exit releases pending waits, duplicate prompts are rejected, and Stop/Drain stay available while prompt sending is in flight.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is ed5c16d.
-- Worktree has uncommitted AIA-019 selected ACP launch changes; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is 1ce5f36.
+- Worktree has local AIA-020 changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Restart the Tauri app and manually smoke-test Codex ACP Send again with the normalized event display.
+- Manually test Start Selected ACP with Codex and any other launchable ACP candidate available locally, then commit AIA-020 if it behaves as expected.
+- After AIA-020 review, choose the next product direction: real workspace/session UI, adapter-specific ACP hardening, or persistence/projects.
+- After AIA-021 review, the next backend/runtime step is likely persistence/projects or Codex-specific adapter hardening; UI polish can remain deferred.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -44,6 +49,8 @@
 - In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
 - In the Tauri app, select Codex ACP and click Start Selected ACP; first npx launch may download @agentclientprotocol/codex-acp.
 - After Codex ACP starts, click Send ACP and confirm ACP Events shows a readable agent message rather than many token rows, and the window stays responsive.
+- Confirm ACP Events does not show raw JSON for agent_thought_chunk/content-array updates; it should show readable Plan or Agent rows.
+- While a Codex ACP prompt is in flight, confirm Send ACP is disabled but Stop ACP and Drain ACP remain enabled.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -63,8 +70,10 @@
 - ACP Registry is side-effect-free discovery; it must not run npx, download packages, or start real agents.
 - ACP Registry selection itself is side-effect-free; Start Selected ACP is the explicit launch action.
 - Start Selected ACP is the explicit launch action; npx-backed ACP candidates may download their package on first launch.
+- Start Selected ACP is the generic registry launch path; avoid adding per-agent direct ACP buttons unless the product design changes.
 - Fake ACP remains the deterministic no-network regression path.
 - Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
+- Real Codex ACP can emit content arrays and agent_thought_chunk updates; these should be normalized by the backend before the frontend sees them.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.

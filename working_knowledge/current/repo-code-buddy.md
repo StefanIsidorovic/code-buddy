@@ -23,6 +23,8 @@
 - Frontend now has a temporary ACP Registry panel with candidate status, command preview, install guidance, and selected candidate state.
 - Backend now exposes AIA-019 selected ACP registry launch through the existing AcpSessionManager.
 - Frontend now has Start Selected ACP for launchable selected ACP candidates.
+- AIA-020 keeps Start Selected ACP as the generic registry-backed launch action for all ACP candidates.
+- Frontend now locks ACP candidate selection while an ACP session is running.
 - Older product feature modules for SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally; a new focused adapter boundary now exists for AIA-003.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
 - SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
@@ -34,7 +36,11 @@
 - ACP registry discovery uses curated official-registry candidates for codex-acp, claude-acp, kimi, and gemini.
 - Selected ACP launch builds a backend-owned command from the candidate id and rejects missing runners before spawning.
 - ACP event normalization merges adjacent agent/user message chunks and filters technical session/command/usage updates.
+- ACP event normalization now extracts text from object and array content blocks and maps Codex agent_thought_chunk updates to readable Plan events.
 - ACP Tauri commands use spawn_blocking for operations that may wait on real agent processes.
+- Codex ACP prompt requests now have a longer timeout than control requests.
+- ACP response waits poll for child process exit so killed/exited agents do not hold pending waits until the full prompt timeout.
+- AcpSession rejects a second prompt while one prompt is already in flight.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -65,6 +71,10 @@
 - AIA-019 backend tests cover selected ACP launch command construction, unknown candidate rejection, and missing runner/binary rejection.
 - Frontend tests cover Start Selected ACP invoking start_acp_registry_session with the selected candidate id.
 - AIA-019 backend tests cover ACP event chunk merging and technical update filtering.
+- ACP backend tests cover text-array content extraction and agent_thought_chunk normalization.
+- AIA-021 backend tests cover timeout selection, duplicate prompt rejection, and child-exit-aware prompt waiting.
+- Frontend tests cover keeping Stop ACP and Drain ACP available while a prompt request is in flight.
+- Frontend tests cover Start Selected ACP launching a non-default launchable candidate and locking candidate selection while an ACP session is running.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -80,6 +90,8 @@
 - AIA-018 uses the official ACP registry as research input and keeps discovery side-effect-free.
 - AIA-018 validation passed with 26 Rust tests and 5 frontend tests, plus clippy, typecheck, build, and git diff --check.
 - AIA-019 first validation passed with 29 Rust tests and 6 frontend tests.
+- AIA-020 validation passed with 31 Rust tests and 8 frontend tests after the ACP thought/text-array normalization fix.
+- AIA-021 validation passed with 34 Rust tests and 9 frontend tests.
 - Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 - Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
@@ -101,4 +113,6 @@
 - Real adapter ACP support remains Unknown until each CLI or adapter wrapper passes ACP initialize/session/prompt validation.
 - npx-backed ACP candidates are marked installable, not ready, because first real launch may download the package.
 - Starting an npx-backed ACP candidate is now possible only through Start Selected ACP and may download the package on first launch.
+- Generic ACP launch stays behind Start Selected ACP; avoid per-agent direct ACP buttons until the product UI explicitly needs them.
+- Codex ACP prompt waits are intentionally longer than initialize/session/new waits because real tasks can take longer than setup.
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.

@@ -24,9 +24,11 @@
 - ACP Registry invokes list_acp_registry_candidates on mount and Refresh.
 - ACP Registry displays status, command preview, and install guidance without launching anything.
 - ACP Registry lets the user select a candidate.
-- Start Selected ACP is the primary ACP launch button and launches the selected launchable candidate through start_acp_registry_session.
+- Start Selected ACP launches the selected launchable candidate through start_acp_registry_session.
+- Candidate Select buttons are disabled while an ACP session is running.
 - ACP Test status includes the active source, such as fake or Codex, so fake sessions are distinguishable from selected registry launches.
 - ACP Events now show normalized backend events; technical Codex ACP session updates are filtered and adjacent message chunks are merged before display.
+- ACP Events should receive readable Agent/Plan/etc events from the backend; the frontend should not display raw ACP JSON as a normal notice.
 - Start Codex is disabled unless the Codex doctor report status is installed.
 - Start Codex invokes start_codex_session with current fitted xterm cols/rows.
 - xterm onData forwards keyboard data to write_session_input for the active running session.
@@ -36,6 +38,7 @@
 - Start Fake ACP invokes start_fake_acp_session.
 - Send ACP invokes send_acp_prompt and then drain_acp_events.
 - ACP events are stored separately from PTY output and are not written to xterm.
+- Send ACP has its own prompt-busy state so Stop ACP and Drain ACP remain available while a prompt request is still waiting.
 
 ## Layout Rules
 - html, body, #root, and app-shell are viewport-bound.
@@ -47,7 +50,7 @@
 ## Tests
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
-- Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, and selected candidate launch invoke.
+- Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
 
 ## Watchouts
 - Output polling interval is currently 400 ms and may feel slow.
@@ -56,7 +59,8 @@
 - ResizeObserver can call fit/resize often; throttle/debounce may be needed later.
 - Doctor version checks are backend-owned; frontend should not shell out or infer PATH state.
 - ACP JSON-RPC events should be normalized by the backend; frontend should not parse raw ACP protocol messages.
-- ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP may cause a backend process launch.
+- ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP or Start Fake ACP may cause an ACP backend process launch.
 - If ACP Test shows fake as the active source, stop that session before starting the selected registry candidate.
 - Real ACP send/start can take time; backend commands run off the UI thread to avoid the app window being marked not responding.
+- Stop ACP must remain available while a prompt is in flight because Codex tasks can run longer than setup commands.
 - This is a test panel; final session UI should be redesigned after adapter and persistence tasks.

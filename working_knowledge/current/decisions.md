@@ -26,6 +26,8 @@
 - Approach selection: when a task can be solved in multiple ways, compare the stable/default path with newer relevant approaches and propose the newer option when it offers real product or architecture value without unnecessary risk.
 - AIA-018 ACP registry discovery: use a curated candidate list from the official ACP registry before real launches; report ready/installable/missing states without downloading packages or starting agents.
 - AIA-019 ACP launch boundary: starting a registry-backed ACP candidate must happen only through an explicit user action; discovery and selection remain side-effect-free.
+- AIA-020 generic ACP launch: keep `Start Selected ACP` as the single registry-backed ACP launch action instead of adding per-agent direct buttons; this keeps the same flow usable for Codex, Claude, Kimi, Gemini, and future candidates.
+- AIA-021 Codex ACP runtime: harden the validated Codex ACP path before UI polish by using longer prompt waits, short control waits, child-exit-aware response waiting, and duplicate prompt rejection.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.

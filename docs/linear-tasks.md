@@ -352,3 +352,51 @@ Suggested labels: `backend`, `frontend`, `agents`, `acp`
 Depends on: AIA-018
 
 Recommended before: adapter-specific ACP validation
+
+## AIA-020: Harden generic selected ACP launch flow
+
+Description:
+Keep `Start Selected ACP` as the single generic registry-backed launch action
+so the same UI path works for Codex, Claude, Kimi, Gemini, and future ACP
+candidates. Harden the temporary runtime UI against confusing selection changes
+while a session is already running.
+
+Acceptance criteria:
+
+- Frontend keeps `Start Selected ACP` as the registry-backed real-agent ACP launch action.
+- No adapter-specific direct ACP launch button is added for Codex or any other candidate.
+- Any launchable selected candidate can be started through `start_acp_registry_session`.
+- Candidate selection is disabled while an ACP session is running.
+- Active ACP status continues to show the candidate that was actually launched.
+- ACP thought/text-block updates render as readable events instead of raw JSON notices.
+- Fake ACP continues to work as the deterministic test path.
+- Tests cover a non-default launchable candidate, locked selection during an active ACP session, selected launch invoke, ACP event normalization, and fake ACP regression.
+
+Suggested labels: `backend`, `frontend`, `agents`, `acp`
+
+Depends on: AIA-019
+
+Recommended before: workspace/session UI and adapter-specific ACP hardening
+
+## AIA-021: Harden Codex ACP runtime behavior
+
+Description:
+Make the current Codex ACP path safer for real tasks before investing in UI
+polish. Keep generic registry launch, but tune runtime behavior for the
+validated Codex ACP path: long-running prompts, process exits, duplicate
+submissions, and stop/drain controls while a prompt is in flight.
+
+Acceptance criteria:
+
+- ACP control requests keep a short timeout.
+- ACP `session/prompt` uses a longer timeout suitable for real Codex tasks.
+- Waiting for a response detects child process exit without waiting for the full prompt timeout.
+- Backend rejects a second prompt while one is already in flight for the same ACP session.
+- Frontend keeps `Stop ACP` and `Drain ACP` available while a prompt request is in flight.
+- Tests cover timeout selection, child-exit response waiting, duplicate prompt rejection, and stop availability during an in-flight prompt.
+
+Suggested labels: `backend`, `frontend`, `agents`, `acp`, `codex`
+
+Depends on: AIA-020
+
+Recommended before: workspace/session UI and Codex-specific adapter hardening

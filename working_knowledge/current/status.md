@@ -10,17 +10,19 @@
 
 ## Repository State
 - branch: new/start
-- head: ed5c16d step 12: add ACP registry discovery and selection
-- worktree: local uncommitted AIA-019 selected ACP registry launch changes; LOCAL_PROGRESS.md remains intentionally ignored.
+- head: 1ce5f36 step 13: start selected ACP registry candidates
+- worktree: local AIA-020 generic selected ACP hardening and AIA-021 Codex ACP runtime hardening changes pending user review/commit; LOCAL_PROGRESS.md remains intentionally ignored.
 - relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery, and selected ACP registry launch.
 
 ## Current Task
-- request: continue after ACP registry discovery by wiring selected candidates to ACP launch.
-- phase: complete
-- active plan step: none
+- request: keep UI polish for later; harden Codex ACP runtime behavior now.
+- phase: validated; awaiting user review/commit
+- active plan step: 15
 
 ## Risks And Constraints
-- AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, and AIA-017 ACP stdio fake runtime are committed through 6312803.
+- AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, AIA-017 ACP stdio fake runtime, AIA-018 ACP registry discovery, and AIA-019 selected ACP launch are committed through 1ce5f36.
+- AIA-020 generic selected ACP hardening is implemented locally but not committed.
+- AIA-021 Codex ACP runtime hardening is implemented locally but not committed.
 - User explicitly asked the agent not to commit; user committed reviewed changes manually.
 - portable-pty 0.9.0 was fetched previously with approved cargo network access.
 - Active mind map files must be updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow knowledge changes.
@@ -46,3 +48,8 @@
 - 2026-07-08T14:51:23Z: AIA-019 final validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Vite still reports expected xterm chunk-size warning.
 - 2026-07-08T15:03:36Z: manual Codex ACP smoke test started a real Codex ACP session and returned message chunks; follow-up fix merges message chunks, filters technical updates, and runs blocking ACP commands off the UI thread.
 - 2026-07-08T15:09:22Z: ACP normalization/responsiveness fix validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Rust tests: 30 passed. Frontend tests: 6 passed.
+- 2026-07-08T15:13:12Z: AIA-019 committed as 1ce5f36 with provenance note under refs/notes/provenance.
+- 2026-07-09T09:25:53Z: AIA-020 direct Codex ACP path was validated but then rejected as the wrong product direction.
+- 2026-07-09T09:40:58Z: AIA-020 generic selected ACP hardening validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; tsc --noEmit; vitest --run; vite build; git diff --check. Rust tests: 30 passed. Frontend tests: 8 passed. Frontend validation used /home/katarina/.nvm/versions/node/v22.22.2/bin/node because node/npm were not on PATH in the tool environment.
+- 2026-07-09T10:16:01Z: ACP event normalization bug fixed for Codex agent_thought_chunk and text-array content; validation passed with cargo fmt --check, cargo test, cargo clippy -- -D warnings, tsc --noEmit, vitest --run, vite build, and git diff --check. Rust tests: 31 passed. Frontend tests: 8 passed.
+- 2026-07-09T10:30:09Z: AIA-021 Codex ACP runtime hardening validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; tsc --noEmit; vitest --run; vite build; git diff --check. Rust tests: 34 passed. Frontend tests: 9 passed.

@@ -109,6 +109,7 @@ function App() {
   const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
   const [acpPromptResult, setAcpPromptResult] = useState<AcpPromptResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [acpPromptBusy, setAcpPromptBusy] = useState(false);
 
   const canUseSession = session?.state === "running";
   const canUseAcpSession = acpSession?.state === "running";
@@ -376,14 +377,20 @@ function App() {
       return;
     }
 
-    await runAction(async () => {
+    setAcpPromptBusy(true);
+    setError(null);
+    try {
       const result = await invoke<AcpPromptResult>("send_acp_prompt", {
         sessionId: acpSession.id,
         prompt: acpPrompt,
       });
       setAcpPromptResult(result);
       await drainAcpEvents(acpSession.id);
-    });
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setAcpPromptBusy(false);
+    }
   }
 
   async function drainAcpEvents(sessionId = acpSession?.id) {
@@ -566,6 +573,7 @@ function App() {
                   <button
                     aria-label={`Select ${candidate.name} ACP candidate`}
                     aria-pressed={candidate.id === selectedAcpCandidate?.id}
+                    disabled={busy || canUseAcpSession}
                     type="button"
                     onClick={() => setSelectedAcpCandidateId(candidate.id)}
                   >
@@ -609,13 +617,17 @@ function App() {
             <button type="button" onClick={() => void startFakeAcpSession()} disabled={busy || canUseAcpSession}>
               Start Fake ACP
             </button>
-            <button type="button" onClick={() => void sendAcpPrompt()} disabled={busy || !canUseAcpSession}>
+            <button
+              type="button"
+              onClick={() => void sendAcpPrompt()}
+              disabled={busy || acpPromptBusy || !canUseAcpSession}
+            >
               Send ACP
             </button>
-            <button type="button" onClick={() => void drainAcpEvents()} disabled={busy || !acpSession}>
+            <button type="button" onClick={() => void drainAcpEvents()} disabled={!acpSession}>
               Drain ACP
             </button>
-            <button type="button" onClick={() => void stopAcpSession(false)} disabled={busy || !acpSession}>
+            <button type="button" onClick={() => void stopAcpSession(false)} disabled={!acpSession}>
               Stop ACP
             </button>
           </div>
@@ -755,11 +767,21 @@ function acpEventLabel(kind: AcpEventKind) {
     return "Tool";
   }
 
+  if (kind === "plan") {
+    return "Plan";
+  }
+
+  if (kind === "notice") {
+    return "Notice";
+  }
+
+  if (kind === "usage") {
+    return "Usage";
+  }
+
   if (kind === "error") {
     return "Error";
   }
-
-  return kind.replace("_", " ");
 }
 
 function readTerminalSize(activeTerminal: Terminal | null) {

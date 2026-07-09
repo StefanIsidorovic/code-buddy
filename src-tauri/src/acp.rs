@@ -18,9 +18,11 @@ use std::{
 };
 use uuid::Uuid;
 
-const ACP_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const ACP_CONTROL_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const ACP_PROMPT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const ACP_STOP_TIMEOUT: Duration = Duration::from_millis(750);
 const ACP_WAIT_POLL_INTERVAL: Duration = Duration::from_millis(25);
+const ACP_RESPONSE_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const ACP_EVENT_BUFFER_LIMIT: usize = 512;
 const ACP_PROTOCOL_VERSION: u64 = 1;
 
@@ -412,6 +414,7 @@ struct AcpSession {
     events: Arc<Mutex<VecDeque<AcpSessionEvent>>>,
     metadata: Mutex<AcpMetadata>,
     state: Mutex<AcpRuntimeState>,
+    prompt_in_flight: Mutex<bool>,
 }
 
 #[derive(Default)]
@@ -448,6 +451,18 @@ struct JsonRpcResponse {
     error: Option<Value>,
 }
 
+struct PromptPermit<'a> {
+    prompt_in_flight: &'a Mutex<bool>,
+}
+
+impl Drop for PromptPermit<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut in_flight) = self.prompt_in_flight.lock() {
+            *in_flight = false;
+        }
+    }
+}
+
 impl AcpSession {
     fn spawn_fake(cwd: PathBuf) -> AppResult<Self> {
         Self::spawn_script(cwd, fake_acp_script())
@@ -468,6 +483,11 @@ impl AcpSession {
     #[cfg(test)]
     fn spawn_malformed_fake(cwd: PathBuf) -> AppResult<Self> {
         Self::spawn_script(cwd, malformed_fake_acp_script())
+    }
+
+    #[cfg(test)]
+    fn spawn_prompt_exit_fake(cwd: PathBuf) -> AppResult<Self> {
+        Self::spawn_script(cwd, prompt_exit_fake_acp_script())
     }
 
     fn spawn_script(cwd: PathBuf, script: &str) -> AppResult<Self> {
@@ -512,6 +532,7 @@ impl AcpSession {
             events,
             metadata: Mutex::new(AcpMetadata::default()),
             state: Mutex::new(AcpRuntimeState::running()),
+            prompt_in_flight: Mutex::new(false),
         };
 
         session.initialize()?;
@@ -582,6 +603,7 @@ impl AcpSession {
                 "acp prompt must not be empty".to_string(),
             ));
         }
+        let _permit = self.acquire_prompt_permit()?;
 
         let agent_session_id = self
             .metadata()?
@@ -609,6 +631,22 @@ impl AcpSession {
         Ok(AcpPromptResult {
             session_id: self.id.clone(),
             stop_reason,
+        })
+    }
+
+    fn acquire_prompt_permit(&self) -> AppResult<PromptPermit<'_>> {
+        let mut in_flight = self
+            .prompt_in_flight
+            .lock()
+            .map_err(|_| AppError::Acp("acp prompt lock poisoned".to_string()))?;
+        if *in_flight {
+            return Err(AppError::InvalidInput(
+                "acp prompt already in progress".to_string(),
+            ));
+        }
+        *in_flight = true;
+        Ok(PromptPermit {
+            prompt_in_flight: &self.prompt_in_flight,
         })
     }
 
@@ -662,7 +700,7 @@ impl AcpSession {
             "params": params
         });
         self.write_json_line(&message)?;
-        self.wait_for_response(id)
+        self.wait_for_response(id, acp_request_timeout(method))
     }
 
     fn send_cancel_notification(&self) -> AppResult<()> {
@@ -690,7 +728,7 @@ impl AcpSession {
         Ok(())
     }
 
-    fn wait_for_response(&self, request_id: u64) -> AppResult<Value> {
+    fn wait_for_response(&self, request_id: u64, timeout: Duration) -> AppResult<Value> {
         let start = Instant::now();
         let mut pending = self
             .responses
@@ -708,21 +746,28 @@ impl AcpSession {
                     .ok_or_else(|| AppError::Acp("agent response missing result".to_string()));
             }
 
+            if let Some(exit_code) = self.try_record_exit()? {
+                return Err(AppError::Acp(format!(
+                    "acp process exited while waiting for response id {request_id}; exit_code={exit_code:?}"
+                )));
+            }
+
             let elapsed = start.elapsed();
-            if elapsed >= ACP_REQUEST_TIMEOUT {
+            if elapsed >= timeout {
                 return Err(AppError::Acp(format!(
                     "timed out waiting for ACP response id {request_id}"
                 )));
             }
 
-            let remaining = ACP_REQUEST_TIMEOUT - elapsed;
-            let (next_pending, timeout) = self
+            let remaining = timeout - elapsed;
+            let wait_for = remaining.min(ACP_RESPONSE_POLL_INTERVAL);
+            let (next_pending, wait_result) = self
                 .responses
                 .available
-                .wait_timeout(pending, remaining)
+                .wait_timeout(pending, wait_for)
                 .map_err(|_| AppError::Acp("acp response queue lock poisoned".to_string()))?;
             pending = next_pending;
-            if timeout.timed_out() {
+            if wait_result.timed_out() && start.elapsed() >= timeout {
                 return Err(AppError::Acp(format!(
                     "timed out waiting for ACP response id {request_id}"
                 )));
@@ -865,6 +910,14 @@ fn handle_acp_line(
     }
 }
 
+fn acp_request_timeout(method: &str) -> Duration {
+    if method == "session/prompt" {
+        ACP_PROMPT_REQUEST_TIMEOUT
+    } else {
+        ACP_CONTROL_REQUEST_TIMEOUT
+    }
+}
+
 fn event_from_session_update(value: &Value) -> Option<AcpSessionEvent> {
     let update = value.pointer("/params/update").unwrap_or(&Value::Null);
     let update_kind = update
@@ -874,19 +927,15 @@ fn event_from_session_update(value: &Value) -> Option<AcpSessionEvent> {
     let (kind, content) = match update_kind {
         "agent_message_chunk" => (
             AcpEventKind::AgentMessage,
-            update
-                .pointer("/content/text")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+            text_from_acp_content(update.get("content")),
         ),
         "user_message_chunk" => (
             AcpEventKind::UserMessage,
-            update
-                .pointer("/content/text")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+            text_from_acp_content(update.get("content")),
+        ),
+        "agent_thought_chunk" => (
+            AcpEventKind::Plan,
+            text_from_acp_content(update.get("content")),
         ),
         "plan" => {
             let entries = update
@@ -920,6 +969,23 @@ fn event_from_session_update(value: &Value) -> Option<AcpSessionEvent> {
     Some(AcpSessionEvent { kind, content })
 }
 
+fn text_from_acp_content(content: Option<&Value>) -> String {
+    match content {
+        Some(Value::String(text)) => text.to_string(),
+        Some(Value::Object(_)) => content
+            .and_then(|content| content.get("text"))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        Some(Value::Array(parts)) => parts
+            .iter()
+            .filter_map(|part| part.get("text").and_then(Value::as_str))
+            .collect::<Vec<_>>()
+            .join(""),
+        _ => String::new(),
+    }
+}
+
 fn append_event(events: &Arc<Mutex<VecDeque<AcpSessionEvent>>>, event: AcpSessionEvent) {
     if event.content.is_empty() && event.kind != AcpEventKind::Error {
         return;
@@ -931,7 +997,7 @@ fn append_event(events: &Arc<Mutex<VecDeque<AcpSessionEvent>>>, event: AcpSessio
     if let Some(last_event) = events.back_mut() {
         if matches!(
             event.kind,
-            AcpEventKind::AgentMessage | AcpEventKind::UserMessage
+            AcpEventKind::AgentMessage | AcpEventKind::UserMessage | AcpEventKind::Plan
         ) && last_event.kind == event.kind
         {
             last_event.content.push_str(&event.content);
@@ -1039,6 +1105,30 @@ done"#
 }
 
 #[cfg(test)]
+fn prompt_exit_fake_acp_script() -> &'static str {
+    r#"while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9][0-9]*\).*/\1/p')
+  case "$line" in
+    *'"method":"initialize"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilities":{},"agentInfo":{"name":"prompt-exit-fake","version":"0.1.0"},"authMethods":[]}}\n' "$id"
+      ;;
+    *'"method":"session/new"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"prompt-exit-fake-session"}}\n' "$id"
+      ;;
+    *'"method":"session/prompt"'*)
+      exit 7
+      ;;
+    *'"method":"session/cancel"'*)
+      exit 0
+      ;;
+    *)
+      printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32601,"message":"method not found"}}\n' "$id"
+      ;;
+  esac
+done"#
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashMap;
@@ -1059,6 +1149,23 @@ mod tests {
         fn resolve(&self, executable: &str) -> Option<PathBuf> {
             self.paths.get(executable).cloned()
         }
+    }
+
+    #[test]
+    fn session_prompt_uses_longer_timeout_than_control_requests() {
+        assert_eq!(
+            acp_request_timeout("initialize"),
+            ACP_CONTROL_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            acp_request_timeout("session/new"),
+            ACP_CONTROL_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            acp_request_timeout("session/prompt"),
+            ACP_PROMPT_REQUEST_TIMEOUT
+        );
+        assert!(ACP_PROMPT_REQUEST_TIMEOUT > ACP_CONTROL_REQUEST_TIMEOUT);
     }
 
     #[test]
@@ -1191,6 +1298,34 @@ mod tests {
     }
 
     #[test]
+    fn acp_event_buffer_extracts_array_content_and_thought_chunks() {
+        let responses = Arc::new(ResponseQueue {
+            pending: Mutex::new(HashMap::new()),
+            available: Condvar::new(),
+        });
+        let events = Arc::new(Mutex::new(VecDeque::new()));
+
+        handle_acp_line(
+            r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_thought_chunk","content":[{"type":"text","text":"Planning "},{"type":"text","text":"response"}]}}}"#,
+            &responses,
+            &events,
+        );
+        handle_acp_line(
+            r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":[{"type":"text","text":"Done"}]}}}"#,
+            &responses,
+            &events,
+        );
+
+        let events = events.lock().expect("event buffer locks");
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].kind, AcpEventKind::Plan);
+        assert_eq!(events[0].content, "Planning response");
+        assert_eq!(events[1].kind, AcpEventKind::AgentMessage);
+        assert_eq!(events[1].content, "Done");
+    }
+
+    #[test]
     #[cfg(unix)]
     fn starts_fake_acp_session_and_initializes() {
         let manager = AcpSessionManager::default();
@@ -1224,6 +1359,38 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].kind, AcpEventKind::AgentMessage);
         assert_eq!(events[0].content, "fake acp received prompt");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn rejects_prompt_when_another_prompt_is_in_flight() {
+        let session = AcpSession::spawn_fake(std::env::current_dir().expect("current dir exists"))
+            .expect("acp session starts");
+        let _permit = session
+            .acquire_prompt_permit()
+            .expect("prompt permit acquired");
+
+        let error = session
+            .send_prompt("hello while busy")
+            .expect_err("concurrent prompt rejected");
+
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert!(error.to_string().contains("already in progress"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn prompt_wait_returns_when_child_exits_without_response() {
+        let session = AcpSession::spawn_prompt_exit_fake(
+            std::env::current_dir().expect("current dir exists"),
+        )
+        .expect("acp session starts");
+
+        let error = session
+            .send_prompt("trigger process exit")
+            .expect_err("prompt exit is reported");
+
+        assert!(error.to_string().contains("process exited"));
     }
 
     #[test]

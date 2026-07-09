@@ -86,8 +86,8 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("codex 1.2.3")).toBeInTheDocument();
     expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
       .not.toHaveLength(0);
-    expect(screen.getByText("Available through npx; first launch may download the ACP package."))
-      .toBeInTheDocument();
+    expect(screen.getAllByText("Available through npx; first launch may download the ACP package."))
+      .not.toHaveLength(0);
     expect(screen.getByText("Missing binary")).toBeInTheDocument();
     expect(screen.getByText("PTY: Supported · ACP: Unknown")).toBeInTheDocument();
     expect(screen.getByText("Install Claude Code and make sure `claude` is available on PATH."))
@@ -159,6 +159,99 @@ describe("PTY test panel", () => {
       });
     });
     expect(await screen.findByText("Codex · running · codex-acp-session")).toBeInTheDocument();
+  });
+
+  it("starts a non-default launchable ACP registry candidate", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_acp_registry_session") {
+        return Promise.resolve({
+          id: "acp-session-gemini",
+          state: "running",
+          pid: 987,
+          protocolVersion: 1,
+          agentSessionId: "gemini-acp-session",
+          agentName: "gemini-acp",
+          agentVersion: "0.49.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByLabelText("Selected ACP candidate");
+    fireEvent.click(screen.getByRole("button", { name: "Select Gemini CLI ACP candidate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("start_acp_registry_session", {
+        request: {
+          candidateId: "gemini",
+        },
+      });
+    });
+    expect(await screen.findByText("Gemini CLI · running · gemini-acp-session"))
+      .toBeInTheDocument();
+  });
+
+  it("locks ACP candidate selection while a session is running", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_acp_registry_session") {
+        return Promise.resolve({
+          id: "acp-session-locked",
+          state: "running",
+          pid: 111,
+          protocolVersion: 1,
+          agentSessionId: "locked-acp-session",
+          agentName: "codex-acp",
+          agentVersion: "1.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve("");
+    });
+
+    render(<App />);
+
+    await screen.findByLabelText("Selected ACP candidate");
+    fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
+
+    expect(await screen.findByText("Codex · running · locked-acp-session")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Kimi CLI ACP candidate" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select Gemini CLI ACP candidate" })).toBeDisabled();
   });
 
   it("writes xterm keyboard data to the active PTY session", async () => {
@@ -309,6 +402,72 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("fake acp received prompt")).toBeInTheDocument();
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
   });
+
+  it("keeps ACP stop available while a prompt is in flight", async () => {
+    const invokeMock = vi.mocked(invoke);
+    let resolvePrompt: ((result: unknown) => void) | undefined;
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve({
+          id: "acp-session-1",
+          state: "running",
+          pid: 456,
+          protocolVersion: 1,
+          agentSessionId: "fake-acp-session",
+          agentName: "fake-acp",
+          agentVersion: "0.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "send_acp_prompt") {
+        return new Promise((resolve) => {
+          resolvePrompt = resolve;
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    await screen.findByText("fake · running · fake-acp-session");
+
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("send_acp_prompt", {
+        sessionId: "acp-session-1",
+        prompt: "Hello from AIadne",
+      });
+    });
+    expect(screen.getByRole("button", { name: "Send ACP" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Drain ACP" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Stop ACP" })).not.toBeDisabled();
+
+    resolvePrompt?.({
+      sessionId: "acp-session-1",
+      stopReason: "end_turn",
+    });
+    expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
+  });
 });
 
 function defaultDoctorReports({
@@ -393,6 +552,18 @@ function defaultAcpRegistryCandidates() {
       runnerPath: null,
       installHint: "Install `kimi` and make sure it is available on PATH.",
       sourceUrl: "https://github.com/MoonshotAI/kimi-cli",
+    },
+    {
+      id: "gemini",
+      name: "Gemini CLI",
+      version: "0.49.0",
+      description: "Google's official CLI for Gemini",
+      distribution: "npx",
+      status: "installable",
+      command: ["npx", "-y", "@google/gemini-cli@0.49.0", "--acp"],
+      runnerPath: "/usr/bin/npx",
+      installHint: "Available through npx; first launch may download the ACP package.",
+      sourceUrl: "https://github.com/google-gemini/gemini-cli",
     },
   ];
 }

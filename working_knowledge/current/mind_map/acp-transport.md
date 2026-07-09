@@ -38,6 +38,9 @@
 - Candidate selection exists in the frontend as the chosen launch target, but selection itself does not start an ACP process.
 - AIA-019 adds Start Selected ACP, which turns the selected candidate id into a backend-owned launch command and reuses the existing initialize/session/new flow.
 - Real Codex ACP emits tokenized agent_message_chunk updates plus technical available_commands/session_info updates; backend now merges adjacent message chunks and filters those technical updates from the UI event list.
+- Real Codex ACP can emit content as an array of text blocks and can send agent_thought_chunk updates; backend normalizes those into readable Agent/Plan events instead of raw notice JSON.
+- AIA-020 keeps Start Selected ACP as the generic launch action and tests a non-default launchable candidate.
+- Candidate selection is disabled while an ACP session is running so the selected label does not drift from the active session source.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -48,6 +51,10 @@
 - Client-side ACP requests from agents, such as permission requests, are not implemented yet; the first slice handles responses and session/update notifications only.
 - Registry discovery must not run npx or download packages; real adapter launch needs an explicit later step and user approval if network/package install is required.
 - Start Selected ACP is now that explicit launch action; npx candidates may download packages on first launch.
+- Avoid per-agent direct ACP launch buttons unless a later product design explicitly requires them.
 - Passing initialize/session/new does not yet mean a candidate is fully product-supported; prompt, auth, permission, and tool-call behavior still need adapter-specific validation.
 - ACP request timeout is currently 30 seconds for smoke testing; long-running real prompts may need a later streaming/lifecycle refinement.
 - Blocking ACP start/send/stop/list operations are run via Tauri async spawn_blocking so the desktop window stays responsive during real agent waits.
+- Control requests use a short timeout; session/prompt uses a longer timeout for real Codex work.
+- Response waits poll child process exit so stop/kill or agent crashes release pending waits promptly.
+- Each ACP session allows only one prompt in flight at a time.
