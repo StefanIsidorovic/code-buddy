@@ -45,6 +45,10 @@
 - AIA-023 frontend display coalesces adjacent Agent/Plan events into larger readable blocks; backend event storage remains unchanged.
 - AIA-024 persists ACP transcript sessions and ordered ACP events in SQLite through ProjectStore.
 - The frontend records user prompt events plus drained backend-normalized ACP events, then shows a minimal Session History list.
+- AIA-025 lets users open stored ACP transcript events from Session History without starting an ACP process.
+- AIA-026 keeps saved transcript replay isolated when switching between stored sessions.
+- AIA-027 normalizes saved transcript replay into Question/Answer rows.
+- AIA-028 keeps frontend ACP drain polling tied to the active transcript id so streamed Codex chunks are not lost before persistence.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -63,5 +67,5 @@
 - Response waits poll child process exit so stop/kill or agent crashes release pending waits promptly.
 - Each ACP session allows only one prompt in flight at a time.
 - ACP launch cwd is project-selected when available, and transcript sessions can link to that selected project.
-- UI-level event coalescing is a readability layer only; transcript persistence stores canonical frontend ACP events before display coalescing.
-- Transcript history currently proves persistence only; opening/replaying full stored conversations is still deferred.
+- UI-level event coalescing is a readability layer; transcript persistence now also coalesces adjacent agent/plan chunks before append.
+- Transcript history now supports isolated minimal stored event replay with question/answer labels; rich chat/tool-call transcript UI is still deferred.

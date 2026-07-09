@@ -477,3 +477,150 @@ Suggested labels: `backend`, `frontend`, `storage`, `acp`
 Depends on: AIA-022, AIA-023
 
 Recommended before: final workspace/session UI and chat transcript replay
+
+## AIA-025: Open saved ACP transcripts from history
+
+Description:
+Make Session History useful to a person by allowing saved ACP transcript rows
+to be opened in the output panel. This is still a minimal replay view, not the
+final chat UI.
+
+Acceptance criteria:
+
+- Frontend can open a saved transcript session from Session History.
+- Frontend calls `list_transcript_events` for the selected transcript.
+- Output panel clearly distinguishes live ACP events from a saved transcript.
+- Unknown stored event kinds render safely instead of breaking the UI.
+- User can return from a saved transcript view to the live ACP event stream.
+- Starting or sending a new ACP prompt returns the output panel to live mode.
+- Tests cover opening a saved transcript and rendering stored user/agent events.
+
+Suggested labels: `frontend`, `storage`, `acp`, `ux`
+
+Depends on: AIA-024
+
+Recommended before: final workspace/session UI and chat transcript replay
+
+## AIA-026: Refine transcript selection and runtime sidebar
+
+Description:
+Fix confusing transcript selection behavior and reclaim the old `Runtime Test`
+sidebar as useful runtime configuration space.
+
+Acceptance criteria:
+
+- Only one Session History row appears selected at a time.
+- Opening a different saved transcript clears the previous transcript events
+  before new events render.
+- Late responses from older transcript-open requests cannot overwrite the
+  currently opened transcript.
+- Saved transcript replay renders stored events separately instead of merging
+  them into larger live-stream-style chunks.
+- The left sidebar no longer shows the large `Runtime Test` hero block.
+- The left sidebar contains runtime mode selection, collapsible agent selection,
+  Session History, and compact runtime status without overlap.
+- Main content has more room for workspace, runtime controls, prompt, and output.
+- Tests cover switching between saved transcripts without mixed messages.
+
+Suggested labels: `frontend`, `ux`, `acp`
+
+Depends on: AIA-025
+
+Recommended before: final workspace/session UI
+
+## AIA-027: Normalize saved ACP chat transcripts
+
+Description:
+Make saved ACP history read like a chat transcript instead of a raw stream log.
+User prompts should remain separate questions, while streamed agent chunks are
+stored and replayed as readable answers.
+
+Acceptance criteria:
+
+- Transcript recording coalesces adjacent agent/plan chunks before saving.
+- Opening a saved transcript coalesces older adjacent agent/plan chunks for
+  backward-compatible replay.
+- Saved transcript labels distinguish questions from answers.
+- User prompts remain separate entries even when multiple prompts exist in one
+  session.
+- Existing live ACP output still coalesces readable agent/plan chunks.
+- Tests cover chunked saved transcript replay and transcript persistence calls.
+
+Suggested labels: `frontend`, `storage`, `acp`, `ux`
+
+Depends on: AIA-024, AIA-025
+
+Recommended before: final chat transcript and tool-call UI
+
+## AIA-028: Auto-scroll ACP output and stabilize transcript drain
+
+Description:
+Keep the live ACP output focused on the newest agent response and make sure
+background ACP drain polling records events against the active transcript
+session, not a stale or missing transcript id.
+
+Acceptance criteria:
+
+- ACP Events scroll to the newest visible event as live agent output arrives.
+- Saved transcript replay can also scroll to the newest opened event.
+- ACP drain polling uses the current transcript session id after a session is
+  created.
+- Sending a prompt records the user question and later drained agent response
+  against the same active transcript id.
+- Existing saved transcript display and live ACP output behavior keep passing.
+- Tests cover ACP output autoscroll and transcript persistence regression flow.
+
+Suggested labels: `frontend`, `acp`, `storage`, `ux`
+
+Depends on: AIA-024, AIA-027
+
+Recommended before: final chat transcript and streaming UI
+
+## AIA-029: Apply pastel runtime UI polish
+
+Description:
+Make the current runtime workspace feel more polished and pleasant to use while
+keeping the same temporary product structure. This is a visual pass only, not a
+new runtime feature.
+
+Acceptance criteria:
+
+- App uses a balanced pastel palette across sidebar, panels, controls, and
+  transcript/event cards.
+- Typography feels cleaner with stronger hierarchy for headings, labels, and
+  event roles.
+- Buttons, inputs, textareas, and segmented controls have clearer hover/focus
+  states.
+- History, project, registry, doctor, and ACP event cards remain readable and
+  do not overlap.
+- Existing runtime, workspace, ACP, and saved transcript flows keep passing
+  frontend tests.
+
+Suggested labels: `frontend`, `ux`, `design`
+
+Depends on: AIA-026, AIA-028
+
+Recommended before: final workspace/session UI
+
+## AIA-030: Apply reference earth palette and typography system
+
+Description:
+Apply the user-approved earth-tone palette across the whole temporary app UI,
+not only transcript rows. Use the provided colors as the first product palette:
+ebony `#4F5743`, reseda green `#6B7460`, bone `#DCD1C3`, beaver `#B29784`,
+and taupe `#483C32`.
+
+Acceptance criteria:
+
+- Global CSS tokens are based on the provided palette and light derived tints.
+- Sidebar, panels, controls, forms, accordions, history, registry, doctor, and
+  output cards use the same coherent visual system.
+- Font stacks and heading/body weights are polished across the whole app.
+- No runtime, ACP, PTY, storage, or transcript behavior changes are introduced.
+- Frontend checks pass and the UI remains readable without overlap.
+
+Suggested labels: `frontend`, `ux`, `design`
+
+Depends on: AIA-029
+
+Recommended before: final workspace/session UI

@@ -35,9 +35,18 @@
 - AIA-023 ACP display: coalesce adjacent Agent/Plan events in the frontend display only, so backend event data stays unchanged while the UI reads like normal text.
 - AIA-024 transcript persistence: store ACP transcript sessions and ordered events in the existing Rust-owned SQLite ProjectStore before building the final chat/session UI.
 - AIA-024 runtime resilience: transcript write failures should surface in the UI but should not block an active ACP session from starting or responding.
+- AIA-025 transcript replay: open saved ACP transcripts through the existing `list_transcript_events` command and render them in the current output panel as a minimal replay view.
+- AIA-025 live/saved boundary: starting or sending a live ACP prompt returns the output panel to live ACP events so users do not accidentally type into a hidden live session.
+- AIA-026 transcript selection: treat opened transcript as the single selected history row, clear old replay events on switch, and ignore stale transcript-open responses.
+- AIA-026 sidebar layout: use the left sidebar for runtime mode, collapsible agent selection, Session History, and compact status instead of a large `Runtime Test` hero block.
+- AIA-027 saved transcript display: treat saved ACP history as a chat transcript by preserving user prompts as questions and coalescing adjacent agent/plan chunks into readable answers.
+- AIA-028 ACP drain stability: keep the current transcript in a ref and restart drain polling when transcript id changes, so background ACP chunks are recorded to the active transcript instead of being lost to a stale closure.
+- AIA-028 ACP output scroll: auto-scroll the ACP event list to the newest event because live agent responses can exceed the visible output area.
+- AIA-029 runtime UI polish: improve the temporary runtime workspace through CSS-only pastel design tokens, softer surfaces, clearer control states, and more readable event/history cards without adding dependencies or changing runtime behavior.
+- AIA-030 UI palette: use the user-provided earth-tone palette as the current product visual direction, with CSS-only tokens based on ebony #4F5743, reseda #6B7460, bone #DCD1C3, beaver #B29784, and taupe #483C32; do not add font dependencies yet.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
-- PTY scrollback persistence and rich chat replay: defer until after the first ACP transcript storage slice is manually validated.
+- PTY scrollback persistence and rich chat replay: defer until after the minimal saved transcript replay is manually validated.

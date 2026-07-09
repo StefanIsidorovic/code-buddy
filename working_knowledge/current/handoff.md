@@ -26,16 +26,17 @@
 - AIA-020/AIA-021 are committed in b0f845d: Start Selected ACP remains generic, Codex ACP events are normalized, prompt waits are longer, child exits release waits, and duplicate prompts are rejected.
 - Codex ACP thought/text-array updates now normalize into readable events instead of raw JSON notices.
 - AIA-022 is committed as a319c23: SQLite ProjectStore, create/list/delete project commands, minimal Workspace panel, and selected workspace cwd wiring for PTY/ACP launches.
-- AIA-023 is implemented locally: runtime mode switch for Terminal PTY vs Structured ACP, agent selection accordions, larger mode-specific output area, and frontend coalescing for adjacent Agent/Plan ACP events.
-- AIA-024 is implemented locally on top of AIA-023: SQLite transcript_sessions/transcript_events, transcript Tauri commands, ACP transcript creation on session start, prompt/event persistence, and a minimal Session History panel.
+- AIA-023/AIA-024 are committed together as 113bee7: runtime mode switch, mode-specific output, ACP transcript persistence, and a minimal Session History panel.
+- AIA-025/AIA-026/AIA-027/AIA-028/AIA-029/AIA-030 are implemented locally: Session History rows open saved transcript events, switching transcripts clears old messages and keeps one selected row, the left sidebar hosts runtime mode/history/agent selection/status, saved transcript replay coalesces agent chunks into Question/Answer chat rows, ACP output autoscrolls, background ACP draining uses the active transcript id, and the runtime UI has a CSS-only earth-tone palette/font polish pass.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is a319c23.
-- Worktree has local AIA-023 UI polish and AIA-024 transcript persistence changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is 113bee7.
+- Worktree has local AIA-025 saved transcript replay, AIA-026 selection/sidebar, AIA-027 transcript normalization, AIA-028 autoscroll/stable-drain, AIA-029 UI polish, and AIA-030 palette/font polish changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Manually review the Tauri UI: start fake or Codex ACP, send a prompt, confirm Session History shows the new session and event count.
-- If AIA-023/AIA-024 behave as expected, user can commit the local changes.
-- Next product direction after AIA-024: native folder picker, transcript replay/open view, or final workspace/session UI shell.
+- Manually review the Tauri UI: click between multiple Session History items and confirm only one row is selected and messages do not mix.
+- Confirm the left sidebar now uses the old Runtime Test space for PTY/ACP mode, agent selection, Session History, and status without overlap.
+- If AIA-025/AIA-026 behave as expected, user can commit the local changes.
+- Next product direction after AIA-025: native folder picker, continue-from-transcript context, or final workspace/session UI shell.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -58,6 +59,13 @@
 - Confirm selected Workspace name appears in the sidebar and launch requests use that folder as cwd.
 - Confirm ACP Events show fewer chopped Agent/Plan fragments; consecutive chunks should read like one message block.
 - Confirm Session History records ACP sessions and increments event count after prompts.
+- Confirm clicking a Session History row opens stored events, and `View Live ACP` returns to live output.
+- Confirm clicking a second Session History row clears the first transcript's messages before rendering the second.
+- Confirm PTY/ACP mode, agent choice, and Session History live in the left sidebar rather than the main controls.
+- Confirm a saved transcript with streamed Codex output shows Question/Answer rows instead of chopped answer chunks.
+- Confirm live ACP output scrolls to the newest event as Codex streams.
+- Create a new Codex ACP transcript after this fix; old transcripts that missed chunks before persistence cannot be fully reconstructed.
+- Confirm the earth-tone UI polish looks good in the Tauri window and does not introduce overlap on the user's screen size.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -82,10 +90,10 @@
 - Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
 - Real Codex ACP can emit content arrays and agent_thought_chunk updates; these should be normalized by the backend before the frontend sees them.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
-- Project storage now persists project name/path and first ACP transcript history; PTY scrollback, model defaults, folder picker, and richer workspace settings are deferred.
+- Project storage now persists project name/path and ACP transcript history; saved transcript replay/sidebar/chat normalization/autoscroll/stable-drain/UI polish refinements are local, while PTY scrollback, model defaults, folder picker, and richer workspace settings are deferred.
 - Transcript persistence failures are shown separately and should not stop an active ACP session.
 - Selected project path is passed as cwd to PTY and ACP launches; old no-project launch behavior still works.
-- The runtime UI is still a test surface; the current mode switch/accordion layout is a bridge toward the final workspace UI.
+- The runtime UI is still a test surface; the current mode switch/sidebar history/accordion layout is a bridge toward the final workspace UI.
 - The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
 - For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.
 - Keep working_knowledge/current/mind_map.md and working_knowledge/current/mind_map/* updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow changes.

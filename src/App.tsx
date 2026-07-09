@@ -76,6 +76,16 @@ type AcpSessionEvent = {
   content: string;
 };
 
+const acpEventKinds = new Set<string>([
+  "agent_message",
+  "user_message",
+  "plan",
+  "tool_call",
+  "usage",
+  "notice",
+  "error",
+]);
+
 type AcpPromptResult = {
   sessionId: string;
   stopReason: string;
@@ -118,9 +128,12 @@ const initialSize = {
 
 function App() {
   const terminalElement = useRef<HTMLDivElement | null>(null);
+  const acpEventsList = useRef<HTMLUListElement | null>(null);
   const terminal = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
   const sessionRef = useRef<SessionInfo | null>(null);
+  const transcriptOpenRequest = useRef(0);
+  const transcriptSessionRef = useRef<TranscriptSessionInfo | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
   const [terminalSize, setTerminalSize] = useState(initialSize);
@@ -137,6 +150,9 @@ function App() {
   const [projectLoading, setProjectLoading] = useState(false);
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
+  const [openedTranscriptSession, setOpenedTranscriptSession] =
+    useState<TranscriptSessionInfo | null>(null);
+  const [openedTranscriptEvents, setOpenedTranscriptEvents] = useState<AcpSessionEvent[]>([]);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
@@ -165,7 +181,14 @@ function App() {
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
   );
-  const displayAcpEvents = useMemo(() => coalesceAcpEvents(acpEvents), [acpEvents]);
+  const selectedHistorySessionId = openedTranscriptSession?.id ?? transcriptSession?.id ?? null;
+  const displayAcpEvents = useMemo(
+    () =>
+      openedTranscriptSession
+        ? coalesceTranscriptEvents(openedTranscriptEvents)
+        : coalesceAcpEvents(acpEvents),
+    [acpEvents, openedTranscriptEvents, openedTranscriptSession],
+  );
   const canStartSelectedAcpCandidate =
     !!selectedAcpCandidate &&
     isLaunchableAcpCandidate(selectedAcpCandidate) &&
@@ -186,6 +209,20 @@ function App() {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    transcriptSessionRef.current = transcriptSession;
+  }, [transcriptSession]);
+
+  useEffect(() => {
+    if (runtimeMode !== "acp" || displayAcpEvents.length === 0) {
+      return;
+    }
+
+    acpEventsList.current?.scrollTo?.({
+      top: acpEventsList.current.scrollHeight,
+    });
+  }, [displayAcpEvents, runtimeMode]);
 
   useEffect(() => {
     void refreshProjects();
@@ -292,7 +329,7 @@ function App() {
     }, 400);
 
     return () => window.clearInterval(timer);
-  }, [acpSession?.id, canUseAcpSession]);
+  }, [acpSession?.id, canUseAcpSession, transcriptSession?.id]);
 
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
@@ -358,6 +395,13 @@ function App() {
           projectId: projectId ?? null,
         })) ?? [];
       setTranscriptSessions(nextSessions);
+      if (
+        openedTranscriptSession &&
+        !nextSessions.some((session) => session.id === openedTranscriptSession.id)
+      ) {
+        setOpenedTranscriptSession(null);
+        setOpenedTranscriptEvents([]);
+      }
     } catch (err) {
       setTranscriptError(errorText(err));
     } finally {
@@ -377,21 +421,63 @@ function App() {
         },
       });
       if (!nextSession) {
+        transcriptSessionRef.current = null;
         setTranscriptSession(null);
         return null;
       }
 
+      transcriptSessionRef.current = nextSession;
       setTranscriptSession(nextSession);
+      setOpenedTranscriptSession(null);
+      setOpenedTranscriptEvents([]);
       setTranscriptSessions((current) => [
         nextSession,
         ...current.filter((session) => session.id !== nextSession.id),
       ]);
       return nextSession;
     } catch (err) {
+      transcriptSessionRef.current = null;
       setTranscriptSession(null);
       setTranscriptError(errorText(err));
       return null;
     }
+  }
+
+  async function openTranscriptSession(session: TranscriptSessionInfo) {
+    const requestId = transcriptOpenRequest.current + 1;
+    transcriptOpenRequest.current = requestId;
+    setRuntimeMode("acp");
+    setOpenedTranscriptSession(session);
+    setOpenedTranscriptEvents([]);
+    setTranscriptLoading(true);
+    setTranscriptError(null);
+    try {
+      const events =
+        (await invoke<TranscriptEventInfo[]>("list_transcript_events", {
+          sessionId: session.id,
+        })) ?? [];
+      if (transcriptOpenRequest.current !== requestId) {
+        return;
+      }
+      setOpenedTranscriptSession(session);
+      setOpenedTranscriptEvents(events.map(transcriptEventToAcpEvent));
+    } catch (err) {
+      if (transcriptOpenRequest.current !== requestId) {
+        return;
+      }
+      setTranscriptError(errorText(err));
+    } finally {
+      if (transcriptOpenRequest.current === requestId) {
+        setTranscriptLoading(false);
+      }
+    }
+  }
+
+  function showLiveAcpEvents() {
+    transcriptOpenRequest.current += 1;
+    setRuntimeMode("acp");
+    setOpenedTranscriptSession(null);
+    setOpenedTranscriptEvents([]);
   }
 
   async function recordTranscriptEvents(
@@ -402,12 +488,14 @@ function App() {
       return;
     }
 
-    const cleanEvents = events
-      .map((event) => ({
-        kind: event.kind,
-        content: event.content,
-      }))
-      .filter((event) => event.content.trim().length > 0);
+    const cleanEvents = coalesceTranscriptEvents(
+      events
+        .map((event) => ({
+          kind: event.kind,
+          content: event.content,
+        }))
+        .filter((event) => event.content.trim().length > 0),
+    );
     if (cleanEvents.length === 0) {
       return;
     }
@@ -450,6 +538,12 @@ function App() {
           }
         : current,
     );
+    if (openedTranscriptSession?.id === transcriptId) {
+      setOpenedTranscriptEvents((current) => [
+        ...current,
+        ...insertedEvents.map(transcriptEventToAcpEvent),
+      ]);
+    }
   }
 
   async function startSession(kind: "fake" | "codex") {
@@ -598,19 +692,21 @@ function App() {
     setAcpPromptBusy(true);
     setError(null);
     try {
+      showLiveAcpEvents();
+      const activeTranscriptId = transcriptSessionRef.current?.id ?? transcriptSession?.id ?? null;
       const userEvent: AcpSessionEvent = {
         kind: "user_message",
         content: acpPrompt,
       };
       setAcpEvents((current) => [...current, userEvent]);
-      await recordTranscriptEvents(transcriptSession?.id, [userEvent]);
+      await recordTranscriptEvents(activeTranscriptId, [userEvent]);
 
       const result = await invoke<AcpPromptResult>("send_acp_prompt", {
         sessionId: acpSession.id,
         prompt: acpPrompt,
       });
       setAcpPromptResult(result);
-      await drainAcpEvents(acpSession.id, transcriptSession?.id ?? null);
+      await drainAcpEvents(acpSession.id, activeTranscriptId);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -620,7 +716,7 @@ function App() {
 
   async function drainAcpEvents(
     sessionId = acpSession?.id,
-    transcriptId = transcriptSession?.id ?? null,
+    transcriptId = transcriptSessionRef.current?.id ?? null,
   ) {
     if (!sessionId) {
       return;
@@ -671,33 +767,10 @@ function App() {
 
   return (
     <main className="app-shell" aria-label="AIadne runtime test">
-      <section className="intro-panel" aria-labelledby="app-title">
-        <p className="eyebrow">AIadne</p>
-        <h1 id="app-title">Runtime Test</h1>
-        <dl className="status-list">
-          <div>
-            <dt>Status</dt>
-            <dd>{statusLabel}</dd>
-          </div>
-          <div>
-            <dt>Session</dt>
-            <dd>{session?.id.slice(0, 8) ?? "none"}</dd>
-          </div>
-          <div>
-            <dt>PID</dt>
-            <dd>{session?.pid ?? "none"}</dd>
-          </div>
-          <div>
-            <dt>Workspace</dt>
-            <dd>{selectedProject?.name ?? "none"}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="control-panel" aria-labelledby="controls-title">
-        <div className="section-heading">
-          <p className="eyebrow">Runtime</p>
-          <h2 id="controls-title">Runtime Controls</h2>
+      <section className="intro-panel" aria-labelledby="runtime-sidebar-title">
+        <div className="sidebar-brand">
+          <p className="eyebrow">AIadne</p>
+          <h1 id="runtime-sidebar-title">Runtime</h1>
         </div>
 
         <div className="runtime-switch" role="group" aria-label="Runtime mode">
@@ -715,6 +788,213 @@ function App() {
           >
             Structured ACP
           </button>
+        </div>
+
+        <div className="sidebar-scroll">
+          {runtimeMode === "pty" ? (
+            <details className="agent-accordion sidebar-agent">
+              <summary>
+                <span>PTY Agents</span>
+                <strong>{canStartCodex ? "Codex ready" : "Check CLIs"}</strong>
+              </summary>
+
+              <div className="accordion-body">
+                <div className="doctor-heading">
+                  <h3 id="sidebar-doctor-title">Agent Doctor</h3>
+                  <button
+                    type="button"
+                    onClick={() => void refreshAgentDoctor()}
+                    disabled={doctorLoading}
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {doctorError ? (
+                  <p className="error-message" role="alert">
+                    {doctorError}
+                  </p>
+                ) : null}
+
+                <ul className="doctor-list" aria-label="Agent CLI status">
+                  {doctorReports.map((report) => (
+                    <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
+                      <div>
+                        <strong>{report.adapter.displayName}</strong>
+                        <span>{report.adapter.executable}</span>
+                      </div>
+                      <div>
+                        <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
+                        <span>{doctorDetail(report)}</span>
+                        <span>{transportDetail(report.adapter.transports)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          ) : null}
+
+          {runtimeMode === "acp" ? (
+            <details className="agent-accordion sidebar-agent">
+              <summary>
+                <span>ACP Agents</span>
+                <strong>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</strong>
+              </summary>
+
+              <div className="accordion-body">
+                <div className="doctor-heading">
+                  <h3 id="sidebar-acp-registry-title">ACP Registry</h3>
+                  <button
+                    type="button"
+                    onClick={() => void refreshAcpRegistryCandidates()}
+                    disabled={acpRegistryLoading}
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {acpRegistryError ? (
+                  <p className="error-message" role="alert">
+                    {acpRegistryError}
+                  </p>
+                ) : null}
+
+                <ul className="registry-list" aria-label="ACP registry candidates">
+                  {acpRegistryCandidates.map((candidate) => (
+                    <li
+                      className="registry-item"
+                      data-selected={candidate.id === selectedAcpCandidate?.id}
+                      data-status={candidate.status}
+                      key={candidate.id}
+                    >
+                      <div>
+                        <strong>{candidate.name}</strong>
+                        <span>{candidate.description}</span>
+                      </div>
+                      <div>
+                        <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
+                        <span>{candidate.version} · {candidate.distribution}</span>
+                        <code>{formatCommand(candidate.command)}</code>
+                        <span>{candidate.installHint}</span>
+                        <button
+                          aria-label={`Select ${candidate.name} ACP candidate`}
+                          aria-pressed={candidate.id === selectedAcpCandidate?.id}
+                          disabled={busy || canUseAcpSession}
+                          type="button"
+                          onClick={() => setSelectedAcpCandidateId(candidate.id)}
+                        >
+                          {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {selectedAcpCandidate ? (
+                  <dl className="selected-candidate" aria-label="Selected ACP candidate">
+                    <div>
+                      <dt>Selected ACP</dt>
+                      <dd>{selectedAcpCandidate.name}</dd>
+                    </div>
+                    <div>
+                      <dt>Command</dt>
+                      <dd>
+                        <code>{formatCommand(selectedAcpCandidate.command)}</code>
+                      </dd>
+                    </div>
+                  </dl>
+                ) : null}
+              </div>
+            </details>
+          ) : null}
+
+          <details className="agent-accordion sidebar-history" open>
+            <summary>
+              <span>Session History</span>
+              <strong>{transcriptSessions.length} saved</strong>
+            </summary>
+
+            <div className="accordion-body">
+              <div className="doctor-heading">
+                <h3 id="history-title">Session History</h3>
+                <span>{transcriptSession ? transcriptSession.title : "none active"}</span>
+                <button
+                  type="button"
+                  onClick={() => void refreshTranscriptSessions()}
+                  disabled={transcriptLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {transcriptError ? (
+                <p className="error-message" role="alert">
+                  {transcriptError}
+                </p>
+              ) : null}
+
+              <ul className="history-list" aria-label="Session history">
+                {transcriptSessions.length === 0 ? (
+                  <li>No saved sessions yet.</li>
+                ) : (
+                  transcriptSessions.map((historySession) => (
+                    <li
+                      data-selected={historySession.id === selectedHistorySessionId}
+                      key={historySession.id}
+                    >
+                      <button
+                        type="button"
+                        aria-label={`Open ${historySession.title} transcript`}
+                        aria-pressed={historySession.id === selectedHistorySessionId}
+                        onClick={() => void openTranscriptSession(historySession)}
+                        disabled={transcriptLoading}
+                      >
+                        <strong>{historySession.title}</strong>
+                        <span>
+                          {historySession.source} · {historySession.runtime} ·{" "}
+                          {historySession.eventCount} events
+                        </span>
+                        <small>
+                          {formatTimestamp(historySession.updatedAt)} · {shortId(historySession.id)}
+                        </small>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        <dl className="status-list sidebar-status">
+          <div>
+            <dt>Status</dt>
+            <dd>{runtimeMode === "acp" ? acpStatusLabel : statusLabel}</dd>
+          </div>
+          <div>
+            <dt>Session</dt>
+            <dd>
+              {runtimeMode === "acp"
+                ? acpSession?.id.slice(0, 8) ?? "none"
+                : session?.id.slice(0, 8) ?? "none"}
+            </dd>
+          </div>
+          <div>
+            <dt>PID</dt>
+            <dd>{runtimeMode === "acp" ? acpSession?.pid ?? "none" : session?.pid ?? "none"}</dd>
+          </div>
+          <div>
+            <dt>Workspace</dt>
+            <dd>{selectedProject?.name ?? "none"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="control-panel" aria-labelledby="controls-title">
+        <div className="section-heading">
+          <p className="eyebrow">Runtime</p>
+          <h2 id="controls-title">Runtime Controls</h2>
         </div>
 
         <section className="workspace-panel" aria-labelledby="workspace-title">
@@ -793,45 +1073,6 @@ function App() {
           </ul>
         </section>
 
-        <section className="history-panel" aria-labelledby="history-title">
-          <div className="doctor-heading">
-            <h3 id="history-title">Session History</h3>
-            <span>{transcriptSession ? transcriptSession.title : "none active"}</span>
-            <button
-              type="button"
-              onClick={() => void refreshTranscriptSessions()}
-              disabled={transcriptLoading}
-            >
-              Refresh
-            </button>
-          </div>
-
-          {transcriptError ? (
-            <p className="error-message" role="alert">
-              {transcriptError}
-            </p>
-          ) : null}
-
-          <ul className="history-list" aria-label="Session history">
-            {transcriptSessions.length === 0 ? (
-              <li>No saved sessions yet.</li>
-            ) : (
-              transcriptSessions.map((historySession) => (
-                <li
-                  data-active={historySession.id === transcriptSession?.id}
-                  key={historySession.id}
-                >
-                  <strong>{historySession.title}</strong>
-                  <span>
-                    {historySession.source} · {historySession.runtime} ·{" "}
-                    {historySession.eventCount} events
-                  </span>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-
         {runtimeMode === "pty" ? (
           <section className="runtime-panel" aria-labelledby="pty-controls-title">
             <div className="doctor-heading">
@@ -874,48 +1115,6 @@ function App() {
                 <dd>{terminalSize.cols}x{terminalSize.rows}</dd>
               </div>
             </dl>
-
-            <details className="agent-accordion" open>
-              <summary>
-                <span>PTY Agents</span>
-                <strong>{canStartCodex ? "Codex ready" : "Check CLIs"}</strong>
-              </summary>
-
-              <div className="accordion-body">
-                <div className="doctor-heading">
-                  <h3 id="doctor-title">Agent Doctor</h3>
-                  <button
-                    type="button"
-                    onClick={() => void refreshAgentDoctor()}
-                    disabled={doctorLoading}
-                  >
-                    Refresh
-                  </button>
-                </div>
-
-                {doctorError ? (
-                  <p className="error-message" role="alert">
-                    {doctorError}
-                  </p>
-                ) : null}
-
-                <ul className="doctor-list" aria-label="Agent CLI status">
-                  {doctorReports.map((report) => (
-                    <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
-                      <div>
-                        <strong>{report.adapter.displayName}</strong>
-                        <span>{report.adapter.executable}</span>
-                      </div>
-                      <div>
-                        <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
-                        <span>{doctorDetail(report)}</span>
-                        <span>{transportDetail(report.adapter.transports)}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </details>
           </section>
         ) : null}
 
@@ -925,78 +1124,6 @@ function App() {
               <h3 id="acp-title">ACP Controls</h3>
               <span>{acpStatusLabel}</span>
             </div>
-
-            <details className="agent-accordion" open>
-              <summary>
-                <span>ACP Agents</span>
-                <strong>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</strong>
-              </summary>
-
-              <div className="accordion-body">
-                <div className="doctor-heading">
-                  <h3 id="acp-registry-title">ACP Registry</h3>
-                  <button
-                    type="button"
-                    onClick={() => void refreshAcpRegistryCandidates()}
-                    disabled={acpRegistryLoading}
-                  >
-                    Refresh
-                  </button>
-                </div>
-
-                {acpRegistryError ? (
-                  <p className="error-message" role="alert">
-                    {acpRegistryError}
-                  </p>
-                ) : null}
-
-                <ul className="registry-list" aria-label="ACP registry candidates">
-                  {acpRegistryCandidates.map((candidate) => (
-                    <li
-                      className="registry-item"
-                      data-selected={candidate.id === selectedAcpCandidate?.id}
-                      data-status={candidate.status}
-                      key={candidate.id}
-                    >
-                      <div>
-                        <strong>{candidate.name}</strong>
-                        <span>{candidate.description}</span>
-                      </div>
-                      <div>
-                        <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
-                        <span>{candidate.version} · {candidate.distribution}</span>
-                        <code>{formatCommand(candidate.command)}</code>
-                        <span>{candidate.installHint}</span>
-                        <button
-                          aria-label={`Select ${candidate.name} ACP candidate`}
-                          aria-pressed={candidate.id === selectedAcpCandidate?.id}
-                          disabled={busy || canUseAcpSession}
-                          type="button"
-                          onClick={() => setSelectedAcpCandidateId(candidate.id)}
-                        >
-                          {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-
-                {selectedAcpCandidate ? (
-                  <dl className="selected-candidate" aria-label="Selected ACP candidate">
-                    <div>
-                      <dt>Selected ACP</dt>
-                      <dd>{selectedAcpCandidate.name}</dd>
-                    </div>
-                    <div>
-                      <dt>Command</dt>
-                      <dd>
-                        <code>{formatCommand(selectedAcpCandidate.command)}</code>
-                      </dd>
-                    </div>
-                  </dl>
-                ) : null}
-              </div>
-            </details>
 
             <div className="button-row">
               <button
@@ -1072,14 +1199,40 @@ function App() {
 
           {runtimeMode === "acp" ? (
             <section className="acp-events-panel" aria-labelledby="acp-events-title">
-              <h3 id="acp-events-title">ACP Events</h3>
-              <ul aria-label="ACP events">
+              <div className="output-heading">
+                <div>
+                  <h3 id="acp-events-title">
+                    {openedTranscriptSession ? "Saved Transcript" : "ACP Events"}
+                  </h3>
+                  {openedTranscriptSession ? (
+                    <p>
+                      {openedTranscriptSession.title} ·{" "}
+                      {openedTranscriptSession.eventCount} events ·{" "}
+                      {shortId(openedTranscriptSession.id)}
+                    </p>
+                  ) : null}
+                </div>
+                {openedTranscriptSession ? (
+                  <button type="button" onClick={showLiveAcpEvents}>
+                    View Live ACP
+                  </button>
+                ) : null}
+              </div>
+              <ul aria-label="ACP events" ref={acpEventsList}>
                 {displayAcpEvents.length === 0 ? (
-                  <li>No ACP events yet.</li>
+                  <li>
+                    {openedTranscriptSession
+                      ? "No saved events in this transcript yet."
+                      : "No ACP events yet."}
+                  </li>
                 ) : (
                   displayAcpEvents.map((event, index) => (
                     <li data-kind={event.kind} key={`${event.kind}-${index}`}>
-                      <strong>{acpEventLabel(event.kind)}</strong>
+                      <strong>
+                        {openedTranscriptSession
+                          ? transcriptEventLabel(event.kind)
+                          : acpEventLabel(event.kind)}
+                      </strong>
                       <span>{event.content}</span>
                     </li>
                   ))
@@ -1157,7 +1310,31 @@ function selectedProjectCwd(project: ProjectInfo | null) {
   return project ? { cwd: project.path } : {};
 }
 
+function shortId(id: string) {
+  return id.slice(0, 8);
+}
+
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp * 1_000).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function coalesceAcpEvents(events: AcpSessionEvent[]) {
+  return coalesceEvents(events, (kind) => kind === "agent_message" || kind === "plan");
+}
+
+function coalesceTranscriptEvents(events: AcpSessionEvent[]) {
+  return coalesceEvents(events, (kind) => kind === "agent_message" || kind === "plan");
+}
+
+function coalesceEvents(
+  events: AcpSessionEvent[],
+  shouldMergeKind: (kind: AcpEventKind) => boolean,
+) {
   const coalesced: AcpSessionEvent[] = [];
 
   for (const event of events) {
@@ -1165,7 +1342,7 @@ function coalesceAcpEvents(events: AcpSessionEvent[]) {
     if (
       previous &&
       previous.kind === event.kind &&
-      (event.kind === "agent_message" || event.kind === "plan")
+      shouldMergeKind(event.kind)
     ) {
       previous.content = joinAcpText(previous.content, event.content);
     } else {
@@ -1190,6 +1367,17 @@ function joinAcpText(left: string, right: string) {
   }
 
   return `${left} ${right}`;
+}
+
+function transcriptEventToAcpEvent(event: TranscriptEventInfo): AcpSessionEvent {
+  return {
+    kind: isAcpEventKind(event.kind) ? event.kind : "notice",
+    content: event.content,
+  };
+}
+
+function isAcpEventKind(kind: string): kind is AcpEventKind {
+  return acpEventKinds.has(kind);
 }
 
 function formatCommand(command: string[]) {
@@ -1224,6 +1412,18 @@ function acpEventLabel(kind: AcpEventKind) {
   if (kind === "error") {
     return "Error";
   }
+}
+
+function transcriptEventLabel(kind: AcpEventKind) {
+  if (kind === "user_message") {
+    return "Question";
+  }
+
+  if (kind === "agent_message") {
+    return "Answer";
+  }
+
+  return acpEventLabel(kind);
 }
 
 function readTerminalSize(activeTerminal: Terminal | null) {

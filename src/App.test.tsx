@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 let onTerminalData: ((text: string) => void) | undefined;
+const scrollToMock = vi.fn();
 
 vi.mock("@xterm/xterm", () => ({
   Terminal: vi.fn().mockImplementation(() => ({
@@ -34,6 +35,10 @@ vi.mock("@xterm/addon-fit", () => ({
 }));
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+    configurable: true,
+    value: scrollToMock,
+  });
   vi.stubGlobal(
     "ResizeObserver",
     vi.fn().mockImplementation(() => ({
@@ -45,6 +50,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   onTerminalData = undefined;
+  scrollToMock.mockClear();
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockImplementation((command) => {
     if (command === "list_projects") {
@@ -102,9 +108,11 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Session History" })).toBeInTheDocument();
+    expect(screen.getByText("ACP Agents")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Interactive PTY terminal")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("ACP Agents"));
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
@@ -117,6 +125,7 @@ describe("PTY test panel", () => {
     expect(screen.getByText("Missing binary")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+    fireEvent.click(screen.getByText("PTY Agents"));
 
     expect(screen.getByRole("heading", { name: "PTY Controls" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake" })).toBeInTheDocument();
@@ -189,13 +198,26 @@ describe("PTY test panel", () => {
   });
 
   it("renders saved ACP transcript sessions", async () => {
-    vi.mocked(invoke).mockImplementation((command) => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
       if (command === "list_projects") {
         return Promise.resolve(defaultProjects());
       }
 
       if (command === "list_transcript_sessions") {
-        return Promise.resolve([defaultTranscriptSession({ eventCount: 3 })]);
+        return Promise.resolve([
+          defaultTranscriptSession({
+            id: "transcript-old",
+            title: "Older Codex ACP",
+            eventCount: 3,
+          }),
+          defaultTranscriptSession({
+            id: "transcript-new",
+            title: "Newer Codex ACP",
+            eventCount: 2,
+            updatedAt: 1_785_000_010,
+          }),
+        ]);
       }
 
       if (command === "list_agent_doctor_reports") {
@@ -214,13 +236,139 @@ describe("PTY test panel", () => {
         return Promise.resolve([]);
       }
 
+      if (command === "list_transcript_events") {
+        return Promise.resolve(defaultTranscriptEvents());
+      }
+
       return Promise.resolve(undefined);
     });
 
     render(<App />);
 
-    expect(await screen.findByText("Codex ACP")).toBeInTheDocument();
+    expect(await screen.findByText("Older Codex ACP")).toBeInTheDocument();
     expect(screen.getByText("Codex · acp · 3 events")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Older Codex ACP transcript" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("list_transcript_events", {
+        sessionId: "transcript-old",
+      });
+    });
+    expect(await screen.findByRole("heading", { name: "Saved Transcript" })).toBeInTheDocument();
+    expect(screen.getByText("old question")).toBeInTheDocument();
+    expect(screen.getByText("old answer")).toBeInTheDocument();
+    expect(screen.getByText("Question")).toBeInTheDocument();
+    expect(screen.getByText("Answer")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Older Codex ACP transcript" }))
+      .toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Open Newer Codex ACP transcript" }))
+      .toHaveAttribute("aria-pressed", "false");
+
+    invokeMock.mockImplementation((command, args) => {
+      if (command === "list_transcript_events") {
+        const sessionId = (args as { sessionId: string }).sessionId;
+        return Promise.resolve(
+          sessionId === "transcript-new" ? defaultTranscriptEvents("new") : defaultTranscriptEvents(),
+        );
+      }
+
+      return Promise.resolve([]);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Newer Codex ACP transcript" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("new question")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("old question")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Older Codex ACP transcript" }))
+      .toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Open Newer Codex ACP transcript" }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("renders saved ACP transcript chunks as readable questions and answers", async () => {
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([
+          defaultTranscriptSession({
+            id: "transcript-chunks",
+            title: "Chunked Codex ACP",
+            eventCount: 5,
+          }),
+        ]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "list_transcript_events") {
+        return Promise.resolve([
+          {
+            id: "event-question",
+            sessionId: "transcript-chunks",
+            sequence: 0,
+            kind: "user_message",
+            content: "Can you explain this?",
+            createdAt: 1_785_000_001,
+          },
+          {
+            id: "event-answer-a",
+            sessionId: "transcript-chunks",
+            sequence: 1,
+            kind: "agent_message",
+            content: "Yes,",
+            createdAt: 1_785_000_002,
+          },
+          {
+            id: "event-answer-b",
+            sessionId: "transcript-chunks",
+            sequence: 2,
+            kind: "agent_message",
+            content: "this is the answer.",
+            createdAt: 1_785_000_003,
+          },
+          {
+            id: "event-next-question",
+            sessionId: "transcript-chunks",
+            sequence: 3,
+            kind: "user_message",
+            content: "And the next thing?",
+            createdAt: 1_785_000_004,
+          },
+        ]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open Chunked Codex ACP transcript" }));
+
+    expect(await screen.findByText("Can you explain this?")).toBeInTheDocument();
+    expect(screen.getByText("Yes, this is the answer.")).toBeInTheDocument();
+    expect(screen.getByText("And the next thing?")).toBeInTheDocument();
+    expect(screen.getAllByText("Question")).toHaveLength(2);
+    expect(screen.getByText("Answer")).toBeInTheDocument();
   });
 
   it("passes the selected project cwd when launching a PTY session", async () => {
@@ -286,6 +434,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    fireEvent.click(await screen.findByText("ACP Agents"));
     const selectedCandidate = await screen.findByLabelText("Selected ACP candidate");
     expect(selectedCandidate).toHaveTextContent("Codex");
 
@@ -339,6 +488,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    fireEvent.click(await screen.findByText("ACP Agents"));
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
 
@@ -350,7 +500,8 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("Codex · running · codex-acp-session")).toBeInTheDocument();
+    expect(await screen.findAllByText("Codex · running · codex-acp-session"))
+      .not.toHaveLength(0);
   });
 
   it("starts a non-default launchable ACP registry candidate", async () => {
@@ -394,6 +545,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    fireEvent.click(await screen.findByText("ACP Agents"));
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Select Gemini CLI ACP candidate" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
@@ -405,8 +557,8 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("Gemini CLI · running · gemini-acp-session"))
-      .toBeInTheDocument();
+    expect(await screen.findAllByText("Gemini CLI · running · gemini-acp-session"))
+      .not.toHaveLength(0);
   });
 
   it("locks ACP candidate selection while a session is running", async () => {
@@ -446,10 +598,12 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    fireEvent.click(await screen.findByText("ACP Agents"));
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
 
-    expect(await screen.findByText("Codex · running · locked-acp-session")).toBeInTheDocument();
+    expect(await screen.findAllByText("Codex · running · locked-acp-session"))
+      .not.toHaveLength(0);
     expect(screen.getByRole("button", { name: "Select Kimi CLI ACP candidate" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select Gemini CLI ACP candidate" })).toBeDisabled();
   });
@@ -612,7 +766,8 @@ describe("PTY test panel", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    await screen.findByText("fake · running · fake-acp-session");
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
     expect(invokeMock).toHaveBeenCalledWith("create_transcript_session", {
       request: {
         projectId: null,
@@ -640,13 +795,11 @@ describe("PTY test panel", () => {
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("append_transcript_events", {
         sessionId: "transcript-1",
-        events: [
-          { kind: "agent_message", content: "fake acp received" },
-          { kind: "agent_message", content: "prompt" },
-        ],
+        events: [{ kind: "agent_message", content: "fake acp received prompt" }],
       });
     });
     expect(await screen.findByText("fake acp received prompt")).toBeInTheDocument();
+    expect(scrollToMock).toHaveBeenCalled();
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
   });
 
@@ -699,7 +852,8 @@ describe("PTY test panel", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    await screen.findByText("fake · running · fake-acp-session");
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
 
@@ -757,6 +911,27 @@ function baseTranscriptSession() {
 
 function defaultTranscriptSessions() {
   return [];
+}
+
+function defaultTranscriptEvents(prefix = "old") {
+  return [
+    {
+      id: "transcript-event-1",
+      sessionId: "transcript-1",
+      sequence: 0,
+      kind: "user_message",
+      content: `${prefix} question`,
+      createdAt: 1_785_000_002,
+    },
+    {
+      id: "transcript-event-2",
+      sessionId: "transcript-1",
+      sequence: 1,
+      kind: "agent_message",
+      content: `${prefix} answer`,
+      createdAt: 1_785_000_003,
+    },
+  ];
 }
 
 function defaultDoctorReports({

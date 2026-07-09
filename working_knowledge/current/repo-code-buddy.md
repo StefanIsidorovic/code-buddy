@@ -30,6 +30,13 @@
 - PTY and ACP launch requests include selected project cwd when a workspace is selected.
 - ProjectStore now persists ACP transcript sessions and ordered transcript events in SQLite.
 - Frontend now creates transcript sessions when ACP sessions start, records user prompts and drained ACP events, and shows a minimal Session History panel.
+- Frontend now lets Session History rows open saved transcript events in the ACP output panel.
+- Frontend now keeps only one Session History row selected and clears saved replay events before loading another transcript.
+- Frontend now treats saved ACP transcript replay as chat history: user messages are Questions, agent messages are Answers, and adjacent saved agent/plan chunks are coalesced.
+- Frontend now keeps ACP output scrolled to the newest rendered event.
+- Frontend now keeps the active transcript session in a ref so background ACP drain polling records agent chunks against the current transcript id.
+- Frontend now has a CSS-only earth-tone visual theme for the temporary runtime workspace, based on the user-provided ebony/reseda/bone/beaver/taupe palette with softer panels, clearer controls, and color-coded transcript/event rows.
+- The left sidebar now contains runtime mode selection, collapsible PTY/ACP agent selection, Session History, and compact runtime status instead of the old large Runtime Test hero.
 - Frontend now uses a Runtime mode switch: Structured ACP by default and Terminal PTY as fallback.
 - Frontend groups PTY/ACP agent choice in accordion sections to keep the temporary control panel compact.
 - Output panel now gives more space to the active runtime output: PTY stream in Terminal PTY mode or ACP events in Structured ACP mode, with adjacent Agent/Plan ACP events coalesced for display.
@@ -53,6 +60,9 @@
 - ProjectStore validates project names, canonicalizes existing directory paths, and rejects duplicate paths.
 - Transcript sessions can link to a project, but deleting a project keeps transcript history by clearing the project link.
 - Transcript event writes are treated as non-blocking runtime support; frontend surfaces transcript errors separately from ACP runtime errors.
+- ACP drain polling depends on the active transcript id and also reads transcriptSessionRef to avoid stale closure writes.
+- Saved transcript replay uses list_transcript_events and does not require an active ACP session.
+- Saved transcript replay ignores stale transcript-open responses so rapid switching cannot mix sessions.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -95,6 +105,12 @@
 - Frontend tests cover the default ACP output mode, PTY mode switching, and coalesced adjacent ACP agent messages.
 - AIA-024 backend tests cover transcript session creation/listing, ordered event append/list, invalid transcript input, and project deletion preserving history.
 - Frontend tests cover Session History rendering and ACP transcript creation/event append calls.
+- Frontend tests cover opening a saved transcript and rendering stored user/agent events.
+- Frontend tests cover switching between saved transcripts without leaving old messages selected/rendered.
+- Frontend tests cover opening collapsed agent accordions before selecting ACP candidates.
+- Frontend tests cover chunked saved transcript replay as one readable answer and coalesced transcript persistence calls.
+- Frontend tests cover ACP output autoscroll when structured events render.
+- Frontend tests continue to pass after the CSS-only UI polish changes.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -115,6 +131,7 @@
 - AIA-022 validation passed with 37 Rust tests and 11 frontend tests.
 - AIA-023 validation passed with 11 frontend tests plus typecheck, build, and git diff --check.
 - AIA-024 interim validation passed with 40 Rust tests and 12 frontend tests.
+- AIA-025 interim frontend validation passed with 12 frontend tests plus typecheck.
 - Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 - Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
@@ -139,5 +156,5 @@
 - Generic ACP launch stays behind Start Selected ACP; avoid per-agent direct ACP buttons until the product UI explicitly needs them.
 - Codex ACP prompt waits are intentionally longer than initialize/session/new waits because real tasks can take longer than setup.
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
-- Workspace project persistence now includes first ACP transcript history, but no PTY scrollback persistence, default agent/model settings, or native folder picker yet.
-- Runtime mode switch and agent accordions are temporary-panel UX polish, not the final workspace/session shell.
+- Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, and a polished temporary UI theme, but no PTY scrollback persistence, default agent/model settings, or native folder picker yet.
+- Runtime mode switch, sidebar history, and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

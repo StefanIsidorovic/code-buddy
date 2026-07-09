@@ -12,7 +12,7 @@
 - Should fake ACP support Windows before packaging, or is Linux-first enough while the ACP spike stays local?
 - Should Workspace add-project use a native folder picker next, or is manual path entry enough until the final UI?
 - What project metadata belongs in the first real workspace model beyond name and path: default agent, model, instructions, or last session?
-- Should the next transcript step be full replay/open-session UI, search/filtering, or PTY scrollback persistence?
+- Should the next transcript step be continue-from-transcript context, search/filtering, rich chat/tool-call UI, or PTY scrollback persistence?
 
 ## Resolved
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
@@ -30,3 +30,9 @@
 - Codex ACP is the first manually validated registry-backed ACP candidate, but launch should stay generic through Start Selected ACP rather than a Codex-specific button.
 - AIA-022 first workspace slice stores only project name/path and uses the selected project path as PTY/ACP launch cwd.
 - AIA-024 first transcript slice stores ACP transcript sessions and ordered events, while full replay UI and PTY scrollback stay deferred.
+- AIA-025 adds minimal saved transcript replay from Session History; rich chat/tool-call replay stays deferred.
+- AIA-026 moves runtime mode, collapsible agent selection, Session History, and compact status into the left sidebar; final workspace/session UI stays deferred.
+- AIA-027 normalizes saved ACP transcript replay into question/answer rows; full chat/tool-call UI remains deferred.
+- AIA-028 adds ACP output autoscroll and fixes stale transcript ids in background ACP drain polling; old transcripts with never-persisted chunks cannot be reconstructed.
+- AIA-029 applies CSS-only pastel UI polish to the temporary runtime workspace; final product UI still remains deferred.
+- AIA-030 applies the user-provided earth-tone palette and CSS-only font polish across the whole temporary app UI; final product UI still remains deferred.

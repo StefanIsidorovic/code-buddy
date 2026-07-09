@@ -21,7 +21,7 @@ Kept:
 - fake ACP stdio runtime and ACP test panel
 - ACP registry discovery for compatible adapter candidates
 - SQLite-backed project list for choosing a workspace folder
-- SQLite-backed ACP transcript session/event history
+- SQLite-backed ACP transcript session/event history with minimal replay
 - React frontend
 - TypeScript
 - Vite
@@ -30,7 +30,7 @@ Kept:
 Still out of scope:
 
 - full real-agent adapter behavior
-- PTY scrollback persistence and full transcript replay UI
+- PTY scrollback persistence and rich transcript replay UI
 - keychain secret handling
 - AGENTS.md resolver and injector
 - final terminal/session frontend UI
@@ -74,14 +74,25 @@ the Tauri window.
 Manual smoke test:
 
 - Use `Structured ACP` for the default structured-agent path, or switch to
-  `Terminal PTY` for terminal fallback testing.
+  `Terminal PTY` for terminal fallback testing from the left runtime sidebar.
+- Use the left runtime sidebar to choose PTY/ACP mode and the current coding
+  agent candidate. Agent lists are collapsible so the sidebar stays compact.
 - Click `Start Fake` to verify the PTY echo session.
 - Click `Start Codex` to launch the installed Codex CLI in the same PTY path.
 - Check `Agent Doctor` to see installed, missing, or error states for local CLIs.
 - Add/select a `Workspace` project before starting a session if you want the
   agent process to run in that project folder.
-- After starting ACP and sending a prompt, check `Session History` for the
-  saved session and event count.
+- After starting ACP and sending a prompt, check `Session History` in the left
+  sidebar for the saved session and event count.
+- Click a `Session History` row to open saved user/agent events in the output
+  panel, then use `View Live ACP` to return to the active stream.
+- Saved transcripts show user prompts as questions and agent messages as
+  answers, with adjacent streamed agent chunks joined into readable replies.
+- The ACP output list scrolls to the newest event as live agent responses arrive.
+- The temporary runtime UI uses the current earth-tone product palette for
+  panels, controls, and transcript/event cards.
+- Only one history row should appear selected; switching rows should clear the
+  previous transcript output before the new one renders.
 - Check `ACP Registry` to see ACP-compatible candidates before launching real ACP adapters.
 - Use `Select` in `ACP Registry`, then click `Start Selected ACP` to try a launchable ACP candidate.
 - npx-backed ACP candidates may download their package on first launch.

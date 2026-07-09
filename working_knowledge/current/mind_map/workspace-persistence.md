@@ -13,7 +13,7 @@
 - The first slice stores project name and canonical folder path.
 - The second slice stores ACP transcript sessions and ordered transcript events.
 - Selecting a project sets the cwd for PTY and ACP launches.
-- This is the first session history slice, but not a full transcript replay UI yet.
+- Session history now has a normalized minimal question/answer replay view, but not the final chat UI.
 
 ## Backend Shape
 - ProjectStore owns a rusqlite Connection behind a Mutex.
@@ -34,12 +34,19 @@
 - App.tsx loads projects on mount through list_projects.
 - App.tsx loads transcript sessions for the selected project.
 - The Workspace panel lets the user refresh, add, select, and delete projects.
-- The Session History panel shows saved ACP transcript sessions with source/runtime/event count.
+- The left sidebar Session History panel shows saved ACP transcript sessions with source/runtime/event count.
+- Clicking a Session History row calls list_transcript_events and opens stored events in the output panel.
+- Switching Session History rows clears previous stored events immediately and ignores stale earlier load responses.
+- Saved transcript replay coalesces adjacent stored agent/plan chunks so old streamed output reads as one answer.
 - The first project is auto-selected after refresh if the current selection is gone.
 - Selection controls are disabled while a PTY or ACP session is running.
 - Sidebar shows the selected Workspace name.
 - ACP start creates a transcript session when possible.
 - ACP prompt send records a user_message event, and ACP drain records backend-normalized events.
+- Transcript recording coalesces adjacent agent/plan chunks before append so future saved answers are less fragmented.
+- Frontend keeps transcriptSessionRef current and restarts ACP drain polling when transcript id changes, so streamed agent chunks are recorded against the active transcript.
+- Starting or sending a live ACP prompt clears the saved transcript view so output returns to live mode.
+- Only one history row appears selected at a time; opened transcript wins over the live transcript marker.
 - Transcript persistence errors are shown separately and do not block the ACP runtime.
 
 ## Launch Wiring
@@ -51,12 +58,15 @@
 - Rust tests cover create/list/delete, invalid name, missing path, and duplicate path.
 - Frontend tests cover Workspace rendering, project creation/selection, PTY launch cwd, and selected ACP launch cwd.
 - Rust tests cover transcript creation, event append/list, invalid transcript input, and project deletion preserving transcript history.
-- Frontend tests cover Session History rendering and ACP transcript persistence calls.
+- Frontend tests cover Session History rendering, ACP transcript persistence calls, opening a saved transcript, and switching transcripts without mixed messages.
+- Frontend tests cover chunked saved transcript replay as readable Question/Answer rows.
+- Frontend tests cover ACP output autoscroll; manual validation should confirm streamed Codex responses are fully recorded in new transcripts.
 
 ## Watchouts
 - No native folder picker yet; users type/paste the path.
 - No PTY scrollback persistence yet.
-- No full transcript open/replay UI yet.
+- No final chat/tool-call transcript UI yet; the current view is normalized but minimal.
 - No default agent/model/instructions per project yet.
 - SQLite is local-only and not encrypted; do not store secrets here.
 - The temporary runtime UI still needs final product redesign.
+- Existing transcripts that were already saved with missing chunks cannot be reconstructed if those chunks were never persisted.

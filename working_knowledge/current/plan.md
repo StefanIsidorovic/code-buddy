@@ -200,6 +200,72 @@
 - review status: passed
 - commit: user will commit
 
+### 19. Open saved ACP transcripts from history
+- objective: make Session History useful by letting the user open a saved ACP transcript in the output panel.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Session History list item controls; list_transcript_events frontend invoke; ACP output panel live-vs-saved mode; stored event kind mapping; frontend tests.
+- expected changes: make history rows clickable; fetch stored transcript events; render saved transcript events in the ACP output panel; provide a View Live ACP action; clear saved transcript view when starting/sending a live ACP session; update docs and knowledge.
+- acceptance criteria: user can open a saved transcript; stored user/agent events render in output; output distinguishes saved transcript from live ACP; unknown event kinds render as Notice; user can return to live ACP; frontend tests cover the open flow.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 20. Refine transcript selection and runtime sidebar
+- objective: fix confusing saved transcript selection and use the old Runtime Test sidebar for useful runtime/agent controls.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Session History selection state; saved transcript open request lifecycle; ACP output display coalescing; runtime sidebar layout; agent selection placement; frontend tests.
+- expected changes: allow only one selected history row; clear old transcript events immediately when opening another session; ignore stale transcript-open responses; render saved transcript events separately; move runtime mode, collapsible agent selection, Session History, and compact status into the left sidebar; remove the large Runtime Test hero block.
+- acceptance criteria: only one history row is selected; switching transcripts cannot mix old/new messages; saved transcript replay is visually separated; sidebar hosts PTY/ACP, agent selection, Session History, and status without overlap; frontend tests cover switching saved transcripts.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 21. Normalize saved ACP chat transcripts
+- objective: make saved ACP transcript history read as question/answer chat entries instead of chopped stream chunks.
+- status: complete
+- files: src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: transcript event recording; saved transcript replay display; ACP event coalescing helpers; saved transcript labels; frontend tests.
+- expected changes: coalesce adjacent agent/plan chunks before transcript persistence; coalesce older adjacent saved chunks on replay; label saved user entries as Question and saved agent entries as Answer; keep user prompts as separate entries.
+- acceptance criteria: saved transcript answers are not split across visible rows; question/answer roles are clear; future transcript writes store cleaner agent/plan rows; existing live ACP display still coalesces readable chunks; frontend tests cover chunked saved replay and persistence call shape.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 22. Auto-scroll ACP output and stabilize transcript drain
+- objective: keep live ACP output pinned to the newest event and ensure background ACP draining records agent output into the active transcript.
+- status: complete
+- files: src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP events list ref; ACP output scroll effect; transcript session ref; ACP drain interval dependencies; send_acp_prompt transcript id selection; frontend tests.
+- expected changes: scroll ACP output to the newest event when live or saved events render; keep a ref to the current transcript session; restart ACP drain polling when transcript id changes; use the active transcript id when recording prompt questions and drained agent responses.
+- acceptance criteria: ACP output auto-scrolls as the agent returns events; background drain polling writes to the active transcript instead of a stale/null id; prompt question and response chunks are recorded under the same transcript; existing saved transcript and live ACP behavior keep passing.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 23. Apply pastel runtime UI polish
+- objective: make the current runtime workspace feel more polished and pleasant without changing runtime behavior.
+- status: complete
+- files: src/App.css; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: CSS design tokens; app shell; panels; buttons; inputs; runtime switch; sidebar accordions; history/project/registry/doctor cards; ACP event cards; focus/hover states.
+- expected changes: introduce a balanced pastel palette; improve typography hierarchy; add softer panel shadows and surfaces; style controls and transcript/event rows with clearer states; keep the existing layout and behavior.
+- acceptance criteria: UI reads as warmer and more stylish; pastel colors are balanced across mint, sky, lavender, and warm accents; no text overlap is introduced; frontend tests continue to pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 24. Apply reference earth palette and typography system
+- objective: apply the user-provided earth-tone palette and polished font system across the whole temporary app UI.
+- status: complete
+- files: src/App.css; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: CSS design tokens; app background; sidebar; runtime controls; forms; accordions; history/project/registry/doctor cards; PTY terminal frame; ACP transcript/event cards; heading/body/mono font stacks.
+- expected changes: replace the earlier generic pastel palette with earth-tone product tokens based on ebony #4F5743, reseda #6B7460, bone #DCD1C3, beaver #B29784, and taupe #483C32; apply those tokens consistently across the app; improve font stacks and visual hierarchy without changing runtime behavior.
+- acceptance criteria: whole app uses the reference palette; typography feels more polished across headings, labels, controls, and transcript rows; no UI overlap or runtime behavior change is introduced; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -217,5 +283,5 @@
 - AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
 - ACP registry discovery is curated from the official registry for now; it reports what could be launched later but does not install, download, or start real ACP adapters.
 - Starting npx-backed ACP registry candidates is an explicit user action and may download the adapter package on first launch.
-- Project storage now persists project folders and the first ACP transcript history; richer workspace metadata and PTY scrollback stay deferred.
-- The runtime screen remains a temporary test surface; the PTY/ACP switch and accordion layout are pragmatic polish, not the final product shell.
+- Project storage now persists project folders and ACP transcript history; saved transcript replay, chat normalization, stable drain recording, output autoscroll, runtime sidebar cleanup, and earth-tone UI polish are being added before richer workspace metadata and PTY scrollback.
+- The runtime screen remains a temporary test surface; the PTY/ACP switch, sidebar history, and accordion layout are pragmatic polish, not the final product shell.
