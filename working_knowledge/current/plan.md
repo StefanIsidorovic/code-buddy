@@ -178,6 +178,28 @@
 - review status: passed
 - commit: user will commit
 
+### 17. Polish runtime test UI layout
+- objective: make the temporary runtime UI easier to use before adding more product behavior.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: runtime mode state; PTY controls; ACP controls; agent selection panels; output layout; ACP event display; frontend tests.
+- expected changes: add a PTY/ACP segmented mode switch; keep ACP as the default structured runtime mode; move PTY and ACP agent selection into accordion sections; enlarge output by giving it a larger grid row; show only PTY stream in Terminal PTY mode and only ACP events in Structured ACP mode; coalesce adjacent agent/plan events for frontend display.
+- acceptance criteria: PTY and ACP controls are visually separated; agent choice is compact; output has more space; each runtime mode shows only its relevant output; ACP event rows do not chop continuous agent text into narrow fragments; existing launch flows still work.
+- required tests: tsc --noEmit; vitest run; vite build; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 18. Persist ACP session transcripts
+- objective: save the first structured ACP session history so Codex/fake ACP conversations are not only in frontend memory.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore transcript schema and methods; transcript Tauri commands; ACP start/send/drain frontend flow; Session History panel; backend/frontend tests.
+- expected changes: create transcript_sessions and transcript_events tables; expose create/list/append/read commands; create a transcript on ACP start; record user prompt and drained ACP events; show saved sessions for the selected workspace; keep persistence errors non-blocking for the active runtime.
+- acceptance criteria: backend stores ordered transcript events; invalid transcript input is rejected; deleting a project keeps history with a cleared project link; frontend records ACP events and shows a minimal history list; existing PTY/ACP runtime tests still pass.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -195,4 +217,5 @@
 - AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
 - ACP registry discovery is curated from the official registry for now; it reports what could be launched later but does not install, download, or start real ACP adapters.
 - Starting npx-backed ACP registry candidates is an explicit user action and may download the adapter package on first launch.
-- Project storage is intentionally narrow: it persists project folders only, while transcript/session history and richer workspace metadata stay deferred.
+- Project storage now persists project folders and the first ACP transcript history; richer workspace metadata and PTY scrollback stay deferred.
+- The runtime screen remains a temporary test surface; the PTY/ACP switch and accordion layout are pragmatic polish, not the final product shell.

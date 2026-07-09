@@ -7,7 +7,7 @@ Fresh foundation for the AIadne multi-agent coding desktop app.
 This repository is intentionally early-stage. It keeps the desktop app
 foundation and now includes the first backend PTY session core, adapter
 boundary, agent doctor, ACP transport spike, and minimal project/workspace
-persistence.
+persistence with ACP session history.
 
 Kept:
 
@@ -21,6 +21,7 @@ Kept:
 - fake ACP stdio runtime and ACP test panel
 - ACP registry discovery for compatible adapter candidates
 - SQLite-backed project list for choosing a workspace folder
+- SQLite-backed ACP transcript session/event history
 - React frontend
 - TypeScript
 - Vite
@@ -29,7 +30,7 @@ Kept:
 Still out of scope:
 
 - full real-agent adapter behavior
-- session transcript/history persistence
+- PTY scrollback persistence and full transcript replay UI
 - keychain secret handling
 - AGENTS.md resolver and injector
 - final terminal/session frontend UI
@@ -72,11 +73,15 @@ the Tauri window.
 
 Manual smoke test:
 
+- Use `Structured ACP` for the default structured-agent path, or switch to
+  `Terminal PTY` for terminal fallback testing.
 - Click `Start Fake` to verify the PTY echo session.
 - Click `Start Codex` to launch the installed Codex CLI in the same PTY path.
 - Check `Agent Doctor` to see installed, missing, or error states for local CLIs.
 - Add/select a `Workspace` project before starting a session if you want the
   agent process to run in that project folder.
+- After starting ACP and sending a prompt, check `Session History` for the
+  saved session and event count.
 - Check `ACP Registry` to see ACP-compatible candidates before launching real ACP adapters.
 - Use `Select` in `ACP Registry`, then click `Start Selected ACP` to try a launchable ACP candidate.
 - npx-backed ACP candidates may download their package on first launch.

@@ -89,6 +89,28 @@ type ProjectInfo = {
   updatedAt: number;
 };
 
+type TranscriptSessionInfo = {
+  id: string;
+  projectId: string | null;
+  runtime: string;
+  source: string;
+  title: string;
+  startedAt: number;
+  updatedAt: number;
+  eventCount: number;
+};
+
+type TranscriptEventInfo = {
+  id: string;
+  sessionId: string;
+  sequence: number;
+  kind: string;
+  content: string;
+  createdAt: number;
+};
+
+type RuntimeMode = "pty" | "acp";
+
 const initialSize = {
   cols: 80,
   rows: 24,
@@ -113,6 +135,10 @@ function App() {
   const [projectPath, setProjectPath] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
   const [projectLoading, setProjectLoading] = useState(false);
+  const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
+  const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
   const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
@@ -124,6 +150,7 @@ function App() {
   const [acpPromptResult, setAcpPromptResult] = useState<AcpPromptResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [acpPromptBusy, setAcpPromptBusy] = useState(false);
+  const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
 
   const canUseSession = session?.state === "running";
   const canUseAcpSession = acpSession?.state === "running";
@@ -138,6 +165,7 @@ function App() {
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
   );
+  const displayAcpEvents = useMemo(() => coalesceAcpEvents(acpEvents), [acpEvents]);
   const canStartSelectedAcpCandidate =
     !!selectedAcpCandidate &&
     isLaunchableAcpCandidate(selectedAcpCandidate) &&
@@ -166,6 +194,14 @@ function App() {
   }, []);
 
   useEffect(() => {
+    void refreshTranscriptSessions(selectedProjectId);
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (runtimeMode !== "pty") {
+      return;
+    }
+
     if (!terminalElement.current) {
       return;
     }
@@ -189,7 +225,11 @@ function App() {
     nextTerminal.open(terminalElement.current);
     nextFitAddon.fit();
     setTerminalSize(readTerminalSize(nextTerminal));
-    nextTerminal.writeln("No session yet.");
+    if (output.length > 0) {
+      nextTerminal.write(output);
+    } else {
+      nextTerminal.writeln("No session yet.");
+    }
 
     terminal.current = nextTerminal;
     fitAddon.current = nextFitAddon;
@@ -228,7 +268,7 @@ function App() {
       terminal.current = null;
       fitAddon.current = null;
     };
-  }, []);
+  }, [runtimeMode]);
 
   useEffect(() => {
     if (!canUseSession || !session) {
@@ -307,6 +347,109 @@ function App() {
       setProjects((current) => current.filter((project) => project.id !== projectId));
       setSelectedProjectId((current) => (current === projectId ? null : current));
     });
+  }
+
+  async function refreshTranscriptSessions(projectId = selectedProjectId) {
+    setTranscriptLoading(true);
+    setTranscriptError(null);
+    try {
+      const nextSessions =
+        (await invoke<TranscriptSessionInfo[]>("list_transcript_sessions", {
+          projectId: projectId ?? null,
+        })) ?? [];
+      setTranscriptSessions(nextSessions);
+    } catch (err) {
+      setTranscriptError(errorText(err));
+    } finally {
+      setTranscriptLoading(false);
+    }
+  }
+
+  async function createTranscriptSession(runtime: string, source: string, title: string) {
+    setTranscriptError(null);
+    try {
+      const nextSession = await invoke<TranscriptSessionInfo | null>("create_transcript_session", {
+        request: {
+          projectId: selectedProject?.id ?? null,
+          runtime,
+          source,
+          title,
+        },
+      });
+      if (!nextSession) {
+        setTranscriptSession(null);
+        return null;
+      }
+
+      setTranscriptSession(nextSession);
+      setTranscriptSessions((current) => [
+        nextSession,
+        ...current.filter((session) => session.id !== nextSession.id),
+      ]);
+      return nextSession;
+    } catch (err) {
+      setTranscriptSession(null);
+      setTranscriptError(errorText(err));
+      return null;
+    }
+  }
+
+  async function recordTranscriptEvents(
+    transcriptId: string | null | undefined,
+    events: AcpSessionEvent[],
+  ) {
+    if (!transcriptId) {
+      return;
+    }
+
+    const cleanEvents = events
+      .map((event) => ({
+        kind: event.kind,
+        content: event.content,
+      }))
+      .filter((event) => event.content.trim().length > 0);
+    if (cleanEvents.length === 0) {
+      return;
+    }
+
+    setTranscriptError(null);
+    try {
+      const inserted = await invoke<TranscriptEventInfo[]>("append_transcript_events", {
+        sessionId: transcriptId,
+        events: cleanEvents,
+      });
+      touchTranscriptSession(transcriptId, inserted);
+    } catch (err) {
+      setTranscriptError(errorText(err));
+    }
+  }
+
+  function touchTranscriptSession(transcriptId: string, insertedEvents: TranscriptEventInfo[]) {
+    if (insertedEvents.length === 0) {
+      return;
+    }
+
+    const updatedAt = insertedEvents[insertedEvents.length - 1].createdAt;
+    setTranscriptSessions((current) =>
+      current.map((session) =>
+        session.id === transcriptId
+          ? {
+              ...session,
+              updatedAt,
+              eventCount: session.eventCount + insertedEvents.length,
+            }
+          : session,
+      ),
+    );
+    setTranscriptSession((current) =>
+      current?.id === transcriptId
+        ? {
+            ...current,
+            updatedAt,
+            eventCount: current.eventCount + insertedEvents.length,
+          }
+        : current,
+    );
   }
 
   async function startSession(kind: "fake" | "codex") {
@@ -416,7 +559,8 @@ function App() {
       setAcpSessionSource("fake");
       setAcpEvents([]);
       setAcpPromptResult(null);
-      await drainAcpEvents(nextSession.id);
+      const transcript = await createTranscriptSession("acp", "fake", "Fake ACP");
+      await drainAcpEvents(nextSession.id, transcript?.id ?? null);
     });
   }
 
@@ -437,7 +581,12 @@ function App() {
       setAcpSessionSource(selectedAcpCandidate.name);
       setAcpEvents([]);
       setAcpPromptResult(null);
-      await drainAcpEvents(nextSession.id);
+      const transcript = await createTranscriptSession(
+        "acp",
+        selectedAcpCandidate.name,
+        `${selectedAcpCandidate.name} ACP`,
+      );
+      await drainAcpEvents(nextSession.id, transcript?.id ?? null);
     });
   }
 
@@ -449,12 +598,19 @@ function App() {
     setAcpPromptBusy(true);
     setError(null);
     try {
+      const userEvent: AcpSessionEvent = {
+        kind: "user_message",
+        content: acpPrompt,
+      };
+      setAcpEvents((current) => [...current, userEvent]);
+      await recordTranscriptEvents(transcriptSession?.id, [userEvent]);
+
       const result = await invoke<AcpPromptResult>("send_acp_prompt", {
         sessionId: acpSession.id,
         prompt: acpPrompt,
       });
       setAcpPromptResult(result);
-      await drainAcpEvents(acpSession.id);
+      await drainAcpEvents(acpSession.id, transcriptSession?.id ?? null);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -462,7 +618,10 @@ function App() {
     }
   }
 
-  async function drainAcpEvents(sessionId = acpSession?.id) {
+  async function drainAcpEvents(
+    sessionId = acpSession?.id,
+    transcriptId = transcriptSession?.id ?? null,
+  ) {
     if (!sessionId) {
       return;
     }
@@ -470,6 +629,7 @@ function App() {
     const events = await invoke<AcpSessionEvent[]>("drain_acp_events", { sessionId });
     if (events.length > 0) {
       setAcpEvents((current) => [...current, ...events]);
+      await recordTranscriptEvents(transcriptId, events);
     }
   }
 
@@ -536,45 +696,26 @@ function App() {
 
       <section className="control-panel" aria-labelledby="controls-title">
         <div className="section-heading">
-          <p className="eyebrow">AIA-002</p>
-          <h2 id="controls-title">PTY Controls</h2>
+          <p className="eyebrow">Runtime</p>
+          <h2 id="controls-title">Runtime Controls</h2>
         </div>
 
-        <div className="button-row">
+        <div className="runtime-switch" role="group" aria-label="Runtime mode">
           <button
             type="button"
-            onClick={() => void startSession("fake")}
-            disabled={busy || canUseSession}
+            aria-pressed={runtimeMode === "pty"}
+            onClick={() => setRuntimeMode("pty")}
           >
-            Start Fake
+            Terminal PTY
           </button>
           <button
             type="button"
-            onClick={() => void startSession("codex")}
-            disabled={busy || canUseSession || !canStartCodex}
+            aria-pressed={runtimeMode === "acp"}
+            onClick={() => setRuntimeMode("acp")}
           >
-            Start Codex
-          </button>
-          <button type="button" onClick={() => void drainOutput()} disabled={busy || !session}>
-            Drain
-          </button>
-          <button type="button" onClick={resizeSession} disabled={busy || !canUseSession}>
-            Resize
-          </button>
-          <button type="button" onClick={() => void stopSession(false)} disabled={busy || !session}>
-            Stop
-          </button>
-          <button type="button" onClick={() => void stopSession(true)} disabled={busy || !session}>
-            Kill
+            Structured ACP
           </button>
         </div>
-
-        <dl className="terminal-meta" aria-label="Terminal state">
-          <div>
-            <dt>Terminal</dt>
-            <dd>{terminalSize.cols}x{terminalSize.rows}</dd>
-          </div>
-        </dl>
 
         <section className="workspace-panel" aria-labelledby="workspace-title">
           <div className="doctor-heading">
@@ -652,153 +793,256 @@ function App() {
           </ul>
         </section>
 
-        <section className="doctor-panel" aria-labelledby="doctor-title">
+        <section className="history-panel" aria-labelledby="history-title">
           <div className="doctor-heading">
-            <h3 id="doctor-title">Agent Doctor</h3>
-            <button type="button" onClick={() => void refreshAgentDoctor()} disabled={doctorLoading}>
-              Refresh
-            </button>
-          </div>
-
-          {doctorError ? (
-            <p className="error-message" role="alert">
-              {doctorError}
-            </p>
-          ) : null}
-
-          <ul className="doctor-list" aria-label="Agent CLI status">
-            {doctorReports.map((report) => (
-              <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
-                <div>
-                  <strong>{report.adapter.displayName}</strong>
-                  <span>{report.adapter.executable}</span>
-                </div>
-                <div>
-                  <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
-                  <span>{doctorDetail(report)}</span>
-                  <span>{transportDetail(report.adapter.transports)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="registry-panel" aria-labelledby="acp-registry-title">
-          <div className="doctor-heading">
-            <h3 id="acp-registry-title">ACP Registry</h3>
-            <span>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</span>
+            <h3 id="history-title">Session History</h3>
+            <span>{transcriptSession ? transcriptSession.title : "none active"}</span>
             <button
               type="button"
-              onClick={() => void refreshAcpRegistryCandidates()}
-              disabled={acpRegistryLoading}
+              onClick={() => void refreshTranscriptSessions()}
+              disabled={transcriptLoading}
             >
               Refresh
             </button>
           </div>
 
-          {acpRegistryError ? (
+          {transcriptError ? (
             <p className="error-message" role="alert">
-              {acpRegistryError}
+              {transcriptError}
             </p>
           ) : null}
 
-          <ul className="registry-list" aria-label="ACP registry candidates">
-            {acpRegistryCandidates.map((candidate) => (
-              <li
-                className="registry-item"
-                data-selected={candidate.id === selectedAcpCandidate?.id}
-                data-status={candidate.status}
-                key={candidate.id}
-              >
-                <div>
-                  <strong>{candidate.name}</strong>
-                  <span>{candidate.description}</span>
-                </div>
-                <div>
-                  <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
-                  <span>{candidate.version} · {candidate.distribution}</span>
-                  <code>{formatCommand(candidate.command)}</code>
-                  <span>{candidate.installHint}</span>
-                  <button
-                    aria-label={`Select ${candidate.name} ACP candidate`}
-                    aria-pressed={candidate.id === selectedAcpCandidate?.id}
-                    disabled={busy || canUseAcpSession}
-                    type="button"
-                    onClick={() => setSelectedAcpCandidateId(candidate.id)}
-                  >
-                    {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
-                  </button>
-                </div>
-              </li>
-            ))}
+          <ul className="history-list" aria-label="Session history">
+            {transcriptSessions.length === 0 ? (
+              <li>No saved sessions yet.</li>
+            ) : (
+              transcriptSessions.map((historySession) => (
+                <li
+                  data-active={historySession.id === transcriptSession?.id}
+                  key={historySession.id}
+                >
+                  <strong>{historySession.title}</strong>
+                  <span>
+                    {historySession.source} · {historySession.runtime} ·{" "}
+                    {historySession.eventCount} events
+                  </span>
+                </li>
+              ))
+            )}
           </ul>
+        </section>
 
-          {selectedAcpCandidate ? (
-            <dl className="selected-candidate" aria-label="Selected ACP candidate">
+        {runtimeMode === "pty" ? (
+          <section className="runtime-panel" aria-labelledby="pty-controls-title">
+            <div className="doctor-heading">
+              <h3 id="pty-controls-title">PTY Controls</h3>
+              <span>{statusLabel}</span>
+            </div>
+
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() => void startSession("fake")}
+                disabled={busy || canUseSession}
+              >
+                Start Fake
+              </button>
+              <button
+                type="button"
+                onClick={() => void startSession("codex")}
+                disabled={busy || canUseSession || !canStartCodex}
+              >
+                Start Codex
+              </button>
+              <button type="button" onClick={() => void drainOutput()} disabled={busy || !session}>
+                Drain
+              </button>
+              <button type="button" onClick={resizeSession} disabled={busy || !canUseSession}>
+                Resize
+              </button>
+              <button type="button" onClick={() => void stopSession(false)} disabled={busy || !session}>
+                Stop
+              </button>
+              <button type="button" onClick={() => void stopSession(true)} disabled={busy || !session}>
+                Kill
+              </button>
+            </div>
+
+            <dl className="terminal-meta" aria-label="Terminal state">
               <div>
-                <dt>Selected ACP</dt>
-                <dd>{selectedAcpCandidate.name}</dd>
-              </div>
-              <div>
-                <dt>Command</dt>
-                <dd>
-                  <code>{formatCommand(selectedAcpCandidate.command)}</code>
-                </dd>
+                <dt>Terminal</dt>
+                <dd>{terminalSize.cols}x{terminalSize.rows}</dd>
               </div>
             </dl>
-          ) : null}
-        </section>
 
-        <section className="acp-panel" aria-labelledby="acp-title">
-          <div className="doctor-heading">
-            <h3 id="acp-title">ACP Test</h3>
-            <span>{acpStatusLabel}</span>
-          </div>
+            <details className="agent-accordion" open>
+              <summary>
+                <span>PTY Agents</span>
+                <strong>{canStartCodex ? "Codex ready" : "Check CLIs"}</strong>
+              </summary>
 
-          <div className="button-row">
-            <button
-              type="button"
-              onClick={() => void startSelectedAcpSession()}
-              disabled={busy || !canStartSelectedAcpCandidate}
-            >
-              Start Selected ACP
-            </button>
-            <button type="button" onClick={() => void startFakeAcpSession()} disabled={busy || canUseAcpSession}>
-              Start Fake ACP
-            </button>
-            <button
-              type="button"
-              onClick={() => void sendAcpPrompt()}
-              disabled={busy || acpPromptBusy || !canUseAcpSession}
-            >
-              Send ACP
-            </button>
-            <button type="button" onClick={() => void drainAcpEvents()} disabled={!acpSession}>
-              Drain ACP
-            </button>
-            <button type="button" onClick={() => void stopAcpSession(false)} disabled={!acpSession}>
-              Stop ACP
-            </button>
-          </div>
+              <div className="accordion-body">
+                <div className="doctor-heading">
+                  <h3 id="doctor-title">Agent Doctor</h3>
+                  <button
+                    type="button"
+                    onClick={() => void refreshAgentDoctor()}
+                    disabled={doctorLoading}
+                  >
+                    Refresh
+                  </button>
+                </div>
 
-          {canUseAcpSession ? (
-            <p className="acp-result">Active ACP: {acpStatusLabel}. Stop it before starting another ACP session.</p>
-          ) : null}
+                {doctorError ? (
+                  <p className="error-message" role="alert">
+                    {doctorError}
+                  </p>
+                ) : null}
 
-          <label className="prompt-field">
-            <span>Prompt</span>
-            <textarea
-              aria-label="ACP prompt"
-              onChange={(event) => setAcpPrompt(event.target.value)}
-              rows={3}
-              value={acpPrompt}
-            />
-          </label>
+                <ul className="doctor-list" aria-label="Agent CLI status">
+                  {doctorReports.map((report) => (
+                    <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
+                      <div>
+                        <strong>{report.adapter.displayName}</strong>
+                        <span>{report.adapter.executable}</span>
+                      </div>
+                      <div>
+                        <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
+                        <span>{doctorDetail(report)}</span>
+                        <span>{transportDetail(report.adapter.transports)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          </section>
+        ) : null}
 
-          {acpPromptResult ? (
-            <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>
-          ) : null}
-        </section>
+        {runtimeMode === "acp" ? (
+          <section className="runtime-panel" aria-labelledby="acp-title">
+            <div className="doctor-heading">
+              <h3 id="acp-title">ACP Controls</h3>
+              <span>{acpStatusLabel}</span>
+            </div>
+
+            <details className="agent-accordion" open>
+              <summary>
+                <span>ACP Agents</span>
+                <strong>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</strong>
+              </summary>
+
+              <div className="accordion-body">
+                <div className="doctor-heading">
+                  <h3 id="acp-registry-title">ACP Registry</h3>
+                  <button
+                    type="button"
+                    onClick={() => void refreshAcpRegistryCandidates()}
+                    disabled={acpRegistryLoading}
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {acpRegistryError ? (
+                  <p className="error-message" role="alert">
+                    {acpRegistryError}
+                  </p>
+                ) : null}
+
+                <ul className="registry-list" aria-label="ACP registry candidates">
+                  {acpRegistryCandidates.map((candidate) => (
+                    <li
+                      className="registry-item"
+                      data-selected={candidate.id === selectedAcpCandidate?.id}
+                      data-status={candidate.status}
+                      key={candidate.id}
+                    >
+                      <div>
+                        <strong>{candidate.name}</strong>
+                        <span>{candidate.description}</span>
+                      </div>
+                      <div>
+                        <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
+                        <span>{candidate.version} · {candidate.distribution}</span>
+                        <code>{formatCommand(candidate.command)}</code>
+                        <span>{candidate.installHint}</span>
+                        <button
+                          aria-label={`Select ${candidate.name} ACP candidate`}
+                          aria-pressed={candidate.id === selectedAcpCandidate?.id}
+                          disabled={busy || canUseAcpSession}
+                          type="button"
+                          onClick={() => setSelectedAcpCandidateId(candidate.id)}
+                        >
+                          {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {selectedAcpCandidate ? (
+                  <dl className="selected-candidate" aria-label="Selected ACP candidate">
+                    <div>
+                      <dt>Selected ACP</dt>
+                      <dd>{selectedAcpCandidate.name}</dd>
+                    </div>
+                    <div>
+                      <dt>Command</dt>
+                      <dd>
+                        <code>{formatCommand(selectedAcpCandidate.command)}</code>
+                      </dd>
+                    </div>
+                  </dl>
+                ) : null}
+              </div>
+            </details>
+
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() => void startSelectedAcpSession()}
+                disabled={busy || !canStartSelectedAcpCandidate}
+              >
+                Start Selected ACP
+              </button>
+              <button type="button" onClick={() => void startFakeAcpSession()} disabled={busy || canUseAcpSession}>
+                Start Fake ACP
+              </button>
+              <button
+                type="button"
+                onClick={() => void sendAcpPrompt()}
+                disabled={busy || acpPromptBusy || !canUseAcpSession}
+              >
+                Send ACP
+              </button>
+              <button type="button" onClick={() => void drainAcpEvents()} disabled={!acpSession}>
+                Drain ACP
+              </button>
+              <button type="button" onClick={() => void stopAcpSession(false)} disabled={!acpSession}>
+                Stop ACP
+              </button>
+            </div>
+
+            {canUseAcpSession ? (
+              <p className="acp-result">Active ACP: {acpStatusLabel}. Stop it before starting another ACP session.</p>
+            ) : null}
+
+            <label className="prompt-field">
+              <span>Prompt</span>
+              <textarea
+                aria-label="ACP prompt"
+                onChange={(event) => setAcpPrompt(event.target.value)}
+                rows={3}
+                value={acpPrompt}
+              />
+            </label>
+
+            {acpPromptResult ? (
+              <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>
+            ) : null}
+          </section>
+        ) : null}
 
         {error ? (
           <p className="error-message" role="alert">
@@ -810,30 +1054,40 @@ function App() {
       <section className="output-panel" aria-labelledby="output-title">
         <div className="section-heading">
           <p className="eyebrow">Output</p>
-          <h2 id="output-title">PTY Stream</h2>
+          <h2 id="output-title">Session Output</h2>
         </div>
-        <div
-          className="terminal-frame"
-          aria-label="Interactive PTY terminal"
-          onClick={() => terminal.current?.focus()}
-          ref={terminalElement}
-        />
-        <span className="sr-only">{output || "No output yet."}</span>
-        <section className="acp-events-panel" aria-labelledby="acp-events-title">
-          <h3 id="acp-events-title">ACP Events</h3>
-          <ul aria-label="ACP events">
-            {acpEvents.length === 0 ? (
-              <li>No ACP events yet.</li>
-            ) : (
-              acpEvents.map((event, index) => (
-                <li data-kind={event.kind} key={`${event.kind}-${index}`}>
-                  <strong>{acpEventLabel(event.kind)}</strong>
-                  <span>{event.content}</span>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
+        <div className="output-body">
+          {runtimeMode === "pty" ? (
+            <section className="terminal-output" aria-labelledby="terminal-output-title">
+              <h3 id="terminal-output-title">PTY Stream</h3>
+              <div
+                className="terminal-frame"
+                aria-label="Interactive PTY terminal"
+                onClick={() => terminal.current?.focus()}
+                ref={terminalElement}
+              />
+              <span className="sr-only">{output || "No output yet."}</span>
+            </section>
+          ) : null}
+
+          {runtimeMode === "acp" ? (
+            <section className="acp-events-panel" aria-labelledby="acp-events-title">
+              <h3 id="acp-events-title">ACP Events</h3>
+              <ul aria-label="ACP events">
+                {displayAcpEvents.length === 0 ? (
+                  <li>No ACP events yet.</li>
+                ) : (
+                  displayAcpEvents.map((event, index) => (
+                    <li data-kind={event.kind} key={`${event.kind}-${index}`}>
+                      <strong>{acpEventLabel(event.kind)}</strong>
+                      <span>{event.content}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </section>
+          ) : null}
+        </div>
       </section>
     </main>
   );
@@ -901,6 +1155,41 @@ function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
 
 function selectedProjectCwd(project: ProjectInfo | null) {
   return project ? { cwd: project.path } : {};
+}
+
+function coalesceAcpEvents(events: AcpSessionEvent[]) {
+  const coalesced: AcpSessionEvent[] = [];
+
+  for (const event of events) {
+    const previous = coalesced[coalesced.length - 1];
+    if (
+      previous &&
+      previous.kind === event.kind &&
+      (event.kind === "agent_message" || event.kind === "plan")
+    ) {
+      previous.content = joinAcpText(previous.content, event.content);
+    } else {
+      coalesced.push({ ...event });
+    }
+  }
+
+  return coalesced;
+}
+
+function joinAcpText(left: string, right: string) {
+  if (!left.trim()) {
+    return right;
+  }
+
+  if (!right.trim()) {
+    return left;
+  }
+
+  if (left.endsWith("\n") || right.startsWith("\n")) {
+    return `${left}${right}`;
+  }
+
+  return `${left} ${right}`;
 }
 
 function formatCommand(command: string[]) {

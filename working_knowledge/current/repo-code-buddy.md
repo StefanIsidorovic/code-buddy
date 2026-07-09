@@ -28,6 +28,11 @@
 - Backend now has a SQLite-backed ProjectStore in src-tauri/src/storage.rs for saved workspace folders.
 - Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
 - PTY and ACP launch requests include selected project cwd when a workspace is selected.
+- ProjectStore now persists ACP transcript sessions and ordered transcript events in SQLite.
+- Frontend now creates transcript sessions when ACP sessions start, records user prompts and drained ACP events, and shows a minimal Session History panel.
+- Frontend now uses a Runtime mode switch: Structured ACP by default and Terminal PTY as fallback.
+- Frontend groups PTY/ACP agent choice in accordion sections to keep the temporary control panel compact.
+- Output panel now gives more space to the active runtime output: PTY stream in Terminal PTY mode or ACP events in Structured ACP mode, with adjacent Agent/Plan ACP events coalesced for display.
 - Older product feature modules for keyring secrets, AGENTS.md resolution, broad domain types, and app state were removed during reset; the new storage module is a narrow AIA-022 ProjectStore only.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
 - SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
@@ -46,6 +51,8 @@
 - AcpSession rejects a second prompt while one prompt is already in flight.
 - ProjectStore creates the app database under AIADNE_DB_PATH when set, otherwise under XDG_DATA_HOME/HOME local data path.
 - ProjectStore validates project names, canonicalizes existing directory paths, and rejects duplicate paths.
+- Transcript sessions can link to a project, but deleting a project keeps transcript history by clearing the project link.
+- Transcript event writes are treated as non-blocking runtime support; frontend surfaces transcript errors separately from ACP runtime errors.
 
 ## Entry Points
 - Frontend entry: src/main.tsx renders src/App.tsx.
@@ -58,9 +65,10 @@
 - ACP registry backend command: list_acp_registry_candidates.
 - ACP selected launch backend command: start_acp_registry_session.
 - Project storage backend commands: create_project, list_projects, delete_project.
+- Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
-- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, SQLite migration, and project path validation.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, transcript request/response types, SQLite migration, project path validation, and transcript CRUD.
 
 ## Tests
 - Frontend: Vitest + Testing Library via src/App.test.tsx.
@@ -84,6 +92,9 @@
 - Frontend tests cover Start Selected ACP launching a non-default launchable candidate and locking candidate selection while an ACP session is running.
 - AIA-022 backend tests cover project create/list/delete, invalid input, missing path, and duplicate path rejection.
 - Frontend tests cover Workspace panel rendering, project creation/selection, and selected project cwd being passed into PTY and ACP launch requests.
+- Frontend tests cover the default ACP output mode, PTY mode switching, and coalesced adjacent ACP agent messages.
+- AIA-024 backend tests cover transcript session creation/listing, ordered event append/list, invalid transcript input, and project deletion preserving history.
+- Frontend tests cover Session History rendering and ACP transcript creation/event append calls.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -102,6 +113,8 @@
 - AIA-020 validation passed with 31 Rust tests and 8 frontend tests after the ACP thought/text-array normalization fix.
 - AIA-021 validation passed with 34 Rust tests and 9 frontend tests.
 - AIA-022 validation passed with 37 Rust tests and 11 frontend tests.
+- AIA-023 validation passed with 11 frontend tests plus typecheck, build, and git diff --check.
+- AIA-024 interim validation passed with 40 Rust tests and 12 frontend tests.
 - Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
 - Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
 - npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
@@ -126,4 +139,5 @@
 - Generic ACP launch stays behind Start Selected ACP; avoid per-agent direct ACP buttons until the product UI explicitly needs them.
 - Codex ACP prompt waits are intentionally longer than initialize/session/new waits because real tasks can take longer than setup.
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
-- Workspace project persistence is intentionally minimal: no transcript history, default agent/model settings, or native folder picker yet.
+- Workspace project persistence now includes first ACP transcript history, but no PTY scrollback persistence, default agent/model settings, or native folder picker yet.
+- Runtime mode switch and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

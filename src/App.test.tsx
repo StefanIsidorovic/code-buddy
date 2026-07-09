@@ -51,6 +51,22 @@ beforeEach(() => {
       return Promise.resolve(defaultProjects());
     }
 
+    if (command === "list_transcript_sessions") {
+      return Promise.resolve(defaultTranscriptSessions());
+    }
+
+    if (command === "create_transcript_session") {
+      return Promise.resolve(defaultTranscriptSession());
+    }
+
+    if (command === "append_transcript_events") {
+      return Promise.resolve([]);
+    }
+
+    if (command === "list_transcript_events") {
+      return Promise.resolve([]);
+    }
+
     if (command === "list_agent_doctor_reports") {
       return Promise.resolve(defaultDoctorReports());
     }
@@ -76,26 +92,39 @@ describe("PTY test panel", () => {
     render(<App />);
 
     expect(screen.getByRole("main", { name: "AIadne runtime test" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "PTY Controls" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start Fake" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start Codex" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Runtime Controls" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Structured ACP" }))
+      .toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Terminal PTY" }))
+      .toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Session History" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Interactive PTY terminal")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Interactive PTY terminal")).not.toBeInTheDocument();
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
-    expect(screen.getByText("No output yet.")).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
-    expect(await screen.findByText("codex 1.2.3")).toBeInTheDocument();
+    expect(await screen.findByText("No saved sessions yet.")).toBeInTheDocument();
     expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
       .not.toHaveLength(0);
     expect(screen.getAllByText("Available through npx; first launch may download the ACP package."))
       .not.toHaveLength(0);
     expect(screen.getByText("Missing binary")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+
+    expect(screen.getByRole("heading", { name: "PTY Controls" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Fake" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Codex" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("Interactive PTY terminal")).toBeInTheDocument();
+    expect(screen.getByText("No output yet.")).toBeInTheDocument();
+    expect(screen.queryByText("No ACP events yet.")).not.toBeInTheDocument();
+    expect(await screen.findByText("codex 1.2.3")).toBeInTheDocument();
     expect(screen.getByText("PTY: Supported · ACP: Unknown")).toBeInTheDocument();
     expect(screen.getByText("Install Claude Code and make sure `claude` is available on PATH."))
       .toBeInTheDocument();
@@ -128,6 +157,10 @@ describe("PTY test panel", () => {
         return Promise.resolve([]);
       }
 
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
       return Promise.resolve(undefined);
     });
 
@@ -153,6 +186,41 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("/home/katarina/projects/AIadne")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select AIadne project" }))
       .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("renders saved ACP transcript sessions", async () => {
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([defaultTranscriptSession({ eventCount: 3 })]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Codex ACP")).toBeInTheDocument();
+    expect(screen.getByText("Codex · acp · 3 events")).toBeInTheDocument();
   });
 
   it("passes the selected project cwd when launching a PTY session", async () => {
@@ -189,13 +257,18 @@ describe("PTY test panel", () => {
         return Promise.resolve([]);
       }
 
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
       return Promise.resolve(undefined);
     });
 
     render(<App />);
 
     await screen.findByText("/home/katarina/projects/AIadne");
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake" }));
+    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("start_fake_session", {
@@ -416,9 +489,10 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake" }));
+    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
 
-    await screen.findByText("fake · running · 92x18");
+    expect(await screen.findAllByText("fake · running · 92x18")).not.toHaveLength(0);
     expect(invokeMock).toHaveBeenCalledWith("start_fake_session", {
       request: { cols: 92, rows: 18 },
     });
@@ -459,6 +533,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
     await screen.findByText("Install the Codex CLI and make sure `codex` is available on PATH.");
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeDisabled();
   });
@@ -493,6 +568,14 @@ describe("PTY test panel", () => {
         });
       }
 
+      if (command === "create_transcript_session") {
+        return Promise.resolve(defaultTranscriptSession());
+      }
+
+      if (command === "append_transcript_events") {
+        return Promise.resolve([]);
+      }
+
       if (command === "send_acp_prompt") {
         promptSent = true;
         return Promise.resolve({
@@ -507,7 +590,11 @@ describe("PTY test panel", () => {
           return Promise.resolve([
             {
               kind: "agent_message",
-              content: "fake acp received prompt",
+              content: "fake acp received",
+            },
+            {
+              kind: "agent_message",
+              content: "prompt",
             },
           ]);
         }
@@ -526,6 +613,14 @@ describe("PTY test panel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
     await screen.findByText("fake · running · fake-acp-session");
+    expect(invokeMock).toHaveBeenCalledWith("create_transcript_session", {
+      request: {
+        projectId: null,
+        runtime: "acp",
+        source: "fake",
+        title: "Fake ACP",
+      },
+    });
 
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
       target: { value: "hello acp" },
@@ -536,6 +631,19 @@ describe("PTY test panel", () => {
       expect(invokeMock).toHaveBeenCalledWith("send_acp_prompt", {
         sessionId: "acp-session-1",
         prompt: "hello acp",
+      });
+    });
+    expect(invokeMock).toHaveBeenCalledWith("append_transcript_events", {
+      sessionId: "transcript-1",
+      events: [{ kind: "user_message", content: "hello acp" }],
+    });
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("append_transcript_events", {
+        sessionId: "transcript-1",
+        events: [
+          { kind: "agent_message", content: "fake acp received" },
+          { kind: "agent_message", content: "prompt" },
+        ],
       });
     });
     expect(await screen.findByText("fake acp received prompt")).toBeInTheDocument();
@@ -624,6 +732,30 @@ function defaultProject() {
 }
 
 function defaultProjects() {
+  return [];
+}
+
+function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTranscriptSession>> = {}) {
+  return {
+    ...baseTranscriptSession(),
+    ...overrides,
+  };
+}
+
+function baseTranscriptSession() {
+  return {
+    id: "transcript-1",
+    projectId: null,
+    runtime: "acp",
+    source: "Codex",
+    title: "Codex ACP",
+    startedAt: 1_785_000_001,
+    updatedAt: 1_785_000_001,
+    eventCount: 0,
+  };
+}
+
+function defaultTranscriptSessions() {
   return [];
 }
 

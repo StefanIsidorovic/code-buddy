@@ -30,9 +30,14 @@
 - AIA-021 Codex ACP runtime: harden the validated Codex ACP path before UI polish by using longer prompt waits, short control waits, child-exit-aware response waiting, and duplicate prompt rejection.
 - AIA-022 workspace persistence: use a small Rust-owned SQLite ProjectStore for saved project folders before building final session UI or transcript history.
 - AIA-022 launch cwd: PTY and ACP sessions should run in the selected project directory when a workspace is selected, and should still work without a selected workspace.
+- AIA-023 runtime UI: keep ACP as the default structured runtime mode in the temporary panel, with PTY available through an explicit mode switch.
+- AIA-023 output UI: show only the active runtime output, PTY stream for Terminal PTY and ACP events for Structured ACP.
+- AIA-023 ACP display: coalesce adjacent Agent/Plan events in the frontend display only, so backend event data stays unchanged while the UI reads like normal text.
+- AIA-024 transcript persistence: store ACP transcript sessions and ordered events in the existing Rust-owned SQLite ProjectStore before building the final chat/session UI.
+- AIA-024 runtime resilience: transcript write failures should surface in the UI but should not block an active ACP session from starting or responding.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
-- Session transcript/history persistence: defer until the workspace model and runtime launch flow are stable.
+- PTY scrollback persistence and rich chat replay: defer until after the first ACP transcript storage slice is manually validated.

@@ -10,19 +10,21 @@
 
 ## Repository State
 - branch: new/start
-- head: b0f845d step 14-15: harden selected ACP launch and Codex runtime
-- worktree: local AIA-022 project workspace persistence changes pending user review/commit; LOCAL_PROGRESS.md remains intentionally ignored.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, and SQLite project storage.
+- head: a319c23 step 16: add project workspace persistence
+- worktree: local AIA-023 runtime UI polish and AIA-024 transcript persistence changes pending user review/commit; LOCAL_PROGRESS.md remains intentionally ignored.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project storage, and ACP transcript persistence.
 
 ## Current Task
-- request: move toward a real app by adding project/workspace persistence before UI polish.
+- request: continue building the app after runtime UI polish.
 - phase: validated; awaiting user review/commit
-- active plan step: 16
+- active plan step: 18
 
 ## Risks And Constraints
 - AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, AIA-017 ACP stdio fake runtime, AIA-018 ACP registry discovery, and AIA-019 selected ACP launch are committed through 1ce5f36.
 - AIA-020/AIA-021 are committed in b0f845d.
-- AIA-022 workspace persistence is implemented locally but not committed.
+- AIA-022 workspace persistence is committed by user before this UI polish step.
+- AIA-023 runtime UI polish is implemented locally but not committed.
+- AIA-024 ACP transcript persistence is being implemented locally on top of AIA-023.
 - User explicitly asked the agent not to commit; user committed reviewed changes manually.
 - portable-pty 0.9.0 was fetched previously with approved cargo network access.
 - Active mind map files must be updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow knowledge changes.
@@ -55,3 +57,6 @@
 - 2026-07-09T10:16:01Z: ACP event normalization bug fixed for Codex agent_thought_chunk and text-array content; validation passed with cargo fmt --check, cargo test, cargo clippy -- -D warnings, tsc --noEmit, vitest --run, vite build, and git diff --check. Rust tests: 31 passed. Frontend tests: 8 passed.
 - 2026-07-09T10:30:09Z: AIA-021 Codex ACP runtime hardening validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; tsc --noEmit; vitest --run; vite build; git diff --check. Rust tests: 34 passed. Frontend tests: 9 passed.
 - 2026-07-09T11:16:38Z: AIA-022 workspace persistence validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; tsc --noEmit; vitest run; vite build; git diff --check. Rust tests: 37 passed. Frontend tests: 11 passed. Vite still reports expected xterm chunk-size warning.
+- 2026-07-09T12:57:13Z: AIA-023 runtime UI polish validated after mode-specific output change: tsc --noEmit; vitest run; vite build; git diff --check. Frontend tests: 11 passed. Vite still reports expected xterm chunk-size warning.
+- 2026-07-09T13:21:32Z: AIA-024 interim validation passed: cargo fmt --check; cargo test; npm run typecheck; npm run test -- --run. Rust tests: 40 passed. Frontend tests: 12 passed.
+- 2026-07-09T13:25:56Z: AIA-024 final validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Rust tests: 40 passed. Frontend tests: 12 passed. Vite still reports expected xterm chunk-size warning.

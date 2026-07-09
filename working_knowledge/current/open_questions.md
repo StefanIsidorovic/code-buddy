@@ -12,6 +12,7 @@
 - Should fake ACP support Windows before packaging, or is Linux-first enough while the ACP spike stays local?
 - Should Workspace add-project use a native folder picker next, or is manual path entry enough until the final UI?
 - What project metadata belongs in the first real workspace model beyond name and path: default agent, model, instructions, or last session?
+- Should the next transcript step be full replay/open-session UI, search/filtering, or PTY scrollback persistence?
 
 ## Resolved
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
@@ -28,3 +29,4 @@
 - AIA-019 adds the explicit Start Selected ACP launch action; discovery and selection still do not launch processes.
 - Codex ACP is the first manually validated registry-backed ACP candidate, but launch should stay generic through Start Selected ACP rather than a Codex-specific button.
 - AIA-022 first workspace slice stores only project name/path and uses the selected project path as PTY/ACP launch cwd.
+- AIA-024 first transcript slice stores ACP transcript sessions and ordered events, while full replay UI and PTY scrollback stay deferred.

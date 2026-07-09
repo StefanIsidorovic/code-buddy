@@ -78,7 +78,7 @@ input {
   padding: 28px;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(190px, 0.42fr) minmax(390px, 1fr);
   gap: 16px;
   overflow: hidden;
 }
@@ -108,7 +108,7 @@ input {
 }
 
 .control-panel {
-  max-height: min(52vh, 520px);
+  max-height: none;
   overflow: auto;
 }
 
@@ -199,9 +199,33 @@ dd {
   padding-top: 10px;
 }
 
+.runtime-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 14px;
+  border: 1px solid #dfe5df;
+  border-radius: 8px;
+  padding: 4px;
+  background: #f7faf6;
+}
+
+.runtime-switch button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.runtime-switch button[aria-pressed="true"] {
+  border-color: #1e6f5c;
+  background: #1e6f5c;
+  color: #ffffff;
+}
+
 .doctor-panel,
 .workspace-panel,
-.registry-panel {
+.history-panel,
+.registry-panel,
+.runtime-panel {
   margin-top: 16px;
   display: grid;
   gap: 10px;
@@ -232,8 +256,49 @@ dd {
   font-size: 1rem;
 }
 
+.agent-accordion {
+  border: 1px solid #dfe5df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.agent-accordion summary {
+  min-height: 42px;
+  padding: 0 12px;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 10px;
+  color: #1f2b26;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.agent-accordion summary::marker {
+  color: #5f6e66;
+}
+
+.agent-accordion summary span,
+.agent-accordion summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.agent-accordion summary strong {
+  color: #5f6e66;
+  font-size: 0.84rem;
+}
+
+.accordion-body {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #dfe5df;
+  padding: 12px;
+}
+
 .doctor-list,
 .project-list,
+.history-list,
 .registry-list {
   display: grid;
   gap: 8px;
@@ -277,6 +342,32 @@ dd {
 }
 
 .project-list span {
+  color: #5f6e66;
+  font-size: 0.84rem;
+}
+
+.history-list li {
+  display: grid;
+  gap: 2px;
+  border: 1px solid #dfe5df;
+  border-left: 4px solid #b8c4bc;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.history-list li[data-active="true"] {
+  border-color: #84a99c;
+  border-left-color: #1e6f5c;
+  background: #f7faf6;
+}
+
+.history-list strong,
+.history-list span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.history-list span {
   color: #5f6e66;
   font-size: 0.84rem;
 }
@@ -424,6 +515,32 @@ dd {
   flex-direction: column;
 }
 
+.output-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+}
+
+.terminal-output,
+.acp-events-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-output h3,
+.acp-events-panel h3,
+.acp-events-panel ul {
+  margin: 0;
+}
+
+.terminal-output h3,
+.acp-events-panel h3 {
+  margin-bottom: 8px;
+  color: #222a2e;
+  font-size: 1rem;
+}
+
 .terminal-frame {
   flex: 1 1 0;
   min-height: 0;
@@ -435,38 +552,31 @@ dd {
 }
 
 .acp-events-panel {
-  flex: 0 0 auto;
-  margin-top: 12px;
-  display: grid;
-  gap: 8px;
-}
-
-.acp-events-panel h3,
-.acp-events-panel ul {
-  margin: 0;
-}
-
-.acp-events-panel h3 {
-  color: #222a2e;
-  font-size: 1rem;
+  flex: 1 1 auto;
+  border: 1px solid #dfe5df;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfa;
 }
 
 .acp-events-panel ul {
-  max-height: 132px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   display: grid;
-  gap: 6px;
+  align-content: start;
+  gap: 8px;
   padding: 0;
   list-style: none;
 }
 
 .acp-events-panel li {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 8px;
+  gap: 4px;
   border-left: 4px solid #7a8c84;
-  padding: 6px 8px;
-  background: #f7faf6;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #ffffff;
 }
 
 .acp-events-panel li[data-kind="agent_message"] {
@@ -480,16 +590,18 @@ dd {
 .acp-events-panel strong {
   color: #1f2b26;
   font-size: 0.82rem;
+  line-height: 1.2;
 }
 
 .acp-events-panel span,
 .acp-events-panel li {
   color: #5f6e66;
-  font-size: 0.82rem;
-  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+  overflow-wrap: break-word;
 }
 
 .acp-events-panel span {
+  line-height: 1.45;
   white-space: pre-wrap;
 }
 
@@ -534,6 +646,10 @@ dd {
     width: 100%;
   }
 
+  .runtime-switch {
+    grid-template-columns: 1fr;
+  }
+
   .doctor-item,
   .registry-item {
     grid-template-columns: 1fr;
@@ -543,7 +659,8 @@ dd {
     grid-template-columns: 1fr;
   }
 
-  .acp-events-panel li {
-    grid-template-columns: 1fr;
+  .terminal-frame,
+  .acp-events-panel ul {
+    min-height: 220px;
   }
 }

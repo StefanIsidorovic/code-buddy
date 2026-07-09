@@ -8,12 +8,14 @@
 
 ## Current Shape
 - App.tsx is a temporary runtime smoke-test panel, not the final product UI.
+- The temporary panel defaults to Structured ACP mode and exposes Terminal PTY as an explicit fallback mode.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.
 - The panel exposes Start Fake, Start Codex, Drain, Resize, Stop, and Kill controls.
 - The panel exposes a temporary Workspace section for saving and selecting project folders.
 - The panel exposes an Agent Doctor list for Codex, Claude Code, and Kimi CLI readiness.
 - The panel exposes an ACP Registry list for ACP-compatible adapter candidates.
+- PTY and ACP agent lists are now grouped in accordion sections.
 - The panel exposes a temporary ACP Test area for fake ACP stdio validation.
 - ACP events render as structured list items below the xterm terminal.
 - The old HTML line input was removed because Codex TUI needs direct terminal keyboard data.
@@ -34,6 +36,7 @@
 - Workspace Select/Delete buttons are disabled while PTY or ACP sessions are running.
 - ACP Test status includes the active source, such as fake or Codex, so fake sessions are distinguishable from selected registry launches.
 - ACP Events now show normalized backend events; technical Codex ACP session updates are filtered and adjacent message chunks are merged before display.
+- The frontend also coalesces adjacent Agent/Plan ACP events for display so token-like chunks read as one message block.
 - ACP Events should receive readable Agent/Plan/etc events from the backend; the frontend should not display raw ACP JSON as a normal notice.
 - Start Codex is disabled unless the Codex doctor report status is installed.
 - Start Codex invokes start_codex_session with current fitted xterm cols/rows.
@@ -49,6 +52,8 @@
 ## Layout Rules
 - html, body, #root, and app-shell are viewport-bound.
 - Page-level scrolling is disabled for the PTY test page.
+- The output row is larger than the controls row so manual testing prioritizes results over configuration.
+- Output area is mode-specific: Terminal PTY shows only PTY Stream; Structured ACP shows only ACP Events.
 - Long terminal output should scroll inside the xterm viewport.
 - Terminal frame is click-focusable so typing goes to xterm.
 - Control panel has bounded internal scrolling so the page remains viewport-bound after adding ACP controls.
@@ -57,7 +62,7 @@
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
-- Tests also cover Workspace rendering, project creation/selection, PTY cwd launch, and selected ACP cwd launch.
+- Tests also cover Workspace rendering, project creation/selection, PTY cwd launch, selected ACP cwd launch, runtime mode switching, mode-specific output, and coalesced adjacent ACP messages.
 
 ## Watchouts
 - Output polling interval is currently 400 ms and may feel slow.

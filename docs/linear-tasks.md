@@ -424,3 +424,56 @@ Suggested labels: `backend`, `frontend`, `storage`, `desktop`
 Depends on: AIA-021
 
 Recommended before: final workspace/session UI and session history persistence
+
+## AIA-023: Polish runtime test UI layout
+
+Description:
+Improve the temporary runtime panel before adding more product behavior. Make
+PTY vs ACP selection clearer, keep agent selection compact, and give output
+more room so manual testing is easier.
+
+Acceptance criteria:
+
+- Runtime controls use a clear PTY/ACP mode switch.
+- ACP remains the default structured-agent mode, with PTY available as fallback.
+- Agent selection is grouped in collapsible accordion sections.
+- Output panel gets more vertical space than the controls panel.
+- Output area shows PTY stream only in Terminal PTY mode.
+- Output area shows ACP events only in Structured ACP mode.
+- ACP events render as readable message blocks instead of narrow chopped rows.
+- Adjacent agent/plan chunks are coalesced for display without changing backend events.
+- Existing PTY and ACP launch/test flows still pass frontend tests.
+
+Suggested labels: `frontend`, `ux`, `desktop`
+
+Depends on: AIA-022
+
+Recommended before: final workspace/session UI
+
+## AIA-024: Persist ACP session transcripts
+
+Description:
+Save the first structured ACP session history in SQLite so agent conversations
+survive a frontend refresh or app restart. Keep this slice focused on ACP
+transcripts for Codex/fake ACP; PTY scrollback and rich chat replay can come
+later.
+
+Acceptance criteria:
+
+- Backend schema stores transcript sessions and ordered transcript events.
+- Backend can create a transcript session, append event batches, list sessions
+  by selected project, and list events for a session.
+- Transcript sessions optionally link to a saved workspace project.
+- Deleting a project keeps transcript history but clears the project link.
+- Frontend creates a transcript when an ACP session starts.
+- Frontend records user prompt events and drained ACP events.
+- Frontend shows a minimal Session History list with source/runtime/event count.
+- Transcript persistence failure is surfaced without blocking the active ACP runtime.
+- Tests cover backend storage success/failure, project deletion behavior,
+  frontend history rendering, and ACP event persistence calls.
+
+Suggested labels: `backend`, `frontend`, `storage`, `acp`
+
+Depends on: AIA-022, AIA-023
+
+Recommended before: final workspace/session UI and chat transcript replay

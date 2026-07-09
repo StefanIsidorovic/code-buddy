@@ -42,6 +42,9 @@
 - AIA-020 keeps Start Selected ACP as the generic launch action and tests a non-default launchable candidate.
 - Candidate selection is disabled while an ACP session is running so the selected label does not drift from the active session source.
 - AIA-022 passes selected Workspace cwd into fake ACP and selected registry ACP launches.
+- AIA-023 frontend display coalesces adjacent Agent/Plan events into larger readable blocks; backend event storage remains unchanged.
+- AIA-024 persists ACP transcript sessions and ordered ACP events in SQLite through ProjectStore.
+- The frontend records user prompt events plus drained backend-normalized ACP events, then shows a minimal Session History list.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -59,4 +62,6 @@
 - Control requests use a short timeout; session/prompt uses a longer timeout for real Codex work.
 - Response waits poll child process exit so stop/kill or agent crashes release pending waits promptly.
 - Each ACP session allows only one prompt in flight at a time.
-- ACP launch cwd is project-selected when available; ACP itself does not persist transcripts yet.
+- ACP launch cwd is project-selected when available, and transcript sessions can link to that selected project.
+- UI-level event coalescing is a readability layer only; transcript persistence stores canonical frontend ACP events before display coalescing.
+- Transcript history currently proves persistence only; opening/replaying full stored conversations is still deferred.

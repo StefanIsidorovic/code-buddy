@@ -7,7 +7,10 @@ use crate::{
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
-    storage::{CreateProjectRequest, ProjectInfo, ProjectStore},
+    storage::{
+        CreateProjectRequest, CreateTranscriptSessionRequest, ProjectInfo, ProjectStore,
+        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+    },
 };
 use std::sync::Arc;
 use tauri::State;
@@ -90,6 +93,39 @@ pub fn list_projects(state: State<'_, ProjectStore>) -> AppResult<Vec<ProjectInf
 #[tauri::command]
 pub fn delete_project(state: State<'_, ProjectStore>, project_id: String) -> AppResult<()> {
     state.delete_project(&project_id)
+}
+
+#[tauri::command]
+pub fn create_transcript_session(
+    state: State<'_, ProjectStore>,
+    request: CreateTranscriptSessionRequest,
+) -> AppResult<TranscriptSessionInfo> {
+    state.create_transcript_session(request)
+}
+
+#[tauri::command]
+pub fn append_transcript_events(
+    state: State<'_, ProjectStore>,
+    session_id: String,
+    events: Vec<TranscriptEventInput>,
+) -> AppResult<Vec<TranscriptEventInfo>> {
+    state.append_transcript_events(&session_id, events)
+}
+
+#[tauri::command]
+pub fn list_transcript_sessions(
+    state: State<'_, ProjectStore>,
+    project_id: Option<String>,
+) -> AppResult<Vec<TranscriptSessionInfo>> {
+    state.list_transcript_sessions(project_id.as_deref())
+}
+
+#[tauri::command]
+pub fn list_transcript_events(
+    state: State<'_, ProjectStore>,
+    session_id: String,
+) -> AppResult<Vec<TranscriptEventInfo>> {
+    state.list_transcript_events(&session_id)
 }
 
 #[tauri::command]
