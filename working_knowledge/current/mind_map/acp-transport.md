@@ -49,6 +49,7 @@
 - AIA-026 keeps saved transcript replay isolated when switching between stored sessions.
 - AIA-027 normalizes saved transcript replay into Question/Answer rows.
 - AIA-028 keeps frontend ACP drain polling tied to the active transcript id so streamed Codex chunks are not lost before persistence.
+- AIA-031 injects checked Knowledge Cards into the ACP prompt text sent to the agent while transcript history stores the original user prompt.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -67,5 +68,6 @@
 - Response waits poll child process exit so stop/kill or agent crashes release pending waits promptly.
 - Each ACP session allows only one prompt in flight at a time.
 - ACP launch cwd is project-selected when available, and transcript sessions can link to that selected project.
+- Attached Knowledge Cards are app-level prompt context, not ACP protocol metadata; future adapter-specific context APIs may replace this string injection if they become available.
 - UI-level event coalescing is a readability layer; transcript persistence now also coalesces adjacent agent/plan chunks before append.
 - Transcript history now supports isolated minimal stored event replay with question/answer labels; rich chat/tool-call transcript UI is still deferred.

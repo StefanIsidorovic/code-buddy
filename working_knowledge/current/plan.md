@@ -266,6 +266,39 @@
 - review status: passed
 - commit: user will commit
 
+### 25. Add manual Knowledge Cards for ACP prompt context
+- objective: add the first minimal flow for carrying distilled knowledge from one session into later ACP prompts.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore migration and methods; KnowledgeItemInfo/CreateKnowledgeItemRequest; transcript_knowledge_links; Tauri knowledge commands; sidebar Knowledge Cards panel; ACP prompt construction; frontend/Rust tests.
+- expected changes: store manual Knowledge Cards with title/body/kind/scope/project/source transcript metadata; list global plus selected-project cards; attach cards to transcript sessions; inject checked card text into ACP prompts while saving the original user prompt unchanged in transcript history.
+- acceptance criteria: users can manually create cards; checked cards are included as explicit ACP prompt context; transcript history keeps the clean user question; cross-project knowledge cannot be attached to another project's session; tests cover storage validation, attach behavior, and frontend prompt injection.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 26. Show ACP waiting indicator while agent responds
+- objective: make the UI clearly show that a live ACP prompt is waiting for the agent response.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: acpPromptBusy UI state; ACP Controls status text; ACP Events live output list; waiting indicator CSS; frontend prompt-in-flight test.
+- expected changes: render a live-only waiting card while send_acp_prompt is in flight; keep saved transcript replay unchanged; keep Stop ACP and Drain ACP available; clear the indicator after prompt completion.
+- acceptance criteria: user sees a visible waiting state after Send ACP; the state appears in output and controls; it disappears when the prompt resolves; frontend tests cover it.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
+### 27. Filter and rename Session History
+- objective: make saved ACP transcript history manageable when many sessions exist.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore transcript session lookup/update; transcript Tauri commands; Session History filter state; selected-session rename controls; frontend/Rust tests.
+- expected changes: add a backend rename_transcript_session command that trims and persists transcript titles; add a Session History filter by title/source/runtime/id; render only the first three matching sidebar history rows; expose a rename input for the selected history row; keep saved transcript replay behavior unchanged.
+- acceptance criteria: large Session History lists can be narrowed; only three history rows are visible in the sidebar at once; selected sessions can be named by the user; renamed titles persist in storage and update the current UI state; tests cover backend rename validation and frontend filter/rename flow.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed
+- commit: user will commit
+
 ## Plan Assumptions
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
@@ -283,5 +316,5 @@
 - AIA-017 uses a shell-based fake ACP fixture on Linux first; real CLI ACP support remains Unknown until adapter-specific validation.
 - ACP registry discovery is curated from the official registry for now; it reports what could be launched later but does not install, download, or start real ACP adapters.
 - Starting npx-backed ACP registry candidates is an explicit user action and may download the adapter package on first launch.
-- Project storage now persists project folders and ACP transcript history; saved transcript replay, chat normalization, stable drain recording, output autoscroll, runtime sidebar cleanup, and earth-tone UI polish are being added before richer workspace metadata and PTY scrollback.
+- Project storage now persists project folders, ACP transcript history, and manual Knowledge Cards; automatic suggestions, embeddings, conflict review, detach/delete UI, richer workspace metadata, and PTY scrollback are deferred.
 - The runtime screen remains a temporary test surface; the PTY/ACP switch, sidebar history, and accordion layout are pragmatic polish, not the final product shell.

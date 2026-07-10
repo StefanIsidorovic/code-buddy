@@ -41,6 +41,13 @@ pub struct TranscriptEventInput {
     pub content: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameTranscriptSessionRequest {
+    pub session_id: String,
+    pub title: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptSessionInfo {
@@ -63,6 +70,31 @@ pub struct TranscriptEventInfo {
     pub kind: String,
     pub content: String,
     pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateKnowledgeItemRequest {
+    pub project_id: Option<String>,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+    pub scope: String,
+    pub source_transcript_session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeItemInfo {
+    pub id: String,
+    pub project_id: Option<String>,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+    pub scope: String,
+    pub source_transcript_session_id: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 pub struct ProjectStore {
@@ -338,6 +370,162 @@ impl ProjectStore {
         Ok(events)
     }
 
+    pub fn rename_transcript_session(
+        &self,
+        request: RenameTranscriptSessionRequest,
+    ) -> AppResult<TranscriptSessionInfo> {
+        let title = request.title.trim();
+        if title.is_empty() {
+            return Err(AppError::InvalidInput(
+                "transcript title must not be empty".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let updated = self
+            .connection()?
+            .execute(
+                "UPDATE transcript_sessions SET title = ?1, updated_at = ?2 WHERE id = ?3",
+                params![title, now, &request.session_id],
+            )
+            .map_err(storage_error)?;
+        if updated == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "transcript session not found: {}",
+                request.session_id
+            )));
+        }
+
+        self.transcript_session(&request.session_id)
+    }
+
+    pub fn create_knowledge_item(
+        &self,
+        request: CreateKnowledgeItemRequest,
+    ) -> AppResult<KnowledgeItemInfo> {
+        let title = request.title.trim();
+        if title.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge title must not be empty".to_string(),
+            ));
+        }
+
+        let body = request.body.trim();
+        if body.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge body must not be empty".to_string(),
+            ));
+        }
+
+        let kind = request.kind.trim();
+        if kind.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge kind must not be empty".to_string(),
+            ));
+        }
+
+        let scope = request.scope.trim();
+        if scope.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge scope must not be empty".to_string(),
+            ));
+        }
+
+        if let Some(project_id) = request.project_id.as_deref() {
+            self.require_project(project_id)?;
+        }
+        if let Some(session_id) = request.source_transcript_session_id.as_deref() {
+            self.require_transcript_session(session_id)?;
+        }
+
+        let now = unix_timestamp()?;
+        let item = KnowledgeItemInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: request.project_id,
+            title: title.to_string(),
+            body: body.to_string(),
+            kind: kind.to_string(),
+            scope: scope.to_string(),
+            source_transcript_session_id: request.source_transcript_session_id,
+            created_at: now,
+            updated_at: now,
+        };
+
+        self.connection()?.execute(
+            "INSERT INTO knowledge_items
+             (id, project_id, title, body, kind, scope, source_transcript_session_id, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &item.id,
+                item.project_id.as_deref(),
+                &item.title,
+                &item.body,
+                &item.kind,
+                &item.scope,
+                item.source_transcript_session_id.as_deref(),
+                item.created_at,
+                item.updated_at
+            ],
+        )
+        .map_err(storage_error)?;
+
+        Ok(item)
+    }
+
+    pub fn list_knowledge_items(
+        &self,
+        project_id: Option<&str>,
+    ) -> AppResult<Vec<KnowledgeItemInfo>> {
+        if let Some(project_id) = project_id {
+            self.require_project(project_id)?;
+        }
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, project_id, title, body, kind, scope, source_transcript_session_id, created_at, updated_at
+                 FROM knowledge_items
+                 WHERE (?1 IS NULL AND project_id IS NULL) OR (?1 IS NOT NULL AND (project_id IS NULL OR project_id = ?1))
+                 ORDER BY CASE WHEN project_id IS NULL THEN 1 ELSE 0 END, updated_at DESC, title ASC",
+            )
+            .map_err(storage_error)?;
+        let items = statement
+            .query_map(params![project_id], knowledge_item_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(items)
+    }
+
+    pub fn attach_knowledge_to_transcript_session(
+        &self,
+        session_id: &str,
+        knowledge_item_id: &str,
+    ) -> AppResult<Vec<KnowledgeItemInfo>> {
+        let connection = self.connection()?;
+        require_transcript_session(&connection, session_id)?;
+        require_knowledge_item(&connection, knowledge_item_id)?;
+        require_knowledge_available_for_session(&connection, session_id, knowledge_item_id)?;
+
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO transcript_knowledge_links
+                 (transcript_session_id, knowledge_item_id, created_at)
+                 VALUES (?1, ?2, ?3)",
+                params![session_id, knowledge_item_id, unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+
+        list_attached_knowledge_items(&connection, session_id)
+    }
+
+    pub fn list_attached_knowledge(&self, session_id: &str) -> AppResult<Vec<KnowledgeItemInfo>> {
+        let connection = self.connection()?;
+        require_transcript_session(&connection, session_id)?;
+        list_attached_knowledge_items(&connection, session_id)
+    }
+
     fn migrate(&self) -> AppResult<()> {
         self.connection()?
             .execute_batch(
@@ -377,6 +565,31 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_transcript_events_session_sequence
                     ON transcript_events(session_id, sequence);
+
+                CREATE TABLE IF NOT EXISTS knowledge_items (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    source_transcript_session_id TEXT REFERENCES transcript_sessions(id) ON DELETE SET NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_knowledge_items_project_updated
+                    ON knowledge_items(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS transcript_knowledge_links (
+                    transcript_session_id TEXT NOT NULL REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    knowledge_item_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+                    created_at INTEGER NOT NULL,
+                    PRIMARY KEY (transcript_session_id, knowledge_item_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_transcript_knowledge_links_item
+                    ON transcript_knowledge_links(knowledge_item_id);
                 "#,
             )
             .map_err(storage_error)
@@ -408,6 +621,28 @@ impl ProjectStore {
     fn require_transcript_session(&self, session_id: &str) -> AppResult<()> {
         let connection = self.connection()?;
         require_transcript_session(&connection, session_id)
+    }
+
+    fn transcript_session(&self, session_id: &str) -> AppResult<TranscriptSessionInfo> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT s.id, s.project_id, s.runtime, s.source, s.title, s.started_at, s.updated_at, COUNT(e.id)
+                 FROM transcript_sessions s
+                 LEFT JOIN transcript_events e ON e.session_id = s.id
+                 WHERE s.id = ?1
+                 GROUP BY s.id, s.project_id, s.runtime, s.source, s.title, s.started_at, s.updated_at",
+            )
+            .map_err(storage_error)?;
+        statement
+            .query_row(params![session_id], transcript_session_from_row)
+            .map_err(|err| {
+                if matches!(err, rusqlite::Error::QueryReturnedNoRows) {
+                    AppError::InvalidInput(format!("transcript session not found: {session_id}"))
+                } else {
+                    storage_error(err)
+                }
+            })
     }
 }
 
@@ -461,6 +696,20 @@ fn transcript_event_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Transc
     })
 }
 
+fn knowledge_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<KnowledgeItemInfo> {
+    Ok(KnowledgeItemInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        title: row.get(2)?,
+        body: row.get(3)?,
+        kind: row.get(4)?,
+        scope: row.get(5)?,
+        source_transcript_session_id: row.get(6)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
+    })
+}
+
 fn require_transcript_session(connection: &Connection, session_id: &str) -> AppResult<()> {
     let exists: i64 = connection
         .query_row(
@@ -475,6 +724,69 @@ fn require_transcript_session(connection: &Connection, session_id: &str) -> AppR
         )));
     }
     Ok(())
+}
+
+fn require_knowledge_item(connection: &Connection, knowledge_item_id: &str) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM knowledge_items WHERE id = ?1",
+            params![knowledge_item_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "knowledge item not found: {knowledge_item_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn require_knowledge_available_for_session(
+    connection: &Connection,
+    session_id: &str,
+    knowledge_item_id: &str,
+) -> AppResult<()> {
+    let available: i64 = connection
+        .query_row(
+            "SELECT COUNT(*)
+             FROM transcript_sessions s, knowledge_items k
+             WHERE s.id = ?1
+               AND k.id = ?2
+               AND (k.project_id IS NULL OR k.project_id = s.project_id)",
+            params![session_id, knowledge_item_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if available == 0 {
+        return Err(AppError::InvalidInput(
+            "knowledge item is not available for this transcript session".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn list_attached_knowledge_items(
+    connection: &Connection,
+    session_id: &str,
+) -> AppResult<Vec<KnowledgeItemInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT k.id, k.project_id, k.title, k.body, k.kind, k.scope,
+                    k.source_transcript_session_id, k.created_at, k.updated_at
+             FROM transcript_knowledge_links l
+             JOIN knowledge_items k ON k.id = l.knowledge_item_id
+             WHERE l.transcript_session_id = ?1
+             ORDER BY l.created_at ASC, k.title ASC",
+        )
+        .map_err(storage_error)?;
+    let items = statement
+        .query_map(params![session_id], knowledge_item_from_row)
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(items)
 }
 
 fn resolve_project_path(path: &Path) -> AppResult<PathBuf> {
@@ -724,5 +1036,185 @@ mod tests {
         assert_eq!(sessions.len(), 1);
         assert_eq!(sessions[0].id, session.id);
         assert_eq!(sessions[0].project_id, None);
+    }
+
+    #[test]
+    fn renames_transcript_session_titles() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: None,
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: Some("Codex ACP".to_string()),
+            })
+            .expect("transcript session created");
+
+        let renamed = store
+            .rename_transcript_session(RenameTranscriptSessionRequest {
+                session_id: session.id.clone(),
+                title: "  Bug bash with Codex  ".to_string(),
+            })
+            .expect("transcript session renamed");
+        assert_eq!(renamed.title, "Bug bash with Codex");
+        assert_eq!(renamed.event_count, 0);
+
+        let listed = store.list_transcript_sessions(None).expect("sessions list");
+        assert_eq!(listed[0].title, "Bug bash with Codex");
+
+        let empty_title = store
+            .rename_transcript_session(RenameTranscriptSessionRequest {
+                session_id: session.id,
+                title: " ".to_string(),
+            })
+            .expect_err("empty title rejected");
+        assert!(matches!(empty_title, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn creates_lists_and_attaches_knowledge_items() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect("project created");
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript session created");
+
+        let global_item = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: None,
+                title: "  UI palette  ".to_string(),
+                body: "Use earth tones.".to_string(),
+                kind: " decision ".to_string(),
+                scope: " global ".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect("global knowledge created");
+        let project_item = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: Some(project.id.clone()),
+                title: "Project rule".to_string(),
+                body: "Prefer ACP for structured sessions.".to_string(),
+                kind: "constraint".to_string(),
+                scope: "project".to_string(),
+                source_transcript_session_id: Some(session.id.clone()),
+            })
+            .expect("project knowledge created");
+
+        assert_eq!(global_item.title, "UI palette");
+        assert_eq!(global_item.kind, "decision");
+        assert_eq!(global_item.scope, "global");
+        assert_eq!(
+            project_item.source_transcript_session_id,
+            Some(session.id.clone())
+        );
+
+        let items = store
+            .list_knowledge_items(Some(&project.id))
+            .expect("knowledge list");
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().any(|item| item.id == global_item.id));
+        assert!(items.iter().any(|item| item.id == project_item.id));
+
+        store
+            .attach_knowledge_to_transcript_session(&session.id, &global_item.id)
+            .expect("global knowledge attached");
+        let attached = store
+            .attach_knowledge_to_transcript_session(&session.id, &project_item.id)
+            .expect("project knowledge attached");
+        assert_eq!(attached.len(), 2);
+
+        let attached_again = store
+            .attach_knowledge_to_transcript_session(&session.id, &project_item.id)
+            .expect("duplicate attach ignored");
+        assert_eq!(attached_again.len(), 2);
+
+        let listed = store
+            .list_attached_knowledge(&session.id)
+            .expect("attached knowledge listed");
+        assert_eq!(listed, attached_again);
+    }
+
+    #[test]
+    fn rejects_invalid_knowledge_input_and_cross_project_attach() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_path = temp_project_path("first");
+        let second_path = temp_project_path("second");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: first_path,
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path: second_path,
+            })
+            .expect("second project created");
+        let first_session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(first_project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("first transcript session created");
+
+        let empty_title = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: None,
+                title: " ".to_string(),
+                body: "body".to_string(),
+                kind: "decision".to_string(),
+                scope: "global".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect_err("empty title rejected");
+        assert!(matches!(empty_title, AppError::InvalidInput(_)));
+
+        let missing_project = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: Some("missing-project".to_string()),
+                title: "Rule".to_string(),
+                body: "body".to_string(),
+                kind: "decision".to_string(),
+                scope: "project".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect_err("missing project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+
+        let second_project_item = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: Some(second_project.id),
+                title: "Other project".to_string(),
+                body: "Do not leak into another project.".to_string(),
+                kind: "constraint".to_string(),
+                scope: "project".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect("second project knowledge created");
+        let cross_project = store
+            .attach_knowledge_to_transcript_session(&first_session.id, &second_project_item.id)
+            .expect_err("cross-project attach rejected");
+        assert!(matches!(cross_project, AppError::InvalidInput(_)));
+    }
+
+    fn temp_project_path(label: &str) -> PathBuf {
+        let path = std::env::temp_dir()
+            .join("aiadne-storage-tests")
+            .join(format!("{label}-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&path).expect("temp project dir created");
+        path
     }
 }

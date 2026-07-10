@@ -84,6 +84,12 @@ Manual smoke test:
   agent process to run in that project folder.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
+- Use the `Session History` filter when there are many saved sessions. Click a
+  saved session to select it, edit `Selected name`, and click `Rename` to give
+  it a human name.
+- Use `Knowledge Cards` in the left sidebar to create small reusable context
+  notes. Checked cards are injected into ACP prompts while the saved transcript
+  keeps your original question clean.
 - Click a `Session History` row to open saved user/agent events in the output
   panel, then use `View Live ACP` to return to the active stream.
 - Saved transcripts show user prompts as questions and agent messages as

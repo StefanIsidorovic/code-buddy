@@ -29,13 +29,17 @@
 - Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
 - PTY and ACP launch requests include selected project cwd when a workspace is selected.
 - ProjectStore now persists ACP transcript sessions and ordered transcript events in SQLite.
+- ProjectStore now persists manual Knowledge Cards and transcript-to-knowledge links in SQLite.
 - Frontend now creates transcript sessions when ACP sessions start, records user prompts and drained ACP events, and shows a minimal Session History panel.
 - Frontend now lets Session History rows open saved transcript events in the ACP output panel.
 - Frontend now keeps only one Session History row selected and clears saved replay events before loading another transcript.
+- Frontend now lets the user filter Session History and rename the selected saved transcript, with the sidebar list capped to three visible rows.
 - Frontend now treats saved ACP transcript replay as chat history: user messages are Questions, agent messages are Answers, and adjacent saved agent/plan chunks are coalesced.
 - Frontend now keeps ACP output scrolled to the newest rendered event.
 - Frontend now keeps the active transcript session in a ref so background ACP drain polling records agent chunks against the current transcript id.
 - Frontend now has a CSS-only earth-tone visual theme for the temporary runtime workspace, based on the user-provided ebony/reseda/bone/beaver/taupe palette with softer panels, clearer controls, and color-coded transcript/event rows.
+- Frontend now has a minimal Knowledge Cards sidebar panel for manual card creation, explicit attach selection, and ACP prompt context injection.
+- Frontend now shows a live ACP waiting status/card while send_acp_prompt is in flight.
 - The left sidebar now contains runtime mode selection, collapsible PTY/ACP agent selection, Session History, and compact runtime status instead of the old large Runtime Test hero.
 - Frontend now uses a Runtime mode switch: Structured ACP by default and Terminal PTY as fallback.
 - Frontend groups PTY/ACP agent choice in accordion sections to keep the temporary control panel compact.
@@ -60,6 +64,9 @@
 - ProjectStore validates project names, canonicalizes existing directory paths, and rejects duplicate paths.
 - Transcript sessions can link to a project, but deleting a project keeps transcript history by clearing the project link.
 - Transcript event writes are treated as non-blocking runtime support; frontend surfaces transcript errors separately from ACP runtime errors.
+- Transcript session titles are user-editable through rename_transcript_session and are stored in SQLite.
+- Knowledge card links are explicit; checked cards are injected into ACP prompts, while saved transcript history keeps the original user prompt.
+- Project-scoped Knowledge Cards cannot be attached to a transcript session from another project.
 - ACP drain polling depends on the active transcript id and also reads transcriptSessionRef to avoid stale closure writes.
 - Saved transcript replay uses list_transcript_events and does not require an active ACP session.
 - Saved transcript replay ignores stale transcript-open responses so rapid switching cannot mix sessions.
@@ -75,10 +82,11 @@
 - ACP registry backend command: list_acp_registry_candidates.
 - ACP selected launch backend command: start_acp_registry_session.
 - Project storage backend commands: create_project, list_projects, delete_project.
-- Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events.
+- Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events, rename_transcript_session.
+- Knowledge backend commands: create_knowledge_item, list_knowledge_items, attach_knowledge_to_transcript_session, list_attached_knowledge.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
-- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, transcript request/response types, SQLite migration, project path validation, and transcript CRUD.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, transcript and knowledge request/response types, SQLite migration, project path validation, transcript CRUD, and Knowledge Card CRUD/linking.
 
 ## Tests
 - Frontend: Vitest + Testing Library via src/App.test.tsx.
@@ -107,10 +115,15 @@
 - Frontend tests cover Session History rendering and ACP transcript creation/event append calls.
 - Frontend tests cover opening a saved transcript and rendering stored user/agent events.
 - Frontend tests cover switching between saved transcripts without leaving old messages selected/rendered.
+- Frontend tests cover filtering Session History and renaming the selected saved transcript.
 - Frontend tests cover opening collapsed agent accordions before selecting ACP candidates.
 - Frontend tests cover chunked saved transcript replay as one readable answer and coalesced transcript persistence calls.
 - Frontend tests cover ACP output autoscroll when structured events render.
 - Frontend tests continue to pass after the CSS-only UI polish changes.
+- AIA-031 backend tests cover Knowledge Card create/list validation, attach/list behavior, duplicate attach idempotence, and cross-project attach rejection.
+- Frontend tests cover Knowledge Card creation, transcript attach, and ACP prompt injection while transcript persistence keeps the original user prompt.
+- Frontend tests cover the ACP waiting indicator during an in-flight prompt.
+- Storage tests cover renaming transcript titles and rejecting blank transcript names.
 
 ## Current Findings
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
@@ -157,4 +170,5 @@
 - Codex ACP prompt waits are intentionally longer than initialize/session/new waits because real tasks can take longer than setup.
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
 - Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, and a polished temporary UI theme, but no PTY scrollback persistence, default agent/model settings, or native folder picker yet.
+- Knowledge Cards are manual only for now; automatic extraction, relevance suggestions, conflict review, deletion, detaching, and sensitive-content detection are deferred.
 - Runtime mode switch, sidebar history, and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

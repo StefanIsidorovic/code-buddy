@@ -115,7 +115,8 @@ button:disabled {
   opacity: 0.58;
 }
 
-input {
+input,
+select {
   min-height: 38px;
   width: 100%;
   border: 1px solid var(--border-strong);
@@ -126,6 +127,7 @@ input {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   outline: 3px solid rgb(178 151 132 / 0.28);
   outline-offset: 1px;
@@ -363,7 +365,8 @@ dd {
 }
 
 .sidebar-agent,
-.sidebar-history {
+.sidebar-history,
+.sidebar-knowledge {
   min-width: 0;
 }
 
@@ -414,12 +417,20 @@ dd {
   padding: 10px;
 }
 
+.sidebar-knowledge .accordion-body {
+  padding: 10px;
+}
+
 .sidebar-history .doctor-heading {
   align-items: flex-start;
 }
 
 .sidebar-history .history-list {
-  max-height: 260px;
+  --history-row-height: 64px;
+}
+
+.sidebar-knowledge .knowledge-list {
+  max-height: 220px;
   overflow: auto;
   padding-right: 2px;
 }
@@ -436,11 +447,118 @@ dd {
 .doctor-list,
 .project-list,
 .history-list,
-.registry-list {
+.registry-list,
+.knowledge-list {
   display: grid;
   gap: 8px;
   padding: 0;
   list-style: none;
+}
+
+.history-filter,
+.history-rename label {
+  display: grid;
+  gap: 5px;
+}
+
+.history-rename {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--surface-soft);
+}
+
+.history-rename button {
+  min-width: 92px;
+}
+
+.knowledge-form {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--surface-soft);
+}
+
+.knowledge-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.knowledge-form textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--ink);
+  background: #fffaf2;
+}
+
+.knowledge-list li {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.knowledge-list li[data-selected="true"] {
+  border-color: var(--mint);
+  border-left-color: var(--mint-strong);
+  background: var(--answer-bg);
+}
+
+.knowledge-list label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 10px;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.knowledge-list input {
+  width: auto;
+  min-height: auto;
+  margin-top: 3px;
+}
+
+.knowledge-list span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.knowledge-list strong,
+.knowledge-list small,
+.knowledge-list em {
+  overflow-wrap: anywhere;
+}
+
+.knowledge-list strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.knowledge-list small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 780;
+}
+
+.knowledge-list em {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-style: normal;
+  line-height: 1.35;
 }
 
 .workspace-form {
@@ -508,6 +626,10 @@ dd {
   padding: 10px;
   background: transparent;
   text-align: left;
+}
+
+.sidebar-history .history-list button {
+  min-height: var(--history-row-height);
 }
 
 .history-list button[aria-pressed="true"] {
@@ -679,6 +801,11 @@ dd {
   font-weight: 800;
 }
 
+.acp-waiting-status {
+  border-color: var(--beaver);
+  background: var(--plan-bg);
+}
+
 .output-panel {
   min-height: 0;
   overflow: hidden;
@@ -793,6 +920,11 @@ dd {
   background: var(--tool-bg);
 }
 
+.acp-events-panel li[data-kind="pending"] {
+  border-left-color: var(--beaver);
+  background: var(--plan-bg);
+}
+
 .acp-events-panel li[data-kind="error"] {
   border-left-color: var(--danger);
   background: #fff4ef;
@@ -815,6 +947,48 @@ dd {
 .acp-events-panel span {
   line-height: 1.45;
   white-space: pre-wrap;
+}
+
+.waiting-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.waiting-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.waiting-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--beaver);
+  animation: waiting-dot-pulse 900ms ease-in-out infinite;
+}
+
+.waiting-dots i:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.waiting-dots i:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+@keyframes waiting-dot-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.34;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 
 .terminal-frame .xterm {

@@ -73,6 +73,22 @@ beforeEach(() => {
       return Promise.resolve([]);
     }
 
+    if (command === "list_knowledge_items") {
+      return Promise.resolve([]);
+    }
+
+    if (command === "create_knowledge_item") {
+      return Promise.resolve(defaultKnowledgeItem());
+    }
+
+    if (command === "attach_knowledge_to_transcript_session") {
+      return Promise.resolve([defaultKnowledgeItem()]);
+    }
+
+    if (command === "list_attached_knowledge") {
+      return Promise.resolve([]);
+    }
+
     if (command === "list_agent_doctor_reports") {
       return Promise.resolve(defaultDoctorReports());
     }
@@ -286,6 +302,143 @@ describe("PTY test panel", () => {
       .toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: "Open Newer Codex ACP transcript" }))
       .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("filters and renames saved ACP transcript sessions", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command, args) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([
+          defaultTranscriptSession({
+            id: "transcript-palette",
+            title: "UI palette debug",
+            eventCount: 4,
+          }),
+          defaultTranscriptSession({
+            id: "transcript-backend",
+            title: "Backend cleanup",
+            eventCount: 2,
+            updatedAt: 1_785_000_010,
+          }),
+        ]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "list_transcript_events") {
+        return Promise.resolve(defaultTranscriptEvents());
+      }
+
+      if (command === "rename_transcript_session") {
+        const request = (args as { request: { sessionId: string; title: string } }).request;
+        return Promise.resolve(
+          defaultTranscriptSession({
+            id: request.sessionId,
+            title: request.title,
+            eventCount: 4,
+          }),
+        );
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("UI palette debug")).toBeInTheDocument();
+    expect(screen.getByText("Backend cleanup")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Filter session history"), {
+      target: { value: "palette" },
+    });
+
+    expect(screen.getByText("1/2 saved")).toBeInTheDocument();
+    expect(screen.getByText("UI palette debug")).toBeInTheDocument();
+    expect(screen.queryByText("Backend cleanup")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open UI palette debug transcript" }));
+    expect(await screen.findByDisplayValue("UI palette debug")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Selected session name"), {
+      target: { value: "Palette review" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("rename_transcript_session", {
+        request: {
+          sessionId: "transcript-palette",
+          title: "Palette review",
+        },
+      });
+    });
+    expect(await screen.findByText("Palette review")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Filter session history"), {
+      target: { value: "missing" },
+    });
+    expect(screen.getByText("No sessions match this filter.")).toBeInTheDocument();
+  });
+
+  it("limits Session History to three visible rows", async () => {
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([
+          defaultTranscriptSession({ id: "transcript-1", title: "First Codex ACP" }),
+          defaultTranscriptSession({ id: "transcript-2", title: "Second Codex ACP" }),
+          defaultTranscriptSession({ id: "transcript-3", title: "Third Codex ACP" }),
+          defaultTranscriptSession({ id: "transcript-4", title: "Fourth Codex ACP" }),
+        ]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("First Codex ACP")).toBeInTheDocument();
+    expect(screen.getByText("Second Codex ACP")).toBeInTheDocument();
+    expect(screen.getByText("Third Codex ACP")).toBeInTheDocument();
+    expect(screen.queryByText("Fourth Codex ACP")).not.toBeInTheDocument();
+    expect(screen.getByText("4/4 saved")).toBeInTheDocument();
   });
 
   it("renders saved ACP transcript chunks as readable questions and answers", async () => {
@@ -511,6 +664,10 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultProjects());
       }
 
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([]);
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -566,6 +723,10 @@ describe("PTY test panel", () => {
     invokeMock.mockImplementation((command) => {
       if (command === "list_projects") {
         return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([]);
       }
 
       if (command === "list_agent_doctor_reports") {
@@ -668,6 +829,10 @@ describe("PTY test panel", () => {
     vi.mocked(invoke).mockImplementation((command) => {
       if (command === "list_projects") {
         return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([]);
       }
 
       if (command === "list_agent_doctor_reports") {
@@ -803,6 +968,127 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
   });
 
+  it("creates knowledge cards and injects attached context into ACP prompts", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_transcript_sessions") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_knowledge_items") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve({
+          id: "acp-session-1",
+          state: "running",
+          pid: 456,
+          protocolVersion: 1,
+          agentSessionId: "fake-acp-session",
+          agentName: "fake-acp",
+          agentVersion: "0.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "create_transcript_session") {
+        return Promise.resolve(defaultTranscriptSession());
+      }
+
+      if (command === "create_knowledge_item") {
+        return Promise.resolve(defaultKnowledgeItem());
+      }
+
+      if (command === "attach_knowledge_to_transcript_session") {
+        return Promise.resolve([defaultKnowledgeItem()]);
+      }
+
+      if (command === "append_transcript_events") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "send_acp_prompt") {
+        return Promise.resolve({
+          sessionId: "acp-session-1",
+          stopReason: "end_turn",
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
+
+    fireEvent.click(screen.getAllByText("Knowledge Cards")[0]);
+    fireEvent.change(screen.getByLabelText("Knowledge title"), {
+      target: { value: "UI palette" },
+    });
+    fireEvent.change(screen.getByLabelText("Knowledge body"), {
+      target: { value: "Use earth tones." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Card" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("create_knowledge_item", {
+        request: {
+          projectId: null,
+          title: "UI palette",
+          body: "Use earth tones.",
+          kind: "decision",
+          scope: "global",
+          sourceTranscriptSessionId: "transcript-1",
+        },
+      });
+    });
+    expect(await screen.findByText("Use earth tones.")).toBeInTheDocument();
+    expect(invokeMock).toHaveBeenCalledWith("attach_knowledge_to_transcript_session", {
+      sessionId: "transcript-1",
+      knowledgeItemId: "knowledge-1",
+    });
+
+    fireEvent.change(screen.getByLabelText("ACP prompt"), {
+      target: { value: "hello acp" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("send_acp_prompt", {
+        sessionId: "acp-session-1",
+        prompt:
+          "Attached session knowledge:\n1. UI palette (decision, global)\nUse earth tones.\n\nUser prompt:\nhello acp",
+      });
+    });
+    expect(invokeMock).toHaveBeenCalledWith("append_transcript_events", {
+      sessionId: "transcript-1",
+      events: [{ kind: "user_message", content: "hello acp" }],
+    });
+  });
+
   it("keeps ACP stop available while a prompt is in flight", async () => {
     const invokeMock = vi.mocked(invoke);
     let resolvePrompt: ((result: unknown) => void) | undefined;
@@ -866,12 +1152,17 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Send ACP" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Drain ACP" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "Stop ACP" })).not.toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Waiting for agent response...");
+    expect(screen.getByText("Agent is preparing a response")).toBeInTheDocument();
 
     resolvePrompt?.({
       sessionId: "acp-session-1",
       stopReason: "end_turn",
     });
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Agent is preparing a response")).not.toBeInTheDocument();
+    });
   });
 });
 
@@ -932,6 +1223,21 @@ function defaultTranscriptEvents(prefix = "old") {
       createdAt: 1_785_000_003,
     },
   ];
+}
+
+function defaultKnowledgeItem(overrides = {}) {
+  return {
+    id: "knowledge-1",
+    projectId: null,
+    title: "UI palette",
+    body: "Use earth tones.",
+    kind: "decision",
+    scope: "global",
+    sourceTranscriptSessionId: "transcript-1",
+    createdAt: 1_785_000_004,
+    updatedAt: 1_785_000_004,
+    ...overrides,
+  };
 }
 
 function defaultDoctorReports({

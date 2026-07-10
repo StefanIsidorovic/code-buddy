@@ -8,7 +8,8 @@ use crate::{
     errors::{AppError, AppResult},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
-        CreateProjectRequest, CreateTranscriptSessionRequest, ProjectInfo, ProjectStore,
+        CreateKnowledgeItemRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
+        KnowledgeItemInfo, ProjectInfo, ProjectStore, RenameTranscriptSessionRequest,
         TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
     },
 };
@@ -126,6 +127,47 @@ pub fn list_transcript_events(
     session_id: String,
 ) -> AppResult<Vec<TranscriptEventInfo>> {
     state.list_transcript_events(&session_id)
+}
+
+#[tauri::command]
+pub fn rename_transcript_session(
+    state: State<'_, ProjectStore>,
+    request: RenameTranscriptSessionRequest,
+) -> AppResult<TranscriptSessionInfo> {
+    state.rename_transcript_session(request)
+}
+
+#[tauri::command]
+pub fn create_knowledge_item(
+    state: State<'_, ProjectStore>,
+    request: CreateKnowledgeItemRequest,
+) -> AppResult<KnowledgeItemInfo> {
+    state.create_knowledge_item(request)
+}
+
+#[tauri::command]
+pub fn list_knowledge_items(
+    state: State<'_, ProjectStore>,
+    project_id: Option<String>,
+) -> AppResult<Vec<KnowledgeItemInfo>> {
+    state.list_knowledge_items(project_id.as_deref())
+}
+
+#[tauri::command]
+pub fn attach_knowledge_to_transcript_session(
+    state: State<'_, ProjectStore>,
+    session_id: String,
+    knowledge_item_id: String,
+) -> AppResult<Vec<KnowledgeItemInfo>> {
+    state.attach_knowledge_to_transcript_session(&session_id, &knowledge_item_id)
+}
+
+#[tauri::command]
+pub fn list_attached_knowledge(
+    state: State<'_, ProjectStore>,
+    session_id: String,
+) -> AppResult<Vec<KnowledgeItemInfo>> {
+    state.list_attached_knowledge(&session_id)
 }
 
 #[tauri::command]

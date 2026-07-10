@@ -624,3 +624,73 @@ Suggested labels: `frontend`, `ux`, `design`
 Depends on: AIA-029
 
 Recommended before: final workspace/session UI
+
+## AIA-031: Add manual Knowledge Cards for ACP prompt context
+
+Description:
+Add the first minimal cross-session knowledge flow. Users can manually create
+small Knowledge Cards, attach selected cards to an ACP session, and have the
+attached card text injected into the ACP prompt sent to the agent.
+
+Acceptance criteria:
+
+- Backend stores Knowledge Cards in SQLite with title, body, kind, scope,
+  optional project, and optional source transcript session.
+- Backend can list cards for the selected project plus global cards.
+- Backend can persist links between transcript sessions and attached cards.
+- Frontend shows a minimal Knowledge Cards panel with create and attach controls.
+- Sending an ACP prompt includes attached cards as explicit context while the
+  saved transcript keeps the user's original prompt clean.
+- Cross-project cards cannot be attached to another project's transcript.
+- Tests cover storage validation, attach behavior, and frontend prompt injection.
+
+Suggested labels: `frontend`, `backend`, `storage`, `acp`, `knowledge`
+
+Depends on: AIA-024, AIA-028
+
+Recommended before: automatic context suggestions, embeddings, or knowledge review UI
+
+## AIA-032: Show ACP waiting indicator while agent responds
+
+Description:
+Make the live ACP output clearly show that the app is waiting for the agent
+after the user sends a prompt. This avoids the blank-output feeling during
+longer real Codex responses.
+
+Acceptance criteria:
+
+- Sending an ACP prompt shows a visible live waiting state.
+- Waiting state appears in the ACP output list and control area.
+- Waiting state is not shown while viewing a saved transcript.
+- Waiting state clears when the prompt request finishes.
+- Stop ACP and Drain ACP remain available while waiting.
+- Tests cover the waiting state during an in-flight prompt.
+
+Suggested labels: `frontend`, `ux`, `acp`
+
+Depends on: AIA-031
+
+Recommended before: richer streaming/progress UI
+
+## AIA-033: Filter and rename Session History
+
+Description:
+Make saved ACP transcript history manageable once there are many sessions.
+Users should be able to search the history list and give saved sessions human
+names instead of relying on repeated default titles.
+
+Acceptance criteria:
+
+- Session History can be filtered by title, source, runtime, or session id.
+- Filtered count is visible so the user understands how many sessions match.
+- Sidebar history renders only the first three matching sessions by default.
+- Only the selected history session can be renamed.
+- Renaming a transcript persists through the backend storage layer.
+- Opening a renamed transcript keeps the saved transcript output behavior.
+- Tests cover filtering and renaming from the Session History UI.
+
+Suggested labels: `frontend`, `backend`, `storage`, `ux`
+
+Depends on: AIA-024, AIA-026
+
+Recommended before: final session library/sidebar design

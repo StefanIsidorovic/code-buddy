@@ -119,6 +119,18 @@ type TranscriptEventInfo = {
   createdAt: number;
 };
 
+type KnowledgeItemInfo = {
+  id: string;
+  projectId: string | null;
+  title: string;
+  body: string;
+  kind: string;
+  scope: string;
+  sourceTranscriptSessionId: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
 type RuntimeMode = "pty" | "acp";
 
 const initialSize = {
@@ -155,6 +167,15 @@ function App() {
   const [openedTranscriptEvents, setOpenedTranscriptEvents] = useState<AcpSessionEvent[]>([]);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState("");
+  const [historyRenameTitle, setHistoryRenameTitle] = useState("");
+  const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItemInfo[]>([]);
+  const [attachedKnowledgeIds, setAttachedKnowledgeIds] = useState<string[]>([]);
+  const [knowledgeTitle, setKnowledgeTitle] = useState("");
+  const [knowledgeBody, setKnowledgeBody] = useState("");
+  const [knowledgeKind, setKnowledgeKind] = useState("decision");
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
   const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
@@ -182,6 +203,22 @@ function App() {
     [projects, selectedProjectId],
   );
   const selectedHistorySessionId = openedTranscriptSession?.id ?? transcriptSession?.id ?? null;
+  const selectedHistorySession = useMemo(
+    () => transcriptSessions.find((session) => session.id === selectedHistorySessionId) ?? null,
+    [selectedHistorySessionId, transcriptSessions],
+  );
+  const filteredTranscriptSessions = useMemo(
+    () => filterTranscriptSessions(transcriptSessions, historyFilter),
+    [historyFilter, transcriptSessions],
+  );
+  const visibleTranscriptSessions = useMemo(
+    () => filteredTranscriptSessions.slice(0, 3),
+    [filteredTranscriptSessions],
+  );
+  const attachedKnowledgeItems = useMemo(
+    () => knowledgeItems.filter((item) => attachedKnowledgeIds.includes(item.id)),
+    [attachedKnowledgeIds, knowledgeItems],
+  );
   const displayAcpEvents = useMemo(
     () =>
       openedTranscriptSession
@@ -189,6 +226,7 @@ function App() {
         : coalesceAcpEvents(acpEvents),
     [acpEvents, openedTranscriptEvents, openedTranscriptSession],
   );
+  const showAcpWaiting = acpPromptBusy && !openedTranscriptSession;
   const canStartSelectedAcpCandidate =
     !!selectedAcpCandidate &&
     isLaunchableAcpCandidate(selectedAcpCandidate) &&
@@ -215,6 +253,10 @@ function App() {
   }, [transcriptSession]);
 
   useEffect(() => {
+    setHistoryRenameTitle(selectedHistorySession?.title ?? "");
+  }, [selectedHistorySession?.id, selectedHistorySession?.title]);
+
+  useEffect(() => {
     if (runtimeMode !== "acp" || displayAcpEvents.length === 0) {
       return;
     }
@@ -232,6 +274,7 @@ function App() {
 
   useEffect(() => {
     void refreshTranscriptSessions(selectedProjectId);
+    void refreshKnowledgeItems(selectedProjectId);
   }, [selectedProjectId]);
 
   useEffect(() => {
@@ -409,6 +452,99 @@ function App() {
     }
   }
 
+  async function refreshKnowledgeItems(projectId = selectedProjectId) {
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      const result =
+        (await invoke<KnowledgeItemInfo[]>("list_knowledge_items", {
+          projectId: projectId ?? null,
+        })) ?? [];
+      const items = Array.isArray(result) ? result : [];
+      setKnowledgeItems(items);
+      setAttachedKnowledgeIds((current) =>
+        current.filter((id) => items.some((item) => item.id === id)),
+      );
+    } catch (err) {
+      setKnowledgeError(errorText(err));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }
+
+  async function createKnowledgeItem() {
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      const item = await invoke<KnowledgeItemInfo>("create_knowledge_item", {
+        request: {
+          projectId: selectedProject?.id ?? null,
+          title: knowledgeTitle,
+          body: knowledgeBody,
+          kind: knowledgeKind,
+          scope: selectedProject ? "project" : "global",
+          sourceTranscriptSessionId:
+            openedTranscriptSession?.id ?? transcriptSessionRef.current?.id ?? null,
+        },
+      });
+      setKnowledgeItems((current) => [item, ...current.filter((candidate) => candidate.id !== item.id)]);
+      setAttachedKnowledgeIds((current) => uniqueIds([...current, item.id]));
+      setKnowledgeTitle("");
+      setKnowledgeBody("");
+      await attachKnowledgeToActiveTranscript(item.id);
+    } catch (err) {
+      setKnowledgeError(errorText(err));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }
+
+  async function toggleKnowledgeAttachment(item: KnowledgeItemInfo, attached: boolean) {
+    setKnowledgeError(null);
+    setAttachedKnowledgeIds((current) =>
+      attached ? uniqueIds([...current, item.id]) : current.filter((id) => id !== item.id),
+    );
+
+    if (!attached) {
+      return;
+    }
+
+    await attachKnowledgeToActiveTranscript(item.id);
+  }
+
+  async function attachKnowledgeToActiveTranscript(knowledgeItemId: string) {
+    const activeTranscriptId = transcriptSessionRef.current?.id ?? transcriptSession?.id ?? null;
+    if (!activeTranscriptId) {
+      return;
+    }
+
+    try {
+      await invoke<KnowledgeItemInfo[]>("attach_knowledge_to_transcript_session", {
+        sessionId: activeTranscriptId,
+        knowledgeItemId,
+      });
+    } catch (err) {
+      setKnowledgeError(errorText(err));
+    }
+  }
+
+  async function attachSelectedKnowledgeToTranscript(sessionId: string) {
+    if (attachedKnowledgeIds.length === 0) {
+      return;
+    }
+
+    try {
+      for (const knowledgeItemId of attachedKnowledgeIds) {
+        await invoke<KnowledgeItemInfo[]>("attach_knowledge_to_transcript_session", {
+          sessionId,
+          knowledgeItemId,
+        });
+      }
+    } catch (err) {
+      setKnowledgeError(errorText(err));
+    }
+  }
+
   async function createTranscriptSession(runtime: string, source: string, title: string) {
     setTranscriptError(null);
     try {
@@ -470,6 +606,41 @@ function App() {
       if (transcriptOpenRequest.current === requestId) {
         setTranscriptLoading(false);
       }
+    }
+  }
+
+  async function renameSelectedTranscriptSession() {
+    if (!selectedHistorySession || !historyRenameTitle.trim()) {
+      return;
+    }
+
+    setTranscriptLoading(true);
+    setTranscriptError(null);
+    try {
+      const renamed = await invoke<TranscriptSessionInfo>("rename_transcript_session", {
+        request: {
+          sessionId: selectedHistorySession.id,
+          title: historyRenameTitle,
+        },
+      });
+      upsertTranscriptSession(renamed);
+    } catch (err) {
+      setTranscriptError(errorText(err));
+    } finally {
+      setTranscriptLoading(false);
+    }
+  }
+
+  function upsertTranscriptSession(nextSession: TranscriptSessionInfo) {
+    setTranscriptSessions((current) =>
+      current.map((session) => (session.id === nextSession.id ? nextSession : session)),
+    );
+    setTranscriptSession((current) => (current?.id === nextSession.id ? nextSession : current));
+    setOpenedTranscriptSession((current) =>
+      current?.id === nextSession.id ? nextSession : current,
+    );
+    if (transcriptSessionRef.current?.id === nextSession.id) {
+      transcriptSessionRef.current = nextSession;
     }
   }
 
@@ -654,6 +825,9 @@ function App() {
       setAcpEvents([]);
       setAcpPromptResult(null);
       const transcript = await createTranscriptSession("acp", "fake", "Fake ACP");
+      if (transcript) {
+        await attachSelectedKnowledgeToTranscript(transcript.id);
+      }
       await drainAcpEvents(nextSession.id, transcript?.id ?? null);
     });
   }
@@ -680,6 +854,9 @@ function App() {
         selectedAcpCandidate.name,
         `${selectedAcpCandidate.name} ACP`,
       );
+      if (transcript) {
+        await attachSelectedKnowledgeToTranscript(transcript.id);
+      }
       await drainAcpEvents(nextSession.id, transcript?.id ?? null);
     });
   }
@@ -703,7 +880,7 @@ function App() {
 
       const result = await invoke<AcpPromptResult>("send_acp_prompt", {
         sessionId: acpSession.id,
-        prompt: acpPrompt,
+        prompt: formatPromptWithKnowledge(attachedKnowledgeItems, acpPrompt),
       });
       setAcpPromptResult(result);
       await drainAcpEvents(acpSession.id, activeTranscriptId);
@@ -912,7 +1089,9 @@ function App() {
           <details className="agent-accordion sidebar-history" open>
             <summary>
               <span>Session History</span>
-              <strong>{transcriptSessions.length} saved</strong>
+              <strong>
+                {filteredTranscriptSessions.length}/{transcriptSessions.length} saved
+              </strong>
             </summary>
 
             <div className="accordion-body">
@@ -928,6 +1107,40 @@ function App() {
                 </button>
               </div>
 
+              <label className="history-filter">
+                <span>Filter</span>
+                <input
+                  aria-label="Filter session history"
+                  onChange={(event) => setHistoryFilter(event.target.value)}
+                  placeholder="Search title, agent, id..."
+                  value={historyFilter}
+                />
+              </label>
+
+              <div className="history-rename" aria-label="Rename selected session">
+                <label>
+                  <span>Selected name</span>
+                  <input
+                    aria-label="Selected session name"
+                    disabled={!selectedHistorySession}
+                    onChange={(event) => setHistoryRenameTitle(event.target.value)}
+                    value={historyRenameTitle}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void renameSelectedTranscriptSession()}
+                  disabled={
+                    transcriptLoading ||
+                    !selectedHistorySession ||
+                    !historyRenameTitle.trim() ||
+                    historyRenameTitle.trim() === selectedHistorySession.title
+                  }
+                >
+                  Rename
+                </button>
+              </div>
+
               {transcriptError ? (
                 <p className="error-message" role="alert">
                   {transcriptError}
@@ -937,8 +1150,10 @@ function App() {
               <ul className="history-list" aria-label="Session history">
                 {transcriptSessions.length === 0 ? (
                   <li>No saved sessions yet.</li>
+                ) : filteredTranscriptSessions.length === 0 ? (
+                  <li>No sessions match this filter.</li>
                 ) : (
-                  transcriptSessions.map((historySession) => (
+                  visibleTranscriptSessions.map((historySession) => (
                     <li
                       data-selected={historySession.id === selectedHistorySessionId}
                       key={historySession.id}
@@ -961,6 +1176,104 @@ function App() {
                       </button>
                     </li>
                   ))
+                )}
+              </ul>
+            </div>
+          </details>
+
+          <details className="agent-accordion sidebar-knowledge">
+            <summary>
+              <span>Knowledge Cards</span>
+              <strong>{attachedKnowledgeItems.length} attached</strong>
+            </summary>
+
+            <div className="accordion-body">
+              <div className="doctor-heading">
+                <h3 id="knowledge-title">Knowledge Cards</h3>
+                <span>{knowledgeItems.length} available</span>
+                <button
+                  type="button"
+                  onClick={() => void refreshKnowledgeItems()}
+                  disabled={knowledgeLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {knowledgeError ? (
+                <p className="error-message" role="alert">
+                  {knowledgeError}
+                </p>
+              ) : null}
+
+              <div className="knowledge-form" aria-labelledby="knowledge-title">
+                <label>
+                  <span>Title</span>
+                  <input
+                    aria-label="Knowledge title"
+                    onChange={(event) => setKnowledgeTitle(event.target.value)}
+                    value={knowledgeTitle}
+                  />
+                </label>
+                <label>
+                  <span>Kind</span>
+                  <select
+                    aria-label="Knowledge kind"
+                    onChange={(event) => setKnowledgeKind(event.target.value)}
+                    value={knowledgeKind}
+                  >
+                    <option value="decision">Decision</option>
+                    <option value="constraint">Constraint</option>
+                    <option value="preference">Preference</option>
+                    <option value="fact">Fact</option>
+                    <option value="todo">Todo</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Text</span>
+                  <textarea
+                    aria-label="Knowledge body"
+                    onChange={(event) => setKnowledgeBody(event.target.value)}
+                    rows={4}
+                    value={knowledgeBody}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void createKnowledgeItem()}
+                  disabled={knowledgeLoading || !knowledgeTitle.trim() || !knowledgeBody.trim()}
+                >
+                  Create Card
+                </button>
+              </div>
+
+              <ul className="knowledge-list" aria-label="Knowledge cards">
+                {knowledgeItems.length === 0 ? (
+                  <li>No knowledge cards yet.</li>
+                ) : (
+                  knowledgeItems.map((item) => {
+                    const attached = attachedKnowledgeIds.includes(item.id);
+                    return (
+                      <li data-selected={attached} key={item.id}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={attached}
+                            onChange={(event) =>
+                              void toggleKnowledgeAttachment(item, event.currentTarget.checked)
+                            }
+                          />
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>
+                              {item.kind} · {item.scope} · {item.projectId ? "project" : "global"}
+                            </small>
+                            <em>{item.body}</em>
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })
                 )}
               </ul>
             </div>
@@ -1168,6 +1481,12 @@ function App() {
             {acpPromptResult ? (
               <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>
             ) : null}
+
+            {showAcpWaiting ? (
+              <p className="acp-result acp-waiting-status" role="status">
+                Waiting for agent response...
+              </p>
+            ) : null}
           </section>
         ) : null}
 
@@ -1219,14 +1538,15 @@ function App() {
                 ) : null}
               </div>
               <ul aria-label="ACP events" ref={acpEventsList}>
-                {displayAcpEvents.length === 0 ? (
+                {displayAcpEvents.length === 0 && !showAcpWaiting ? (
                   <li>
                     {openedTranscriptSession
                       ? "No saved events in this transcript yet."
                       : "No ACP events yet."}
                   </li>
                 ) : (
-                  displayAcpEvents.map((event, index) => (
+                  <>
+                    {displayAcpEvents.map((event, index) => (
                     <li data-kind={event.kind} key={`${event.kind}-${index}`}>
                       <strong>
                         {openedTranscriptSession
@@ -1235,7 +1555,21 @@ function App() {
                       </strong>
                       <span>{event.content}</span>
                     </li>
-                  ))
+                    ))}
+                    {showAcpWaiting ? (
+                      <li data-kind="pending" aria-live="polite">
+                        <strong>Waiting</strong>
+                        <span className="waiting-message">
+                          <span className="waiting-dots" aria-hidden="true">
+                            <i />
+                            <i />
+                            <i />
+                          </span>
+                          Agent is preparing a response
+                        </span>
+                      </li>
+                    ) : null}
+                  </>
                 )}
               </ul>
             </section>
@@ -1308,6 +1642,46 @@ function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
 
 function selectedProjectCwd(project: ProjectInfo | null) {
   return project ? { cwd: project.path } : {};
+}
+
+function uniqueIds(ids: string[]) {
+  return Array.from(new Set(ids));
+}
+
+function formatPromptWithKnowledge(items: KnowledgeItemInfo[], prompt: string) {
+  if (items.length === 0) {
+    return prompt;
+  }
+
+  const context = items
+    .map(
+      (item, index) =>
+        `${index + 1}. ${item.title} (${item.kind}, ${item.scope})\n${item.body}`,
+    )
+    .join("\n\n");
+
+  return `Attached session knowledge:\n${context}\n\nUser prompt:\n${prompt}`;
+}
+
+function filterTranscriptSessions(sessions: TranscriptSessionInfo[], filter: string) {
+  const query = filter.trim().toLowerCase();
+  if (!query) {
+    return sessions;
+  }
+
+  return sessions.filter((session) =>
+    [
+      session.title,
+      session.source,
+      session.runtime,
+      session.id,
+      session.projectId ?? "",
+      shortId(session.id),
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query),
+  );
 }
 
 function shortId(id: string) {

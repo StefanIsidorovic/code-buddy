@@ -12,7 +12,7 @@
 - Should fake ACP support Windows before packaging, or is Linux-first enough while the ACP spike stays local?
 - Should Workspace add-project use a native folder picker next, or is manual path entry enough until the final UI?
 - What project metadata belongs in the first real workspace model beyond name and path: default agent, model, instructions, or last session?
-- Should the next transcript step be continue-from-transcript context, search/filtering, rich chat/tool-call UI, or PTY scrollback persistence?
+- Should the next transcript step be continue-from-transcript context, rich chat/tool-call UI, session grouping/tags, or PTY scrollback persistence?
 
 ## Resolved
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
@@ -36,3 +36,5 @@
 - AIA-028 adds ACP output autoscroll and fixes stale transcript ids in background ACP drain polling; old transcripts with never-persisted chunks cannot be reconstructed.
 - AIA-029 applies CSS-only pastel UI polish to the temporary runtime workspace; final product UI still remains deferred.
 - AIA-030 applies the user-provided earth-tone palette and CSS-only font polish across the whole temporary app UI; final product UI still remains deferred.
+- AIA-031 starts with manual Knowledge Cards and explicit attach controls; automatic promotion, relevance suggestions, conflict handling, and knowledge review UI remain deferred.
+- AIA-033 adds minimal Session History filtering and selected-session rename; richer session grouping, tags, archive/delete, and final library UI remain deferred.

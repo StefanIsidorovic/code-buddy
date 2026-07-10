@@ -44,9 +44,14 @@
 - AIA-028 ACP output scroll: auto-scroll the ACP event list to the newest event because live agent responses can exceed the visible output area.
 - AIA-029 runtime UI polish: improve the temporary runtime workspace through CSS-only pastel design tokens, softer surfaces, clearer control states, and more readable event/history cards without adding dependencies or changing runtime behavior.
 - AIA-030 UI palette: use the user-provided earth-tone palette as the current product visual direction, with CSS-only tokens based on ebony #4F5743, reseda #6B7460, bone #DCD1C3, beaver #B29784, and taupe #483C32; do not add font dependencies yet.
+- AIA-031 Knowledge Cards: start with manual card creation and explicit attach controls, not automatic promotion, so cross-session knowledge transfer stays understandable and avoids hidden context drift.
+- AIA-031 prompt injection: inject attached cards into the ACP prompt sent to the agent, but persist the user's original prompt in transcript history so saved chat remains readable.
+- AIA-032 ACP waiting UX: show a live-only waiting indicator while send_acp_prompt is in flight, because real agents can take time before the first response event appears.
+- AIA-033 Session History management: add simple local filtering, explicit selected-session rename, and a three-visible-row sidebar list before a larger session library UI, because the current sidebar history is already useful but becomes unmanageable with many default-named sessions.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
 - PTY scrollback persistence and rich chat replay: defer until after the minimal saved transcript replay is manually validated.
+- Automatic knowledge suggestions, embeddings, conflict detection, card archive/delete/detach UI, sensitive-content redaction, and richer session library organization: defer until the manual Knowledge Cards and basic Session History controls are validated.

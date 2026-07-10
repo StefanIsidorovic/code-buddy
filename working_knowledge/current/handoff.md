@@ -27,16 +27,19 @@
 - Codex ACP thought/text-array updates now normalize into readable events instead of raw JSON notices.
 - AIA-022 is committed as a319c23: SQLite ProjectStore, create/list/delete project commands, minimal Workspace panel, and selected workspace cwd wiring for PTY/ACP launches.
 - AIA-023/AIA-024 are committed together as 113bee7: runtime mode switch, mode-specific output, ACP transcript persistence, and a minimal Session History panel.
-- AIA-025/AIA-026/AIA-027/AIA-028/AIA-029/AIA-030 are implemented locally: Session History rows open saved transcript events, switching transcripts clears old messages and keeps one selected row, the left sidebar hosts runtime mode/history/agent selection/status, saved transcript replay coalesces agent chunks into Question/Answer chat rows, ACP output autoscrolls, background ACP draining uses the active transcript id, and the runtime UI has a CSS-only earth-tone palette/font polish pass.
+- AIA-025/AIA-026/AIA-027/AIA-028/AIA-029/AIA-030 are committed through 4a43282.
+- AIA-031 is implemented locally: manual Knowledge Cards are stored in SQLite, can be linked to ACP transcript sessions, and checked cards are injected into ACP prompts while transcript history stores the original user prompt.
+- AIA-032 is implemented locally: live ACP output and controls show a waiting state while send_acp_prompt is in flight.
+- AIA-033 is implemented locally: Session History can be filtered, and the selected saved transcript can be renamed through persisted backend storage.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 113bee7.
-- Worktree has local AIA-025 saved transcript replay, AIA-026 selection/sidebar, AIA-027 transcript normalization, AIA-028 autoscroll/stable-drain, AIA-029 UI polish, and AIA-030 palette/font polish changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is 4a43282.
+- Worktree has local AIA-031 Knowledge Cards, AIA-032 waiting UX, and AIA-033 Session History filter/rename changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Manually review the Tauri UI: click between multiple Session History items and confirm only one row is selected and messages do not mix.
-- Confirm the left sidebar now uses the old Runtime Test space for PTY/ACP mode, agent selection, Session History, and status without overlap.
-- If AIA-025/AIA-026 behave as expected, user can commit the local changes.
-- Next product direction after AIA-025: native folder picker, continue-from-transcript context, or final workspace/session UI shell.
+- Await the user's next concrete task. If continuing the current local work, manually review the Tauri UI Knowledge Cards, ACP waiting, and Session History filter/rename flows before deciding whether to commit.
+- Manually review the Tauri UI: create a Knowledge Card, keep it checked, send an ACP prompt, and confirm the agent receives the attached context.
+- If AIA-031 behaves as expected, user can commit the local changes.
+- Next product direction after AIA-031: detach/delete/archive Knowledge Cards, continue-from-transcript context, native folder picker, or final workspace/session UI shell.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -66,6 +69,10 @@
 - Confirm live ACP output scrolls to the newest event as Codex streams.
 - Create a new Codex ACP transcript after this fix; old transcripts that missed chunks before persistence cannot be fully reconstructed.
 - Confirm the earth-tone UI polish looks good in the Tauri window and does not introduce overlap on the user's screen size.
+- In the Tauri app, open Knowledge Cards, create a card, keep it attached, send ACP, and confirm the response reflects the attached context.
+- In the Tauri app, type into Session History filter and confirm the saved session list narrows.
+- In the Tauri app, confirm Session History renders only three saved rows by default.
+- In the Tauri app, click a saved Session History row, edit Selected name, click Rename, refresh, and confirm the title persists.
 - rg --files working_knowledge/current: verify mind map files are present.
 
 ## Watchouts
@@ -90,7 +97,9 @@
 - Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
 - Real Codex ACP can emit content arrays and agent_thought_chunk updates; these should be normalized by the backend before the frontend sees them.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
-- Project storage now persists project name/path and ACP transcript history; saved transcript replay/sidebar/chat normalization/autoscroll/stable-drain/UI polish refinements are local, while PTY scrollback, model defaults, folder picker, and richer workspace settings are deferred.
+- Project storage now persists project name/path, ACP transcript history, and manual Knowledge Cards; PTY scrollback, model defaults, folder picker, automatic knowledge suggestions, and richer workspace settings are deferred.
+- Knowledge Cards are manual only; no automatic promotion, embedding search, conflict resolution, card delete/detach UI, or sensitive-content detection yet.
+- Session History filter/rename is intentionally minimal; no tags, archive/delete, grouping, or ranked search yet.
 - Transcript persistence failures are shown separately and should not stop an active ACP session.
 - Selected project path is passed as cwd to PTY and ACP launches; old no-project launch behavior still works.
 - The runtime UI is still a test surface; the current mode switch/sidebar history/accordion layout is a bridge toward the final workspace UI.

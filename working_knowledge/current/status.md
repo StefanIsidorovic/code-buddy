@@ -1,8 +1,8 @@
 # Status
 
 ## Session
-- session_id: codex-20260709T111638Z
-- date_utc: 2026-07-09
+- session_id: codex-20260710T115932Z
+- date_utc: 2026-07-10
 - agent_model: codex
 
 ## Target Repositories
@@ -10,29 +10,31 @@
 
 ## Repository State
 - branch: new/start
-- head: 113bee7 step 18: persist ACP session transcripts
-- worktree: local AIA-025 saved transcript replay changes pending user review/commit; LOCAL_PROGRESS.md remains intentionally ignored.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project storage, and ACP transcript persistence.
+- head: 4a43282 step 24: apply earth-tone UI palette
+- worktree: local AIA-031 Knowledge Cards, AIA-032 ACP waiting UX, and AIA-033 Session History filter/rename changes pending user review/commit; LOCAL_PROGRESS.md remains intentionally ignored.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project/transcript/knowledge storage, and transcript rename support.
 
 ## Current Task
-- request: apply the user-provided earth-tone palette and better fonts across the whole app UI.
+- request: make Session History manageable with filtering and user-defined names.
 - phase: validated; awaiting user review/commit
-- active plan step: 24
+- active plan step: 27
 
 ## Risks And Constraints
 - AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, AIA-017 ACP stdio fake runtime, AIA-018 ACP registry discovery, and AIA-019 selected ACP launch are committed through 1ce5f36.
 - AIA-020/AIA-021 are committed in b0f845d.
 - AIA-022 workspace persistence is committed as a319c23.
 - AIA-023/AIA-024 were committed together by user as 113bee7.
-- AIA-025 saved transcript replay, AIA-026 selection/sidebar fixes, AIA-027 transcript normalization, AIA-028 autoscroll/stable-drain fixes, AIA-029 UI polish, and AIA-030 reference earth palette polish are implemented locally on top of 113bee7.
+- AIA-025 through AIA-030 are committed through 4a43282.
+- AIA-031 Knowledge Cards, AIA-032 ACP waiting UX, and AIA-033 Session History filter/rename are implemented locally on top of 4a43282.
 - User explicitly asked the agent not to commit; user committed reviewed changes manually.
 - portable-pty 0.9.0 was fetched previously with approved cargo network access.
 - Active mind map files must be updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow knowledge changes.
 - Active mind map now also includes ACP transport knowledge.
 - LOCAL_PROGRESS.md is intentionally ignored by git and maintained as a local human-readable progress log.
-- Project storage currently persists project name/path and ACP transcript history; saved replay/sidebar/transcript normalization/autoscroll/stable-drain/UI polish refinements are local and pending review.
+- Project storage currently persists project name/path, ACP transcript history with user-editable titles, and local Knowledge Cards; automatic suggestions, embeddings, conflict review, and delete/detach UI are deferred.
 
 ## Last Verification
+- 2026-07-10T11:59:32Z: session initialization inspected git status, active working knowledge, mind map index, recent commits, and local diff summary; AIA-031 remains implemented locally and uncommitted.
 - 2026-07-07T13:38:03Z: c51b78a committed with provenance note for Codex xterm PTY smoke test.
 - 2026-07-04T23:41:xxZ: validation passed for PTY/xterm work: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings.
 - 2026-07-08T09:52:00Z: active mind map added with pty-runtime, frontend-terminal, and agent-launch-flow topic files; structural validation passed with rg --files, rg mind_map references, and git diff --check.
@@ -67,3 +69,7 @@
 - 2026-07-09T15:43:27Z: AIA-028 ACP output autoscroll and stable transcript drain validated: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check. Rust tests: 40 passed. Frontend tests: 13 passed. Vite still reports expected xterm chunk-size warning.
 - 2026-07-09T15:54:30Z: AIA-029 pastel runtime UI polish validated: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check. Rust tests: 40 passed. Frontend tests: 13 passed. Vite still reports expected xterm chunk-size warning.
 - 2026-07-09T16:11:27Z: AIA-030 reference earth palette and typography polish validated: npm run typecheck; npm run test -- --run; npm run build; git diff --check. Frontend tests: 13 passed. Vite still reports expected xterm chunk-size warning.
+- 2026-07-10T11:49:16Z: AIA-031 manual Knowledge Cards validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Rust tests: 42 passed. Frontend tests: 14 passed. Vite still reports expected xterm chunk-size warning.
+- 2026-07-10T12:03:46Z: AIA-032 ACP waiting UX validated: npm run typecheck; npm run test -- --run; npm run build; git diff --check. Frontend tests: 14 passed. Vite still reports expected xterm chunk-size warning.
+- 2026-07-10T12:19:32Z: AIA-033 Session History filter/rename validated: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check. Rust tests: 43 passed. Frontend tests: 15 passed. Vite still reports expected xterm chunk-size warning.
+- 2026-07-10T12:41:44Z: AIA-033 compact Session History list fix validated: npm run typecheck; npm run test -- --run; npm run build; git diff --check. Frontend tests: 16 passed. Vite still reports expected xterm chunk-size warning.
