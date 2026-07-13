@@ -26,8 +26,10 @@
 - AIA-020 keeps Start Selected ACP as the generic registry-backed launch action for all ACP candidates.
 - Frontend now locks ACP candidate selection while an ACP session is running.
 - Backend now has a SQLite-backed ProjectStore in src-tauri/src/storage.rs for saved workspace folders.
+- Backend now stores multiple project_repositories rows under each project and backfills a default repository from projects.path.
 - Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
-- PTY and ACP launch requests include selected project cwd when a workspace is selected.
+- Frontend now lets the selected Workspace hold multiple repositories.
+- PTY and ACP launch requests include selected repository cwd when one is selected and fall back to project.path otherwise.
 - ProjectStore now persists ACP transcript sessions and ordered transcript events in SQLite.
 - ProjectStore now persists manual Knowledge Cards and transcript-to-knowledge links in SQLite.
 - Frontend now creates transcript sessions when ACP sessions start, records user prompts and drained ACP events, and shows a minimal Session History panel.
@@ -41,8 +43,8 @@
 - Frontend now has a minimal Knowledge Cards sidebar panel for manual card creation, explicit attach selection, and ACP prompt context injection.
 - Frontend now shows a live ACP waiting status/card while send_acp_prompt is in flight.
 - The left sidebar now contains runtime mode selection, collapsible PTY/ACP agent selection, Session History, and compact runtime status instead of the old large Runtime Test hero.
-- Frontend now uses a Runtime mode switch: Structured ACP by default and Terminal PTY as fallback.
-- Frontend groups PTY/ACP agent choice in accordion sections to keep the temporary control panel compact.
+- Frontend now treats ACP as the primary runtime UI, keeps Terminal PTY in a collapsed fallback panel, and shows runtime metadata in one small top-right Runtime Controls info card.
+- Frontend groups ACP agent choice and PTY fallback tooling in accordion sections to keep the temporary control panel compact.
 - Output panel now gives more space to the active runtime output: PTY stream in Terminal PTY mode or ACP events in Structured ACP mode, with adjacent Agent/Plan ACP events coalesced for display.
 - Older product feature modules for keyring secrets, AGENTS.md resolution, broad domain types, and app state were removed during reset; the new storage module is a narrow AIA-022 ProjectStore only.
 - AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
@@ -82,11 +84,12 @@
 - ACP registry backend command: list_acp_registry_candidates.
 - ACP selected launch backend command: start_acp_registry_session.
 - Project storage backend commands: create_project, list_projects, delete_project.
+- Project repository backend commands: create_project_repository, list_project_repositories, delete_project_repository.
 - Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events, rename_transcript_session.
 - Knowledge backend commands: create_knowledge_item, list_knowledge_items, attach_knowledge_to_transcript_session, list_attached_knowledge.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
-- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, transcript and knowledge request/response types, SQLite migration, project path validation, transcript CRUD, and Knowledge Card CRUD/linking.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, transcript CRUD, and Knowledge Card CRUD/linking.
 
 ## Tests
 - Frontend: Vitest + Testing Library via src/App.test.tsx.
@@ -110,12 +113,16 @@
 - Frontend tests cover Start Selected ACP launching a non-default launchable candidate and locking candidate selection while an ACP session is running.
 - AIA-022 backend tests cover project create/list/delete, invalid input, missing path, and duplicate path rejection.
 - Frontend tests cover Workspace panel rendering, project creation/selection, and selected project cwd being passed into PTY and ACP launch requests.
+- AIA-035 backend tests cover default repository creation, repository create/list/delete, invalid repository input, missing project/path, and duplicate path rejection.
+- AIA-035 frontend tests cover repository add/select and selected repository cwd being passed into PTY launch requests.
 - Frontend tests cover the default ACP output mode, PTY mode switching, and coalesced adjacent ACP agent messages.
 - AIA-024 backend tests cover transcript session creation/listing, ordered event append/list, invalid transcript input, and project deletion preserving history.
 - Frontend tests cover Session History rendering and ACP transcript creation/event append calls.
 - Frontend tests cover opening a saved transcript and rendering stored user/agent events.
 - Frontend tests cover switching between saved transcripts without leaving old messages selected/rendered.
 - Frontend tests cover filtering Session History and renaming the selected saved transcript.
+- Frontend tests cover ACP as the primary runtime UI and PTY activation through the fallback panel.
+- 2026-07-13 AIA-034 revalidation passed with 16 frontend tests and 43 Rust tests, plus frontend build, typecheck, clippy, and git diff --check.
 - Frontend tests cover opening collapsed agent accordions before selecting ACP candidates.
 - Frontend tests cover chunked saved transcript replay as one readable answer and coalesced transcript persistence calls.
 - Frontend tests cover ACP output autoscroll when structured events render.
@@ -126,6 +133,11 @@
 - Storage tests cover renaming transcript titles and rejecting blank transcript names.
 
 ## Current Findings
+- 2026-07-13 AIA-035 final validation passed with 45 Rust tests and 17 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
+- 2026-07-13 AIA-035 adversarial review found and fixed a stale selected-repository race when switching projects before repository reload completed.
+- AIA-035 research: current storage model has `projects.path` as the only launch folder; frontend uses `selectedProjectCwd(selectedProject)` for PTY/ACP cwd; multi-repo support needs a child repository table plus selected repository UI state.
+- 2026-07-13 continuation confirmed AIA-034 is the only active local product diff: ACP default UI, collapsed Terminal PTY fallback, runtime info card, frontend test updates, README/Linear docs, and knowledge-file updates.
+- 2026-07-13 adversarial review found no required fixes in AIA-034; the only noted tradeoff is intentional: returning from PTY fallback to ACP is disabled while a PTY session is running, so users stop/kill the terminal session before hiding it.
 - AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
 - AGENTS.md requires mind_map.md and mind_map/ to be maintained when an active mind map exists.
 - working_knowledge was stale and has been regenerated for the reset task.

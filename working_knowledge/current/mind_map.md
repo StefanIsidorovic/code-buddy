@@ -7,11 +7,11 @@
 
 ## Files
 - mind_map/pty-runtime.md: Rust PTY lifecycle, session state, output buffering, stop/cleanup behavior, and backend command surface.
-- mind_map/frontend-terminal.md: React/xterm terminal panel, keyboard input path, output rendering path, runtime sidebar, Session History replay/filter/rename controls, ACP launch controls, earth-tone UI palette/font rules, layout constraints, and UI risks.
+- mind_map/frontend-terminal.md: React/xterm fallback terminal panel, keyboard input path, output rendering path, primary ACP runtime sidebar, Session History replay/filter/rename controls, ACP launch controls, earth-tone UI palette/font rules, layout constraints, and UI risks.
 - mind_map/adapter-boundary.md: AgentAdapter trait, registry, detection, command construction, input encoding, structured parsing hook, and capability metadata.
 - mind_map/agent-launch-flow.md: fake CLI, temporary Codex PTY, selected ACP launch flow, cwd/PATH constraints, and deferred agent integration.
 - mind_map/acp-transport.md: Agent Client Protocol meaning, fit beside PTY, fake runtime, registry discovery, selected launch, and risks.
-- mind_map/workspace-persistence.md: SQLite project storage, ACP transcript persistence/replay/rename, manual Knowledge Cards, Workspace/Session History UI state, selected cwd launch wiring, and deferred persistence scope.
+- mind_map/workspace-persistence.md: SQLite project/repository storage, ACP transcript persistence/replay/rename, manual Knowledge Cards, Workspace/Session History UI state, selected repository cwd launch wiring, and deferred persistence scope.
 
 ## Update Rules
 - Update the relevant topic file whenever code changes alter that topic's data flow, ownership, constraints, or risks.

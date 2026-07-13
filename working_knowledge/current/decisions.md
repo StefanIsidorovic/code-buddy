@@ -48,10 +48,13 @@
 - AIA-031 prompt injection: inject attached cards into the ACP prompt sent to the agent, but persist the user's original prompt in transcript history so saved chat remains readable.
 - AIA-032 ACP waiting UX: show a live-only waiting indicator while send_acp_prompt is in flight, because real agents can take time before the first response event appears.
 - AIA-033 Session History management: add simple local filtering, explicit selected-session rename, and a three-visible-row sidebar list before a larger session library UI, because the current sidebar history is already useful but becomes unmanageable with many default-named sessions.
+- AIA-034 runtime UI: make ACP the primary visible runtime and keep Terminal PTY only as a collapsed fallback, because ACP has been manually validated and PTY should no longer compete for first-screen attention.
+- 2026-07-13 continuation: validate and review the existing local AIA-034 diff before starting a new product item.
+- AIA-035 workspace model: treat Project as the user-facing container and add child Repository folders for agent launch cwd; keep `projects.path` as the legacy/default repository path for compatibility.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
 - PTY scrollback persistence and rich chat replay: defer until after the minimal saved transcript replay is manually validated.
-- Automatic knowledge suggestions, embeddings, conflict detection, card archive/delete/detach UI, sensitive-content redaction, and richer session library organization: defer until the manual Knowledge Cards and basic Session History controls are validated.
+- Automatic knowledge suggestions, embeddings, conflict detection, card archive/delete/detach UI, sensitive-content redaction, richer session library organization, and final runtime navigation: defer until the manual Knowledge Cards and basic Session History controls are validated.

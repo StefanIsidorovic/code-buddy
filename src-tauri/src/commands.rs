@@ -8,9 +8,10 @@ use crate::{
     errors::{AppError, AppResult},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
-        CreateKnowledgeItemRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
-        KnowledgeItemInfo, ProjectInfo, ProjectStore, RenameTranscriptSessionRequest,
-        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+        CreateKnowledgeItemRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
+        CreateTranscriptSessionRequest, KnowledgeItemInfo, ProjectInfo, ProjectRepositoryInfo,
+        ProjectStore, RenameTranscriptSessionRequest, TranscriptEventInfo, TranscriptEventInput,
+        TranscriptSessionInfo,
     },
 };
 use std::sync::Arc;
@@ -94,6 +95,30 @@ pub fn list_projects(state: State<'_, ProjectStore>) -> AppResult<Vec<ProjectInf
 #[tauri::command]
 pub fn delete_project(state: State<'_, ProjectStore>, project_id: String) -> AppResult<()> {
     state.delete_project(&project_id)
+}
+
+#[tauri::command]
+pub fn create_project_repository(
+    state: State<'_, ProjectStore>,
+    request: CreateProjectRepositoryRequest,
+) -> AppResult<ProjectRepositoryInfo> {
+    state.create_project_repository(request)
+}
+
+#[tauri::command]
+pub fn list_project_repositories(
+    state: State<'_, ProjectStore>,
+    project_id: String,
+) -> AppResult<Vec<ProjectRepositoryInfo>> {
+    state.list_project_repositories(&project_id)
+}
+
+#[tauri::command]
+pub fn delete_project_repository(
+    state: State<'_, ProjectStore>,
+    repository_id: String,
+) -> AppResult<()> {
+    state.delete_project_repository(&repository_id)
 }
 
 #[tauri::command]

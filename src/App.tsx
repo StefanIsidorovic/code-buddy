@@ -99,6 +99,16 @@ type ProjectInfo = {
   updatedAt: number;
 };
 
+type ProjectRepositoryInfo = {
+  id: string;
+  projectId: string;
+  name: string;
+  path: string;
+  isDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
 type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;
@@ -160,6 +170,11 @@ function App() {
   const [projectPath, setProjectPath] = useState("");
   const [projectError, setProjectError] = useState<string | null>(null);
   const [projectLoading, setProjectLoading] = useState(false);
+  const [projectRepositories, setProjectRepositories] = useState<ProjectRepositoryInfo[]>([]);
+  const [selectedRepositoryId, setSelectedRepositoryId] = useState<string | null>(null);
+  const [repositoryName, setRepositoryName] = useState("");
+  const [repositoryPath, setRepositoryPath] = useState("");
+  const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [openedTranscriptSession, setOpenedTranscriptSession] =
@@ -201,6 +216,11 @@ function App() {
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
+  );
+  const selectedRepository = useMemo(
+    () =>
+      projectRepositories.find((repository) => repository.id === selectedRepositoryId) ?? null,
+    [projectRepositories, selectedRepositoryId],
   );
   const selectedHistorySessionId = openedTranscriptSession?.id ?? transcriptSession?.id ?? null;
   const selectedHistorySession = useMemo(
@@ -275,6 +295,7 @@ function App() {
   useEffect(() => {
     void refreshTranscriptSessions(selectedProjectId);
     void refreshKnowledgeItems(selectedProjectId);
+    void refreshProjectRepositories(selectedProjectId);
   }, [selectedProjectId]);
 
   useEffect(() => {
@@ -418,6 +439,7 @@ function App() {
       setSelectedProjectId(project.id);
       setProjectName("");
       setProjectPath("");
+      await refreshProjectRepositories(project.id);
     });
   }
 
@@ -425,8 +447,103 @@ function App() {
     await runAction(async () => {
       await invoke("delete_project", { projectId });
       setProjects((current) => current.filter((project) => project.id !== projectId));
-      setSelectedProjectId((current) => (current === projectId ? null : current));
+      setSelectedProjectId((current) => {
+        if (current === projectId) {
+          setProjectRepositories([]);
+          setSelectedRepositoryId(null);
+          return null;
+        }
+
+        return current;
+      });
     });
+  }
+
+  async function refreshProjectRepositories(projectId = selectedProjectId) {
+    if (!projectId) {
+      setProjectRepositories([]);
+      setSelectedRepositoryId(null);
+      return;
+    }
+
+    if (selectedRepository && selectedRepository.projectId !== projectId) {
+      setProjectRepositories([]);
+      setSelectedRepositoryId(null);
+    }
+
+    setRepositoryLoading(true);
+    setProjectError(null);
+    try {
+      const repositories =
+        (await invoke<ProjectRepositoryInfo[]>("list_project_repositories", {
+          projectId,
+        })) ?? [];
+      setProjectRepositories(repositories);
+      setSelectedRepositoryId((current) => {
+        if (current && repositories.some((repository) => repository.id === current)) {
+          return current;
+        }
+
+        return repositories[0]?.id ?? null;
+      });
+    } catch (err) {
+      setProjectError(errorText(err));
+    } finally {
+      setRepositoryLoading(false);
+    }
+  }
+
+  async function createProjectRepository() {
+    if (!selectedProject) {
+      setProjectError("Select a project before adding a repository.");
+      return;
+    }
+
+    setRepositoryLoading(true);
+    setProjectError(null);
+    try {
+      const repository = await invoke<ProjectRepositoryInfo>("create_project_repository", {
+        request: {
+          projectId: selectedProject.id,
+          name: repositoryName,
+          path: repositoryPath,
+        },
+      });
+      setProjectRepositories((current) => [
+        repository,
+        ...current.filter((item) => item.id !== repository.id),
+      ]);
+      setSelectedRepositoryId(repository.id);
+      setRepositoryName("");
+      setRepositoryPath("");
+    } catch (err) {
+      setProjectError(errorText(err));
+    } finally {
+      setRepositoryLoading(false);
+    }
+  }
+
+  async function deleteProjectRepository(repositoryId: string) {
+    setRepositoryLoading(true);
+    setProjectError(null);
+    try {
+      await invoke("delete_project_repository", { repositoryId });
+      const nextRepositories = projectRepositories.filter(
+        (repository) => repository.id !== repositoryId,
+      );
+      setProjectRepositories(nextRepositories);
+      setSelectedRepositoryId((currentSelected) => {
+        if (currentSelected === repositoryId) {
+          return nextRepositories[0]?.id ?? null;
+        }
+
+        return currentSelected;
+      });
+    } catch (err) {
+      setProjectError(errorText(err));
+    } finally {
+      setRepositoryLoading(false);
+    }
   }
 
   async function refreshTranscriptSessions(projectId = selectedProjectId) {
@@ -730,7 +847,7 @@ function App() {
         request: {
           cols: size.cols,
           rows: size.rows,
-          ...selectedProjectCwd(selectedProject),
+          ...selectedProjectCwd(selectedProject, selectedRepository),
         },
       });
       setActiveSession(nextSession);
@@ -817,7 +934,7 @@ function App() {
     await runAction(async () => {
       const nextSession = await invoke<AcpSessionInfo>("start_fake_acp_session", {
         request: {
-          ...selectedProjectCwd(selectedProject),
+          ...selectedProjectCwd(selectedProject, selectedRepository),
         },
       });
       setAcpSession(nextSession);
@@ -842,7 +959,7 @@ function App() {
       const nextSession = await invoke<AcpSessionInfo>("start_acp_registry_session", {
         request: {
           candidateId: selectedAcpCandidate.id,
-          ...selectedProjectCwd(selectedProject),
+          ...selectedProjectCwd(selectedProject, selectedRepository),
         },
       });
       setAcpSession(nextSession);
@@ -950,141 +1067,78 @@ function App() {
           <h1 id="runtime-sidebar-title">Runtime</h1>
         </div>
 
-        <div className="runtime-switch" role="group" aria-label="Runtime mode">
-          <button
-            type="button"
-            aria-pressed={runtimeMode === "pty"}
-            onClick={() => setRuntimeMode("pty")}
-          >
-            Terminal PTY
-          </button>
-          <button
-            type="button"
-            aria-pressed={runtimeMode === "acp"}
-            onClick={() => setRuntimeMode("acp")}
-          >
-            Structured ACP
-          </button>
-        </div>
-
         <div className="sidebar-scroll">
-          {runtimeMode === "pty" ? (
-            <details className="agent-accordion sidebar-agent">
-              <summary>
-                <span>PTY Agents</span>
-                <strong>{canStartCodex ? "Codex ready" : "Check CLIs"}</strong>
-              </summary>
+          <details className="agent-accordion sidebar-agent" open>
+            <summary>
+              <span>ACP Agents</span>
+              <strong>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</strong>
+            </summary>
 
-              <div className="accordion-body">
-                <div className="doctor-heading">
-                  <h3 id="sidebar-doctor-title">Agent Doctor</h3>
-                  <button
-                    type="button"
-                    onClick={() => void refreshAgentDoctor()}
-                    disabled={doctorLoading}
-                  >
-                    Refresh
-                  </button>
-                </div>
-
-                {doctorError ? (
-                  <p className="error-message" role="alert">
-                    {doctorError}
-                  </p>
-                ) : null}
-
-                <ul className="doctor-list" aria-label="Agent CLI status">
-                  {doctorReports.map((report) => (
-                    <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
-                      <div>
-                        <strong>{report.adapter.displayName}</strong>
-                        <span>{report.adapter.executable}</span>
-                      </div>
-                      <div>
-                        <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
-                        <span>{doctorDetail(report)}</span>
-                        <span>{transportDetail(report.adapter.transports)}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+            <div className="accordion-body">
+              <div className="doctor-heading">
+                <h3 id="sidebar-acp-registry-title">ACP Registry</h3>
+                <button
+                  type="button"
+                  onClick={() => void refreshAcpRegistryCandidates()}
+                  disabled={acpRegistryLoading}
+                >
+                  Refresh
+                </button>
               </div>
-            </details>
-          ) : null}
 
-          {runtimeMode === "acp" ? (
-            <details className="agent-accordion sidebar-agent">
-              <summary>
-                <span>ACP Agents</span>
-                <strong>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</strong>
-              </summary>
+              {acpRegistryError ? (
+                <p className="error-message" role="alert">
+                  {acpRegistryError}
+                </p>
+              ) : null}
 
-              <div className="accordion-body">
-                <div className="doctor-heading">
-                  <h3 id="sidebar-acp-registry-title">ACP Registry</h3>
-                  <button
-                    type="button"
-                    onClick={() => void refreshAcpRegistryCandidates()}
-                    disabled={acpRegistryLoading}
+              <ul className="registry-list" aria-label="ACP registry candidates">
+                {acpRegistryCandidates.map((candidate) => (
+                  <li
+                    className="registry-item"
+                    data-selected={candidate.id === selectedAcpCandidate?.id}
+                    data-status={candidate.status}
+                    key={candidate.id}
                   >
-                    Refresh
-                  </button>
-                </div>
-
-                {acpRegistryError ? (
-                  <p className="error-message" role="alert">
-                    {acpRegistryError}
-                  </p>
-                ) : null}
-
-                <ul className="registry-list" aria-label="ACP registry candidates">
-                  {acpRegistryCandidates.map((candidate) => (
-                    <li
-                      className="registry-item"
-                      data-selected={candidate.id === selectedAcpCandidate?.id}
-                      data-status={candidate.status}
-                      key={candidate.id}
-                    >
-                      <div>
-                        <strong>{candidate.name}</strong>
-                        <span>{candidate.description}</span>
-                      </div>
-                      <div>
-                        <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
-                        <span>{candidate.version} · {candidate.distribution}</span>
-                        <code>{formatCommand(candidate.command)}</code>
-                        <span>{candidate.installHint}</span>
-                        <button
-                          aria-label={`Select ${candidate.name} ACP candidate`}
-                          aria-pressed={candidate.id === selectedAcpCandidate?.id}
-                          disabled={busy || canUseAcpSession}
-                          type="button"
-                          onClick={() => setSelectedAcpCandidateId(candidate.id)}
-                        >
-                          {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-
-                {selectedAcpCandidate ? (
-                  <dl className="selected-candidate" aria-label="Selected ACP candidate">
                     <div>
-                      <dt>Selected ACP</dt>
-                      <dd>{selectedAcpCandidate.name}</dd>
+                      <strong>{candidate.name}</strong>
+                      <span>{candidate.description}</span>
                     </div>
                     <div>
-                      <dt>Command</dt>
-                      <dd>
-                        <code>{formatCommand(selectedAcpCandidate.command)}</code>
-                      </dd>
+                      <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
+                      <span>{candidate.version} · {candidate.distribution}</span>
+                      <code>{formatCommand(candidate.command)}</code>
+                      <span>{candidate.installHint}</span>
+                      <button
+                        aria-label={`Select ${candidate.name} ACP candidate`}
+                        aria-pressed={candidate.id === selectedAcpCandidate?.id}
+                        disabled={busy || canUseAcpSession}
+                        type="button"
+                        onClick={() => setSelectedAcpCandidateId(candidate.id)}
+                      >
+                        {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
+                      </button>
                     </div>
-                  </dl>
-                ) : null}
-              </div>
-            </details>
-          ) : null}
+                  </li>
+                ))}
+              </ul>
+
+              {selectedAcpCandidate ? (
+                <dl className="selected-candidate" aria-label="Selected ACP candidate">
+                  <div>
+                    <dt>Selected ACP</dt>
+                    <dd>{selectedAcpCandidate.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Command</dt>
+                    <dd>
+                      <code>{formatCommand(selectedAcpCandidate.command)}</code>
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
+            </div>
+          </details>
 
           <details className="agent-accordion sidebar-history" open>
             <summary>
@@ -1278,36 +1332,95 @@ function App() {
               </ul>
             </div>
           </details>
+
+          <details className="agent-accordion sidebar-agent sidebar-fallback">
+            <summary>
+              <span>Terminal PTY</span>
+              <strong>{runtimeMode === "pty" ? "active" : "fallback"}</strong>
+            </summary>
+
+            <div className="accordion-body">
+              <div className="doctor-heading">
+                <h3 id="sidebar-doctor-title">Agent Doctor</h3>
+                <button
+                  type="button"
+                  onClick={() => void refreshAgentDoctor()}
+                  disabled={doctorLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {doctorError ? (
+                <p className="error-message" role="alert">
+                  {doctorError}
+                </p>
+              ) : null}
+
+              <div className="fallback-actions">
+                <button
+                  type="button"
+                  onClick={() => setRuntimeMode(runtimeMode === "pty" ? "acp" : "pty")}
+                  disabled={canUseSession}
+                >
+                  {runtimeMode === "pty" ? "Use ACP" : "Open PTY"}
+                </button>
+              </div>
+
+              <ul className="doctor-list" aria-label="Agent CLI status">
+                {doctorReports.map((report) => (
+                  <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
+                    <div>
+                      <strong>{report.adapter.displayName}</strong>
+                      <span>{report.adapter.executable}</span>
+                    </div>
+                    <div>
+                      <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
+                      <span>{doctorDetail(report)}</span>
+                      <span>{transportDetail(report.adapter.transports)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
         </div>
 
-        <dl className="status-list sidebar-status">
-          <div>
-            <dt>Status</dt>
-            <dd>{runtimeMode === "acp" ? acpStatusLabel : statusLabel}</dd>
-          </div>
-          <div>
-            <dt>Session</dt>
-            <dd>
-              {runtimeMode === "acp"
-                ? acpSession?.id.slice(0, 8) ?? "none"
-                : session?.id.slice(0, 8) ?? "none"}
-            </dd>
-          </div>
-          <div>
-            <dt>PID</dt>
-            <dd>{runtimeMode === "acp" ? acpSession?.pid ?? "none" : session?.pid ?? "none"}</dd>
-          </div>
-          <div>
-            <dt>Workspace</dt>
-            <dd>{selectedProject?.name ?? "none"}</dd>
-          </div>
-        </dl>
       </section>
 
       <section className="control-panel" aria-labelledby="controls-title">
-        <div className="section-heading">
-          <p className="eyebrow">Runtime</p>
-          <h2 id="controls-title">Runtime Controls</h2>
+        <div className="section-heading runtime-heading">
+          <div>
+            <p className="eyebrow">Runtime</p>
+            <h2 id="controls-title">Runtime Controls</h2>
+          </div>
+
+          <dl className="runtime-info-card" aria-label="Runtime info">
+            <div>
+              <dt>Status</dt>
+              <dd>{runtimeMode === "acp" ? acpStatusLabel : statusLabel}</dd>
+            </div>
+            <div>
+              <dt>Session</dt>
+              <dd>
+                {runtimeMode === "acp"
+                  ? acpSession?.id.slice(0, 8) ?? "none"
+                  : session?.id.slice(0, 8) ?? "none"}
+              </dd>
+            </div>
+            <div>
+              <dt>PID</dt>
+              <dd>{runtimeMode === "acp" ? acpSession?.pid ?? "none" : session?.pid ?? "none"}</dd>
+            </div>
+            <div>
+              <dt>Workspace</dt>
+              <dd>{selectedProject?.name ?? "none"}</dd>
+            </div>
+            <div>
+              <dt>Repository</dt>
+              <dd>{selectedRepository?.name ?? (selectedProject ? "default path" : "none")}</dd>
+            </div>
+          </dl>
         </div>
 
         <section className="workspace-panel" aria-labelledby="workspace-title">
@@ -1359,7 +1472,7 @@ function App() {
                 <li data-selected={project.id === selectedProject?.id} key={project.id}>
                   <div>
                     <strong>{project.name}</strong>
-                    <span>{project.path}</span>
+                    <span>Default repository: {project.path}</span>
                   </div>
                   <div className="project-actions">
                     <button
@@ -1384,6 +1497,106 @@ function App() {
               ))
             )}
           </ul>
+
+          <div className="repository-section">
+            <div className="doctor-heading">
+              <h3 id="repositories-title">Repositories</h3>
+              <span>
+                {selectedRepository
+                  ? selectedRepository.name
+                  : selectedProject
+                    ? "default path"
+                    : "select project"}
+              </span>
+              <button
+                type="button"
+                onClick={() => void refreshProjectRepositories()}
+                disabled={!selectedProject || repositoryLoading}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div className="workspace-form repository-form">
+              <label>
+                <span>Name</span>
+                <input
+                  aria-label="Repository name"
+                  onChange={(event) => setRepositoryName(event.target.value)}
+                  value={repositoryName}
+                />
+              </label>
+              <label>
+                <span>Path</span>
+                <input
+                  aria-label="Repository path"
+                  onChange={(event) => setRepositoryPath(event.target.value)}
+                  value={repositoryPath}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void createProjectRepository()}
+                disabled={
+                  busy ||
+                  repositoryLoading ||
+                  !selectedProject ||
+                  !repositoryName.trim() ||
+                  !repositoryPath.trim()
+                }
+              >
+                Add Repository
+              </button>
+            </div>
+
+            {!selectedProject ? (
+              <p className="empty-state">Select a project to manage repositories.</p>
+            ) : (
+              <ul className="project-list repository-list" aria-label="Project repositories">
+                {projectRepositories.length === 0 ? (
+                  <li>No repositories yet.</li>
+                ) : (
+                  projectRepositories.map((repository) => (
+                    <li
+                      data-selected={repository.id === selectedRepository?.id}
+                      key={repository.id}
+                    >
+                      <div>
+                        <strong>{repository.name}</strong>
+                        <span>{repository.path}</span>
+                        {repository.isDefault ? <small>Default</small> : null}
+                      </div>
+                      <div className="project-actions">
+                        <button
+                          aria-label={`Select ${repository.name} repository`}
+                          aria-pressed={repository.id === selectedRepository?.id}
+                          type="button"
+                          onClick={() => setSelectedRepositoryId(repository.id)}
+                          disabled={busy || canUseSession || canUseAcpSession}
+                        >
+                          {repository.id === selectedRepository?.id ? "Selected" : "Select"}
+                        </button>
+                        <button
+                          aria-label={`Delete ${repository.name} repository`}
+                          type="button"
+                          onClick={() => void deleteProjectRepository(repository.id)}
+                          disabled={
+                            busy ||
+                            repositoryLoading ||
+                            canUseSession ||
+                            canUseAcpSession ||
+                            repository.isDefault
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
         </section>
 
         {runtimeMode === "pty" ? (
@@ -1394,6 +1607,13 @@ function App() {
             </div>
 
             <div className="button-row">
+              <button
+                type="button"
+                onClick={() => setRuntimeMode("acp")}
+                disabled={canUseSession}
+              >
+                Use ACP
+              </button>
               <button
                 type="button"
                 onClick={() => void startSession("fake")}
@@ -1640,7 +1860,14 @@ function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
   return candidate.status === "ready" || candidate.status === "installable";
 }
 
-function selectedProjectCwd(project: ProjectInfo | null) {
+function selectedProjectCwd(
+  project: ProjectInfo | null,
+  repository: ProjectRepositoryInfo | null,
+) {
+  if (repository) {
+    return { cwd: repository.path };
+  }
+
   return project ? { cwd: project.path } : {};
 }
 

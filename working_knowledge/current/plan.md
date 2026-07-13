@@ -299,7 +299,32 @@
 - review status: passed
 - commit: user will commit
 
+### 28. Demote Terminal PTY to fallback UI
+- objective: keep ACP as the primary runtime path while preserving PTY as a hidden fallback.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: runtime sidebar; ACP agent panel; PTY fallback accordion; PTY controls/output mode; frontend tests.
+- expected changes: remove the primary Terminal PTY vs Structured ACP segmented switch; show ACP Agents as the default primary panel; move PTY agent doctor and mode activation into a collapsed Terminal PTY fallback panel; keep PTY controls/xterm available only after opening the fallback; add a way back to ACP; compact runtime metadata into one small Runtime Controls info card.
+- acceptance criteria: default UI shows ACP controls/output; Terminal PTY does not compete as a primary mode; PTY remains available through fallback; runtime status/session/pid/workspace appears as a small top-right Runtime Controls card; existing PTY tests activate the fallback explicitly; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed; 2026-07-13 adversarial re-review found no code changes required.
+- commit: user will commit
+
+### 29. Add multi-repository projects
+- objective: let one AIadne project contain multiple local repository folders and use the selected repository as the agent launch cwd.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*.
+- affected units: ProjectStore migration and repository CRUD; project/repository Tauri commands; Workspace panel project/repo state; selected launch cwd helper; PTY/ACP start requests; frontend/Rust tests; workspace persistence mind map.
+- expected changes: add project_repositories storage; backfill each existing project path as a default repository; expose create/list/delete repository commands; render repository add/select/delete controls inside the selected project; use selected repository cwd for PTY and ACP launches while falling back to project.path.
+- acceptance criteria: users can add multiple repositories under one project; repository paths are existing canonical directories and cannot duplicate; selecting a repository changes PTY/ACP launch cwd; deleting a project removes child repositories; existing project path remains usable for existing data.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed; one race issue around stale selected repository state after project switch was fixed and revalidated.
+- commit: user will commit
+
 ## Plan Assumptions
+- AIA-035 keeps `projects.path` as a backward-compatible default repository path instead of removing or migrating it away in this slice.
+- AIA-035 does not add transcript repository_id yet; transcript and Knowledge Cards remain project-scoped while launch cwd becomes repository-scoped.
+- 2026-07-13 continuation is validation/review only unless the user asks for a new feature or asks this agent to commit.
 - User still wants to review and commit manually, so this session will not create commits or provenance notes.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
 - A bounded in-memory output buffer is sufficient for AIA-002; frontend event streaming can be deepened in the later UI/IPC tasks.

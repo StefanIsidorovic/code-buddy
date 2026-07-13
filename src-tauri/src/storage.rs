@@ -27,6 +27,26 @@ pub struct ProjectInfo {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CreateProjectRepositoryRequest {
+    pub project_id: String,
+    pub name: String,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectRepositoryInfo {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub path: PathBuf,
+    pub is_default: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTranscriptSessionRequest {
     pub project_id: Option<String>,
     pub runtime: String,
@@ -142,7 +162,9 @@ impl ProjectStore {
         };
         let path_text = project.path.to_string_lossy().to_string();
 
-        self.connection()?.execute(
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        transaction.execute(
             "INSERT INTO projects (id, name, path, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
                 &project.id,
@@ -159,6 +181,19 @@ impl ProjectStore {
                 storage_error(err)
             }
         })?;
+        insert_project_repository(
+            &transaction,
+            ProjectRepositoryInfo {
+                id: Uuid::new_v4().to_string(),
+                project_id: project.id.clone(),
+                name: project.name.clone(),
+                path: project.path.clone(),
+                is_default: true,
+                created_at: now,
+                updated_at: now,
+            },
+        )?;
+        transaction.commit().map_err(storage_error)?;
 
         Ok(project)
     }
@@ -187,6 +222,82 @@ impl ProjectStore {
         if deleted == 0 {
             return Err(AppError::InvalidInput(format!(
                 "project not found: {project_id}"
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn create_project_repository(
+        &self,
+        request: CreateProjectRepositoryRequest,
+    ) -> AppResult<ProjectRepositoryInfo> {
+        let project_id = request.project_id.trim();
+        if project_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "repository project id must not be empty".to_string(),
+            ));
+        }
+        self.require_project(project_id)?;
+
+        let name = request.name.trim();
+        if name.is_empty() {
+            return Err(AppError::InvalidInput(
+                "repository name must not be empty".to_string(),
+            ));
+        }
+
+        let path = resolve_project_path(&request.path)?;
+        let now = unix_timestamp()?;
+        let repository = ProjectRepositoryInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: project_id.to_string(),
+            name: name.to_string(),
+            path,
+            is_default: false,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let connection = self.connection()?;
+        insert_project_repository(&connection, repository.clone())?;
+        Ok(repository)
+    }
+
+    pub fn list_project_repositories(
+        &self,
+        project_id: &str,
+    ) -> AppResult<Vec<ProjectRepositoryInfo>> {
+        self.require_project(project_id)?;
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, project_id, name, path, is_default, created_at, updated_at
+                 FROM project_repositories
+                 WHERE project_id = ?1
+                 ORDER BY is_default DESC, updated_at DESC, name ASC",
+            )
+            .map_err(storage_error)?;
+        let repositories = statement
+            .query_map(params![project_id], project_repository_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(repositories)
+    }
+
+    pub fn delete_project_repository(&self, repository_id: &str) -> AppResult<()> {
+        let deleted = self
+            .connection()?
+            .execute(
+                "DELETE FROM project_repositories WHERE id = ?1",
+                params![repository_id],
+            )
+            .map_err(storage_error)?;
+        if deleted == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "project repository not found: {repository_id}"
             )));
         }
         Ok(())
@@ -540,6 +651,25 @@ impl ProjectStore {
                     updated_at INTEGER NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS project_repositories (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL UNIQUE,
+                    is_default INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_repositories_project_updated
+                    ON project_repositories(project_id, is_default DESC, updated_at DESC);
+
+                INSERT OR IGNORE INTO project_repositories
+                    (id, project_id, name, path, is_default, created_at, updated_at)
+                SELECT 'legacy-' || id, id, name, path, 1, created_at, updated_at
+                FROM projects
+                WHERE path IS NOT NULL AND path != '';
+
                 CREATE TABLE IF NOT EXISTS transcript_sessions (
                     id TEXT PRIMARY KEY,
                     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -672,6 +802,19 @@ fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectInfo> {
     })
 }
 
+fn project_repository_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectRepositoryInfo> {
+    let is_default: i64 = row.get(4)?;
+    Ok(ProjectRepositoryInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        name: row.get(2)?,
+        path: PathBuf::from(row.get::<_, String>(3)?),
+        is_default: is_default != 0,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
+    })
+}
+
 fn transcript_session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSessionInfo> {
     Ok(TranscriptSessionInfo {
         id: row.get(0)?,
@@ -789,6 +932,36 @@ fn list_attached_knowledge_items(
     Ok(items)
 }
 
+fn insert_project_repository(
+    connection: &Connection,
+    repository: ProjectRepositoryInfo,
+) -> AppResult<()> {
+    let path_text = repository.path.to_string_lossy().to_string();
+    connection
+        .execute(
+            "INSERT INTO project_repositories
+             (id, project_id, name, path, is_default, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &repository.id,
+                &repository.project_id,
+                &repository.name,
+                path_text,
+                if repository.is_default { 1 } else { 0 },
+                repository.created_at,
+                repository.updated_at
+            ],
+        )
+        .map_err(|err| {
+            if is_unique_constraint(&err) {
+                AppError::InvalidInput("repository path already exists".to_string())
+            } else {
+                storage_error(err)
+            }
+        })?;
+    Ok(())
+}
+
 fn resolve_project_path(path: &Path) -> AppResult<PathBuf> {
     if !path.is_dir() {
         return Err(AppError::InvalidInput(format!(
@@ -885,6 +1058,117 @@ mod tests {
             })
             .expect_err("duplicate rejected");
 
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
+        assert!(duplicate.to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn creates_lists_and_deletes_project_repositories() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("project-root");
+        let extra_path = temp_project_path("project-api");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path.clone(),
+            })
+            .expect("project created");
+
+        let initial_repositories = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed");
+        assert_eq!(initial_repositories.len(), 1);
+        assert_eq!(initial_repositories[0].project_id, project.id);
+        assert_eq!(initial_repositories[0].name, "AIadne");
+        assert_eq!(
+            initial_repositories[0].path,
+            project_path.canonicalize().expect("path canonicalizes")
+        );
+        assert!(initial_repositories[0].is_default);
+
+        let extra = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "  API  ".to_string(),
+                path: extra_path.clone(),
+            })
+            .expect("repository created");
+        assert_eq!(extra.name, "API");
+        assert_eq!(extra.project_id, project.id);
+        assert_eq!(
+            extra.path,
+            extra_path.canonicalize().expect("path canonicalizes")
+        );
+        assert!(!extra.is_default);
+
+        let repositories = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed");
+        assert_eq!(repositories.len(), 2);
+        assert_eq!(repositories[0].name, "AIadne");
+        assert_eq!(repositories[1].name, "API");
+
+        store
+            .delete_project_repository(&extra.id)
+            .expect("repository deleted");
+        let remaining = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].name, "AIadne");
+
+        store.delete_project(&project.id).expect("project deleted");
+        let missing_project = store
+            .list_project_repositories(&project.id)
+            .expect_err("deleted project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_invalid_project_repository_input() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("repo-project");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path.clone(),
+            })
+            .expect("project created");
+
+        let missing_project = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: "missing-project".to_string(),
+                name: "Repo".to_string(),
+                path: temp_project_path("missing-project-repo"),
+            })
+            .expect_err("missing project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+
+        let empty_name = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: " ".to_string(),
+                path: temp_project_path("empty-name-repo"),
+            })
+            .expect_err("empty name rejected");
+        assert!(matches!(empty_name, AppError::InvalidInput(_)));
+
+        let missing_path = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "Missing path".to_string(),
+                path: PathBuf::from("/definitely/not/a/repository"),
+            })
+            .expect_err("missing path rejected");
+        assert!(matches!(missing_path, AppError::InvalidInput(_)));
+
+        let duplicate = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id,
+                name: "Duplicate".to_string(),
+                path: project_path,
+            })
+            .expect_err("duplicate path rejected");
         assert!(matches!(duplicate, AppError::InvalidInput(_)));
         assert!(duplicate.to_string().contains("already exists"));
     }

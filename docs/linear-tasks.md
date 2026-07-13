@@ -694,3 +694,54 @@ Suggested labels: `frontend`, `backend`, `storage`, `ux`
 Depends on: AIA-024, AIA-026
 
 Recommended before: final session library/sidebar design
+
+## AIA-034: Demote Terminal PTY to fallback UI
+
+Description:
+ACP is now the primary runtime path. Keep Terminal PTY available as a backup
+for agent/runtime failures, but remove it from the main runtime choice so it
+does not distract from the normal ACP workflow.
+
+Acceptance criteria:
+
+- The main runtime UI defaults to ACP controls and ACP output.
+- Terminal PTY is no longer shown as a primary segmented runtime choice.
+- Terminal PTY remains available through a collapsed fallback panel.
+- Opening the fallback still exposes PTY controls and xterm output.
+- Users can return from PTY fallback to ACP.
+- Runtime status/session/pid/workspace metadata is shown as a small info card
+  in the top-right of Runtime Controls.
+- Frontend tests cover the primary ACP UI and the hidden PTY fallback path.
+
+Suggested labels: `frontend`, `ux`, `desktop`, `pty`, `acp`
+
+Depends on: AIA-023, AIA-030
+
+Recommended before: final workspace/session shell
+
+## AIA-035: Add multiple repositories per project
+
+Description:
+Treat an AIadne project as a workspace container that can include more than one
+local repository folder. Users should be able to add repositories under the
+selected project and choose which repository is used as the agent launch
+directory.
+
+Acceptance criteria:
+
+- Backend stores child repository records for each project.
+- Existing project paths are preserved as the default repository for old and
+  newly created projects.
+- Repository paths are canonicalized existing directories and duplicates are
+  rejected.
+- UI lets users add, list, select, and delete non-default repositories inside
+  the selected project.
+- PTY and ACP launches use the selected repository path as `cwd`.
+- If no repository is selected, launches fall back to the legacy project path.
+- Tests cover repository storage validation and launch cwd selection.
+
+Suggested labels: `frontend`, `backend`, `storage`, `workspace`
+
+Depends on: AIA-022, AIA-034
+
+Recommended before: final workspace/session shell

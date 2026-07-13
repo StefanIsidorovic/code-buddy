@@ -57,6 +57,10 @@ beforeEach(() => {
       return Promise.resolve(defaultProjects());
     }
 
+    if (command === "list_project_repositories") {
+      return Promise.resolve(defaultProjectRepositories());
+    }
+
     if (command === "list_transcript_sessions") {
       return Promise.resolve(defaultTranscriptSessions());
     }
@@ -115,20 +119,19 @@ describe("PTY test panel", () => {
 
     expect(screen.getByRole("main", { name: "AIadne runtime test" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Runtime Controls" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Structured ACP" }))
-      .toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Terminal PTY" }))
-      .toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("Runtime info")).toHaveTextContent("Workspace");
+    expect(screen.queryByRole("button", { name: "Structured ACP" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Repositories" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Session History" })).toBeInTheDocument();
     expect(screen.getByText("ACP Agents")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add Repository" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Interactive PTY terminal")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("ACP Agents"));
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
@@ -140,12 +143,12 @@ describe("PTY test panel", () => {
       .not.toHaveLength(0);
     expect(screen.getByText("Missing binary")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
-    fireEvent.click(screen.getByText("PTY Agents"));
+    await openPtyFallback();
 
     expect(screen.getByRole("heading", { name: "PTY Controls" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Use ACP" })).not.toHaveLength(0);
     expect(await screen.findByLabelText("Interactive PTY terminal")).toBeInTheDocument();
     expect(screen.getByText("No output yet.")).toBeInTheDocument();
     expect(screen.queryByText("No ACP events yet.")).not.toBeInTheDocument();
@@ -164,6 +167,10 @@ describe("PTY test panel", () => {
 
       if (command === "create_project") {
         return Promise.resolve(defaultProject());
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
       }
 
       if (command === "list_agent_doctor_reports") {
@@ -208,8 +215,77 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("/home/katarina/projects/AIadne")).toBeInTheDocument();
+    expect(await screen.findByText("Default repository: /home/katarina/projects/AIadne"))
+      .toBeInTheDocument();
+    expect(screen.getByLabelText("Project repositories")).toHaveTextContent(
+      "/home/katarina/projects/AIadne",
+    );
     expect(screen.getByRole("button", { name: "Select AIadne project" }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("adds and selects repositories within a project", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const apiRepository = defaultProjectRepository({
+      id: "repo-api",
+      name: "API",
+      path: "/home/katarina/projects/AIadne/api",
+      isDefault: false,
+    });
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "create_project_repository") {
+        return Promise.resolve(apiRepository);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByLabelText("Project repositories");
+    fireEvent.change(screen.getByLabelText("Repository name"), {
+      target: { value: "API" },
+    });
+    fireEvent.change(screen.getByLabelText("Repository path"), {
+      target: { value: "/home/katarina/projects/AIadne/api" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Repository" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("create_project_repository", {
+        request: {
+          projectId: "project-aiadne",
+          name: "API",
+          path: "/home/katarina/projects/AIadne/api",
+        },
+      });
+    });
+    expect(await screen.findByText("/home/katarina/projects/AIadne/api")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select API repository" }))
       .toHaveAttribute("aria-pressed", "true");
   });
 
@@ -524,11 +600,23 @@ describe("PTY test panel", () => {
     expect(screen.getByText("Answer")).toBeInTheDocument();
   });
 
-  it("passes the selected project cwd when launching a PTY session", async () => {
+  it("passes the selected repository cwd when launching a PTY session", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation((command) => {
       if (command === "list_projects") {
         return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve([
+          defaultProjectRepository(),
+          defaultProjectRepository({
+            id: "repo-api",
+            name: "API",
+            path: "/home/katarina/projects/AIadne/api",
+            isDefault: false,
+          }),
+        ]);
       }
 
       if (command === "list_agent_doctor_reports") {
@@ -568,7 +656,8 @@ describe("PTY test panel", () => {
     render(<App />);
 
     await screen.findByText("/home/katarina/projects/AIadne");
-    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select API repository" }));
+    await openPtyFallback();
     fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
 
     await waitFor(() => {
@@ -576,7 +665,7 @@ describe("PTY test panel", () => {
         request: {
           cols: 92,
           rows: 18,
-          cwd: "/home/katarina/projects/AIadne",
+          cwd: "/home/katarina/projects/AIadne/api",
         },
       });
     });
@@ -587,7 +676,6 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByText("ACP Agents"));
     const selectedCandidate = await screen.findByLabelText("Selected ACP candidate");
     expect(selectedCandidate).toHaveTextContent("Codex");
 
@@ -641,7 +729,6 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByText("ACP Agents"));
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
 
@@ -702,7 +789,6 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByText("ACP Agents"));
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Select Gemini CLI ACP candidate" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
@@ -759,7 +845,6 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByText("ACP Agents"));
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
 
@@ -804,7 +889,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+    await openPtyFallback();
     fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
 
     expect(await screen.findAllByText("fake · running · 92x18")).not.toHaveLength(0);
@@ -852,7 +937,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Terminal PTY" }));
+    await openPtyFallback();
     await screen.findByText("Install the Codex CLI and make sure `codex` is available on PATH.");
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeDisabled();
   });
@@ -1166,6 +1251,11 @@ describe("PTY test panel", () => {
   });
 });
 
+async function openPtyFallback() {
+  fireEvent.click(screen.getByText("Terminal PTY"));
+  fireEvent.click(await screen.findByRole("button", { name: "Open PTY" }));
+}
+
 function defaultProject() {
   return {
     id: "project-aiadne",
@@ -1178,6 +1268,29 @@ function defaultProject() {
 
 function defaultProjects() {
   return [];
+}
+
+function defaultProjectRepository(overrides: Partial<ReturnType<typeof baseProjectRepository>> = {}) {
+  return {
+    ...baseProjectRepository(),
+    ...overrides,
+  };
+}
+
+function baseProjectRepository() {
+  return {
+    id: "repo-aiadne",
+    projectId: "project-aiadne",
+    name: "AIadne",
+    path: "/home/katarina/projects/AIadne",
+    isDefault: true,
+    createdAt: 1_785_000_000,
+    updatedAt: 1_785_000_000,
+  };
+}
+
+function defaultProjectRepositories() {
+  return [defaultProjectRepository()];
 }
 
 function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTranscriptSession>> = {}) {

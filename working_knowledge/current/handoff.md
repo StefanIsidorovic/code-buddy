@@ -28,18 +28,19 @@
 - AIA-022 is committed as a319c23: SQLite ProjectStore, create/list/delete project commands, minimal Workspace panel, and selected workspace cwd wiring for PTY/ACP launches.
 - AIA-023/AIA-024 are committed together as 113bee7: runtime mode switch, mode-specific output, ACP transcript persistence, and a minimal Session History panel.
 - AIA-025/AIA-026/AIA-027/AIA-028/AIA-029/AIA-030 are committed through 4a43282.
-- AIA-031 is implemented locally: manual Knowledge Cards are stored in SQLite, can be linked to ACP transcript sessions, and checked cards are injected into ACP prompts while transcript history stores the original user prompt.
-- AIA-032 is implemented locally: live ACP output and controls show a waiting state while send_acp_prompt is in flight.
-- AIA-033 is implemented locally: Session History can be filtered, and the selected saved transcript can be renamed through persisted backend storage.
+- AIA-031/AIA-032/AIA-033 were committed together as 327e05c.
+- AIA-034 is implemented locally: ACP is the primary runtime UI, and Terminal PTY is available only through a collapsed fallback panel.
+- 2026-07-13 continuation is validating/reviewing the same local AIA-034 diff; no new product code has been added in this session.
+- 2026-07-13 revalidation passed: npm run typecheck; npm run test -- --run; npm run build; git diff --check; cargo test; cargo clippy -- -D warnings.
+- AIA-035 is implemented locally: projects now have child repository folders, Workspace UI can add/select/delete non-default repositories, and PTY/ACP launch cwd uses the selected repository.
+- 2026-07-13 AIA-035 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 4a43282.
-- Worktree has local AIA-031 Knowledge Cards, AIA-032 waiting UX, and AIA-033 Session History filter/rename changes pending user review/commit; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is 327e05c.
+- Worktree has local AIA-034 Terminal PTY fallback UI changes pending review; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- Await the user's next concrete task. If continuing the current local work, manually review the Tauri UI Knowledge Cards, ACP waiting, and Session History filter/rename flows before deciding whether to commit.
-- Manually review the Tauri UI: create a Knowledge Card, keep it checked, send an ACP prompt, and confirm the agent receives the attached context.
-- If AIA-031 behaves as expected, user can commit the local changes.
-- Next product direction after AIA-031: detach/delete/archive Knowledge Cards, continue-from-transcript context, native folder picker, or final workspace/session UI shell.
+- User review of local AIA-034/AIA-035 UI diff, then manual commit or choose the next product item.
+- Next product direction after AIA-034: detach/delete/archive Knowledge Cards, continue-from-transcript context, native folder picker, or final workspace/session UI shell.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -52,7 +53,10 @@
 - npm run tauri dev: launch the desktop PTY test panel.
 - In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
 - In the Tauri app, add a Workspace project with an existing folder path and select it before launching runtime sessions.
-- In the Tauri app, use `Structured ACP` for the default ACP path and `Terminal PTY` for the fallback terminal path.
+- In the Tauri app, add a repository under the selected Workspace, select it, and confirm PTY/ACP launch uses that repository folder.
+- In the Tauri app, confirm ACP controls/output are shown by default.
+- In the Tauri app, confirm runtime status/session/pid/workspace appears as a small top-right card in Runtime Controls, not in the left sidebar.
+- In the Tauri app, open `Terminal PTY` in the sidebar and click `Open PTY` only for fallback terminal testing.
 - In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
 - In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
 - In the Tauri app, select Codex ACP and click Start Selected ACP; first npx launch may download @agentclientprotocol/codex-acp.

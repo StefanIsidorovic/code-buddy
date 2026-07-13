@@ -15,6 +15,8 @@
 - Should the next transcript step be continue-from-transcript context, rich chat/tool-call UI, session grouping/tags, or PTY scrollback persistence?
 
 ## Resolved
+- AIA-035 scope: a project can contain multiple local repository folders; selected repository controls agent launch cwd while transcripts and Knowledge Cards remain project-scoped in this slice.
+- Continue target on 2026-07-13: validate/review current local AIA-034 Terminal PTY fallback UI before taking a new feature.
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
 - Repository target: single repository at /home/katarina/projects/AIadne.
 - Commit ownership for this task: user will review and commit local changes.

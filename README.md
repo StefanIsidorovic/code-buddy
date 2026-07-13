@@ -15,12 +15,12 @@ Kept:
 - Rust backend entry point
 - portable-pty backend session manager
 - fake PTY-backed echo CLI for integration tests
-- minimal xterm-backed PTY test panel in the Tauri UI
+- xterm-backed PTY fallback panel in the Tauri UI
 - adapter registry metadata for Codex, Claude Code, and Kimi
 - agent doctor readiness checks
 - fake ACP stdio runtime and ACP test panel
 - ACP registry discovery for compatible adapter candidates
-- SQLite-backed project list for choosing a workspace folder
+- SQLite-backed project list with multiple repository folders per project
 - SQLite-backed ACP transcript session/event history with minimal replay
 - React frontend
 - TypeScript
@@ -73,15 +73,18 @@ the Tauri window.
 
 Manual smoke test:
 
-- Use `Structured ACP` for the default structured-agent path, or switch to
-  `Terminal PTY` for terminal fallback testing from the left runtime sidebar.
-- Use the left runtime sidebar to choose PTY/ACP mode and the current coding
-  agent candidate. Agent lists are collapsible so the sidebar stays compact.
+- Use ACP as the default structured-agent path from the main runtime controls.
+- Open `Terminal PTY` in the left sidebar only when you need the terminal
+  fallback path.
+- Use the left runtime sidebar to choose the current ACP agent candidate.
+  Agent lists are collapsible so the sidebar stays compact.
 - Click `Start Fake` to verify the PTY echo session.
 - Click `Start Codex` to launch the installed Codex CLI in the same PTY path.
 - Check `Agent Doctor` to see installed, missing, or error states for local CLIs.
 - Add/select a `Workspace` project before starting a session if you want the
-  agent process to run in that project folder.
+  agent process to run in a saved workspace.
+- Add/select a repository inside the selected `Workspace`; PTY and ACP launches
+  use the selected repository folder as the process `cwd`.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
 - Use the `Session History` filter when there are many saved sessions. Click a
