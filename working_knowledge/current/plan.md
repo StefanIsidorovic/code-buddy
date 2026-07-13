@@ -420,7 +420,19 @@
 - review status: passed; 2026-07-13 review added manifest/test/entry-point facts to satisfy AIA-040 acceptance before final validation.
 - commit: user will commit
 
+### 39. Add Project Initialize markdown analysis
+- objective: implement the second analysis phase by extracting source-backed findings from markdown files in repositories selected for a project initialization run.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore initialization schema and methods; markdown finding Tauri commands; Workspace Project Initialize markdown action; markdown findings summary UI; Rust/frontend tests; workspace-persistence and frontend-terminal mind maps.
+- expected changes: add project_initialization_markdown_findings storage; analyze markdown only for repositories selected in the initialization run; prioritize AGENTS/README/CONTRIBUTING/ARCHITECTURE/docs markdown; skip dependency/generated/build folders and oversized files; extract setup, commands, conventions, warnings, architecture, decisions, and process findings with file/heading source attribution; update initialization status to `markdown`; show findings in the Workspace panel.
+- acceptance criteria: Markdown analysis runs only after an initialization exists; git repositories scan tracked markdown files; non-git repositories use a bounded fallback scan; findings keep repository, file, category, excerpt, and source attribution; user can trigger and inspect findings from the UI; tests cover backend git/non-git behavior and frontend rendering.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review fixed clippy findings in markdown helper structure and redundant closure before final validation.
+- commit: pending this turn
+
 ## Plan Assumptions
+- AIA-041 uses deterministic markdown heading/category extraction only; semantic summarization and user approval remain deferred to the summary phase.
 - AIA-040 uses local deterministic repository metadata only; agent summarization remains deferred to the later summary phase.
 - AIA-047 covers transient Workspace notifications only; modal-local errors intentionally remain inline inside the active modal.
 - AIA-046 intentionally stops ACP sessions on every confirmed project delete, not only sessions that the frontend can prove are tied to that project, because current ACP session metadata does not persist project_id.
@@ -434,8 +446,7 @@
 - AIA-036 is CSS/markup-only and should not change runtime, storage, ACP, PTY, transcript, or Knowledge Card behavior.
 - AIA-035 keeps `projects.path` as a backward-compatible default repository path instead of removing or migrating it away in this slice.
 - AIA-035 does not add transcript repository_id yet; transcript and Knowledge Cards remain project-scoped while launch cwd becomes repository-scoped.
-- 2026-07-13 continuation is validation/review only unless the user asks for a new feature or asks this agent to commit.
-- User still wants to review and commit manually, so this session will not create commits or provenance notes.
+- 2026-07-13 continuation follows the repository provenance protocol: completed plan items are committed with notes after validation.
 - The fake CLI is Unix shell based for local Linux validation; Windows placeholder exists but should be hardened when cross-platform validation begins.
 - A bounded in-memory output buffer is sufficient for AIA-002; frontend event streaming can be deepened in the later UI/IPC tasks.
 - Existing unused planned dependencies may stay in Cargo.toml for now unless clippy/build requires cleanup.

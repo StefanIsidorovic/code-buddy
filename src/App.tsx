@@ -134,6 +134,20 @@ type ProjectInitializationFactInfo = {
   createdAt: number;
 };
 
+type ProjectInitializationMarkdownFindingInfo = {
+  id: string;
+  initializationId: string;
+  repositoryId: string;
+  repositoryName: string;
+  repositoryPath: string;
+  filePath: string;
+  category: string;
+  title: string;
+  excerpt: string;
+  source: string;
+  createdAt: number;
+};
+
 type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;
@@ -222,6 +236,10 @@ function App() {
   >({});
   const [initializationFactsByInitializationId, setInitializationFactsByInitializationId] =
     useState<Record<string, ProjectInitializationFactInfo[]>>({});
+  const [
+    initializationMarkdownFindingsByInitializationId,
+    setInitializationMarkdownFindingsByInitializationId,
+  ] = useState<Record<string, ProjectInitializationMarkdownFindingInfo[]>>({});
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [openedTranscriptSession, setOpenedTranscriptSession] =
@@ -271,6 +289,9 @@ function App() {
     : null;
   const projectInitializationFacts = projectInitialization
     ? initializationFactsByInitializationId[projectInitialization.id] ?? []
+    : [];
+  const projectInitializationMarkdownFindings = projectInitialization
+    ? initializationMarkdownFindingsByInitializationId[projectInitialization.id] ?? []
     : [];
   const selectedRepository = useMemo(
     () =>
@@ -364,6 +385,7 @@ function App() {
 
   useEffect(() => {
     void refreshProjectInitializationFacts(projectInitialization?.id ?? null);
+    void refreshProjectInitializationMarkdownFindings(projectInitialization?.id ?? null);
   }, [projectInitialization?.id]);
 
   useEffect(() => {
@@ -847,6 +869,71 @@ function App() {
         };
       });
       pushToast("success", `Facts collected for ${projectInitialization.repositoryCount} repositories.`);
+    } catch (err) {
+      pushToast("error", errorText(err));
+    } finally {
+      setInitializeLoading(false);
+    }
+  }
+
+  async function refreshProjectInitializationMarkdownFindings(initializationId: string | null) {
+    if (!initializationId) {
+      return;
+    }
+
+    try {
+      const findings =
+        (await invoke<ProjectInitializationMarkdownFindingInfo[]>(
+          "list_project_initialization_markdown_findings",
+          {
+            initializationId,
+          },
+        )) ?? [];
+      setInitializationMarkdownFindingsByInitializationId((current) => ({
+        ...current,
+        [initializationId]: findings,
+      }));
+    } catch (err) {
+      pushToast("error", errorText(err));
+    }
+  }
+
+  async function analyzeProjectInitializationMarkdown() {
+    if (!projectInitialization) {
+      pushToast("error", "Start Project Initialize before analyzing markdown.");
+      return;
+    }
+
+    setInitializeLoading(true);
+    try {
+      const findings = await invoke<ProjectInitializationMarkdownFindingInfo[]>(
+        "analyze_project_initialization_markdown",
+        {
+          initializationId: projectInitialization.id,
+        },
+      );
+      setInitializationMarkdownFindingsByInitializationId((current) => ({
+        ...current,
+        [projectInitialization.id]: findings,
+      }));
+      setProjectInitializationsByProjectId((current) => {
+        const existing = current[projectInitialization.projectId];
+        if (!existing || existing.id !== projectInitialization.id) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [projectInitialization.projectId]: {
+            ...existing,
+            status: "markdown",
+          },
+        };
+      });
+      pushToast(
+        "success",
+        `Markdown analyzed with ${findings.length} findings.`,
+      );
     } catch (err) {
       pushToast("error", errorText(err));
     } finally {
@@ -1855,6 +1942,44 @@ function App() {
                   </ul>
                 ) : (
                   <p className="empty-state">Facts have not been collected yet.</p>
+                )}
+                <div className="facts-heading">
+                  <div>
+                    <h4>Markdown</h4>
+                    <span>
+                      {projectInitializationMarkdownFindings.length > 0
+                        ? `${projectInitializationMarkdownFindings.length} findings`
+                        : "not analyzed"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void analyzeProjectInitializationMarkdown()}
+                    disabled={initializeLoading}
+                  >
+                    Analyze Markdown
+                  </button>
+                </div>
+                {projectInitializationMarkdownFindings.length > 0 ? (
+                  <ul
+                    className="markdown-finding-list"
+                    aria-label="Project initialization markdown findings"
+                  >
+                    {projectInitializationMarkdownFindings.map((finding) => (
+                      <li key={finding.id}>
+                        <strong>
+                          {finding.repositoryName} · {finding.category}
+                        </strong>
+                        <span>{finding.title}</span>
+                        <p>{finding.excerpt}</p>
+                        <small>
+                          {finding.filePath} · {finding.source}
+                        </small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">Markdown has not been analyzed yet.</p>
                 )}
               </div>
             ) : null}

@@ -901,6 +901,57 @@ dd {
   font-weight: 760;
 }
 
+.markdown-finding-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markdown-finding-list li {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fffdf8;
+}
+
+.markdown-finding-list strong,
+.markdown-finding-list span,
+.markdown-finding-list p,
+.markdown-finding-list small {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.markdown-finding-list strong {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.markdown-finding-list span {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 820;
+}
+
+.markdown-finding-list p {
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.markdown-finding-list small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 760;
+}
+
 .empty-state {
   color: var(--muted);
   font-size: 0.88rem;

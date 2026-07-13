@@ -3,6 +3,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
+    fs,
     path::{Path, PathBuf},
     process::Command,
     sync::{Mutex, MutexGuard},
@@ -76,6 +77,22 @@ pub struct ProjectInitializationFactInfo {
     pub kind: String,
     pub label: String,
     pub value: String,
+    pub source: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationMarkdownFindingInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub repository_id: String,
+    pub repository_name: String,
+    pub repository_path: PathBuf,
+    pub file_path: String,
+    pub category: String,
+    pub title: String,
+    pub excerpt: String,
     pub source: String,
     pub created_at: i64,
 }
@@ -507,6 +524,66 @@ impl ProjectStore {
         list_project_initialization_facts(&connection, initialization_id)
     }
 
+    pub fn analyze_project_initialization_markdown(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let repositories = {
+            let connection = self.connection()?;
+            list_initialization_repositories(&connection, initialization_id)?
+        };
+        let now = unix_timestamp()?;
+        let findings = repositories
+            .iter()
+            .flat_map(|repository| analyze_repository_markdown(initialization_id, repository, now))
+            .collect::<Vec<_>>();
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, initialization_id)?;
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_markdown_findings WHERE initialization_id = ?1",
+                params![initialization_id],
+            )
+            .map_err(storage_error)?;
+        for finding in &findings {
+            insert_project_initialization_markdown_finding(&transaction, finding)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["markdown", now, initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(findings)
+    }
+
+    pub fn list_project_initialization_markdown_findings(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_markdown_findings(&connection, initialization_id)
+    }
+
     pub fn create_transcript_session(
         &self,
         request: CreateTranscriptSessionRequest,
@@ -911,6 +988,21 @@ impl ProjectStore {
                 CREATE INDEX IF NOT EXISTS idx_project_initialization_facts_initialization
                     ON project_initialization_facts(initialization_id, repository_id, kind);
 
+                CREATE TABLE IF NOT EXISTS project_initialization_markdown_findings (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    file_path TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    excerpt TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_markdown_findings_initialization
+                    ON project_initialization_markdown_findings(initialization_id, repository_id, file_path);
+
                 CREATE TABLE IF NOT EXISTS transcript_sessions (
                     id TEXT PRIMARY KEY,
                     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -1083,6 +1175,24 @@ fn project_initialization_fact_from_row(
         value: row.get(7)?,
         source: row.get(8)?,
         created_at: row.get(9)?,
+    })
+}
+
+fn project_initialization_markdown_finding_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationMarkdownFindingInfo> {
+    Ok(ProjectInitializationMarkdownFindingInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        repository_id: row.get(2)?,
+        repository_name: row.get(3)?,
+        repository_path: PathBuf::from(row.get::<_, String>(4)?),
+        file_path: row.get(5)?,
+        category: row.get(6)?,
+        title: row.get(7)?,
+        excerpt: row.get(8)?,
+        source: row.get(9)?,
+        created_at: row.get(10)?,
     })
 }
 
@@ -1266,6 +1376,408 @@ fn insert_project_initialization_fact(
         )
         .map_err(storage_error)?;
     Ok(())
+}
+
+fn list_project_initialization_markdown_findings(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT f.id, f.initialization_id, f.repository_id, pr.name, pr.path,
+                    f.file_path, f.category, f.title, f.excerpt, f.source, f.created_at
+             FROM project_initialization_markdown_findings f
+             JOIN project_repositories pr ON pr.id = f.repository_id
+             WHERE f.initialization_id = ?1
+             ORDER BY pr.name ASC, f.file_path ASC, f.created_at ASC, f.category ASC",
+        )
+        .map_err(storage_error)?;
+    let findings = statement
+        .query_map(
+            params![initialization_id],
+            project_initialization_markdown_finding_from_row,
+        )
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(findings)
+}
+
+fn insert_project_initialization_markdown_finding(
+    connection: &Connection,
+    finding: &ProjectInitializationMarkdownFindingInfo,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO project_initialization_markdown_findings
+             (id, initialization_id, repository_id, file_path, category, title, excerpt, source, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &finding.id,
+                &finding.initialization_id,
+                &finding.repository_id,
+                &finding.file_path,
+                &finding.category,
+                &finding.title,
+                &finding.excerpt,
+                &finding.source,
+                finding.created_at
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn analyze_repository_markdown(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    created_at: i64,
+) -> Vec<ProjectInitializationMarkdownFindingInfo> {
+    markdown_paths_for_repository(&repository.path)
+        .into_iter()
+        .take(100)
+        .flat_map(|file_path| {
+            analyze_markdown_file(initialization_id, repository, &file_path, created_at)
+        })
+        .collect()
+}
+
+fn markdown_paths_for_repository(repository_path: &Path) -> Vec<String> {
+    let is_git_repository = git_output(repository_path, &["rev-parse", "--show-toplevel"])
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
+    let tracked_files = git_lines(repository_path, &["ls-files"]);
+    let mut markdown_files = tracked_files
+        .into_iter()
+        .filter(|path| is_markdown_path(path) && !is_skipped_repository_path(path))
+        .collect::<Vec<_>>();
+    if !is_git_repository && markdown_files.is_empty() {
+        markdown_files = collect_filesystem_markdown_paths(repository_path);
+    }
+
+    markdown_files.sort_by(|left, right| {
+        markdown_priority(left)
+            .cmp(&markdown_priority(right))
+            .then_with(|| left.cmp(right))
+    });
+    markdown_files
+}
+
+fn analyze_markdown_file(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    file_path: &str,
+    created_at: i64,
+) -> Vec<ProjectInitializationMarkdownFindingInfo> {
+    let context = MarkdownFindingContext {
+        initialization_id,
+        repository,
+        created_at,
+    };
+    let absolute_path = repository.path.join(file_path);
+    let metadata = match fs::metadata(&absolute_path) {
+        Ok(metadata) => metadata,
+        Err(_) => return Vec::new(),
+    };
+    if metadata.len() > 256 * 1024 {
+        return Vec::new();
+    }
+
+    let content = match fs::read_to_string(&absolute_path) {
+        Ok(content) => content,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut findings = Vec::new();
+    if let Some(excerpt) = first_meaningful_excerpt(&content) {
+        findings.push(build_markdown_finding(
+            &context,
+            file_path,
+            "document",
+            markdown_title(file_path, &content),
+            excerpt,
+            file_path,
+        ));
+    }
+
+    for section in markdown_sections(&content).into_iter().take(12) {
+        if let Some(category) = markdown_category(&section.heading) {
+            let source = format!("{file_path}#{}", markdown_anchor(&section.heading));
+            findings.push(build_markdown_finding(
+                &context,
+                file_path,
+                category,
+                section.heading,
+                section_excerpt(&section.body),
+                source,
+            ));
+        }
+        if findings.len() >= 6 {
+            break;
+        }
+    }
+
+    findings
+}
+
+struct MarkdownFindingContext<'a> {
+    initialization_id: &'a str,
+    repository: &'a ProjectRepositoryInfo,
+    created_at: i64,
+}
+
+fn build_markdown_finding(
+    context: &MarkdownFindingContext<'_>,
+    file_path: &str,
+    category: &str,
+    title: impl Into<String>,
+    excerpt: impl Into<String>,
+    source: impl Into<String>,
+) -> ProjectInitializationMarkdownFindingInfo {
+    ProjectInitializationMarkdownFindingInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: context.initialization_id.to_string(),
+        repository_id: context.repository.id.clone(),
+        repository_name: context.repository.name.clone(),
+        repository_path: context.repository.path.clone(),
+        file_path: file_path.to_string(),
+        category: category.to_string(),
+        title: title.into(),
+        excerpt: excerpt.into(),
+        source: source.into(),
+        created_at: context.created_at,
+    }
+}
+
+fn collect_filesystem_markdown_paths(repository_path: &Path) -> Vec<String> {
+    let mut markdown_files = Vec::new();
+    collect_filesystem_markdown_paths_inner(repository_path, repository_path, &mut markdown_files);
+    markdown_files
+}
+
+fn collect_filesystem_markdown_paths_inner(
+    root: &Path,
+    current: &Path,
+    markdown_files: &mut Vec<String>,
+) {
+    if markdown_files.len() >= 100 {
+        return;
+    }
+
+    let entries = match fs::read_dir(current) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let relative = match relative_repository_path(root, &path) {
+            Some(relative) => relative,
+            None => continue,
+        };
+        if is_skipped_repository_path(&relative) {
+            continue;
+        }
+
+        if path.is_dir() {
+            collect_filesystem_markdown_paths_inner(root, &path, markdown_files);
+        } else if is_markdown_path(&relative) {
+            markdown_files.push(relative);
+        }
+
+        if markdown_files.len() >= 100 {
+            return;
+        }
+    }
+}
+
+fn relative_repository_path(root: &Path, path: &Path) -> Option<String> {
+    path.strip_prefix(root)
+        .ok()
+        .map(|relative| relative.to_string_lossy().replace('\\', "/"))
+}
+
+fn is_markdown_path(path: &str) -> bool {
+    path.to_ascii_lowercase().ends_with(".md")
+}
+
+fn is_skipped_repository_path(path: &str) -> bool {
+    path.split('/').any(|part| {
+        matches!(
+            part,
+            ".git" | ".next" | "build" | "coverage" | "dist" | "node_modules" | "target" | "vendor"
+        )
+    })
+}
+
+fn markdown_priority(path: &str) -> u8 {
+    let lower = path.to_ascii_lowercase();
+    if lower == "agents.md" {
+        0
+    } else if lower == "readme.md" {
+        1
+    } else if lower == "contributing.md" {
+        2
+    } else if lower == "architecture.md" {
+        3
+    } else if lower.starts_with("docs/") {
+        4
+    } else {
+        5
+    }
+}
+
+fn markdown_title(file_path: &str, content: &str) -> String {
+    content
+        .lines()
+        .find_map(markdown_heading_text)
+        .unwrap_or_else(|| file_path.to_string())
+}
+
+fn first_meaningful_excerpt(content: &str) -> Option<String> {
+    let excerpt = content
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .take(8)
+        .collect::<Vec<_>>()
+        .join(" ");
+    truncate_excerpt(&excerpt)
+}
+
+#[derive(Debug)]
+struct MarkdownSection {
+    heading: String,
+    body: Vec<String>,
+}
+
+fn markdown_sections(content: &str) -> Vec<MarkdownSection> {
+    let mut sections = Vec::new();
+    let mut current_heading: Option<String> = None;
+    let mut current_body = Vec::new();
+
+    for line in content.lines() {
+        if let Some(heading) = markdown_heading_text(line) {
+            if let Some(previous_heading) = current_heading.replace(heading) {
+                sections.push(MarkdownSection {
+                    heading: previous_heading,
+                    body: current_body,
+                });
+                current_body = Vec::new();
+            }
+            continue;
+        }
+
+        if current_heading.is_some() {
+            current_body.push(line.to_string());
+        }
+    }
+
+    if let Some(heading) = current_heading {
+        sections.push(MarkdownSection {
+            heading,
+            body: current_body,
+        });
+    }
+
+    sections
+}
+
+fn markdown_heading_text(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('#') {
+        return None;
+    }
+
+    let heading = trimmed.trim_start_matches('#').trim();
+    if heading.is_empty() {
+        None
+    } else {
+        Some(heading.to_string())
+    }
+}
+
+fn markdown_category(heading: &str) -> Option<&'static str> {
+    let lower = heading.to_ascii_lowercase();
+    if contains_any(
+        &lower,
+        &["install", "setup", "getting started", "quickstart"],
+    ) {
+        Some("setup")
+    } else if contains_any(&lower, &["command", "script", "run", "build", "test"]) {
+        Some("commands")
+    } else if contains_any(&lower, &["convention", "style", "standard", "workflow"]) {
+        Some("conventions")
+    } else if contains_any(
+        &lower,
+        &[
+            "warning",
+            "caution",
+            "important",
+            "do not",
+            "danger",
+            "fragile",
+        ],
+    ) {
+        Some("warnings")
+    } else if contains_any(
+        &lower,
+        &["architecture", "design", "overview", "structure", "layout"],
+    ) {
+        Some("architecture")
+    } else if contains_any(&lower, &["decision", "rationale", "tradeoff"]) {
+        Some("decisions")
+    } else if contains_any(&lower, &["contributing", "review", "release"]) {
+        Some("process")
+    } else {
+        None
+    }
+}
+
+fn contains_any(value: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| value.contains(needle))
+}
+
+fn section_excerpt(body: &[String]) -> String {
+    let excerpt = body
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .take(8)
+        .collect::<Vec<_>>()
+        .join(" ");
+    truncate_excerpt(&excerpt).unwrap_or_else(|| "Heading has no body text.".to_string())
+}
+
+fn truncate_excerpt(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let mut excerpt = trimmed.chars().take(520).collect::<String>();
+    if trimmed.chars().count() > 520 {
+        excerpt.push_str("...");
+    }
+    Some(excerpt)
+}
+
+fn markdown_anchor(heading: &str) -> String {
+    heading
+        .chars()
+        .filter_map(|character| {
+            if character.is_ascii_alphanumeric() {
+                Some(character.to_ascii_lowercase())
+            } else if character.is_whitespace() || character == '-' {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
 }
 
 fn collect_repository_facts(
@@ -1966,6 +2478,133 @@ mod tests {
         assert!(facts
             .iter()
             .any(|fact| fact.kind == "recent_churn" && fact.value.contains("README.md")));
+    }
+
+    #[test]
+    fn analyzes_git_tracked_markdown_for_selected_repositories() {
+        if !git_available_for_tests() {
+            return;
+        }
+
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("markdown-project-root"),
+            })
+            .expect("project created");
+        let git_repository_path = temp_project_path("markdown-git-repo");
+        initialize_git_repository_for_tests(&git_repository_path);
+        fs::write(
+            git_repository_path.join("README.md"),
+            "# AIadne\n\n## Setup\nRun npm install before starting.\n\n## Commands\nUse npm test for checks.\n\n## Architecture\nThe frontend calls Tauri commands.\n",
+        )
+        .expect("README updated");
+        run_git_for_tests(&git_repository_path, &["add", "README.md"]);
+        run_git_for_tests(
+            &git_repository_path,
+            &[
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "add docs",
+            ],
+        );
+        let selected_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "Docs repo".to_string(),
+                path: git_repository_path,
+            })
+            .expect("repository created");
+        let unselected_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .into_iter()
+            .find(|repository| repository.is_default)
+            .expect("default repository exists");
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![selected_repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let findings = store
+            .analyze_project_initialization_markdown(&initialization.id)
+            .expect("markdown analyzed");
+
+        assert!(findings
+            .iter()
+            .all(|finding| finding.repository_id == selected_repository.id));
+        assert!(!findings
+            .iter()
+            .any(|finding| finding.repository_id == unselected_repository.id));
+        assert!(findings.iter().any(|finding| {
+            finding.file_path == "README.md"
+                && finding.category == "setup"
+                && finding.excerpt.contains("npm install")
+                && finding.source == "README.md#setup"
+        }));
+        assert!(findings
+            .iter()
+            .any(|finding| finding.category == "architecture"));
+        let listed_findings = store
+            .list_project_initialization_markdown_findings(&initialization.id)
+            .expect("markdown findings listed");
+        assert_eq!(listed_findings.len(), findings.len());
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "markdown");
+    }
+
+    #[test]
+    fn analyzes_non_git_markdown_with_bounded_skip_rules() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("markdown-non-git");
+        fs::write(
+            project_path.join("README.md"),
+            "# Non Git\n\n## Important\nDo not edit generated files.\n",
+        )
+        .expect("README written");
+        fs::create_dir_all(project_path.join("node_modules")).expect("node_modules dir created");
+        fs::write(
+            project_path.join("node_modules").join("README.md"),
+            "# Vendor\n\n## Setup\nIgnore me.\n",
+        )
+        .expect("vendor README written");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path,
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+
+        let findings = store
+            .analyze_project_initialization_markdown(&initialization.id)
+            .expect("markdown analyzed");
+
+        assert!(findings
+            .iter()
+            .any(|finding| finding.file_path == "README.md" && finding.category == "warnings"));
+        assert!(!findings
+            .iter()
+            .any(|finding| finding.file_path.contains("node_modules")));
     }
 
     #[test]

@@ -11,8 +11,9 @@ use crate::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
         KnowledgeItemInfo, ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationInfo,
-        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest, TranscriptEventInfo,
-        TranscriptEventInput, TranscriptSessionInfo,
+        ProjectInitializationMarkdownFindingInfo, ProjectRepositoryInfo, ProjectStore,
+        RenameTranscriptSessionRequest, TranscriptEventInfo, TranscriptEventInput,
+        TranscriptSessionInfo,
     },
 };
 use std::sync::Arc;
@@ -152,6 +153,22 @@ pub fn list_project_initialization_facts(
     initialization_id: String,
 ) -> AppResult<Vec<ProjectInitializationFactInfo>> {
     state.list_project_initialization_facts(&initialization_id)
+}
+
+#[tauri::command]
+pub fn analyze_project_initialization_markdown(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+    state.analyze_project_initialization_markdown(&initialization_id)
+}
+
+#[tauri::command]
+pub fn list_project_initialization_markdown_findings(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+    state.list_project_initialization_markdown_findings(&initialization_id)
 }
 
 #[tauri::command]

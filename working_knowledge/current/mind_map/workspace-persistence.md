@@ -32,6 +32,7 @@
 - Migration also creates knowledge_items and transcript_knowledge_links tables.
 - Migration also creates project_initialization_runs and project_initialization_repositories tables.
 - Migration also creates project_initialization_facts for source-backed local repository facts.
+- Migration also creates project_initialization_markdown_findings for source-backed markdown findings.
 - create_project trims the name, rejects an empty name, validates that path is an existing directory, canonicalizes it, and rejects duplicate paths.
 - create_project also creates a default project_repositories row from the project path.
 - list_projects returns projects ordered by updated_at descending, then name.
@@ -53,6 +54,8 @@
 - list_project_initializations returns project initialization runs ordered newest first with repository counts.
 - collect_project_initialization_facts reads only repositories selected in the initialization run, records deterministic local facts, and updates the run status to `facts`.
 - list_project_initialization_facts returns stored facts with repository name/path and source attribution.
+- analyze_project_initialization_markdown reads only selected repositories, extracts deterministic findings from markdown files, and updates the run status to `markdown`.
+- list_project_initialization_markdown_findings returns stored findings with repository, file path, category, excerpt, and source attribution.
 - Deleting a project keeps transcript_sessions rows and sets project_id to null.
 - Tauri manages ProjectStore as application state and exposes project and transcript commands.
 
@@ -94,7 +97,8 @@
 - Creating an initialization run shows the run status and selected repository count in the Workspace panel.
 - The frontend stores the latest initialization result by project id so switching projects does not show another project's preflight status.
 - The Workspace Project Initialize section shows `Collect Facts` after preflight and renders returned fact rows under the selected project.
-- The frontend reloads latest initialization status and facts from SQLite when the selected project/initialization changes.
+- The Workspace Project Initialize section shows `Analyze Markdown` after preflight and renders markdown findings under the selected project.
+- The frontend reloads latest initialization status, facts, and markdown findings from SQLite when the selected project/initialization changes.
 
 ## Launch Wiring
 - start_fake_session and start_codex_session include cwd from the selected repository when one is selected.
@@ -125,6 +129,8 @@
 - Frontend tests cover Project Initialize starting with user-selected repositories and preventing stale status across project switches.
 - Rust tests cover project initialization Facts for git and non-git repositories and selected-repository scoping.
 - Frontend tests cover Collect Facts command invocation and facts rendering.
+- Rust tests cover markdown analysis for git-tracked files, non-git fallback, skip rules, and selected-repository scoping.
+- Frontend tests cover Analyze Markdown command invocation and findings rendering.
 
 ## Watchouts
 - Repository path entry is still manual; only Add Project has native folder picking for now.
@@ -133,7 +139,7 @@
 - No session tags, archive/delete, grouping, or ranked search yet.
 - No default agent/model/instructions per project yet.
 - Transcripts and Knowledge Cards are still project-scoped, not repository-scoped.
-- Project Initialize has preflight/selection and local Facts. Markdown analysis, interview guardrails, and summary approval are not implemented yet.
+- Project Initialize has preflight/selection, local Facts, and markdown findings. Interview guardrails and summary approval are not implemented yet.
 - No automatic knowledge extraction, search, embeddings, conflict resolution, archive/delete, detach UI, or sensitive-content redaction yet.
 - SQLite is local-only and not encrypted; do not store secrets here.
 - The temporary runtime UI still needs final product redesign.

@@ -38,6 +38,8 @@ pub fn run() {
             commands::list_project_initializations,
             commands::collect_project_initialization_facts,
             commands::list_project_initialization_facts,
+            commands::analyze_project_initialization_markdown,
+            commands::list_project_initialization_markdown_findings,
             commands::create_transcript_session,
             commands::append_transcript_events,
             commands::list_transcript_sessions,

@@ -14,6 +14,7 @@
 - Should the next transcript step be continue-from-transcript context, rich chat/tool-call UI, session grouping/tags, or PTY scrollback persistence?
 
 ## Resolved
+- AIA-041 scope: Markdown analysis now extracts source-backed setup/command/convention/warning/architecture/decision/process findings from selected initialization repositories only.
 - AIA-040 scope: Facts collection now gathers deterministic local git/repository facts for selected initialization repositories only; agent summarization remains deferred.
 - AIA-047 scope: transient Workspace success/error messages now use bottom-right auto-dismiss toasts; modal-local errors stay inline.
 - AIA-046 scope: confirmed Project delete stops all running ACP sessions before deleting the project record.

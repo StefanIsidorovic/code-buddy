@@ -104,6 +104,9 @@ Manual smoke test:
   the selected repositories. The app records Git presence, branch/head, tracked
   file counts, markdown counts, detected manifests, test-file count, likely
   entry points, and recent churn.
+- Click `Analyze Markdown` to extract source-backed setup, command,
+  convention, warning, architecture, decision, and process findings from
+  selected repository markdown files.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
 - Use the `Session History` filter when there are many saved sessions. Click a

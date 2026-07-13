@@ -29,6 +29,7 @@
 - Backend now stores multiple project_repositories rows under each project and backfills a default repository from projects.path.
 - Backend now stores project_initialization_runs and selected repositories for each project-level initialization preflight.
 - Backend now stores project_initialization_facts for local facts collected during Project Initialize.
+- Backend now stores project_initialization_markdown_findings for markdown-derived initialization findings.
 - Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
 - Frontend now requires confirmation before deleting a project and exposes a visible selected-project `Delete Project` action.
 - Frontend now supports native folder selection for Add Project through Tauri dialog plugin and shows success feedback after project deletion.
@@ -95,12 +96,12 @@
 - ACP selected launch backend command: start_acp_registry_session.
 - Project storage backend commands: create_project, list_projects, delete_project.
 - Project repository backend commands: create_project_repository, list_project_repositories, delete_project_repository.
-- Project initialization backend commands: create_project_initialization, list_project_initializations, collect_project_initialization_facts, list_project_initialization_facts.
+- Project initialization backend commands: create_project_initialization, list_project_initializations, collect_project_initialization_facts, list_project_initialization_facts, analyze_project_initialization_markdown, list_project_initialization_markdown_findings.
 - Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events, rename_transcript_session.
 - Knowledge backend commands: create_knowledge_item, list_knowledge_items, attach_knowledge_to_transcript_session, list_attached_knowledge.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
-- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, CreateProjectInitializationRequest, ProjectInitializationInfo, ProjectInitializationFactInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, project initialization preflight/facts CRUD, transcript CRUD, and Knowledge Card CRUD/linking.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, CreateProjectInitializationRequest, ProjectInitializationInfo, ProjectInitializationFactInfo, ProjectInitializationMarkdownFindingInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, project initialization preflight/facts/markdown CRUD, transcript CRUD, and Knowledge Card CRUD/linking.
 - Tauri plugins: tauri-plugin-opener and tauri-plugin-dialog are registered in src-tauri/src/lib.rs; dialog permission is enabled in src-tauri/capabilities/default.json.
 
 ## Tests
@@ -131,6 +132,8 @@
 - AIA-039 frontend tests cover starting Project Initialize with a user-edited repository checkbox selection and clearing stale initialization status when switching projects.
 - AIA-040 backend tests cover non-git facts, git facts, selected-repository scoping, and status update to `facts`.
 - AIA-040 frontend test covers triggering Facts collection and rendering returned facts.
+- AIA-041 backend tests cover git-tracked markdown extraction, non-git bounded fallback, skip rules, selected-repository scoping, and status update to `markdown`.
+- AIA-041 frontend test covers triggering Markdown analysis and rendering returned findings.
 - AIA-044 frontend test covers the Project delete confirmation flow and verifies `delete_project` is not called before confirmation.
 - AIA-045 frontend tests cover native folder picker path/name population; Rust tests cover that session info still returns successfully with cwd after adding the field.
 - AIA-046 frontend test covers listing/stopping running ACP sessions before invoking delete_project.
@@ -168,6 +171,7 @@
 - AIA-039 research: Project Initialize should be a project-level workflow because a project can now own multiple repositories; the user must decide which repositories participate before generated facts or summaries are trusted.
 - AIA-039 implementation: first slice persists a preflight run plus selected repository ids and shows a popup with repository checkboxes; it does not yet collect facts, scan markdown, run the interview, or approve summaries.
 - AIA-040 implementation: Facts collection records repository path, git presence, branch/head, tracked file count, markdown count, detected manifests, test-file count, likely entry points, and recent churn for selected repositories only.
+- AIA-041 implementation: Markdown analysis extracts document and heading findings from selected repositories, prioritizing AGENTS/README/CONTRIBUTING/ARCHITECTURE/docs files and categorizing setup, commands, conventions, warnings, architecture, decisions, and process headings.
 - 2026-07-13 AIA-039 validation passed with 47 Rust tests and 20 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
 - 2026-07-13 AIA-039 review found and fixed stale Project Initialize status when switching projects.
 - AIA-044 implementation: selected Workspace now has a visible `Delete Project` action; row-level Delete opens the same confirmation dialog; backend delete_project is called only after confirmation.
@@ -224,5 +228,5 @@
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
 - Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, native project folder picking, and a polished temporary UI theme, but no PTY scrollback persistence or default agent/model settings yet.
 - Knowledge Cards are manual only for now; automatic extraction, relevance suggestions, conflict review, deletion, detaching, and sensitive-content detection are deferred.
-- Project Initialize currently persists preflight/run selection and local Facts. Markdown analysis, interview guardrails, and summary approval are deferred to AIA-041 through AIA-043.
+- Project Initialize currently persists preflight/run selection, local Facts, and markdown findings. Interview guardrails and summary approval are deferred to AIA-042 through AIA-043.
 - Runtime mode switch, sidebar history, and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

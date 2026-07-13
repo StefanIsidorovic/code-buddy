@@ -75,6 +75,10 @@ beforeEach(() => {
       return Promise.resolve([]);
     }
 
+    if (command === "list_project_initialization_markdown_findings") {
+      return Promise.resolve([]);
+    }
+
     if (command === "list_transcript_sessions") {
       return Promise.resolve(defaultTranscriptSessions());
     }
@@ -669,6 +673,74 @@ describe("PTY test panel", () => {
     expect(screen.getByLabelText("Project initialization facts")).toHaveTextContent(
       "Tracked files: 53",
     );
+  });
+
+  it("analyzes and renders project initialization markdown findings", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "create_project_initialization") {
+        return Promise.resolve(defaultProjectInitialization());
+      }
+
+      if (command === "analyze_project_initialization_markdown") {
+        return Promise.resolve(defaultProjectInitializationMarkdownFindings());
+      }
+
+      if (command === "list_project_initialization_facts") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_project_initialization_markdown_findings") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select AIadne repository" });
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
+    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Analyze Markdown" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("analyze_project_initialization_markdown", {
+        initializationId: "init-1",
+      });
+    });
+    expect(await screen.findByText("markdown · 1 repositories")).toBeInTheDocument();
+    const markdownFindings = screen.getByRole("list", {
+      name: "Project initialization markdown findings",
+    });
+    expect(markdownFindings).toHaveTextContent("Setup");
+    expect(markdownFindings).toHaveTextContent("README.md#setup");
   });
 
   it("scopes project initialization status to the selected project", async () => {
@@ -1864,6 +1936,24 @@ function defaultProjectInitializationFacts() {
       value: "53",
       source: "git ls-files",
       createdAt: 1_785_000_020,
+    },
+  ];
+}
+
+function defaultProjectInitializationMarkdownFindings() {
+  return [
+    {
+      id: "markdown-setup",
+      initializationId: "init-1",
+      repositoryId: "repo-aiadne",
+      repositoryName: "AIadne",
+      repositoryPath: "/home/katarina/projects/AIadne",
+      filePath: "README.md",
+      category: "setup",
+      title: "Setup",
+      excerpt: "Run npm install before starting.",
+      source: "README.md#setup",
+      createdAt: 1_785_000_030,
     },
   ];
 }

@@ -14,7 +14,7 @@
 - The panel exposes Start Fake, Start Codex, Drain, Resize, Stop, and Kill controls.
 - The panel exposes a temporary Workspace section for saving and selecting project folders.
 - The Workspace section now exposes `Initialize Project`, which opens a project-level popup for choosing participating repositories.
-- The Workspace Project Initialize section exposes `Collect Facts` after preflight and renders collected fact rows inline.
+- The Workspace Project Initialize section exposes `Collect Facts` and `Analyze Markdown` after preflight and renders collected fact/finding rows inline.
 - The Workspace section exposes `Delete Project` for the selected project and confirms before deletion.
 - The Workspace form exposes `Choose Folder`, backed by Tauri dialog plugin, to fill project path and default name.
 - Transient Workspace success/error messages render as bottom-right toasts that auto-dismiss and can be closed manually.
@@ -47,6 +47,8 @@
 - The displayed Project Initialize status is keyed by selected project id to avoid showing a previous project's run after project switch.
 - Selecting a project reloads the latest initialization run, and selecting/changing an initialization reloads stored facts.
 - Collect Facts invokes collect_project_initialization_facts and updates the displayed status to `facts`.
+- Analyze Markdown invokes analyze_project_initialization_markdown and updates the displayed status to `markdown`.
+- Markdown findings render with repository, category, title, excerpt, file path, and source anchor.
 - Session History invokes list_transcript_sessions for the selected project.
 - Session History filters saved rows by title, source, runtime, full id, short id, or project id.
 - Clicking a Session History row invokes list_transcript_events and switches the ACP output panel to Saved Transcript mode.
@@ -111,7 +113,7 @@
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
-- Tests also cover Workspace rendering, project creation/selection, native folder picker population, Project delete confirmation and ACP stop-before-delete behavior, Workspace toast auto-dismiss/manual dismiss, Project Initialize repository selection/project-scoped status/Facts collection, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card popup creation and prompt injection, ACP waiting state display, and ACP waiting-state release after a prompt result.
+- Tests also cover Workspace rendering, project creation/selection, native folder picker population, Project delete confirmation and ACP stop-before-delete behavior, Workspace toast auto-dismiss/manual dismiss, Project Initialize repository selection/project-scoped status/Facts collection/Markdown analysis, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card popup creation and prompt injection, ACP waiting state display, and ACP waiting-state release after a prompt result.
 
 ## Watchouts
 - Output polling interval is currently 400 ms and may feel slow.
@@ -128,5 +130,5 @@
 - Session History filter/rename is minimal; richer grouping, tags, archive/delete, and search result ranking are deferred.
 - Stop ACP must remain available while a prompt is in flight because Codex tasks can run longer than setup commands.
 - Repository path entry is manual for now; native picking currently covers Add Project only.
-- Project Initialize currently supports preflight and local Facts; Markdown analysis, Interview, and Knowledge summary views are intentionally deferred.
+- Project Initialize currently supports preflight, local Facts, and Markdown analysis; Interview and Knowledge summary views are intentionally deferred.
 - This is a test panel; final session UI should be redesigned after adapter and persistence tasks.

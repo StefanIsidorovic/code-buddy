@@ -60,6 +60,8 @@
 - AIA-039 phase split: persist the initialize run and selected repositories first, then implement Facts, Markdown analysis, Interview guardrails, and Knowledge summary review as separate follow-up tasks.
 - AIA-040 facts scope: collect deterministic local repository facts before any agent summarization; facts are tied to the initialization run and selected repositories.
 - AIA-040 fact sources: use `git` CLI metadata for git repositories and store source labels with each fact so later summaries can stay auditable.
+- AIA-041 markdown analysis scope: extract deterministic findings from selected-repository markdown files and keep them as draft findings with file/heading source attribution.
+- AIA-041 scan policy: use git-tracked markdown files for git repositories; use bounded filesystem fallback only for non-git repositories.
 - AIA-044 project delete UX: keep backend deletion semantics unchanged but require a frontend confirmation dialog before calling `delete_project`.
 - AIA-045 folder picker: use Tauri's official dialog plugin for native project folder selection while preserving manual path entry.
 - AIA-045 active cwd display: expose resolved PTY/ACP session cwd in runtime info because a running process keeps its launch cwd even if the saved project record is later deleted.
@@ -72,4 +74,4 @@
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
 - PTY scrollback persistence and rich chat replay: defer until after the minimal saved transcript replay is manually validated.
 - Automatic knowledge suggestions, embeddings, conflict detection, card archive/delete/detach UI, sensitive-content redaction, richer session library organization, and final runtime navigation: defer until the manual Knowledge Cards and basic Session History controls are validated.
-- Project Initialize markdown analysis, interview guardrails, and summary approval behavior: defer to AIA-041 through AIA-043 after facts collection is validated.
+- Project Initialize interview guardrails and summary approval behavior: defer to AIA-042 and AIA-043 after markdown analysis is validated.
