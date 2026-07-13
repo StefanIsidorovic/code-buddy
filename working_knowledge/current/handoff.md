@@ -45,6 +45,8 @@
 - 2026-07-13 AIA-039 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
 - AIA-039 review found and fixed stale Project Initialize status when switching projects.
 - AIA-039 docs roadmap is recorded as AIA-039 through AIA-043: preflight/repo selection, facts, markdown analysis, interview guardrails, and summary review.
+- AIA-040 is implemented locally: Project Initialize Facts collects source-backed local metadata for selected repositories and shows it in the Workspace panel.
+- 2026-07-13 AIA-040 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
 - AIA-044 is implemented locally: Workspace has a visible selected-project `Delete Project` action and a confirmation dialog before calling `delete_project`.
 - 2026-07-13 AIA-044 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
 - AIA-045 is implemented locally: Add Project supports native `Choose Folder`, delete shows a success message, and runtime info shows active session cwd.
@@ -55,11 +57,11 @@
 - 2026-07-13 AIA-047 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
 - HEAD is e45971f.
-- Worktree has local AIA-036/AIA-037/AIA-038/AIA-039/AIA-044/AIA-045/AIA-046/AIA-047 changes validated and awaiting user review/manual commit; LOCAL_PROGRESS.md is intentionally git-ignored.
+- Worktree has local AIA-036/AIA-037/AIA-038/AIA-039/AIA-040/AIA-044/AIA-045/AIA-046/AIA-047 changes validated and awaiting user review/manual commit; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- User review/manual commit for AIA-036/AIA-037/AIA-038/AIA-039/AIA-044/AIA-045/AIA-046/AIA-047.
-- Next Project Initialize slice after AIA-039: AIA-040 facts collection for the selected repositories.
+- User review/manual commit for AIA-036/AIA-037/AIA-038/AIA-039/AIA-040/AIA-044/AIA-045/AIA-046/AIA-047.
+- Next Project Initialize slice after AIA-040: AIA-041 markdown analysis for selected repositories.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -81,6 +83,8 @@
 - In the Tauri app, start ACP, delete the selected project, and confirm sidebar `Active Folder` still shows the running process cwd.
 - In the Tauri app, add a repository under the selected Workspace, select it, and confirm PTY/ACP launch uses that repository folder.
 - In the Tauri app, click `Initialize Project`, uncheck one repository, start the run, and confirm the status/count reflects the selected subset.
+- In the Tauri app, after preflight, click `Collect Facts` and confirm the status changes to `facts`, a success toast appears, and the Facts list shows Git repository, branch/head, tracked files, markdown files, manifests, test files, entry points, and churn where available.
+- Restart the Tauri app, select the project, and confirm the latest initialize status/facts reload from SQLite.
 - In the Tauri app, confirm ACP controls/output are shown by default.
 - In the Tauri app, confirm runtime status/session/pid/workspace/repository appears at the bottom-left of the sidebar.
 - In the Tauri app, open `Terminal PTY` in the sidebar and click `Open PTY` only for fallback terminal testing.
@@ -130,7 +134,7 @@
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
 - Project storage now persists project name/path, ACP transcript history, and manual Knowledge Cards; PTY scrollback, model defaults, automatic knowledge suggestions, and richer workspace settings are deferred.
 - Knowledge Cards are manual only; no automatic promotion, embedding search, conflict resolution, card delete/detach UI, or sensitive-content detection yet.
-- Project Initialize currently persists preflight selection only; Facts, Markdown analysis, Interview guardrails, and Knowledge summary approval are still follow-up tasks.
+- Project Initialize currently persists preflight selection and local Facts. Markdown analysis, Interview guardrails, and Knowledge summary approval are still follow-up tasks.
 - Session History filter/rename is intentionally minimal; no tags, archive/delete, grouping, or ranked search yet.
 - Transcript persistence failures are shown separately and should not stop an active ACP session.
 - Selected project path is passed as cwd to PTY and ACP launches; old no-project launch behavior still works.

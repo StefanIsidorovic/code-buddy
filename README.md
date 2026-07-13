@@ -100,6 +100,10 @@ Manual smoke test:
 - Use `Initialize Project` to start the project-level initialization preflight.
   The popup defaults to all repositories in the project and lets you uncheck
   any repositories that should not participate.
+- After preflight, click `Collect Facts` to gather local repository facts for
+  the selected repositories. The app records Git presence, branch/head, tracked
+  file counts, markdown counts, detected manifests, test-file count, likely
+  entry points, and recent churn.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
 - Use the `Session History` filter when there are many saved sessions. Click a

@@ -36,6 +36,8 @@ pub fn run() {
             commands::delete_project_repository,
             commands::create_project_initialization,
             commands::list_project_initializations,
+            commands::collect_project_initialization_facts,
+            commands::list_project_initialization_facts,
             commands::create_transcript_session,
             commands::append_transcript_events,
             commands::list_transcript_sessions,

@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: e45971f step 28-29: make ACP primary and add multi-repo projects
-- worktree: local AIA-036/AIA-037/AIA-038/AIA-039/AIA-044/AIA-045/AIA-046 changes validated and awaiting user review/manual commit.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project/repository/transcript/knowledge storage, transcript rename support, project initialization preflight storage, and Tauri dialog plugin wiring.
+- worktree: local AIA-036/AIA-037/AIA-038/AIA-039/AIA-040/AIA-044/AIA-045/AIA-046/AIA-047 changes validated and awaiting user review/manual commit.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project/repository/transcript/knowledge storage, transcript rename support, project initialization preflight/facts storage, and Tauri dialog plugin wiring.
 
 ## Current Task
-- request: show transient messages as bottom-right popups that disappear after a few seconds.
+- request: continue Project Initialize phases and show how to test them.
 - phase: validated; awaiting user review/manual commit
-- active plan step: 37 complete
+- active plan step: 38 complete
 
 ## Risks And Constraints
 - AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, AIA-017 ACP stdio fake runtime, AIA-018 ACP registry discovery, and AIA-019 selected ACP launch are committed through 1ce5f36.
@@ -31,6 +31,7 @@
 - AIA-037 output visibility and ACP waiting-state bugfix is implemented and validated locally on top of the AIA-036 diff.
 - AIA-038 Knowledge Card popup creation is implemented and validated locally on top of the AIA-036/AIA-037 diff.
 - AIA-039 Project Initialize preflight is implemented locally on top of AIA-036/AIA-037/AIA-038.
+- AIA-040 Project Initialize facts collection is implemented locally on top of AIA-039/AIA-047.
 - AIA-044 Project delete confirmation is implemented locally on top of AIA-039.
 - AIA-045 native project folder picker, delete success message, and active runtime cwd display are implemented locally on top of AIA-044.
 - AIA-046 stop running ACP sessions before project deletion is implemented locally on top of AIA-045.
@@ -43,11 +44,13 @@
 - Project storage currently persists project name/path, ACP transcript history with user-editable titles, and local Knowledge Cards; automatic suggestions, embeddings, conflict review, and delete/detach UI are deferred.
 - Project storage now treats `projects.path` as the legacy/default launch folder and adds child repository rows for multi-repository projects.
 - Project Initialize is project-scoped; selected repositories are chosen by the user and persisted per initialization run before later analysis phases run.
+- Project Initialize Facts collects deterministic local metadata only for repositories selected in the initialization run; markdown analysis, interview guardrails, and summary approval remain deferred.
 - Project deletion uses existing backend delete_project semantics: project repositories and initialization runs are removed with the project; saved transcripts are kept without the project link.
 - Running PTY/ACP sessions keep the cwd they were launched with even if the saved project is later deleted; runtime info now exposes that active cwd explicitly.
 - Project delete now stops all running ACP sessions first so deleted projects do not leave live ACP agents running in old project folders.
 
 ## Last Verification
+- 2026-07-13T14:39:07Z: AIA-040 final validation passed: npm run typecheck; npm run test -- --run (25 frontend tests); npm run build; cargo fmt --check; cargo test (49 Rust tests); cargo clippy -- -D warnings; git diff --check. Review added manifest/test/entry-point facts before final validation. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
 - 2026-07-13T14:23:58Z: AIA-047 final validation passed: npm run typecheck; npm run test -- --run (24 frontend tests); npm run build; cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; git diff --check. Review added manual-dismiss coverage after the first pass and found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
 - 2026-07-13T14:08:34Z: AIA-046 final validation passed: cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (22 frontend tests); npm run build; git diff --check. Review found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
 - 2026-07-13T13:56:10Z: AIA-045 final validation passed: cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (22 frontend tests); npm run build; git diff --check. Review found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.

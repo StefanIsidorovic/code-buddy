@@ -409,7 +409,19 @@
 - review status: passed; 2026-07-13 review added manual-dismiss test coverage and found no remaining issues after validation.
 - commit: user will commit
 
+### 38. Add Project Initialize facts collection
+- objective: implement the first analysis phase after preflight by collecting deterministic local facts for the repositories selected in a project initialization run.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore initialization schema and methods; project initialization fact Tauri commands; Workspace Project Initialize facts action; facts summary UI; Rust/frontend tests; workspace-persistence and frontend-terminal mind maps.
+- expected changes: add project_initialization_facts storage; collect facts only for repositories selected in the initialization run; use local git metadata for git presence, branch/head, tracked counts, markdown counts, detected manifests, test-file count, likely entry points, and recent churn; update initialization status to `facts`; show facts in the Workspace panel.
+- acceptance criteria: Facts run only after an initialization exists; facts are scoped to selected repositories; non-git repositories are handled without failing; stored facts include source attribution; user can trigger and inspect facts from the UI; tests cover backend git/non-git behavior and frontend rendering.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review added manifest/test/entry-point facts to satisfy AIA-040 acceptance before final validation.
+- commit: user will commit
+
 ## Plan Assumptions
+- AIA-040 uses local deterministic repository metadata only; agent summarization remains deferred to the later summary phase.
 - AIA-047 covers transient Workspace notifications only; modal-local errors intentionally remain inline inside the active modal.
 - AIA-046 intentionally stops ACP sessions on every confirmed project delete, not only sessions that the frontend can prove are tied to that project, because current ACP session metadata does not persist project_id.
 - AIA-045 adds Tauri's official dialog plugin; it does not replace manual path entry.

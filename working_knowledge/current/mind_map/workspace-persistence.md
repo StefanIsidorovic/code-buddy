@@ -15,7 +15,8 @@
 - The second slice stores ACP transcript sessions and ordered transcript events.
 - The third slice stores manual Knowledge Cards and explicit transcript-to-knowledge links.
 - Selecting a project scopes transcripts/Knowledge Cards, and selecting a repository sets the cwd for PTY and ACP launches.
-- Project Initialize is a project-scoped preflight that stores a user-selected subset of project repositories before later generated knowledge phases run.
+- Project Initialize is a project-scoped workflow that stores a user-selected subset of project repositories before later generated knowledge phases run.
+- The first analysis phase stores local Facts for selected repositories before markdown analysis, interview, or summary approval.
 - Session history now has a normalized minimal question/answer replay view, but not the final chat UI.
 - Session history rows can now be filtered and manually renamed.
 - Knowledge Cards let distilled session/project knowledge travel into later ACP prompts without copying whole transcripts.
@@ -30,6 +31,7 @@
 - Migration also creates transcript_sessions and transcript_events tables.
 - Migration also creates knowledge_items and transcript_knowledge_links tables.
 - Migration also creates project_initialization_runs and project_initialization_repositories tables.
+- Migration also creates project_initialization_facts for source-backed local repository facts.
 - create_project trims the name, rejects an empty name, validates that path is an existing directory, canonicalizes it, and rejects duplicate paths.
 - create_project also creates a default project_repositories row from the project path.
 - list_projects returns projects ordered by updated_at descending, then name.
@@ -49,6 +51,8 @@
 - list_attached_knowledge returns cards linked to a transcript session.
 - create_project_initialization validates the project, rejects empty/duplicate repository selections, verifies every selected repository belongs to the project, stores a preflight run, and stores selected repository ids in user selection order.
 - list_project_initializations returns project initialization runs ordered newest first with repository counts.
+- collect_project_initialization_facts reads only repositories selected in the initialization run, records deterministic local facts, and updates the run status to `facts`.
+- list_project_initialization_facts returns stored facts with repository name/path and source attribution.
 - Deleting a project keeps transcript_sessions rows and sets project_id to null.
 - Tauri manages ProjectStore as application state and exposes project and transcript commands.
 
@@ -89,6 +93,8 @@
 - The Project Initialize popup defaults to all repositories in the selected project and lets the user uncheck repositories that should not participate.
 - Creating an initialization run shows the run status and selected repository count in the Workspace panel.
 - The frontend stores the latest initialization result by project id so switching projects does not show another project's preflight status.
+- The Workspace Project Initialize section shows `Collect Facts` after preflight and renders returned fact rows under the selected project.
+- The frontend reloads latest initialization status and facts from SQLite when the selected project/initialization changes.
 
 ## Launch Wiring
 - start_fake_session and start_codex_session include cwd from the selected repository when one is selected.
@@ -117,6 +123,8 @@
 - Frontend tests cover card creation, active transcript attach, and ACP prompt injection.
 - Rust tests cover project initialization run creation/listing and validation for empty, duplicate, and cross-project repository selections.
 - Frontend tests cover Project Initialize starting with user-selected repositories and preventing stale status across project switches.
+- Rust tests cover project initialization Facts for git and non-git repositories and selected-repository scoping.
+- Frontend tests cover Collect Facts command invocation and facts rendering.
 
 ## Watchouts
 - Repository path entry is still manual; only Add Project has native folder picking for now.
@@ -125,7 +133,7 @@
 - No session tags, archive/delete, grouping, or ranked search yet.
 - No default agent/model/instructions per project yet.
 - Transcripts and Knowledge Cards are still project-scoped, not repository-scoped.
-- Project Initialize is only preflight/selection for now; facts, markdown analysis, interview guardrails, and summary approval are not implemented yet.
+- Project Initialize has preflight/selection and local Facts. Markdown analysis, interview guardrails, and summary approval are not implemented yet.
 - No automatic knowledge extraction, search, embeddings, conflict resolution, archive/delete, detach UI, or sensitive-content redaction yet.
 - SQLite is local-only and not encrypted; do not store secrets here.
 - The temporary runtime UI still needs final product redesign.

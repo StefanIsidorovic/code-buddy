@@ -67,6 +67,14 @@ beforeEach(() => {
       return Promise.resolve(defaultProjectRepositories());
     }
 
+    if (command === "list_project_initializations") {
+      return Promise.resolve([]);
+    }
+
+    if (command === "list_project_initialization_facts") {
+      return Promise.resolve([]);
+    }
+
     if (command === "list_transcript_sessions") {
       return Promise.resolve(defaultTranscriptSessions());
     }
@@ -596,6 +604,71 @@ describe("PTY test panel", () => {
       expect(screen.queryByRole("dialog", { name: "Project Initialize" }))
         .not.toBeInTheDocument();
     });
+  });
+
+  it("collects and renders project initialization facts", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "create_project_initialization") {
+        return Promise.resolve(defaultProjectInitialization());
+      }
+
+      if (command === "collect_project_initialization_facts") {
+        return Promise.resolve(defaultProjectInitializationFacts());
+      }
+
+      if (command === "list_project_initialization_facts") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select AIadne repository" });
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
+    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collect Facts" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("collect_project_initialization_facts", {
+        initializationId: "init-1",
+      });
+    });
+    expect(await screen.findByText("facts · 1 repositories")).toBeInTheDocument();
+    expect(screen.getByLabelText("Project initialization facts")).toHaveTextContent(
+      "Git repository: yes",
+    );
+    expect(screen.getByLabelText("Project initialization facts")).toHaveTextContent(
+      "Tracked files: 53",
+    );
   });
 
   it("scopes project initialization status to the selected project", async () => {
@@ -1753,6 +1826,46 @@ function baseProjectRepository() {
 
 function defaultProjectRepositories() {
   return [defaultProjectRepository()];
+}
+
+function defaultProjectInitialization() {
+  return {
+    id: "init-1",
+    projectId: "project-aiadne",
+    status: "preflight",
+    repositoryCount: 1,
+    createdAt: 1_785_000_010,
+    updatedAt: 1_785_000_010,
+  };
+}
+
+function defaultProjectInitializationFacts() {
+  return [
+    {
+      id: "fact-git",
+      initializationId: "init-1",
+      repositoryId: "repo-aiadne",
+      repositoryName: "AIadne",
+      repositoryPath: "/home/katarina/projects/AIadne",
+      kind: "git_repository",
+      label: "Git repository",
+      value: "yes",
+      source: "git rev-parse --show-toplevel",
+      createdAt: 1_785_000_020,
+    },
+    {
+      id: "fact-tracked-files",
+      initializationId: "init-1",
+      repositoryId: "repo-aiadne",
+      repositoryName: "AIadne",
+      repositoryPath: "/home/katarina/projects/AIadne",
+      kind: "tracked_file_count",
+      label: "Tracked files",
+      value: "53",
+      source: "git ls-files",
+      createdAt: 1_785_000_020,
+    },
+  ];
 }
 
 function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTranscriptSession>> = {}) {

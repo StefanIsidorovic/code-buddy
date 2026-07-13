@@ -2,8 +2,9 @@ use crate::errors::{AppError, AppResult};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
+    process::Command,
     sync::{Mutex, MutexGuard},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -62,6 +63,21 @@ pub struct ProjectInitializationInfo {
     pub repository_count: i64,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationFactInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub repository_id: String,
+    pub repository_name: String,
+    pub repository_path: PathBuf,
+    pub kind: String,
+    pub label: String,
+    pub value: String,
+    pub source: String,
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -429,6 +445,66 @@ impl ProjectStore {
             .map_err(storage_error)?;
 
         Ok(initializations)
+    }
+
+    pub fn collect_project_initialization_facts(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let repositories = {
+            let connection = self.connection()?;
+            list_initialization_repositories(&connection, initialization_id)?
+        };
+        let now = unix_timestamp()?;
+        let facts = repositories
+            .iter()
+            .flat_map(|repository| collect_repository_facts(initialization_id, repository, now))
+            .collect::<Vec<_>>();
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, initialization_id)?;
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_facts WHERE initialization_id = ?1",
+                params![initialization_id],
+            )
+            .map_err(storage_error)?;
+        for fact in &facts {
+            insert_project_initialization_fact(&transaction, fact)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["facts", now, initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(facts)
+    }
+
+    pub fn list_project_initialization_facts(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_facts(&connection, initialization_id)
     }
 
     pub fn create_transcript_session(
@@ -821,6 +897,20 @@ impl ProjectStore {
                 CREATE INDEX IF NOT EXISTS idx_project_initialization_repositories_repo
                     ON project_initialization_repositories(repository_id);
 
+                CREATE TABLE IF NOT EXISTS project_initialization_facts (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_facts_initialization
+                    ON project_initialization_facts(initialization_id, repository_id, kind);
+
                 CREATE TABLE IF NOT EXISTS transcript_sessions (
                     id TEXT PRIMARY KEY,
                     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -979,6 +1069,23 @@ fn project_initialization_from_row(
     })
 }
 
+fn project_initialization_fact_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationFactInfo> {
+    Ok(ProjectInitializationFactInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        repository_id: row.get(2)?,
+        repository_name: row.get(3)?,
+        repository_path: PathBuf::from(row.get::<_, String>(4)?),
+        kind: row.get(5)?,
+        label: row.get(6)?,
+        value: row.get(7)?,
+        source: row.get(8)?,
+        created_at: row.get(9)?,
+    })
+}
+
 fn transcript_session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSessionInfo> {
     Ok(TranscriptSessionInfo {
         id: row.get(0)?,
@@ -1067,6 +1174,365 @@ fn require_project_repository(
         )));
     }
     Ok(())
+}
+
+fn require_project_initialization(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM project_initialization_runs WHERE id = ?1",
+            params![initialization_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "project initialization not found: {initialization_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn list_initialization_repositories(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectRepositoryInfo>> {
+    require_project_initialization(connection, initialization_id)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT pr.id, pr.project_id, pr.name, pr.path, pr.is_default, pr.created_at, pr.updated_at
+             FROM project_initialization_repositories ir
+             JOIN project_repositories pr ON pr.id = ir.repository_id
+             WHERE ir.initialization_id = ?1
+             ORDER BY ir.repository_index ASC",
+        )
+        .map_err(storage_error)?;
+    let repositories = statement
+        .query_map(params![initialization_id], project_repository_from_row)
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(repositories)
+}
+
+fn list_project_initialization_facts(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT f.id, f.initialization_id, f.repository_id, pr.name, pr.path,
+                    f.kind, f.label, f.value, f.source, f.created_at
+             FROM project_initialization_facts f
+             JOIN project_repositories pr ON pr.id = f.repository_id
+             WHERE f.initialization_id = ?1
+             ORDER BY pr.name ASC, f.created_at ASC, f.kind ASC",
+        )
+        .map_err(storage_error)?;
+    let facts = statement
+        .query_map(
+            params![initialization_id],
+            project_initialization_fact_from_row,
+        )
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(facts)
+}
+
+fn insert_project_initialization_fact(
+    connection: &Connection,
+    fact: &ProjectInitializationFactInfo,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO project_initialization_facts
+             (id, initialization_id, repository_id, kind, label, value, source, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &fact.id,
+                &fact.initialization_id,
+                &fact.repository_id,
+                &fact.kind,
+                &fact.label,
+                &fact.value,
+                &fact.source,
+                fact.created_at
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn collect_repository_facts(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    created_at: i64,
+) -> Vec<ProjectInitializationFactInfo> {
+    let mut facts = vec![build_initialization_fact(
+        initialization_id,
+        repository,
+        "repository_path",
+        "Repository path",
+        repository.path.to_string_lossy(),
+        "project_repositories.path",
+        created_at,
+    )];
+
+    let git_root = git_output(&repository.path, &["rev-parse", "--show-toplevel"]);
+    let is_git_repository = git_root
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "git_repository",
+        "Git repository",
+        if is_git_repository { "yes" } else { "no" },
+        "git rev-parse --show-toplevel",
+        created_at,
+    ));
+
+    if !is_git_repository {
+        return facts;
+    }
+
+    let branch = git_output(&repository.path, &["branch", "--show-current"])
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| git_output(&repository.path, &["rev-parse", "--abbrev-ref", "HEAD"]))
+        .unwrap_or_else(|| "unknown".to_string());
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "git_branch",
+        "Git branch",
+        branch,
+        "git branch --show-current",
+        created_at,
+    ));
+
+    let head = git_output(&repository.path, &["rev-parse", "--short", "HEAD"])
+        .unwrap_or_else(|| "unknown".to_string());
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "git_head",
+        "Git HEAD",
+        head,
+        "git rev-parse --short HEAD",
+        created_at,
+    ));
+
+    let tracked_files = git_lines(&repository.path, &["ls-files"]);
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "tracked_file_count",
+        "Tracked files",
+        tracked_files.len().to_string(),
+        "git ls-files",
+        created_at,
+    ));
+
+    let markdown_file_count = tracked_files
+        .iter()
+        .filter(|path| path.to_ascii_lowercase().ends_with(".md"))
+        .count();
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "markdown_file_count",
+        "Markdown files",
+        markdown_file_count.to_string(),
+        "git ls-files",
+        created_at,
+    ));
+
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "detected_manifests",
+        "Detected manifests",
+        detected_manifests_summary(&tracked_files),
+        "git ls-files",
+        created_at,
+    ));
+
+    let test_file_count = tracked_files
+        .iter()
+        .filter(|path| is_likely_test_file(path))
+        .count();
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "test_file_count",
+        "Test files",
+        test_file_count.to_string(),
+        "git ls-files",
+        created_at,
+    ));
+
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "likely_entry_points",
+        "Likely entry points",
+        likely_entry_points_summary(&tracked_files),
+        "git ls-files",
+        created_at,
+    ));
+
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "recent_churn",
+        "Recent churn",
+        recent_churn_summary(&repository.path),
+        "git log --name-only --max-count=30",
+        created_at,
+    ));
+
+    facts
+}
+
+fn detected_manifests_summary(tracked_files: &[String]) -> String {
+    let manifest_names = [
+        "package.json",
+        "Cargo.toml",
+        "pyproject.toml",
+        "requirements.txt",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "Makefile",
+    ];
+    let manifests = tracked_files
+        .iter()
+        .filter(|path| manifest_names.iter().any(|name| path.ends_with(name)))
+        .take(8)
+        .cloned()
+        .collect::<Vec<_>>();
+    if manifests.is_empty() {
+        "none".to_string()
+    } else {
+        manifests.join(", ")
+    }
+}
+
+fn is_likely_test_file(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    lower.contains("/test/")
+        || lower.contains("/tests/")
+        || lower.ends_with("_test.rs")
+        || lower.ends_with(".test.ts")
+        || lower.ends_with(".test.tsx")
+        || lower.ends_with(".spec.ts")
+        || lower.ends_with(".spec.tsx")
+}
+
+fn likely_entry_points_summary(tracked_files: &[String]) -> String {
+    let entry_names = [
+        "src/main.rs",
+        "src/lib.rs",
+        "src/main.ts",
+        "src/main.tsx",
+        "src/App.tsx",
+        "main.py",
+        "app.py",
+        "index.ts",
+        "index.tsx",
+    ];
+    let entry_points = tracked_files
+        .iter()
+        .filter(|path| entry_names.iter().any(|name| path.ends_with(name)))
+        .take(8)
+        .cloned()
+        .collect::<Vec<_>>();
+    if entry_points.is_empty() {
+        "none".to_string()
+    } else {
+        entry_points.join(", ")
+    }
+}
+
+fn build_initialization_fact(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    kind: &str,
+    label: &str,
+    value: impl Into<String>,
+    source: &str,
+    created_at: i64,
+) -> ProjectInitializationFactInfo {
+    ProjectInitializationFactInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: initialization_id.to_string(),
+        repository_id: repository.id.clone(),
+        repository_name: repository.name.clone(),
+        repository_path: repository.path.clone(),
+        kind: kind.to_string(),
+        label: label.to_string(),
+        value: value.into(),
+        source: source.to_string(),
+        created_at,
+    }
+}
+
+fn git_output(repository_path: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repository_path)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn git_lines(repository_path: &Path, args: &[&str]) -> Vec<String> {
+    git_output(repository_path, args)
+        .map(|output| {
+            output
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn recent_churn_summary(repository_path: &Path) -> String {
+    let mut counts = HashMap::<String, usize>::new();
+    for line in git_lines(
+        repository_path,
+        &["log", "--name-only", "--pretty=format:", "--max-count=30"],
+    ) {
+        *counts.entry(line).or_default() += 1;
+    }
+
+    let mut entries = counts.into_iter().collect::<Vec<_>>();
+    entries.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+
+    let summary = entries
+        .into_iter()
+        .take(5)
+        .map(|(path, count)| format!("{path} ({count})"))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    if summary.is_empty() {
+        "none".to_string()
+    } else {
+        summary
+    }
 }
 
 fn require_knowledge_available_for_session(
@@ -1393,6 +1859,113 @@ mod tests {
             .list_project_initializations(&project.id)
             .expect("initializations listed");
         assert_eq!(listed, vec![initialization]);
+    }
+
+    #[test]
+    fn collects_non_git_project_initialization_facts() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("facts-non-git"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let facts = store
+            .collect_project_initialization_facts(&initialization.id)
+            .expect("facts collected");
+
+        assert_eq!(facts.len(), 2);
+        assert!(facts.iter().all(|fact| fact.repository_id == repository.id));
+        assert!(facts.iter().any(|fact| {
+            fact.kind == "repository_path" && fact.value == repository.path.to_string_lossy()
+        }));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "git_repository" && fact.value == "no"));
+        assert!(!facts.iter().any(|fact| fact.kind == "git_branch"));
+
+        let listed_facts = store
+            .list_project_initialization_facts(&initialization.id)
+            .expect("facts listed");
+        assert_eq!(listed_facts.len(), facts.len());
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "facts");
+    }
+
+    #[test]
+    fn collects_git_project_initialization_facts_for_selected_repositories() {
+        if !git_available_for_tests() {
+            return;
+        }
+
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("facts-project-root"),
+            })
+            .expect("project created");
+        let git_repository_path = temp_project_path("facts-git-repo");
+        initialize_git_repository_for_tests(&git_repository_path);
+        let selected_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "Git repo".to_string(),
+                path: git_repository_path,
+            })
+            .expect("git repository created");
+        let unselected_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .into_iter()
+            .find(|repository| repository.is_default)
+            .expect("default repository exists");
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![selected_repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let facts = store
+            .collect_project_initialization_facts(&initialization.id)
+            .expect("facts collected");
+
+        assert!(facts
+            .iter()
+            .all(|fact| fact.repository_id == selected_repository.id));
+        assert!(!facts
+            .iter()
+            .any(|fact| fact.repository_id == unselected_repository.id));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "git_repository" && fact.value == "yes"));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "tracked_file_count" && fact.value == "2"));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "markdown_file_count" && fact.value == "1"));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "likely_entry_points" && fact.value.contains("src/lib.rs")));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "recent_churn" && fact.value.contains("README.md")));
     }
 
     #[test]
@@ -1771,5 +2344,62 @@ mod tests {
             .join(format!("{label}-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&path).expect("temp project dir created");
         path
+    }
+
+    fn git_available_for_tests() -> bool {
+        Command::new("git")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+
+    fn initialize_git_repository_for_tests(path: &Path) {
+        run_git_for_tests(path, &["init"]);
+        std::fs::write(path.join("README.md"), "# Test\n").expect("README written");
+        std::fs::create_dir_all(path.join("src")).expect("src dir created");
+        std::fs::write(path.join("src").join("lib.rs"), "pub fn demo() {}\n")
+            .expect("lib.rs written");
+        run_git_for_tests(path, &["add", "."]);
+        run_git_for_tests(
+            path,
+            &[
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "initial",
+            ],
+        );
+        std::fs::write(path.join("README.md"), "# Test\n\nUpdated.\n").expect("README updated");
+        run_git_for_tests(path, &["add", "README.md"]);
+        run_git_for_tests(
+            path,
+            &[
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "update readme",
+            ],
+        );
+    }
+
+    fn run_git_for_tests(path: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(path)
+            .args(args)
+            .output()
+            .expect("git command runs");
+        assert!(
+            output.status.success(),
+            "git command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 }

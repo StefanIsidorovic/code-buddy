@@ -121,6 +121,19 @@ type ProjectInitializationInfo = {
   updatedAt: number;
 };
 
+type ProjectInitializationFactInfo = {
+  id: string;
+  initializationId: string;
+  repositoryId: string;
+  repositoryName: string;
+  repositoryPath: string;
+  kind: string;
+  label: string;
+  value: string;
+  source: string;
+  createdAt: number;
+};
+
 type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;
@@ -207,6 +220,8 @@ function App() {
   const [projectInitializationsByProjectId, setProjectInitializationsByProjectId] = useState<
     Record<string, ProjectInitializationInfo>
   >({});
+  const [initializationFactsByInitializationId, setInitializationFactsByInitializationId] =
+    useState<Record<string, ProjectInitializationFactInfo[]>>({});
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [openedTranscriptSession, setOpenedTranscriptSession] =
@@ -254,6 +269,9 @@ function App() {
   const projectInitialization = selectedProjectId
     ? projectInitializationsByProjectId[selectedProjectId] ?? null
     : null;
+  const projectInitializationFacts = projectInitialization
+    ? initializationFactsByInitializationId[projectInitialization.id] ?? []
+    : [];
   const selectedRepository = useMemo(
     () =>
       projectRepositories.find((repository) => repository.id === selectedRepositoryId) ?? null,
@@ -341,7 +359,12 @@ function App() {
     void refreshTranscriptSessions(selectedProjectId);
     void refreshKnowledgeItems(selectedProjectId);
     void refreshProjectRepositories(selectedProjectId);
+    void refreshProjectInitializations(selectedProjectId);
   }, [selectedProjectId]);
+
+  useEffect(() => {
+    void refreshProjectInitializationFacts(projectInitialization?.id ?? null);
+  }, [projectInitialization?.id]);
 
   useEffect(() => {
     if (runtimeMode !== "pty") {
@@ -743,6 +766,89 @@ function App() {
       setInitializeDialogOpen(false);
     } catch (err) {
       setInitializeError(errorText(err));
+    } finally {
+      setInitializeLoading(false);
+    }
+  }
+
+  async function refreshProjectInitializations(projectId = selectedProjectId) {
+    if (!projectId) {
+      return;
+    }
+
+    try {
+      const initializations =
+        (await invoke<ProjectInitializationInfo[]>("list_project_initializations", {
+          projectId,
+        })) ?? [];
+      setProjectInitializationsByProjectId((current) => {
+        const next = { ...current };
+        if (initializations[0]) {
+          next[projectId] = initializations[0];
+        } else {
+          delete next[projectId];
+        }
+        return next;
+      });
+    } catch (err) {
+      pushToast("error", errorText(err));
+    }
+  }
+
+  async function refreshProjectInitializationFacts(initializationId: string | null) {
+    if (!initializationId) {
+      return;
+    }
+
+    try {
+      const facts =
+        (await invoke<ProjectInitializationFactInfo[]>("list_project_initialization_facts", {
+          initializationId,
+        })) ?? [];
+      setInitializationFactsByInitializationId((current) => ({
+        ...current,
+        [initializationId]: facts,
+      }));
+    } catch (err) {
+      pushToast("error", errorText(err));
+    }
+  }
+
+  async function collectProjectInitializationFacts() {
+    if (!projectInitialization) {
+      pushToast("error", "Start Project Initialize before collecting facts.");
+      return;
+    }
+
+    setInitializeLoading(true);
+    try {
+      const facts = await invoke<ProjectInitializationFactInfo[]>(
+        "collect_project_initialization_facts",
+        {
+          initializationId: projectInitialization.id,
+        },
+      );
+      setInitializationFactsByInitializationId((current) => ({
+        ...current,
+        [projectInitialization.id]: facts,
+      }));
+      setProjectInitializationsByProjectId((current) => {
+        const existing = current[projectInitialization.projectId];
+        if (!existing || existing.id !== projectInitialization.id) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [projectInitialization.projectId]: {
+            ...existing,
+            status: "facts",
+          },
+        };
+      });
+      pushToast("success", `Facts collected for ${projectInitialization.repositoryCount} repositories.`);
+    } catch (err) {
+      pushToast("error", errorText(err));
     } finally {
       setInitializeLoading(false);
     }
@@ -1716,6 +1822,42 @@ function App() {
                 Initialize Project
               </button>
             </div>
+            {projectInitialization ? (
+              <div className="initialize-facts">
+                <div className="facts-heading">
+                  <div>
+                    <h4>Facts</h4>
+                    <span>
+                      {projectInitializationFacts.length > 0
+                        ? `${projectInitializationFacts.length} collected`
+                        : "not collected"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void collectProjectInitializationFacts()}
+                    disabled={initializeLoading}
+                  >
+                    Collect Facts
+                  </button>
+                </div>
+                {projectInitializationFacts.length > 0 ? (
+                  <ul className="fact-list" aria-label="Project initialization facts">
+                    {projectInitializationFacts.map((fact) => (
+                      <li key={fact.id}>
+                        <strong>{fact.repositoryName}</strong>
+                        <span>
+                          {fact.label}: {fact.value}
+                        </span>
+                        <small>{fact.source}</small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">Facts have not been collected yet.</p>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <div className="repository-section">

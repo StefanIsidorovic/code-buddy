@@ -10,9 +10,9 @@ use crate::{
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
-        KnowledgeItemInfo, ProjectInfo, ProjectInitializationInfo, ProjectRepositoryInfo,
-        ProjectStore, RenameTranscriptSessionRequest, TranscriptEventInfo, TranscriptEventInput,
-        TranscriptSessionInfo,
+        KnowledgeItemInfo, ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationInfo,
+        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest, TranscriptEventInfo,
+        TranscriptEventInput, TranscriptSessionInfo,
     },
 };
 use std::sync::Arc;
@@ -136,6 +136,22 @@ pub fn list_project_initializations(
     project_id: String,
 ) -> AppResult<Vec<ProjectInitializationInfo>> {
     state.list_project_initializations(&project_id)
+}
+
+#[tauri::command]
+pub fn collect_project_initialization_facts(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+    state.collect_project_initialization_facts(&initialization_id)
+}
+
+#[tauri::command]
+pub fn list_project_initialization_facts(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+    state.list_project_initialization_facts(&initialization_id)
 }
 
 #[tauri::command]
