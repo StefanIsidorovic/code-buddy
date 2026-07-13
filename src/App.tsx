@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
@@ -11,6 +12,7 @@ type SessionInfo = {
   id: string;
   state: SessionState;
   pid: number | null;
+  cwd: string;
   cols: number;
   rows: number;
   exitCode: number | null;
@@ -55,6 +57,7 @@ type AcpSessionInfo = {
   id: string;
   state: SessionState;
   pid: number | null;
+  cwd: string;
   protocolVersion: number | null;
   agentSessionId: string | null;
   agentName: string | null;
@@ -109,6 +112,15 @@ type ProjectRepositoryInfo = {
   updatedAt: number;
 };
 
+type ProjectInitializationInfo = {
+  id: string;
+  projectId: string;
+  status: string;
+  repositoryCount: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
 type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;
@@ -142,6 +154,15 @@ type KnowledgeItemInfo = {
 };
 
 type RuntimeMode = "pty" | "acp";
+type ToastKind = "success" | "error";
+
+type ToastMessage = {
+  id: string;
+  kind: ToastKind;
+  text: string;
+};
+
+const toastDismissMs = 4_000;
 
 const initialSize = {
   cols: 80,
@@ -156,6 +177,8 @@ function App() {
   const sessionRef = useRef<SessionInfo | null>(null);
   const transcriptOpenRequest = useRef(0);
   const transcriptSessionRef = useRef<TranscriptSessionInfo | null>(null);
+  const toastSequence = useRef(0);
+  const toastTimers = useRef<number[]>([]);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
   const [terminalSize, setTerminalSize] = useState(initialSize);
@@ -168,13 +191,22 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
   const [projectPath, setProjectPath] = useState("");
-  const [projectError, setProjectError] = useState<string | null>(null);
   const [projectLoading, setProjectLoading] = useState(false);
+  const [projectFolderPicking, setProjectFolderPicking] = useState(false);
+  const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
+  const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
   const [projectRepositories, setProjectRepositories] = useState<ProjectRepositoryInfo[]>([]);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<string | null>(null);
   const [repositoryName, setRepositoryName] = useState("");
   const [repositoryPath, setRepositoryPath] = useState("");
   const [repositoryLoading, setRepositoryLoading] = useState(false);
+  const [initializeDialogOpen, setInitializeDialogOpen] = useState(false);
+  const [initializeRepositoryIds, setInitializeRepositoryIds] = useState<string[]>([]);
+  const [initializeLoading, setInitializeLoading] = useState(false);
+  const [initializeError, setInitializeError] = useState<string | null>(null);
+  const [projectInitializationsByProjectId, setProjectInitializationsByProjectId] = useState<
+    Record<string, ProjectInitializationInfo>
+  >({});
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [openedTranscriptSession, setOpenedTranscriptSession] =
@@ -191,6 +223,7 @@ function App() {
   const [knowledgeKind, setKnowledgeKind] = useState("decision");
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeDialogOpen, setKnowledgeDialogOpen] = useState(false);
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
   const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
@@ -203,6 +236,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [acpPromptBusy, setAcpPromptBusy] = useState(false);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const canUseSession = session?.state === "running";
   const canUseAcpSession = acpSession?.state === "running";
@@ -217,6 +251,9 @@ function App() {
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
   );
+  const projectInitialization = selectedProjectId
+    ? projectInitializationsByProjectId[selectedProjectId] ?? null
+    : null;
   const selectedRepository = useMemo(
     () =>
       projectRepositories.find((repository) => repository.id === selectedRepositoryId) ?? null,
@@ -256,6 +293,7 @@ function App() {
         acpSession.agentSessionId ?? "no agent session"
       }`
     : "not started";
+  const activeRuntimeCwd = runtimeMode === "acp" ? acpSession?.cwd : session?.cwd;
   const statusLabel = useMemo(() => {
     if (!session) {
       return "not started";
@@ -267,6 +305,13 @@ function App() {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(
+    () => () => {
+      toastTimers.current.forEach((timerId) => window.clearTimeout(timerId));
+    },
+    [],
+  );
 
   useEffect(() => {
     transcriptSessionRef.current = transcriptSession;
@@ -407,9 +452,20 @@ function App() {
     }
   }
 
+  function pushToast(kind: ToastKind, text: string) {
+    const id = `toast-${Date.now()}-${toastSequence.current}`;
+    toastSequence.current += 1;
+    setToasts((current) => [...current, { id, kind, text }].slice(-4));
+    const timerId = window.setTimeout(() => dismissToast(id), toastDismissMs);
+    toastTimers.current.push(timerId);
+  }
+
+  function dismissToast(id: string) {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }
+
   async function refreshProjects() {
     setProjectLoading(true);
-    setProjectError(null);
     try {
       const nextProjects = await invoke<ProjectInfo[]>("list_projects");
       setProjects(nextProjects);
@@ -421,14 +477,16 @@ function App() {
         return nextProjects[0]?.id ?? null;
       });
     } catch (err) {
-      setProjectError(errorText(err));
+      pushToast("error", errorText(err));
     } finally {
       setProjectLoading(false);
     }
   }
 
   async function createProject() {
-    await runAction(async () => {
+    setBusy(true);
+    setError(null);
+    try {
       const project = await invoke<ProjectInfo>("create_project", {
         request: {
           name: projectName,
@@ -439,14 +497,67 @@ function App() {
       setSelectedProjectId(project.id);
       setProjectName("");
       setProjectPath("");
+      pushToast("success", `${project.name} added.`);
       await refreshProjectRepositories(project.id);
-    });
+    } catch (err) {
+      pushToast("error", errorText(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function deleteProject(projectId: string) {
-    await runAction(async () => {
+  async function chooseProjectFolder() {
+    setProjectFolderPicking(true);
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Choose project folder",
+      });
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+
+      setProjectPath(selected);
+      setProjectName((current) => current.trim() || folderNameFromPath(selected));
+    } catch (err) {
+      pushToast("error", errorText(err));
+    } finally {
+      setProjectFolderPicking(false);
+    }
+  }
+
+  function openProjectDeleteDialog(project: ProjectInfo) {
+    setProjectDeleteCandidate(project);
+    setProjectDeleteError(null);
+  }
+
+  function closeProjectDeleteDialog() {
+    if (busy) {
+      return;
+    }
+    setProjectDeleteCandidate(null);
+    setProjectDeleteError(null);
+  }
+
+  async function confirmDeleteProject() {
+    if (!projectDeleteCandidate) {
+      return;
+    }
+
+    const projectId = projectDeleteCandidate.id;
+    const projectName = projectDeleteCandidate.name;
+    setBusy(true);
+    setProjectDeleteError(null);
+    try {
+      const stoppedAcpSessionCount = await stopRunningAcpSessionsForProjectDelete();
       await invoke("delete_project", { projectId });
       setProjects((current) => current.filter((project) => project.id !== projectId));
+      setProjectInitializationsByProjectId((current) => {
+        const next = { ...current };
+        delete next[projectId];
+        return next;
+      });
       setSelectedProjectId((current) => {
         if (current === projectId) {
           setProjectRepositories([]);
@@ -456,7 +567,41 @@ function App() {
 
         return current;
       });
-    });
+      setProjectDeleteCandidate(null);
+      pushToast(
+        "success",
+        stoppedAcpSessionCount > 0
+          ? `${projectName} deleted. Stopped ${stoppedAcpSessionCount} ACP session${
+              stoppedAcpSessionCount === 1 ? "" : "s"
+            }.`
+          : `${projectName} deleted.`,
+      );
+    } catch (err) {
+      setProjectDeleteError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function stopRunningAcpSessionsForProjectDelete() {
+    const acpSessions = (await invoke<AcpSessionInfo[]>("list_acp_sessions")) ?? [];
+    const runningAcpSessions = acpSessions.filter((candidate) => candidate.state === "running");
+    for (const runningSession of runningAcpSessions) {
+      await invoke<AcpSessionInfo>("stop_acp_session", {
+        sessionId: runningSession.id,
+        force: false,
+      });
+    }
+
+    if (runningAcpSessions.length > 0) {
+      setAcpSession(null);
+      setAcpSessionSource(null);
+      setAcpEvents([]);
+      setAcpPromptBusy(false);
+      setAcpPromptResult(null);
+    }
+
+    return runningAcpSessions.length;
   }
 
   async function refreshProjectRepositories(projectId = selectedProjectId) {
@@ -472,7 +617,6 @@ function App() {
     }
 
     setRepositoryLoading(true);
-    setProjectError(null);
     try {
       const repositories =
         (await invoke<ProjectRepositoryInfo[]>("list_project_repositories", {
@@ -487,7 +631,7 @@ function App() {
         return repositories[0]?.id ?? null;
       });
     } catch (err) {
-      setProjectError(errorText(err));
+      pushToast("error", errorText(err));
     } finally {
       setRepositoryLoading(false);
     }
@@ -495,12 +639,11 @@ function App() {
 
   async function createProjectRepository() {
     if (!selectedProject) {
-      setProjectError("Select a project before adding a repository.");
+      pushToast("error", "Select a project before adding a repository.");
       return;
     }
 
     setRepositoryLoading(true);
-    setProjectError(null);
     try {
       const repository = await invoke<ProjectRepositoryInfo>("create_project_repository", {
         request: {
@@ -517,7 +660,7 @@ function App() {
       setRepositoryName("");
       setRepositoryPath("");
     } catch (err) {
-      setProjectError(errorText(err));
+      pushToast("error", errorText(err));
     } finally {
       setRepositoryLoading(false);
     }
@@ -525,7 +668,6 @@ function App() {
 
   async function deleteProjectRepository(repositoryId: string) {
     setRepositoryLoading(true);
-    setProjectError(null);
     try {
       await invoke("delete_project_repository", { repositoryId });
       const nextRepositories = projectRepositories.filter(
@@ -540,9 +682,69 @@ function App() {
         return currentSelected;
       });
     } catch (err) {
-      setProjectError(errorText(err));
+      pushToast("error", errorText(err));
     } finally {
       setRepositoryLoading(false);
+    }
+  }
+
+  function openProjectInitializeDialog() {
+    if (!selectedProject) {
+      setInitializeError("Select a project before initializing it.");
+      return;
+    }
+    setInitializeError(null);
+    setInitializeRepositoryIds(projectRepositories.map((repository) => repository.id));
+    setInitializeDialogOpen(true);
+  }
+
+  function closeProjectInitializeDialog() {
+    if (initializeLoading) {
+      return;
+    }
+    setInitializeDialogOpen(false);
+    setInitializeError(null);
+  }
+
+  function toggleInitializeRepository(repositoryId: string, selected: boolean) {
+    setInitializeRepositoryIds((current) =>
+      selected
+        ? uniqueIds([...current, repositoryId])
+        : current.filter((candidate) => candidate !== repositoryId),
+    );
+  }
+
+  async function createProjectInitialization() {
+    if (!selectedProject) {
+      setInitializeError("Select a project before initializing it.");
+      return;
+    }
+    if (initializeRepositoryIds.length === 0) {
+      setInitializeError("Select at least one repository.");
+      return;
+    }
+
+    setInitializeLoading(true);
+    setInitializeError(null);
+    try {
+      const initialization = await invoke<ProjectInitializationInfo>(
+        "create_project_initialization",
+        {
+          request: {
+            projectId: selectedProject.id,
+            repositoryIds: initializeRepositoryIds,
+          },
+        },
+      );
+      setProjectInitializationsByProjectId((current) => ({
+        ...current,
+        [initialization.projectId]: initialization,
+      }));
+      setInitializeDialogOpen(false);
+    } catch (err) {
+      setInitializeError(errorText(err));
+    } finally {
+      setInitializeLoading(false);
     }
   }
 
@@ -608,12 +810,30 @@ function App() {
       setAttachedKnowledgeIds((current) => uniqueIds([...current, item.id]));
       setKnowledgeTitle("");
       setKnowledgeBody("");
+      setKnowledgeKind("decision");
+      setKnowledgeDialogOpen(false);
       await attachKnowledgeToActiveTranscript(item.id);
     } catch (err) {
       setKnowledgeError(errorText(err));
     } finally {
       setKnowledgeLoading(false);
     }
+  }
+
+  function closeKnowledgeDialog() {
+    if (knowledgeLoading) {
+      return;
+    }
+    setKnowledgeDialogOpen(false);
+    setKnowledgeError(null);
+    setKnowledgeTitle("");
+    setKnowledgeBody("");
+    setKnowledgeKind("decision");
+  }
+
+  function openKnowledgeDialog() {
+    setKnowledgeError(null);
+    setKnowledgeDialogOpen(true);
   }
 
   async function toggleKnowledgeAttachment(item: KnowledgeItemInfo, attached: boolean) {
@@ -1000,6 +1220,7 @@ function App() {
         prompt: formatPromptWithKnowledge(attachedKnowledgeItems, acpPrompt),
       });
       setAcpPromptResult(result);
+      setAcpPromptBusy(false);
       await drainAcpEvents(acpSession.id, activeTranscriptId);
     } catch (err) {
       setError(errorText(err));
@@ -1063,8 +1284,11 @@ function App() {
     <main className="app-shell" aria-label="AIadne runtime test">
       <section className="intro-panel" aria-labelledby="runtime-sidebar-title">
         <div className="sidebar-brand">
-          <p className="eyebrow">AIadne</p>
-          <h1 id="runtime-sidebar-title">Runtime</h1>
+          <span className="app-mark" aria-hidden="true">A</span>
+          <div>
+            <p className="eyebrow">Workspace</p>
+            <h1 id="runtime-sidebar-title">AIadne</h1>
+          </div>
         </div>
 
         <div className="sidebar-scroll">
@@ -1242,64 +1466,27 @@ function App() {
             </summary>
 
             <div className="accordion-body">
-              <div className="doctor-heading">
-                <h3 id="knowledge-title">Knowledge Cards</h3>
-                <span>{knowledgeItems.length} available</span>
+              <div className="knowledge-toolbar">
+                <div>
+                  <h3 id="knowledge-title">Knowledge Cards</h3>
+                  <span>{knowledgeItems.length} available</span>
+                </div>
                 <button
+                  aria-label="Add knowledge card"
+                  className="icon-button"
                   type="button"
-                  onClick={() => void refreshKnowledgeItems()}
+                  onClick={openKnowledgeDialog}
                   disabled={knowledgeLoading}
                 >
-                  Refresh
+                  +
                 </button>
               </div>
 
-              {knowledgeError ? (
+              {knowledgeError && !knowledgeDialogOpen ? (
                 <p className="error-message" role="alert">
                   {knowledgeError}
                 </p>
               ) : null}
-
-              <div className="knowledge-form" aria-labelledby="knowledge-title">
-                <label>
-                  <span>Title</span>
-                  <input
-                    aria-label="Knowledge title"
-                    onChange={(event) => setKnowledgeTitle(event.target.value)}
-                    value={knowledgeTitle}
-                  />
-                </label>
-                <label>
-                  <span>Kind</span>
-                  <select
-                    aria-label="Knowledge kind"
-                    onChange={(event) => setKnowledgeKind(event.target.value)}
-                    value={knowledgeKind}
-                  >
-                    <option value="decision">Decision</option>
-                    <option value="constraint">Constraint</option>
-                    <option value="preference">Preference</option>
-                    <option value="fact">Fact</option>
-                    <option value="todo">Todo</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Text</span>
-                  <textarea
-                    aria-label="Knowledge body"
-                    onChange={(event) => setKnowledgeBody(event.target.value)}
-                    rows={4}
-                    value={knowledgeBody}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void createKnowledgeItem()}
-                  disabled={knowledgeLoading || !knowledgeTitle.trim() || !knowledgeBody.trim()}
-                >
-                  Create Card
-                </button>
-              </div>
 
               <ul className="knowledge-list" aria-label="Knowledge cards">
                 {knowledgeItems.length === 0 ? (
@@ -1386,57 +1573,62 @@ function App() {
           </details>
         </div>
 
+        <dl className="runtime-info-card sidebar-runtime-info" aria-label="Runtime info">
+          <div>
+            <dt>Status</dt>
+            <dd>{runtimeMode === "acp" ? acpStatusLabel : statusLabel}</dd>
+          </div>
+          <div>
+            <dt>Session</dt>
+            <dd>
+              {runtimeMode === "acp"
+                ? acpSession?.id.slice(0, 8) ?? "none"
+                : session?.id.slice(0, 8) ?? "none"}
+            </dd>
+          </div>
+          <div>
+            <dt>PID</dt>
+            <dd>{runtimeMode === "acp" ? acpSession?.pid ?? "none" : session?.pid ?? "none"}</dd>
+          </div>
+          <div>
+            <dt>Workspace</dt>
+            <dd>{selectedProject?.name ?? "none"}</dd>
+          </div>
+          <div>
+            <dt>Repository</dt>
+            <dd>{selectedRepository?.name ?? (selectedProject ? "default path" : "none")}</dd>
+          </div>
+          <div>
+            <dt>Active Folder</dt>
+            <dd>{activeRuntimeCwd ?? "none"}</dd>
+          </div>
+        </dl>
       </section>
 
       <section className="control-panel" aria-labelledby="controls-title">
-        <div className="section-heading runtime-heading">
-          <div>
-            <p className="eyebrow">Runtime</p>
-            <h2 id="controls-title">Runtime Controls</h2>
-          </div>
-
-          <dl className="runtime-info-card" aria-label="Runtime info">
-            <div>
-              <dt>Status</dt>
-              <dd>{runtimeMode === "acp" ? acpStatusLabel : statusLabel}</dd>
-            </div>
-            <div>
-              <dt>Session</dt>
-              <dd>
-                {runtimeMode === "acp"
-                  ? acpSession?.id.slice(0, 8) ?? "none"
-                  : session?.id.slice(0, 8) ?? "none"}
-              </dd>
-            </div>
-            <div>
-              <dt>PID</dt>
-              <dd>{runtimeMode === "acp" ? acpSession?.pid ?? "none" : session?.pid ?? "none"}</dd>
-            </div>
-            <div>
-              <dt>Workspace</dt>
-              <dd>{selectedProject?.name ?? "none"}</dd>
-            </div>
-            <div>
-              <dt>Repository</dt>
-              <dd>{selectedRepository?.name ?? (selectedProject ? "default path" : "none")}</dd>
-            </div>
-          </dl>
+        <div className="section-heading">
+          <p className="eyebrow">Runtime</p>
+          <h2 id="controls-title">Runtime Controls</h2>
         </div>
 
         <section className="workspace-panel" aria-labelledby="workspace-title">
           <div className="doctor-heading">
             <h3 id="workspace-title">Workspace</h3>
             <span>{selectedProject ? selectedProject.name : "none selected"}</span>
-            <button type="button" onClick={() => void refreshProjects()} disabled={projectLoading}>
-              Refresh
-            </button>
+            <div className="project-actions">
+              <button type="button" onClick={() => void refreshProjects()} disabled={projectLoading}>
+                Refresh
+              </button>
+              <button
+                className="danger-button"
+                type="button"
+                onClick={() => selectedProject && openProjectDeleteDialog(selectedProject)}
+                disabled={!selectedProject || busy || canUseSession || canUseAcpSession}
+              >
+                Delete Project
+              </button>
+            </div>
           </div>
-
-          {projectError ? (
-            <p className="error-message" role="alert">
-              {projectError}
-            </p>
-          ) : null}
 
           <div className="workspace-form">
             <label>
@@ -1457,8 +1649,15 @@ function App() {
             </label>
             <button
               type="button"
+              onClick={() => void chooseProjectFolder()}
+              disabled={busy || projectFolderPicking}
+            >
+              Choose Folder
+            </button>
+            <button
+              type="button"
               onClick={() => void createProject()}
-              disabled={busy || !projectName.trim() || !projectPath.trim()}
+              disabled={busy || projectFolderPicking || !projectName.trim() || !projectPath.trim()}
             >
               Add Project
             </button>
@@ -1486,8 +1685,9 @@ function App() {
                     </button>
                     <button
                       aria-label={`Delete ${project.name} project`}
+                      className="danger-button"
                       type="button"
-                      onClick={() => void deleteProject(project.id)}
+                      onClick={() => openProjectDeleteDialog(project)}
                       disabled={busy || canUseSession || canUseAcpSession}
                     >
                       Delete
@@ -1497,6 +1697,26 @@ function App() {
               ))
             )}
           </ul>
+
+          <div className="repository-section project-initialize-section">
+            <div className="doctor-heading">
+              <h3 id="project-initialize-title">Project Initialize</h3>
+              <span>
+                {projectInitialization
+                  ? `${projectInitialization.status} · ${projectInitialization.repositoryCount} repositories`
+                  : selectedProject
+                    ? "not started"
+                    : "select project"}
+              </span>
+              <button
+                type="button"
+                onClick={openProjectInitializeDialog}
+                disabled={!selectedProject || projectRepositories.length === 0 || initializeLoading}
+              >
+                Initialize Project
+              </button>
+            </div>
+          </div>
 
           <div className="repository-section">
             <div className="doctor-heading">
@@ -1796,6 +2016,265 @@ function App() {
           ) : null}
         </div>
       </section>
+
+      {initializeDialogOpen ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeProjectInitializeDialog();
+            }
+          }}
+        >
+          <section
+            aria-labelledby="project-initialize-dialog-title"
+            aria-modal="true"
+            className="knowledge-modal project-initialize-modal"
+            role="dialog"
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Project</p>
+                <h2 id="project-initialize-dialog-title">Project Initialize</h2>
+              </div>
+              <button
+                aria-label="Close project initialize dialog"
+                className="icon-button"
+                type="button"
+                onClick={closeProjectInitializeDialog}
+                disabled={initializeLoading}
+              >
+                x
+              </button>
+            </div>
+
+            {initializeError ? (
+              <p className="error-message" role="alert">
+                {initializeError}
+              </p>
+            ) : null}
+
+            <div className="initialize-section">
+              <h3>Repositories</h3>
+              <ul className="initialize-repository-list" aria-label="Repositories to initialize">
+                {projectRepositories.map((repository) => (
+                  <li key={repository.id}>
+                    <label>
+                      <input
+                        aria-label={`Include ${repository.name} repository`}
+                        checked={initializeRepositoryIds.includes(repository.id)}
+                        type="checkbox"
+                        onChange={(event) =>
+                          toggleInitializeRepository(repository.id, event.currentTarget.checked)
+                        }
+                      />
+                      <span>
+                        <strong>{repository.name}</strong>
+                        <small>{repository.path}</small>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="initialize-section">
+              <h3>Phases</h3>
+              <ol className="initialize-phase-list">
+                <li>Facts</li>
+                <li>Markdown analysis</li>
+                <li>Interview</li>
+                <li>Knowledge summary</li>
+              </ol>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={closeProjectInitializeDialog}
+                disabled={initializeLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void createProjectInitialization()}
+                disabled={initializeLoading || initializeRepositoryIds.length === 0}
+              >
+                Start Initialize
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {projectDeleteCandidate ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeProjectDeleteDialog();
+            }
+          }}
+        >
+          <section
+            aria-labelledby="project-delete-dialog-title"
+            aria-modal="true"
+            className="knowledge-modal project-delete-modal"
+            role="dialog"
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Workspace</p>
+                <h2 id="project-delete-dialog-title">Delete Project</h2>
+              </div>
+              <button
+                aria-label="Close delete project dialog"
+                className="icon-button"
+                type="button"
+                onClick={closeProjectDeleteDialog}
+                disabled={busy}
+              >
+                x
+              </button>
+            </div>
+
+            {projectDeleteError ? (
+              <p className="error-message" role="alert">
+                {projectDeleteError}
+              </p>
+            ) : null}
+
+            <p className="delete-modal-copy">
+              Delete <strong>{projectDeleteCandidate.name}</strong> from AIadne? This removes the
+              saved project, its repository list, and its initialization runs. Saved transcripts are
+              kept without the project link. Running ACP sessions will be stopped first.
+            </p>
+
+            <div className="modal-actions">
+              <button type="button" onClick={closeProjectDeleteDialog} disabled={busy}>
+                Cancel
+              </button>
+              <button
+                aria-label="Confirm delete project"
+                className="danger-button"
+                type="button"
+                onClick={() => void confirmDeleteProject()}
+                disabled={busy}
+              >
+                Delete Project
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {knowledgeDialogOpen ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeKnowledgeDialog();
+            }
+          }}
+        >
+          <section
+            aria-labelledby="knowledge-dialog-title"
+            aria-modal="true"
+            className="knowledge-modal"
+            role="dialog"
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Knowledge</p>
+                <h2 id="knowledge-dialog-title">New Knowledge Card</h2>
+              </div>
+              <button
+                aria-label="Close knowledge card dialog"
+                className="icon-button"
+                type="button"
+                onClick={closeKnowledgeDialog}
+                disabled={knowledgeLoading}
+              >
+                x
+              </button>
+            </div>
+
+            {knowledgeError ? (
+              <p className="error-message" role="alert">
+                {knowledgeError}
+              </p>
+            ) : null}
+
+            <div className="knowledge-form knowledge-modal-form">
+              <label>
+                <span>Title</span>
+                <input
+                  aria-label="Knowledge title"
+                  onChange={(event) => setKnowledgeTitle(event.target.value)}
+                  value={knowledgeTitle}
+                />
+              </label>
+              <label>
+                <span>Kind</span>
+                <select
+                  aria-label="Knowledge kind"
+                  onChange={(event) => setKnowledgeKind(event.target.value)}
+                  value={knowledgeKind}
+                >
+                  <option value="decision">Decision</option>
+                  <option value="constraint">Constraint</option>
+                  <option value="preference">Preference</option>
+                  <option value="fact">Fact</option>
+                  <option value="todo">Todo</option>
+                </select>
+              </label>
+              <label>
+                <span>Text</span>
+                <textarea
+                  aria-label="Knowledge body"
+                  onChange={(event) => setKnowledgeBody(event.target.value)}
+                  rows={5}
+                  value={knowledgeBody}
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" onClick={closeKnowledgeDialog} disabled={knowledgeLoading}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void createKnowledgeItem()}
+                  disabled={knowledgeLoading || !knowledgeTitle.trim() || !knowledgeBody.trim()}
+                >
+                  Create Card
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      <div className="toast-stack" aria-label="Notifications" aria-live="polite">
+        {toasts.map((toast) => (
+          <div
+            className="toast-message"
+            data-kind={toast.kind}
+            key={toast.id}
+            role={toast.kind === "error" ? "alert" : "status"}
+          >
+            <span>{toast.text}</span>
+            <button
+              aria-label={`Dismiss notification: ${toast.text}`}
+              className="toast-close"
+              type="button"
+              onClick={() => dismissToast(toast.id)}
+            >
+              x
+            </button>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
@@ -2032,6 +2511,11 @@ function readTerminalSize(activeTerminal: Terminal | null) {
     cols: Math.max(1, activeTerminal?.cols ?? initialSize.cols),
     rows: Math.max(1, activeTerminal?.rows ?? initialSize.rows),
   };
+}
+
+function folderNameFromPath(path: string) {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] ?? "Project";
 }
 
 function errorText(error: unknown) {

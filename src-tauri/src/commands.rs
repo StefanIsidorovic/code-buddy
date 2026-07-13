@@ -8,8 +8,9 @@ use crate::{
     errors::{AppError, AppResult},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
-        CreateKnowledgeItemRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
-        CreateTranscriptSessionRequest, KnowledgeItemInfo, ProjectInfo, ProjectRepositoryInfo,
+        CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
+        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
+        KnowledgeItemInfo, ProjectInfo, ProjectInitializationInfo, ProjectRepositoryInfo,
         ProjectStore, RenameTranscriptSessionRequest, TranscriptEventInfo, TranscriptEventInput,
         TranscriptSessionInfo,
     },
@@ -119,6 +120,22 @@ pub fn delete_project_repository(
     repository_id: String,
 ) -> AppResult<()> {
     state.delete_project_repository(&repository_id)
+}
+
+#[tauri::command]
+pub fn create_project_initialization(
+    state: State<'_, ProjectStore>,
+    request: CreateProjectInitializationRequest,
+) -> AppResult<ProjectInitializationInfo> {
+    state.create_project_initialization(request)
+}
+
+#[tauri::command]
+pub fn list_project_initializations(
+    state: State<'_, ProjectStore>,
+    project_id: String,
+) -> AppResult<Vec<ProjectInitializationInfo>> {
+    state.list_project_initializations(&project_id)
 }
 
 #[tauri::command]

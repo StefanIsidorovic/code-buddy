@@ -9,7 +9,7 @@
 ## Current Shape
 - SessionManager is managed as Tauri app state in src-tauri/src/lib.rs.
 - SessionManager owns a map of session id to PtySession.
-- PtySession owns the PTY master, writer, child process handle, bounded output buffer, and runtime state.
+- PtySession owns the resolved cwd, PTY master, writer, child process handle, bounded output buffer, and runtime state.
 - portable-pty provides native_pty_system, openpty, command spawn, reader/writer handles, resize, try_wait, and kill behavior.
 
 ## Data Flow
@@ -22,6 +22,7 @@
 - Frontend sends resize_session with cols/rows; backend resizes the PTY master.
 - stop_session sends interrupt first, waits briefly, then force-kills if needed.
 - SessionManager and PtySession drop paths attempt to kill remaining child processes.
+- SessionInfo includes the resolved cwd so the frontend can show the active process folder separately from selected Workspace state.
 
 ## Constraints
 - Output delivery is currently pull-based polling from frontend, not backend event streaming.
@@ -29,6 +30,7 @@
 - Stop timeout is 750 ms and wait polling interval is 25 ms.
 - Fake CLI is Linux-first via /bin/sh; Windows command is still a placeholder.
 - Session cwd defaults to the backend process current directory unless the frontend passes one.
+- Deleting a saved Workspace project does not alter an already-running PTY process cwd.
 
 ## Tests
 - Backend tests cover fake start/output, input echo, resize, graceful stop, force stop, missing session, manager drop cleanup, and 8 concurrent fake sessions.

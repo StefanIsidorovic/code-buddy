@@ -2,6 +2,7 @@ use crate::errors::{AppError, AppResult};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::{Mutex, MutexGuard},
     time::{SystemTime, UNIX_EPOCH},
@@ -41,6 +42,24 @@ pub struct ProjectRepositoryInfo {
     pub name: String,
     pub path: PathBuf,
     pub is_default: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProjectInitializationRequest {
+    pub project_id: String,
+    pub repository_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationInfo {
+    pub id: String,
+    pub project_id: String,
+    pub status: String,
+    pub repository_count: i64,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -301,6 +320,115 @@ impl ProjectStore {
             )));
         }
         Ok(())
+    }
+
+    pub fn create_project_initialization(
+        &self,
+        request: CreateProjectInitializationRequest,
+    ) -> AppResult<ProjectInitializationInfo> {
+        let project_id = request.project_id.trim();
+        if project_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization project id must not be empty".to_string(),
+            ));
+        }
+        self.require_project(project_id)?;
+
+        let mut seen_repository_ids = HashSet::new();
+        let mut repository_ids = Vec::new();
+        for repository_id in request.repository_ids {
+            let repository_id = repository_id.trim();
+            if repository_id.is_empty() {
+                return Err(AppError::InvalidInput(
+                    "initialization repository id must not be empty".to_string(),
+                ));
+            }
+            if !seen_repository_ids.insert(repository_id.to_string()) {
+                return Err(AppError::InvalidInput(format!(
+                    "duplicate initialization repository id: {repository_id}"
+                )));
+            }
+            repository_ids.push(repository_id.to_string());
+        }
+        if repository_ids.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization must include at least one repository".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let initialization = ProjectInitializationInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: project_id.to_string(),
+            status: "preflight".to_string(),
+            repository_count: repository_ids.len() as i64,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        for repository_id in &repository_ids {
+            require_project_repository(&transaction, project_id, repository_id)?;
+        }
+        transaction
+            .execute(
+                "INSERT INTO project_initialization_runs
+                 (id, project_id, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    &initialization.id,
+                    &initialization.project_id,
+                    &initialization.status,
+                    initialization.created_at,
+                    initialization.updated_at
+                ],
+            )
+            .map_err(storage_error)?;
+        for (repository_index, repository_id) in repository_ids.iter().enumerate() {
+            transaction
+                .execute(
+                    "INSERT INTO project_initialization_repositories
+                     (initialization_id, repository_id, repository_index, created_at)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        &initialization.id,
+                        repository_id,
+                        repository_index as i64,
+                        now
+                    ],
+                )
+                .map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(initialization)
+    }
+
+    pub fn list_project_initializations(
+        &self,
+        project_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationInfo>> {
+        self.require_project(project_id)?;
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT r.id, r.project_id, r.status, COUNT(ir.repository_id), r.created_at, r.updated_at
+                 FROM project_initialization_runs r
+                 LEFT JOIN project_initialization_repositories ir ON ir.initialization_id = r.id
+                 WHERE r.project_id = ?1
+                 GROUP BY r.id, r.project_id, r.status, r.created_at, r.updated_at
+                 ORDER BY r.updated_at DESC, r.created_at DESC",
+            )
+            .map_err(storage_error)?;
+        let initializations = statement
+            .query_map(params![project_id], project_initialization_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(initializations)
     }
 
     pub fn create_transcript_session(
@@ -670,6 +798,29 @@ impl ProjectStore {
                 FROM projects
                 WHERE path IS NOT NULL AND path != '';
 
+                CREATE TABLE IF NOT EXISTS project_initialization_runs (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_runs_project_updated
+                    ON project_initialization_runs(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_repositories (
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    repository_index INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    PRIMARY KEY (initialization_id, repository_id),
+                    UNIQUE(initialization_id, repository_index)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_repositories_repo
+                    ON project_initialization_repositories(repository_id);
+
                 CREATE TABLE IF NOT EXISTS transcript_sessions (
                     id TEXT PRIMARY KEY,
                     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -815,6 +966,19 @@ fn project_repository_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Proj
     })
 }
 
+fn project_initialization_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationInfo> {
+    Ok(ProjectInitializationInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        status: row.get(2)?,
+        repository_count: row.get(3)?,
+        created_at: row.get(4)?,
+        updated_at: row.get(5)?,
+    })
+}
+
 fn transcript_session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSessionInfo> {
     Ok(TranscriptSessionInfo {
         id: row.get(0)?,
@@ -880,6 +1044,26 @@ fn require_knowledge_item(connection: &Connection, knowledge_item_id: &str) -> A
     if exists == 0 {
         return Err(AppError::InvalidInput(format!(
             "knowledge item not found: {knowledge_item_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn require_project_repository(
+    connection: &Connection,
+    project_id: &str,
+    repository_id: &str,
+) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM project_repositories WHERE id = ?1 AND project_id = ?2",
+            params![repository_id, project_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "project repository not found for project: {repository_id}"
         )));
     }
     Ok(())
@@ -1171,6 +1355,93 @@ mod tests {
             .expect_err("duplicate path rejected");
         assert!(matches!(duplicate, AppError::InvalidInput(_)));
         assert!(duplicate.to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn creates_project_initialization_with_selected_repositories() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("init-project"),
+            })
+            .expect("project created");
+        let default_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let api_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "API".to_string(),
+                path: temp_project_path("init-api"),
+            })
+            .expect("repository created");
+
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![default_repository.id, api_repository.id],
+            })
+            .expect("initialization created");
+
+        assert_eq!(initialization.project_id, project.id);
+        assert_eq!(initialization.status, "preflight");
+        assert_eq!(initialization.repository_count, 2);
+
+        let listed = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed");
+        assert_eq!(listed, vec![initialization]);
+    }
+
+    #[test]
+    fn rejects_invalid_project_initialization_input() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: temp_project_path("init-one"),
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path: temp_project_path("init-two"),
+            })
+            .expect("second project created");
+        let first_repository = store
+            .list_project_repositories(&first_project.id)
+            .expect("first repositories listed")
+            .remove(0);
+        let second_repository = store
+            .list_project_repositories(&second_project.id)
+            .expect("second repositories listed")
+            .remove(0);
+
+        let empty = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id.clone(),
+                repository_ids: vec![],
+            })
+            .expect_err("empty repository selection rejected");
+        assert!(matches!(empty, AppError::InvalidInput(_)));
+
+        let duplicate = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id.clone(),
+                repository_ids: vec![first_repository.id.clone(), first_repository.id],
+            })
+            .expect_err("duplicate repository selection rejected");
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
+
+        let wrong_project = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id,
+                repository_ids: vec![second_repository.id],
+            })
+            .expect_err("repository from another project rejected");
+        assert!(matches!(wrong_project, AppError::InvalidInput(_)));
     }
 
     #[test]

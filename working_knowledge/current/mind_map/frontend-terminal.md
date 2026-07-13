@@ -13,10 +13,16 @@
 - FitAddon fits xterm to the available terminal frame.
 - The panel exposes Start Fake, Start Codex, Drain, Resize, Stop, and Kill controls.
 - The panel exposes a temporary Workspace section for saving and selecting project folders.
+- The Workspace section now exposes `Initialize Project`, which opens a project-level popup for choosing participating repositories.
+- The Workspace section exposes `Delete Project` for the selected project and confirms before deletion.
+- The Workspace form exposes `Choose Folder`, backed by Tauri dialog plugin, to fill project path and default name.
+- Transient Workspace success/error messages render as bottom-right toasts that auto-dismiss and can be closed manually.
 - The panel exposes a temporary Session History section in the left sidebar for saved ACP transcript sessions.
 - Session History has a local text filter, selected-session rename controls, and a three-visible-row sidebar list.
-- The panel exposes a temporary Knowledge Cards section in the left sidebar for manual prompt context.
-- The old large Runtime Test left panel is now a runtime sidebar with primary ACP agent selection, collapsed PTY fallback, Session History, and Knowledge Cards; runtime metadata lives in a small top-right Runtime Controls info card.
+- The panel exposes a temporary Knowledge Cards section in the left sidebar for manual prompt context; existing cards stay in the dropdown and new cards are created through a `+` popup.
+- The old large Runtime Test left panel is now a full-height app sidebar with the app name at the top, primary ACP agent selection, collapsed PTY fallback, Session History, and Knowledge Cards.
+- Runtime metadata now lives in the lower-left sidebar footer instead of the Runtime Controls top-right area.
+- The right-column controls panel is height-bounded and scrolls internally so Session Output remains visible in the full-width shell.
 - The temporary runtime UI uses CSS-only earth-tone design tokens for surfaces, controls, sidebar cards, Knowledge Cards, and ACP transcript rows.
 - Current palette is based on the user reference: ebony #4F5743, reseda #6B7460, bone #DCD1C3, beaver #B29784, and taupe #483C32.
 - The panel exposes an Agent Doctor list for Codex, Claude Code, and Kimi CLI readiness.
@@ -31,6 +37,13 @@
 - Workspace invokes list_projects on mount and Refresh.
 - Add Project invokes create_project with name/path and selects the created project.
 - Delete Project invokes delete_project and clears the selection if the deleted project was selected.
+- Delete Project first opens a confirmation dialog; the backend delete command runs only after confirmation.
+- Confirmed Project delete lists and stops running ACP sessions before calling delete_project.
+- Confirmed project deletion shows a Workspace toast notification.
+- Runtime info displays `Active Folder`, sourced from the running PTY/ACP session cwd.
+- Initialize Project opens a modal seeded with all repositories in the selected project.
+- Starting Project Initialize invokes create_project_initialization with the selected project id and the user-selected repository ids.
+- The displayed Project Initialize status is keyed by selected project id to avoid showing a previous project's run after project switch.
 - Session History invokes list_transcript_sessions for the selected project.
 - Session History filters saved rows by title, source, runtime, full id, short id, or project id.
 - Clicking a Session History row invokes list_transcript_events and switches the ACP output panel to Saved Transcript mode.
@@ -60,7 +73,7 @@
 - Start Fake ACP invokes start_fake_acp_session.
 - Send ACP invokes send_acp_prompt and then drain_acp_events.
 - Knowledge Cards invokes list_knowledge_items for the selected project plus global cards.
-- Create Card invokes create_knowledge_item and auto-attaches the created card locally.
+- The Knowledge Cards `+` button opens a popup form; Create Card invokes create_knowledge_item and auto-attaches the created card locally.
 - Checked Knowledge Cards are included in the ACP prompt sent to the agent.
 - Attached Knowledge Cards can be persisted to the active transcript through attach_knowledge_to_transcript_session.
 - ACP drain polling restarts when the active transcript id changes, and drainAcpEvents reads transcriptSessionRef so background polling does not write to a stale/null transcript.
@@ -69,11 +82,14 @@
 - Saved transcript replay coalesces adjacent stored Agent/Plan chunks so saved answers read like chat replies.
 - Saved transcript labels show user_message as Question and agent_message as Answer.
 - Send ACP has its own prompt-busy state so Stop ACP and Drain ACP remain available while a prompt request is still waiting.
+- Send ACP clears prompt-busy state when `send_acp_prompt` returns a stop reason; post-result event drain/transcript recording should not keep the waiting indicator visible.
 - While send_acp_prompt is in flight, the live ACP output shows a waiting card and the controls show a waiting status.
 
 ## Layout Rules
 - html, body, #root, and app-shell are viewport-bound.
 - Page-level scrolling is disabled for the PTY test page.
+- App shell fills the available window width; main controls/output expand beside the fixed-width sidebar.
+- Sidebar is full-height on desktop and owns app name, navigation sections, and bottom runtime metadata.
 - The output row is larger than the controls row so manual testing prioritizes results over configuration.
 - Output area is mode-specific: default ACP shows ACP Events, while the PTY fallback shows only PTY Stream after it is opened.
 - Structured ACP output can show live ACP events or a saved transcript, with a visible View Live ACP return action.
@@ -82,6 +98,8 @@
 - Long terminal output should scroll inside the xterm viewport.
 - Terminal frame is click-focusable so typing goes to xterm.
 - Control panel has bounded internal scrolling so the page remains viewport-bound after adding ACP controls.
+- Workspace/repository controls must not push Session Output below the desktop viewport.
+- Toast notifications are fixed at the bottom-right and must not push controls or output content.
 - The left sidebar owns its own scroll area so long agent/history lists cannot overlap the compact status block.
 - Session History itself is capped to three visible rows because filtering should be the primary way to find older saved sessions.
 - Visual polish must remain CSS-only unless a later design task explicitly approves new icon/font dependencies.
@@ -90,7 +108,7 @@
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
-- Tests also cover Workspace rendering, project creation/selection, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card prompt injection, and ACP waiting state display.
+- Tests also cover Workspace rendering, project creation/selection, native folder picker population, Project delete confirmation and ACP stop-before-delete behavior, Workspace toast auto-dismiss/manual dismiss, Project Initialize repository selection and project-scoped status, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card popup creation and prompt injection, ACP waiting state display, and ACP waiting-state release after a prompt result.
 
 ## Watchouts
 - Output polling interval is currently 400 ms and may feel slow.
@@ -106,5 +124,6 @@
 - Knowledge Cards are manual and explicit for now; automatic suggestions, relevance search, conflict checks, and redaction are deferred.
 - Session History filter/rename is minimal; richer grouping, tags, archive/delete, and search result ranking are deferred.
 - Stop ACP must remain available while a prompt is in flight because Codex tasks can run longer than setup commands.
-- Workspace path entry is manual for now; a native folder picker belongs in a later UI pass.
+- Repository path entry is manual for now; native picking currently covers Add Project only.
+- Project Initialize currently creates only a preflight run; Facts, Markdown analysis, Interview, and Knowledge summary views are intentionally deferred.
 - This is a test panel; final session UI should be redesigned after adapter and persistence tasks.

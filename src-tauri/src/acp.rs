@@ -47,6 +47,7 @@ pub struct AcpSessionInfo {
     pub id: AcpSessionId,
     pub state: SessionState,
     pub pid: Option<u32>,
+    pub cwd: PathBuf,
     pub protocol_version: Option<u64>,
     pub agent_session_id: Option<String>,
     pub agent_name: Option<String>,
@@ -407,6 +408,7 @@ impl Drop for AcpSessionManager {
 
 struct AcpSession {
     id: AcpSessionId,
+    cwd: PathBuf,
     stdin: Mutex<ChildStdin>,
     child: Mutex<Child>,
     next_request_id: AtomicU64,
@@ -525,6 +527,7 @@ impl AcpSession {
 
         let session = Self {
             id,
+            cwd: cwd.clone(),
             stdin: Mutex::new(stdin),
             child: Mutex::new(child),
             next_request_id: AtomicU64::new(0),
@@ -683,6 +686,7 @@ impl AcpSession {
             id: self.id.clone(),
             state: runtime.state,
             pid: Some(pid),
+            cwd: self.cwd.clone(),
             protocol_version: metadata.protocol_version,
             agent_session_id: metadata.agent_session_id.clone(),
             agent_name: metadata.agent_name.clone(),

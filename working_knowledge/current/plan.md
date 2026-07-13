@@ -321,7 +321,105 @@
 - review status: passed; one race issue around stale selected repository state after project switch was fixed and revalidated.
 - commit: user will commit
 
+### 30. Expand app shell and move runtime info to sidebar
+- objective: make the temporary runtime UI use the full desktop width and move runtime metadata to the lower-left sidebar.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*.
+- affected units: app-shell grid; intro-panel/sidebar structure; runtime-info-card placement; control/output panel sizing; responsive CSS; frontend render test; frontend-terminal mind map.
+- expected changes: remove centered max-width shell; make sidebar full-height; add app name/mark at sidebar top; move status/session/pid/workspace/repository metadata out of Runtime Controls and into sidebar footer; keep ACP Agents, Session History, Knowledge Cards, and Terminal PTY in sidebar; keep main controls/output viewport-bound.
+- acceptance criteria: app fills available window width/height; sidebar contains app name and existing sidebar sections; runtime info appears at lower-left; Runtime Controls no longer owns top-right metadata; no text overlap is introduced; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 adversarial review found no required fixes.
+- commit: user will commit
+
+### 31. Keep output visible and clear ACP waiting state
+- objective: fix the AIA-036 regression where the controls panel can push output below the viewport and ACP Send can remain visually waiting after stopReason is returned.
+- status: complete
+- files: src/App.css; src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*.
+- affected units: app-shell grid row sizing; control-panel scroll behavior; sendAcpPrompt busy-state timing; ACP waiting UI; frontend regression tests; frontend-terminal mind map.
+- expected changes: bound the right-column control/output grid rows so output remains visible; let controls scroll internally; clear acpPromptBusy immediately after send_acp_prompt returns a result before drain/transcript work continues; add a regression test for this state transition.
+- acceptance criteria: Session Output is visible in the full-width layout; controls do not push output below the fold; Send ACP re-enables after stopReason even if event drain is still pending; waiting indicators disappear after prompt result; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review found no remaining issues after fixing docs task ordering.
+- commit: user will commit
+
+### 32. Move Knowledge Card creation into a popup
+- objective: keep the Knowledge Cards sidebar compact by moving new-card creation into a popup opened from a `+` action.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Knowledge Cards accordion; knowledge creation state; createKnowledgeItem flow; modal/dialog styles; Knowledge Card frontend test; frontend-terminal and workspace-persistence mind map notes.
+- expected changes: remove inline Knowledge Card create form from the sidebar; add a `+` button in the Knowledge Cards dropdown; render the create form in a popup dialog; close/reset the popup on successful create or cancel; keep existing card checklist and prompt injection behavior unchanged.
+- acceptance criteria: sidebar dropdown lists existing Knowledge Cards; `+` opens a popup with title/kind/text/create/cancel controls; creating a card closes the popup, auto-attaches it, and preserves ACP prompt injection; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review found and fixed popup-local error display before final validation.
+- commit: user will commit
+
+### 33. Add Project Initialize preflight and repository selection
+- objective: create the first Project Initialize slice at project level, with the user choosing which repositories participate before later analysis phases run.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore initialization schema and methods; project initialization Tauri commands; Workspace Project Initialize popup; repository checkbox selection state; frontend/Rust tests; workspace-persistence and frontend-terminal mind maps.
+- expected changes: add project initialization run storage; persist selected repository ids in run order; reject missing project, empty selection, duplicate repository ids, blank repository ids, and repository ids outside the project; add an Initialize Project action and popup that defaults to all project repositories but lets the user exclude any of them; show the created run status/count.
+- acceptance criteria: initialization is project-scoped, not repo-scoped; user explicitly chooses participating repositories; selected repositories are persisted and validated against the project; later Facts/Markdown/Interview/Summary phases are only documented and not implemented in this slice; frontend and backend tests cover the preflight.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed; 2026-07-13 review found and fixed a stale project initialization status leak when switching projects.
+- commit: user will commit
+
+### 34. Add explicit Project delete confirmation
+- objective: make project deletion visible and safe by adding a selected-project delete action and confirmation dialog before calling delete_project.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Workspace header actions; project row delete action; delete confirmation modal; project deletion state cleanup; frontend confirmation test; frontend-terminal and workspace-persistence mind maps.
+- expected changes: add visible `Delete Project` action for the selected project; make row-level Delete open the same confirmation popup; show the project name and deletion consequences; call backend `delete_project` only after confirmation; keep delete disabled while PTY/ACP sessions are running.
+- acceptance criteria: user can intentionally delete a saved project through a confirmation popup; backend delete is not invoked on first click; after confirmation the project disappears from local state; frontend tests cover the flow.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review found no remaining issues after full validation.
+- commit: user will commit
+
+### 35. Add native project folder picker and active cwd display
+- objective: make project creation easier with a native folder picker and make the active runtime cwd explicit even when no project is selected.
+- status: complete
+- files: package.json; package-lock.json; src-tauri/Cargo.toml; src-tauri/Cargo.lock; src-tauri/capabilities/default.json; src-tauri/src/lib.rs; src-tauri/src/session.rs; src-tauri/src/acp.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Tauri dialog plugin setup; PTY SessionInfo; ACP AcpSessionInfo; Workspace Add Project form; runtime info sidebar; Project delete success notice; frontend tests; workspace/launch mind map notes.
+- expected changes: add official Tauri dialog dependencies and permissions; expose `Choose Folder` in the Workspace form; fill project path and default name from the selected directory; show project deletion success messages; return resolved cwd from PTY and ACP session info; show `Active Folder` in runtime info.
+- acceptance criteria: users can choose a project folder from the system picker; manual path entry still works; deleting a project shows a visible success message; running sessions show their actual active cwd even after the selected project is gone; frontend/Rust checks pass.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed; 2026-07-13 review found no remaining issues after full validation.
+- commit: user will commit
+
+### 36. Stop running ACP sessions when deleting a project
+- objective: prevent deleted projects from leaving live ACP agents running in the old project folder.
+- status: complete
+- files: src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Project delete confirmation flow; ACP session listing/stopping; active ACP frontend state; delete success messaging; frontend regression test; workspace/launch mind map notes.
+- expected changes: before `delete_project`, call `list_acp_sessions`, stop every running ACP session with `stop_acp_session`, abort delete if stopping fails, clear active ACP UI state after stopping, and report stopped session count in the success message.
+- acceptance criteria: project delete confirmation stops all running ACP sessions before deleting; backend delete is not called if ACP stop fails; the modal warns the user that ACP sessions will be stopped; frontend tests cover stop-before-delete behavior.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review found no remaining issues after full validation.
+- commit: user will commit
+
+### 37. Show transient Workspace messages as toasts
+- objective: move short Workspace success/error messages into bottom-right popup notifications that auto-dismiss and can be manually closed.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Workspace project/repository action messaging; toast state/timer lifecycle; bottom-right toast stack styling; frontend toast regression tests; frontend/workspace mind map notes.
+- expected changes: remove inline Workspace project success/error notices; route transient Workspace messages through a small toast stack; keep modal-local errors inside their modal; auto-dismiss toasts after 4 seconds; expose a dismiss button for each toast.
+- acceptance criteria: Workspace success/error notifications appear bottom-right without pushing layout; notifications disappear after a few seconds; notifications can be manually dismissed; modal form/delete errors remain local; frontend tests cover auto-dismiss and manual dismiss.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review added manual-dismiss test coverage and found no remaining issues after validation.
+- commit: user will commit
+
 ## Plan Assumptions
+- AIA-047 covers transient Workspace notifications only; modal-local errors intentionally remain inline inside the active modal.
+- AIA-046 intentionally stops ACP sessions on every confirmed project delete, not only sessions that the frontend can prove are tied to that project, because current ACP session metadata does not persist project_id.
+- AIA-045 adds Tauri's official dialog plugin; it does not replace manual path entry.
+- AIA-045 makes active runtime cwd visible but does not automatically stop or move an already-running PTY/ACP process when its saved project is deleted.
+- AIA-044 changes frontend delete UX only; it reuses the existing backend `delete_project` command and does not change storage deletion semantics.
+- AIA-039 implements only project-level initialize preflight and repository selection. Facts, markdown analysis, interview guardrails, and summary review are tracked as AIA-040 through AIA-043.
+- User must choose the repositories for Project Initialize; the UI defaults to all repositories only as a convenience, not as a hidden automatic decision.
+- AIA-038 is a frontend UX refactor only; it should not change Knowledge Card storage schema, attach semantics, prompt injection format, or transcript persistence.
+- AIA-037 is a frontend bugfix only and should not change backend ACP protocol behavior, storage schema, transcript model, PTY runtime, or Knowledge Card semantics.
+- AIA-036 is CSS/markup-only and should not change runtime, storage, ACP, PTY, transcript, or Knowledge Card behavior.
 - AIA-035 keeps `projects.path` as a backward-compatible default repository path instead of removing or migrating it away in this slice.
 - AIA-035 does not add transcript repository_id yet; transcript and Knowledge Cards remain project-scoped while launch cwd becomes repository-scoped.
 - 2026-07-13 continuation is validation/review only unless the user asks for a new feature or asks this agent to commit.

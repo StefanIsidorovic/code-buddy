@@ -63,6 +63,7 @@ pub struct SessionInfo {
     pub id: SessionId,
     pub state: SessionState,
     pub pid: Option<u32>,
+    pub cwd: PathBuf,
     pub cols: u16,
     pub rows: u16,
     pub exit_code: Option<u32>,
@@ -147,6 +148,7 @@ impl Drop for SessionManager {
 
 struct PtySession {
     id: SessionId,
+    cwd: PathBuf,
     master: Mutex<Box<dyn MasterPty + Send>>,
     writer: Mutex<Box<dyn Write + Send>>,
     child: Mutex<Box<dyn Child + Send>>,
@@ -171,14 +173,19 @@ impl RuntimeState {
 
 impl PtySession {
     fn spawn_fake(cwd: PathBuf, cols: u16, rows: u16) -> AppResult<Self> {
-        Self::spawn_command(fake_command(&cwd), cols, rows)
+        Self::spawn_command(fake_command(&cwd), cwd, cols, rows)
     }
 
     fn spawn_codex(cwd: PathBuf, cols: u16, rows: u16) -> AppResult<Self> {
-        Self::spawn_command(codex_command(&cwd)?, cols, rows)
+        Self::spawn_command(codex_command(&cwd)?, cwd, cols, rows)
     }
 
-    fn spawn_command(command: CommandBuilder, cols: u16, rows: u16) -> AppResult<Self> {
+    fn spawn_command(
+        command: CommandBuilder,
+        cwd: PathBuf,
+        cols: u16,
+        rows: u16,
+    ) -> AppResult<Self> {
         let id = Uuid::new_v4().to_string();
         let pty_system = native_pty_system();
         let pair = pty_system
@@ -208,6 +215,7 @@ impl PtySession {
 
         Ok(Self {
             id,
+            cwd,
             master: Mutex::new(pair.master),
             writer: Mutex::new(writer),
             child: Mutex::new(child),
@@ -271,6 +279,7 @@ impl PtySession {
             id: self.id.clone(),
             state: runtime.state,
             pid,
+            cwd: self.cwd.clone(),
             cols: size.cols,
             rows: size.rows,
             exit_code: runtime.exit_code,

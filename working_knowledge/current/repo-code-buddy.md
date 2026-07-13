@@ -27,9 +27,15 @@
 - Frontend now locks ACP candidate selection while an ACP session is running.
 - Backend now has a SQLite-backed ProjectStore in src-tauri/src/storage.rs for saved workspace folders.
 - Backend now stores multiple project_repositories rows under each project and backfills a default repository from projects.path.
+- Backend now stores project_initialization_runs and selected repositories for each project-level initialization preflight.
 - Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
+- Frontend now requires confirmation before deleting a project and exposes a visible selected-project `Delete Project` action.
+- Frontend now supports native folder selection for Add Project through Tauri dialog plugin and shows success feedback after project deletion.
+- Frontend now stops all running ACP sessions before deleting a project.
 - Frontend now lets the selected Workspace hold multiple repositories.
+- Frontend now exposes `Initialize Project` in the Workspace panel and opens a popup where the user chooses which project repositories participate.
 - PTY and ACP launch requests include selected repository cwd when one is selected and fall back to project.path otherwise.
+- PTY and ACP session info now include the resolved runtime cwd, which the sidebar displays as `Active Folder`.
 - ProjectStore now persists ACP transcript sessions and ordered transcript events in SQLite.
 - ProjectStore now persists manual Knowledge Cards and transcript-to-knowledge links in SQLite.
 - Frontend now creates transcript sessions when ACP sessions start, records user prompts and drained ACP events, and shows a minimal Session History panel.
@@ -40,10 +46,11 @@
 - Frontend now keeps ACP output scrolled to the newest rendered event.
 - Frontend now keeps the active transcript session in a ref so background ACP drain polling records agent chunks against the current transcript id.
 - Frontend now has a CSS-only earth-tone visual theme for the temporary runtime workspace, based on the user-provided ebony/reseda/bone/beaver/taupe palette with softer panels, clearer controls, and color-coded transcript/event rows.
-- Frontend now has a minimal Knowledge Cards sidebar panel for manual card creation, explicit attach selection, and ACP prompt context injection.
+- Frontend now has a minimal Knowledge Cards sidebar panel for explicit attach selection and ACP prompt context injection, with new-card creation moved into a `+` popup.
 - Frontend now shows a live ACP waiting status/card while send_acp_prompt is in flight.
 - The left sidebar now contains runtime mode selection, collapsible PTY/ACP agent selection, Session History, and compact runtime status instead of the old large Runtime Test hero.
-- Frontend now treats ACP as the primary runtime UI, keeps Terminal PTY in a collapsed fallback panel, and shows runtime metadata in one small top-right Runtime Controls info card.
+- Frontend now treats ACP as the primary runtime UI, keeps Terminal PTY in a collapsed fallback panel, and shows runtime metadata in the lower-left sidebar footer.
+- Frontend now uses a full-width app shell with a durable left sidebar instead of a centered floating card layout.
 - Frontend groups ACP agent choice and PTY fallback tooling in accordion sections to keep the temporary control panel compact.
 - Output panel now gives more space to the active runtime output: PTY stream in Terminal PTY mode or ACP events in Structured ACP mode, with adjacent Agent/Plan ACP events coalesced for display.
 - Older product feature modules for keyring secrets, AGENTS.md resolution, broad domain types, and app state were removed during reset; the new storage module is a narrow AIA-022 ProjectStore only.
@@ -68,6 +75,7 @@
 - Transcript event writes are treated as non-blocking runtime support; frontend surfaces transcript errors separately from ACP runtime errors.
 - Transcript session titles are user-editable through rename_transcript_session and are stored in SQLite.
 - Knowledge card links are explicit; checked cards are injected into ACP prompts, while saved transcript history keeps the original user prompt.
+- Project initialization runs are project-scoped and persist user-selected repository ids before later facts/markdown/interview/summary phases run.
 - Project-scoped Knowledge Cards cannot be attached to a transcript session from another project.
 - ACP drain polling depends on the active transcript id and also reads transcriptSessionRef to avoid stale closure writes.
 - Saved transcript replay uses list_transcript_events and does not require an active ACP session.
@@ -85,11 +93,13 @@
 - ACP selected launch backend command: start_acp_registry_session.
 - Project storage backend commands: create_project, list_projects, delete_project.
 - Project repository backend commands: create_project_repository, list_project_repositories, delete_project_repository.
+- Project initialization backend commands: create_project_initialization, list_project_initializations.
 - Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events, rename_transcript_session.
 - Knowledge backend commands: create_knowledge_item, list_knowledge_items, attach_knowledge_to_transcript_session, list_attached_knowledge.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
-- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, transcript CRUD, and Knowledge Card CRUD/linking.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, CreateProjectInitializationRequest, ProjectInitializationInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, project initialization preflight CRUD, transcript CRUD, and Knowledge Card CRUD/linking.
+- Tauri plugins: tauri-plugin-opener and tauri-plugin-dialog are registered in src-tauri/src/lib.rs; dialog permission is enabled in src-tauri/capabilities/default.json.
 
 ## Tests
 - Frontend: Vitest + Testing Library via src/App.test.tsx.
@@ -115,6 +125,12 @@
 - Frontend tests cover Workspace panel rendering, project creation/selection, and selected project cwd being passed into PTY and ACP launch requests.
 - AIA-035 backend tests cover default repository creation, repository create/list/delete, invalid repository input, missing project/path, and duplicate path rejection.
 - AIA-035 frontend tests cover repository add/select and selected repository cwd being passed into PTY launch requests.
+- AIA-039 backend tests cover project initialization creation/listing and rejection of empty selections, duplicate repository ids, and repository ids outside the project.
+- AIA-039 frontend tests cover starting Project Initialize with a user-edited repository checkbox selection and clearing stale initialization status when switching projects.
+- AIA-044 frontend test covers the Project delete confirmation flow and verifies `delete_project` is not called before confirmation.
+- AIA-045 frontend tests cover native folder picker path/name population; Rust tests cover that session info still returns successfully with cwd after adding the field.
+- AIA-046 frontend test covers listing/stopping running ACP sessions before invoking delete_project.
+- AIA-047 frontend tests cover Workspace toast auto-dismiss and manual dismiss behavior.
 - Frontend tests cover the default ACP output mode, PTY mode switching, and coalesced adjacent ACP agent messages.
 - AIA-024 backend tests cover transcript session creation/listing, ordered event append/list, invalid transcript input, and project deletion preserving history.
 - Frontend tests cover Session History rendering and ACP transcript creation/event append calls.
@@ -130,9 +146,29 @@
 - AIA-031 backend tests cover Knowledge Card create/list validation, attach/list behavior, duplicate attach idempotence, and cross-project attach rejection.
 - Frontend tests cover Knowledge Card creation, transcript attach, and ACP prompt injection while transcript persistence keeps the original user prompt.
 - Frontend tests cover the ACP waiting indicator during an in-flight prompt.
+- AIA-036 frontend test covers the sidebar app name and runtime info presence after moving metadata into the sidebar.
+- AIA-037 frontend test covers clearing the ACP waiting state after stopReason while event drain remains pending.
+- AIA-038 frontend test covers creating a Knowledge Card through the popup while preserving prompt injection with the attached card.
 - Storage tests cover renaming transcript titles and rejecting blank transcript names.
 
 ## Current Findings
+- AIA-036 research: previous app shell was capped at min(1240px, 100%) and centered; runtime metadata was inside Runtime Controls, so wide desktop windows left large unused margins.
+- 2026-07-13 AIA-036 validation passed with 45 Rust tests and 17 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
+- 2026-07-13 AIA-036 adversarial review found no required fixes; runtime behavior, storage, ACP, PTY, transcript, and Knowledge Card flows were intentionally left unchanged.
+- AIA-037 research: AIA-036 made the app full-width, but the right-column controls row used content-sized growth, so Workspace/repository controls could push Session Output below the viewport.
+- AIA-037 research: ACP waiting UI was tied to prompt busy state until post-result drain/transcript work finished, so the UI could show `Stop reason: end_turn` and still display Waiting/disabled Send.
+- 2026-07-13 AIA-037 validation passed with 45 Rust tests and 18 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
+- AIA-038 research: Knowledge Cards previously rendered the full create form inline in the sidebar; the existing card list and attach checkboxes already supported showing all available cards.
+- 2026-07-13 AIA-038 validation passed with 45 Rust tests and 18 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
+- 2026-07-13 AIA-038 review found and fixed popup-local error display so create failures are visible inside the modal instead of behind the overlay.
+- AIA-039 research: Project Initialize should be a project-level workflow because a project can now own multiple repositories; the user must decide which repositories participate before generated facts or summaries are trusted.
+- AIA-039 implementation: first slice persists a preflight run plus selected repository ids and shows a popup with repository checkboxes; it does not yet collect facts, scan markdown, run the interview, or approve summaries.
+- 2026-07-13 AIA-039 validation passed with 47 Rust tests and 20 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
+- 2026-07-13 AIA-039 review found and fixed stale Project Initialize status when switching projects.
+- AIA-044 implementation: selected Workspace now has a visible `Delete Project` action; row-level Delete opens the same confirmation dialog; backend delete_project is called only after confirmation.
+- AIA-045 implementation: Add Project has `Choose Folder`; project deletion shows a success message; runtime info displays active session cwd so deleted/unselected projects are not confused with running process cwd.
+- AIA-046 implementation: confirmed Project delete calls list_acp_sessions, stops every running ACP session, clears active ACP UI state, then calls delete_project and reports stopped session count.
+- AIA-047 implementation: transient Workspace success/error messages now render as bottom-right toasts, auto-dismiss after 4 seconds, and can be manually closed; modal-local errors remain inline.
 - 2026-07-13 AIA-035 final validation passed with 45 Rust tests and 17 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
 - 2026-07-13 AIA-035 adversarial review found and fixed a stale selected-repository race when switching projects before repository reload completed.
 - AIA-035 research: current storage model has `projects.path` as the only launch folder; frontend uses `selectedProjectCwd(selectedProject)` for PTY/ACP cwd; multi-repo support needs a child repository table plus selected repository UI state.
@@ -181,6 +217,7 @@
 - Generic ACP launch stays behind Start Selected ACP; avoid per-agent direct ACP buttons until the product UI explicitly needs them.
 - Codex ACP prompt waits are intentionally longer than initialize/session/new waits because real tasks can take longer than setup.
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
-- Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, and a polished temporary UI theme, but no PTY scrollback persistence, default agent/model settings, or native folder picker yet.
+- Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, native project folder picking, and a polished temporary UI theme, but no PTY scrollback persistence or default agent/model settings yet.
 - Knowledge Cards are manual only for now; automatic extraction, relevance suggestions, conflict review, deletion, detaching, and sensitive-content detection are deferred.
+- Project Initialize currently persists only preflight/run selection. Facts extraction, markdown analysis, interview guardrails, and summary approval are deferred to AIA-040 through AIA-043.
 - Runtime mode switch, sidebar history, and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

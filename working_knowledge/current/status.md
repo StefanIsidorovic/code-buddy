@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 327e05c step 25-27: add knowledge cards and improve ACP history UX
-- worktree: local AIA-034 Terminal PTY fallback UI and AIA-035 multi-repository project changes pending review; backend storage/commands, frontend files, docs, and working_knowledge files are modified.
-- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project/transcript/knowledge storage, and transcript rename support.
+- head: e45971f step 28-29: make ACP primary and add multi-repo projects
+- worktree: local AIA-036/AIA-037/AIA-038/AIA-039/AIA-044/AIA-045/AIA-046 changes validated and awaiting user review/manual commit.
+- relevant files: Tauri v2 + React/Vite scaffold; Rust backend has app_status, PTY session commands, adapter registry/types, agent doctor reports, ACP stdio session commands, ACP registry discovery/launch, Codex ACP runtime hardening, SQLite project/repository/transcript/knowledge storage, transcript rename support, project initialization preflight storage, and Tauri dialog plugin wiring.
 
 ## Current Task
-- request: allow one AIadne project to contain multiple repository folders.
-- phase: validated; awaiting user review/commit
-- active plan step: 29
+- request: show transient messages as bottom-right popups that disappear after a few seconds.
+- phase: validated; awaiting user review/manual commit
+- active plan step: 37 complete
 
 ## Risks And Constraints
 - AIA-002, Codex xterm smoke test, mind map, AIA-003 adapter boundary, AIA-004 doctor detection, AIA-017 ACP stdio fake runtime, AIA-018 ACP registry discovery, and AIA-019 selected ACP launch are committed through 1ce5f36.
@@ -26,8 +26,15 @@
 - AIA-023/AIA-024 were committed together by user as 113bee7.
 - AIA-025 through AIA-030 are committed through 4a43282.
 - AIA-031/AIA-032/AIA-033 were committed together as 327e05c.
-- AIA-034 Terminal PTY fallback UI is implemented locally on top of 327e05c.
-- AIA-035 multi-repository project support is implemented locally on top of the local AIA-034 diff.
+- AIA-034/AIA-035 were committed together as e45971f.
+- AIA-036 full-width app shell/sidebar layout is implemented and validated locally on top of e45971f.
+- AIA-037 output visibility and ACP waiting-state bugfix is implemented and validated locally on top of the AIA-036 diff.
+- AIA-038 Knowledge Card popup creation is implemented and validated locally on top of the AIA-036/AIA-037 diff.
+- AIA-039 Project Initialize preflight is implemented locally on top of AIA-036/AIA-037/AIA-038.
+- AIA-044 Project delete confirmation is implemented locally on top of AIA-039.
+- AIA-045 native project folder picker, delete success message, and active runtime cwd display are implemented locally on top of AIA-044.
+- AIA-046 stop running ACP sessions before project deletion is implemented locally on top of AIA-045.
+- AIA-047 transient Workspace toast notifications are implemented locally on top of AIA-046.
 - User explicitly asked the agent not to commit; user committed reviewed changes manually.
 - portable-pty 0.9.0 was fetched previously with approved cargo network access.
 - Active mind map files must be updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow knowledge changes.
@@ -35,8 +42,21 @@
 - LOCAL_PROGRESS.md is intentionally ignored by git and maintained as a local human-readable progress log.
 - Project storage currently persists project name/path, ACP transcript history with user-editable titles, and local Knowledge Cards; automatic suggestions, embeddings, conflict review, and delete/detach UI are deferred.
 - Project storage now treats `projects.path` as the legacy/default launch folder and adds child repository rows for multi-repository projects.
+- Project Initialize is project-scoped; selected repositories are chosen by the user and persisted per initialization run before later analysis phases run.
+- Project deletion uses existing backend delete_project semantics: project repositories and initialization runs are removed with the project; saved transcripts are kept without the project link.
+- Running PTY/ACP sessions keep the cwd they were launched with even if the saved project is later deleted; runtime info now exposes that active cwd explicitly.
+- Project delete now stops all running ACP sessions first so deleted projects do not leave live ACP agents running in old project folders.
 
 ## Last Verification
+- 2026-07-13T14:23:58Z: AIA-047 final validation passed: npm run typecheck; npm run test -- --run (24 frontend tests); npm run build; cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; git diff --check. Review added manual-dismiss coverage after the first pass and found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T14:08:34Z: AIA-046 final validation passed: cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (22 frontend tests); npm run build; git diff --check. Review found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T13:56:10Z: AIA-045 final validation passed: cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (22 frontend tests); npm run build; git diff --check. Review found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T13:33:05Z: AIA-044 final validation passed: cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (21 frontend tests); npm run build; git diff --check. Review found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T13:22:19Z: AIA-039 final validation passed: cargo fmt --check; cargo test (47 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (20 frontend tests); npm run build; git diff --check. Review found and fixed stale Project Initialize status when switching projects. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T12:11:29Z: AIA-038 validation passed: npm run typecheck; npm run test -- --run (18 frontend tests); npm run build; cargo test (45 Rust tests); cargo clippy -- -D warnings; git diff --check. Review found and fixed popup-local error display before final validation. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T11:52:04Z: AIA-037 validation passed: npm run typecheck; npm run test -- --run (18 frontend tests); npm run build; cargo test (45 Rust tests); cargo clippy -- -D warnings; git diff --check. Review found no remaining issues. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T11:43:06Z: AIA-036 final validation passed: npm run typecheck; npm run test -- --run (17 frontend tests); npm run build; cargo test (45 Rust tests); cargo clippy -- -D warnings; git diff --check. Adversarial review found no required fixes. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
+- 2026-07-13T11:38:42Z: AIA-036 research inspected screenshot references, git status/log, App.tsx sidebar/runtime markup, App.css shell/sidebar layout, App.test.tsx render expectations, and frontend-terminal mind map.
 - 2026-07-13T11:10:24Z: AIA-035 final validation passed: cargo fmt --check; cargo test (45 Rust tests); cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run (17 frontend tests); npm run build; git diff --check. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.
 - 2026-07-13T10:50:00Z: researched current ProjectStore, project commands, Workspace frontend, launch cwd wiring, frontend tests, README, Linear tasks, and workspace-persistence mind map for multi-repository project support.
 - 2026-07-13T10:34:28Z: AIA-034 revalidation passed: npm run typecheck; npm run test -- --run (16 frontend tests); npm run build; git diff --check; cargo test (43 Rust tests); cargo clippy -- -D warnings. Vite still reports expected xterm chunk-size warning; cargo emitted non-fatal stream fd warnings in the sandbox.

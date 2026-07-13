@@ -10,11 +10,20 @@
 - Which full real-agent adapter should be implemented first: Claude Code, Codex, or Kimi?
 - Which real agent or fixture should be used first for ACP stdio validation after the fake ACP fixture proves the transport?
 - Should fake ACP support Windows before packaging, or is Linux-first enough while the ACP spike stays local?
-- Should Workspace add-project use a native folder picker next, or is manual path entry enough until the final UI?
 - What project metadata belongs in the first real workspace model beyond name and path: default agent, model, instructions, or last session?
 - Should the next transcript step be continue-from-transcript context, rich chat/tool-call UI, session grouping/tags, or PTY scrollback persistence?
 
 ## Resolved
+- AIA-047 scope: transient Workspace success/error messages now use bottom-right auto-dismiss toasts; modal-local errors stay inline.
+- AIA-046 scope: confirmed Project delete stops all running ACP sessions before deleting the project record.
+- AIA-045 scope: Add Project now supports native system folder selection while keeping manual path entry.
+- AIA-045 active cwd: running sessions keep their launch cwd after project deletion, and the UI now displays that active folder explicitly.
+- AIA-044 scope: Project delete uses the existing backend command but now requires a frontend confirmation dialog.
+- AIA-039 scope: Project Initialize is project-level; the user chooses participating repositories in a popup before the run is created.
+- AIA-039 phase split: preflight/repository selection is first; facts, markdown analysis, interview guardrails, and summary review are separate follow-up tasks.
+- AIA-038 scope: move manual Knowledge Card creation into a popup while preserving existing card list, attach behavior, and prompt injection.
+- AIA-037 scope: fix visible output layout and ACP waiting-state release only; backend ACP protocol and storage behavior stay unchanged.
+- AIA-036 scope: full-width shell and sidebar metadata placement only; runtime behavior and storage stay unchanged.
 - AIA-035 scope: a project can contain multiple local repository folders; selected repository controls agent launch cwd while transcripts and Knowledge Cards remain project-scoped in this slice.
 - Continue target on 2026-07-13: validate/review current local AIA-034 Terminal PTY fallback UI before taking a new feature.
 - Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.

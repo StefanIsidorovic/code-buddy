@@ -34,13 +34,32 @@
 - 2026-07-13 revalidation passed: npm run typecheck; npm run test -- --run; npm run build; git diff --check; cargo test; cargo clippy -- -D warnings.
 - AIA-035 is implemented locally: projects now have child repository folders, Workspace UI can add/select/delete non-default repositories, and PTY/ACP launch cwd uses the selected repository.
 - 2026-07-13 AIA-035 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- AIA-034/AIA-035 were committed together as e45971f.
+- AIA-036 is implemented and validated locally: full-width app shell, durable left sidebar, app name at top, runtime info moved to sidebar footer.
+- 2026-07-13 AIA-036 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- AIA-037 is implemented and validated locally: controls scroll inside the top panel so Session Output stays visible, and ACP Send clears waiting state after stopReason even if event drain continues.
+- 2026-07-13 AIA-037 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- AIA-038 is implemented and validated locally: Knowledge Card creation moved from the inline sidebar form into a `+` popup while existing cards stay listed in the dropdown.
+- 2026-07-13 AIA-038 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
+- AIA-039 is implemented locally: Project Initialize is project-level, stores a preflight run, and persists the user-selected repository ids from an Initialize Project popup.
+- 2026-07-13 AIA-039 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- AIA-039 review found and fixed stale Project Initialize status when switching projects.
+- AIA-039 docs roadmap is recorded as AIA-039 through AIA-043: preflight/repo selection, facts, markdown analysis, interview guardrails, and summary review.
+- AIA-044 is implemented locally: Workspace has a visible selected-project `Delete Project` action and a confirmation dialog before calling `delete_project`.
+- 2026-07-13 AIA-044 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- AIA-045 is implemented locally: Add Project supports native `Choose Folder`, delete shows a success message, and runtime info shows active session cwd.
+- 2026-07-13 AIA-045 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- AIA-046 is implemented locally: confirmed Project delete stops all running ACP sessions before deleting the project record.
+- 2026-07-13 AIA-046 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- AIA-047 is implemented locally: transient Workspace success/error messages render as bottom-right auto-dismiss toast notifications with manual close buttons.
+- 2026-07-13 AIA-047 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
 - LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is 327e05c.
-- Worktree has local AIA-034 Terminal PTY fallback UI changes pending review; LOCAL_PROGRESS.md is intentionally git-ignored.
+- HEAD is e45971f.
+- Worktree has local AIA-036/AIA-037/AIA-038/AIA-039/AIA-044/AIA-045/AIA-046/AIA-047 changes validated and awaiting user review/manual commit; LOCAL_PROGRESS.md is intentionally git-ignored.
 
 ## Next Step
-- User review of local AIA-034/AIA-035 UI diff, then manual commit or choose the next product item.
-- Next product direction after AIA-034: detach/delete/archive Knowledge Cards, continue-from-transcript context, native folder picker, or final workspace/session UI shell.
+- User review/manual commit for AIA-036/AIA-037/AIA-038/AIA-039/AIA-044/AIA-045/AIA-046/AIA-047.
+- Next Project Initialize slice after AIA-039: AIA-040 facts collection for the selected repositories.
 
 ## Commands To Re-Run
 - git status --short --branch: confirm dirty files before editing.
@@ -53,9 +72,17 @@
 - npm run tauri dev: launch the desktop PTY test panel.
 - In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
 - In the Tauri app, add a Workspace project with an existing folder path and select it before launching runtime sessions.
+- In the Tauri app, use `Choose Folder` to pick a project folder and confirm project name/path are filled.
+- In the Tauri app, click `Delete Project`, cancel once, then confirm and verify the project is removed from the Workspace list.
+- In the Tauri app, confirm a deleted project shows a visible success message.
+- In the Tauri app, confirm Workspace success/error messages appear bottom-right and disappear after a few seconds.
+- In the Tauri app, click a toast close button and confirm the notification disappears immediately.
+- In the Tauri app, start ACP, confirm Project delete, and verify ACP returns to `not started` after deletion.
+- In the Tauri app, start ACP, delete the selected project, and confirm sidebar `Active Folder` still shows the running process cwd.
 - In the Tauri app, add a repository under the selected Workspace, select it, and confirm PTY/ACP launch uses that repository folder.
+- In the Tauri app, click `Initialize Project`, uncheck one repository, start the run, and confirm the status/count reflects the selected subset.
 - In the Tauri app, confirm ACP controls/output are shown by default.
-- In the Tauri app, confirm runtime status/session/pid/workspace appears as a small top-right card in Runtime Controls, not in the left sidebar.
+- In the Tauri app, confirm runtime status/session/pid/workspace/repository appears at the bottom-left of the sidebar.
 - In the Tauri app, open `Terminal PTY` in the sidebar and click `Open PTY` only for fallback terminal testing.
 - In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
 - In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
@@ -101,8 +128,9 @@
 - Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
 - Real Codex ACP can emit content arrays and agent_thought_chunk updates; these should be normalized by the backend before the frontend sees them.
 - @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
-- Project storage now persists project name/path, ACP transcript history, and manual Knowledge Cards; PTY scrollback, model defaults, folder picker, automatic knowledge suggestions, and richer workspace settings are deferred.
+- Project storage now persists project name/path, ACP transcript history, and manual Knowledge Cards; PTY scrollback, model defaults, automatic knowledge suggestions, and richer workspace settings are deferred.
 - Knowledge Cards are manual only; no automatic promotion, embedding search, conflict resolution, card delete/detach UI, or sensitive-content detection yet.
+- Project Initialize currently persists preflight selection only; Facts, Markdown analysis, Interview guardrails, and Knowledge summary approval are still follow-up tasks.
 - Session History filter/rename is intentionally minimal; no tags, archive/delete, grouping, or ranked search yet.
 - Transcript persistence failures are shown separately and should not stop an active ACP session.
 - Selected project path is passed as cwd to PTY and ACP launches; old no-project launch behavior still works.

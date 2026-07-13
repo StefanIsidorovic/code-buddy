@@ -6,8 +6,8 @@ Fresh foundation for the AIadne multi-agent coding desktop app.
 
 This repository is intentionally early-stage. It keeps the desktop app
 foundation and now includes the first backend PTY session core, adapter
-boundary, agent doctor, ACP transport spike, and minimal project/workspace
-persistence with ACP session history.
+boundary, agent doctor, ACP transport spike, minimal project/workspace
+persistence with ACP session history, and a project-level Initialize preflight.
 
 Kept:
 
@@ -21,6 +21,7 @@ Kept:
 - fake ACP stdio runtime and ACP test panel
 - ACP registry discovery for compatible adapter candidates
 - SQLite-backed project list with multiple repository folders per project
+- project-level Initialize runs with user-selected repository participation
 - SQLite-backed ACP transcript session/event history with minimal replay
 - React frontend
 - TypeScript
@@ -83,23 +84,39 @@ Manual smoke test:
 - Check `Agent Doctor` to see installed, missing, or error states for local CLIs.
 - Add/select a `Workspace` project before starting a session if you want the
   agent process to run in a saved workspace.
+- Use `Choose Folder` in Workspace to fill the project path from the native
+  system folder picker; the project name is filled from the folder name when it
+  is empty.
+- Use `Delete Project` in Workspace to remove a saved project. The app asks for
+  confirmation first, stops running ACP sessions, then shows a deleted
+  confirmation; saved transcripts are kept without the project link.
+- Workspace success/error confirmations appear as bottom-right notifications
+  and dismiss automatically after a few seconds.
 - Add/select a repository inside the selected `Workspace`; PTY and ACP launches
   use the selected repository folder as the process `cwd`.
+- The sidebar `Active Folder` shows the actual cwd for the running PTY/ACP
+  process. If a project is deleted while an agent is already running, that
+  process still keeps the cwd it was launched with until it is stopped.
+- Use `Initialize Project` to start the project-level initialization preflight.
+  The popup defaults to all repositories in the project and lets you uncheck
+  any repositories that should not participate.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
 - Use the `Session History` filter when there are many saved sessions. Click a
   saved session to select it, edit `Selected name`, and click `Rename` to give
   it a human name.
-- Use `Knowledge Cards` in the left sidebar to create small reusable context
-  notes. Checked cards are injected into ACP prompts while the saved transcript
-  keeps your original question clean.
+- Use `Knowledge Cards` in the left sidebar to attach existing reusable context
+  notes. Click `+` to create a new card in a popup. Checked cards are injected
+  into ACP prompts while the saved transcript keeps your original question clean.
 - Click a `Session History` row to open saved user/agent events in the output
   panel, then use `View Live ACP` to return to the active stream.
 - Saved transcripts show user prompts as questions and agent messages as
   answers, with adjacent streamed agent chunks joined into readable replies.
 - The ACP output list scrolls to the newest event as live agent responses arrive.
-- The temporary runtime UI uses the current earth-tone product palette for
-  panels, controls, and transcript/event cards.
+- The temporary runtime UI uses a full-width shell with a durable left sidebar,
+  current earth-tone product palette, and compact transcript/event cards.
+- The control area scrolls internally so the Session Output panel stays visible
+  while Workspace, repositories, and ACP controls grow.
 - Only one history row should appear selected; switching rows should clear the
   previous transcript output before the new one renders.
 - Check `ACP Registry` to see ACP-compatible candidates before launching real ACP adapters.

@@ -51,6 +51,18 @@
 - AIA-034 runtime UI: make ACP the primary visible runtime and keep Terminal PTY only as a collapsed fallback, because ACP has been manually validated and PTY should no longer compete for first-screen attention.
 - 2026-07-13 continuation: validate and review the existing local AIA-034 diff before starting a new product item.
 - AIA-035 workspace model: treat Project as the user-facing container and add child Repository folders for agent launch cwd; keep `projects.path` as the legacy/default repository path for compatibility.
+- AIA-036 app shell: use a full-width desktop shell with durable left sidebar and move runtime metadata to the sidebar footer, matching the user's reference direction while keeping current sidebar sections.
+- AIA-037 output visibility: keep Workspace/ACP controls in a bounded scrolling top panel so Session Output remains visible in the full-width shell.
+- AIA-037 ACP send UX: clear prompt waiting state when `send_acp_prompt` returns `stopReason`; event drain/transcript recording can continue afterward without keeping Send disabled.
+- AIA-038 Knowledge Cards UX: keep existing cards in the sidebar dropdown and move new-card creation behind a compact `+` popup to reduce sidebar clutter.
+- AIA-039 Project Initialize scope: initialization belongs to the project container, not an individual repository, because the project may include multiple repositories that together define the working context.
+- AIA-039 repository participation: the user chooses which repositories participate in each initialization run; defaulting to all repositories is only a convenience and must remain editable.
+- AIA-039 phase split: persist the initialize run and selected repositories first, then implement Facts, Markdown analysis, Interview guardrails, and Knowledge summary review as separate follow-up tasks.
+- AIA-044 project delete UX: keep backend deletion semantics unchanged but require a frontend confirmation dialog before calling `delete_project`.
+- AIA-045 folder picker: use Tauri's official dialog plugin for native project folder selection while preserving manual path entry.
+- AIA-045 active cwd display: expose resolved PTY/ACP session cwd in runtime info because a running process keeps its launch cwd even if the saved project record is later deleted.
+- AIA-046 project delete runtime safety: stop all running ACP sessions before deleting a project, because ACP session metadata currently has cwd but not a durable project_id link.
+- AIA-047 Workspace notifications: route transient Workspace success/error messages through bottom-right auto-dismiss toasts while keeping modal-local errors inline in their modals.
 
 ## Deferred
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
@@ -58,3 +70,4 @@
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
 - PTY scrollback persistence and rich chat replay: defer until after the minimal saved transcript replay is manually validated.
 - Automatic knowledge suggestions, embeddings, conflict detection, card archive/delete/detach UI, sensitive-content redaction, richer session library organization, and final runtime navigation: defer until the manual Knowledge Cards and basic Session History controls are validated.
+- Project Initialize facts extraction, markdown analysis, interview guardrails, and summary approval behavior: defer to AIA-040 through AIA-043 after the project-level preflight is validated.

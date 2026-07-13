@@ -19,6 +19,7 @@
 - The frontend lists ACP candidates by invoking list_acp_registry_candidates.
 - The frontend starts selected ACP candidates by invoking start_acp_registry_session.
 - The frontend can select a saved Workspace project and include that path as launch cwd.
+- The frontend can choose a Workspace project path through the native Tauri folder picker.
 - Frontend blocks Start Codex when Agent Doctor reports Codex missing or errored.
 - Backend command registration exposes PTY and ACP launch paths through Tauri.
 
@@ -57,6 +58,7 @@
 - The selected process is launched over stdio and then uses the same initialize/session/new flow as fake ACP.
 - npx candidates may download their package on first explicit launch.
 - Candidate selection is disabled while an ACP session is running.
+- Confirmed Project deletion stops all running ACP sessions before deleting the project record.
 
 ## Boundaries
 - AgentAdapter abstraction exists for detection, capabilities, command construction, input encoding, structured parsing hook, and AGENTS.md delivery strategy.
@@ -64,7 +66,9 @@
 - AgentRegistry can list and resolve compiled-in Codex, Claude Code, and Kimi adapters.
 - Project workspace persistence is connected to PTY and ACP launches as cwd only.
 - No keychain or API-key management is connected to launches.
-- No native folder picker exists yet; users type/paste a project path into the Workspace panel.
+- PTY and ACP session info include the resolved cwd so the UI can distinguish selected Workspace from the active running process folder.
+- ACP sessions are explicitly stopped on Project delete; PTY sessions are not yet part of that delete safety flow.
+- Native folder picker exists for Add Project; repository path entry is still manual.
 - If no Workspace is selected, cwd defaults to the backend process current directory.
 - Start Codex depends on codex being available on PATH in the environment that launches npm run tauri dev.
 - Missing Codex now shows an install guidance placeholder instead of allowing a doomed start attempt.
@@ -73,6 +77,6 @@
 - Replace temporary start_codex_session with the full adapter-driven session start path from later Linear tasks.
 - Replace fake ACP with real ACP-compatible adapter launches after each CLI is validated.
 - Manually validate the first registry-backed ACP candidate through initialize, session/new, session/prompt, auth, and permission flows.
-- Add native folder picker and richer per-project defaults before final UI.
+- Add richer per-project defaults before final UI.
 - Add event-streamed PTY output instead of drain polling.
 - Move doctor UI from the temporary PTY panel into the final first-run/workspace UI.

@@ -745,3 +745,305 @@ Suggested labels: `frontend`, `backend`, `storage`, `workspace`
 Depends on: AIA-022, AIA-034
 
 Recommended before: final workspace/session shell
+
+## AIA-036: Expand app shell and move runtime info to sidebar
+
+Description:
+Make the temporary runtime app use the full desktop window width instead of a
+centered card layout. The left sidebar should feel like the durable app
+navigation surface, with the app name at the top and runtime/session metadata
+anchored at the lower left.
+
+Acceptance criteria:
+
+- App shell fills the available window width and height.
+- Left sidebar is a full-height app sidebar, not a floating centered card.
+- Sidebar keeps ACP Agents, Session History, Knowledge Cards, and Terminal PTY.
+- App name appears at the top of the sidebar.
+- Runtime status/session/pid/workspace/repository info moves from the
+  top-right Runtime Controls area to the bottom of the sidebar.
+- Main controls and output expand into the remaining width.
+- Layout remains viewport-bound with no incoherent overlap at narrow widths.
+- Frontend tests cover the sidebar app name and runtime info presence.
+
+Suggested labels: `frontend`, `ux`, `desktop`
+
+Depends on: AIA-034, AIA-035
+
+Recommended before: final workspace/session shell
+
+## AIA-037: Keep output visible and clear ACP waiting state
+
+Description:
+Fix the first full-width shell regression where Workspace and ACP controls can
+push Session Output below the visible desktop area, and where ACP Send can keep
+showing a waiting state after the agent already returned a stop reason.
+
+Acceptance criteria:
+
+- Session Output remains visible in the desktop viewport after the full-width
+  sidebar shell change.
+- Workspace/repository/ACP controls scroll inside the controls panel instead of
+  forcing output below the fold.
+- `Send ACP` is re-enabled when `send_acp_prompt` returns a prompt result, even
+  if event drain/transcript recording continues afterward.
+- Waiting indicators disappear after the prompt result is available.
+- Frontend regression tests cover the ACP waiting-state release.
+
+Suggested labels: `frontend`, `ux`, `bug`
+
+Depends on: AIA-036
+
+Recommended before: final workspace/session shell
+
+## AIA-038: Move Knowledge Card creation into a popup
+
+Description:
+Keep the Knowledge Cards sidebar section compact by moving the new-card form
+into a popup. The sidebar dropdown should show the existing Knowledge Cards and
+use a small `+` action for creating a new one.
+
+Acceptance criteria:
+
+- Knowledge Cards sidebar no longer shows the full create form inline.
+- Knowledge Cards sidebar shows a `+` action that opens a popup for creating a
+  new card.
+- The popup includes title, kind, body, cancel, and create controls.
+- Creating a card closes the popup, resets the form, and keeps the new card
+  attached as before.
+- The Knowledge Cards dropdown lists all existing cards and keeps checkbox
+  attach behavior.
+- Frontend tests cover creating a card through the popup and prompt injection
+  with the attached card.
+
+Suggested labels: `frontend`, `ux`, `knowledge`
+
+Depends on: AIA-031, AIA-036
+
+Recommended before: final knowledge review UI
+
+## AIA-039: Add Project Initialize preflight and repository selection
+
+Description:
+Add the first Project Initialize slice at the project level. A project can have
+multiple repositories, and the user must choose which repositories participate
+in an initialization run before any facts, markdown analysis, interview, or
+summary phases run.
+
+Acceptance criteria:
+
+- Backend persists project initialization runs linked to one project.
+- Backend persists the user-selected repositories for each initialization run.
+- Backend rejects empty selections, duplicate repository ids, missing projects,
+  and repositories that do not belong to the selected project.
+- Frontend exposes an `Initialize Project` action for the selected project.
+- Frontend opens a Project Initialize popup with repository checkboxes.
+- Repository selection defaults to all repositories in the selected project, and
+  the user can exclude repositories before starting.
+- Frontend shows the created initialization run status and selected repository
+  count.
+- Tests cover backend validation and frontend user-selected repository start.
+
+Suggested labels: `frontend`, `backend`, `storage`, `knowledge`, `workspace`
+
+Depends on: AIA-035
+
+Recommended before: AIA-040
+
+## AIA-040: Add Project Initialize facts collection
+
+Description:
+Collect source-backed facts for the repositories selected in a Project
+Initialize run. Facts should start with safe local metadata before invoking any
+agent summarization.
+
+Acceptance criteria:
+
+- Facts run only for repositories selected by the user in the initialization
+  run.
+- Facts include git presence, branch/head, recent churn, tracked-file counts,
+  detected package/build/test surfaces, and likely entry points where possible.
+- Facts exclude `.git`, dependency folders, generated outputs, and other ignored
+  directories.
+- Facts keep per-repository source attribution.
+- Backend stores facts separately from user-authored guardrails.
+- Tests cover git/non-git repository behavior and ignore rules.
+
+Suggested labels: `backend`, `storage`, `knowledge`, `git`
+
+Depends on: AIA-039
+
+Recommended before: AIA-041
+
+## AIA-041: Add Project Initialize markdown analysis
+
+Description:
+Analyze tracked markdown files from the repositories selected for a Project
+Initialize run. This should extract project/repo setup, commands, conventions,
+warnings, and architecture notes with source attribution.
+
+Acceptance criteria:
+
+- Markdown analysis only scans repositories selected by the user.
+- Discovery prioritizes `AGENTS.md`, `README.md`, `CONTRIBUTING.md`,
+  `ARCHITECTURE.md`, and `docs/**/*.md`.
+- Analysis records the source repository and file path for every extracted
+  finding.
+- Large/vendor/generated markdown files are skipped by policy.
+- Findings remain draft knowledge until the user reviews the final summary.
+- Tests cover markdown discovery and source attribution.
+
+Suggested labels: `backend`, `storage`, `knowledge`, `docs`
+
+Depends on: AIA-039
+
+Recommended before: AIA-042
+
+## AIA-042: Add Project Initialize interview guardrails
+
+Description:
+Add the user interview phase for Project Initialize. The interview captures
+project-wide and repository-specific fragile areas, do-not-touch paths, required
+human review areas, preferred commands, and domain rules.
+
+Acceptance criteria:
+
+- Interview is project-level and can include per-repository path/glob rules.
+- User can mark fragile paths and do-not-touch paths for selected repositories.
+- User can capture project-wide agent rules and required human review areas.
+- Interview answers are stored as guardrails, separate from generated facts.
+- Guardrails have higher priority than generated facts when building agent
+  context.
+- Tests cover storing project-wide and repository-specific guardrails.
+
+Suggested labels: `frontend`, `backend`, `storage`, `knowledge`, `guardrails`
+
+Depends on: AIA-039
+
+Recommended before: AIA-043
+
+## AIA-043: Add Project Initialize knowledge summary review
+
+Description:
+Summarize Project Initialize output into a reviewable project profile. The
+summary should combine selected-repository facts, markdown-derived findings, and
+user interview guardrails without flattening repository-specific details.
+
+Acceptance criteria:
+
+- Summary includes project purpose, repository map, repo roles, build/test
+  matrix, fragile areas, do-not-touch rules, agent working rules, and open
+  questions.
+- Summary keeps per-repository sections for repo-specific facts and guardrails.
+- User must approve the summary before it becomes active agent context.
+- Approved summary can be represented as project-scoped Knowledge Cards or a
+  dedicated project profile record.
+- Tests cover draft vs approved summary behavior.
+
+Suggested labels: `frontend`, `backend`, `storage`, `knowledge`, `review`
+
+Depends on: AIA-040, AIA-041, AIA-042
+
+Recommended before: automatic context injection from project profiles
+
+## AIA-044: Add explicit Project delete confirmation
+
+Description:
+Make project deletion safer and easier to find. The Workspace should expose a
+clear delete action for the selected project and require confirmation before
+calling the backend delete command.
+
+Acceptance criteria:
+
+- Workspace exposes a visible `Delete Project` action for the selected project.
+- Existing row-level delete actions open the same confirmation flow.
+- Delete confirmation names the project being deleted.
+- Delete confirmation explains that saved transcripts are kept without the
+  project link, while project repositories and initialization runs are removed.
+- Confirmed deletion shows a visible success message.
+- Backend `delete_project` is only called after the user confirms.
+- Delete actions are disabled while PTY or ACP sessions are running.
+- Frontend tests cover the confirmation flow.
+
+Suggested labels: `frontend`, `ux`, `workspace`
+
+Depends on: AIA-022, AIA-035
+
+Recommended before: broader workspace settings UI
+
+## AIA-045: Add native project folder picker and active cwd display
+
+Description:
+Make Workspace setup easier by letting users choose a project folder from the
+system folder picker instead of manually typing a path. Also make active runtime
+working directory explicit so a running session does not look like it is tied to
+a deleted or unselected project.
+
+Acceptance criteria:
+
+- Add Project form exposes a `Choose Folder` action.
+- `Choose Folder` opens the native system directory picker.
+- Selecting a folder fills the project path input.
+- Selecting a folder fills the project name from the folder basename when the
+  name input is empty.
+- Tauri dialog plugin is registered and permitted for the main window.
+- PTY and ACP session info includes the resolved runtime `cwd`.
+- Sidebar runtime info displays the active session folder separately from the
+  selected Workspace/Repository.
+- Frontend tests cover folder picker path/name population.
+- Existing launch cwd tests continue to pass.
+
+Suggested labels: `frontend`, `desktop`, `workspace`, `ux`
+
+Depends on: AIA-022, AIA-035, AIA-044
+
+Recommended before: broader workspace settings UI
+
+## AIA-046: Stop running ACP sessions when deleting a project
+
+Description:
+Prevent deleted Workspace projects from leaving live ACP agents running in the
+old project folder. Project deletion should first stop running ACP sessions, then
+delete the project record.
+
+Acceptance criteria:
+
+- Confirmed project deletion lists running ACP sessions before deleting.
+- Confirmed project deletion stops every running ACP session before calling
+  `delete_project`.
+- If stopping ACP sessions fails, project deletion does not continue.
+- The confirmation text tells the user running ACP sessions will be stopped.
+- After deletion, active ACP UI state is cleared so the app does not look like a
+  deleted project still owns a live agent.
+- The success message includes how many ACP sessions were stopped.
+- Frontend tests cover stop-before-delete behavior.
+
+Suggested labels: `frontend`, `workspace`, `runtime`, `safety`
+
+Depends on: AIA-044, AIA-045
+
+Recommended before: broader workspace settings UI
+
+## AIA-047: Show transient Workspace messages as toasts
+
+Description:
+Move short Workspace success/error messages out of the panel body and into a
+bottom-right notification stack. Notifications should be visible without
+pushing layout content and should disappear automatically after a short delay.
+
+Acceptance criteria:
+
+- Workspace success and error messages appear as bottom-right popup
+  notifications.
+- Notifications do not resize or push the Workspace controls or Session Output.
+- Notifications auto-dismiss after a few seconds.
+- Notifications can be dismissed manually before the timeout.
+- Modal-local errors, such as delete or knowledge-card form failures, stay in
+  their modal.
+- Frontend tests cover toast display and auto-dismiss behavior.
+
+Suggested labels: `frontend`, `ux`, `workspace`
+
+Depends on: AIA-044, AIA-045, AIA-046
+
+Recommended before: broader workspace settings UI

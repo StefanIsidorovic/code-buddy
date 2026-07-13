@@ -1,10 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
 }));
 
 let onTerminalData: ((text: string) => void) | undefined;
@@ -51,6 +56,7 @@ beforeAll(() => {
 beforeEach(() => {
   onTerminalData = undefined;
   scrollToMock.mockClear();
+  vi.mocked(open).mockReset();
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockImplementation((command) => {
     if (command === "list_projects") {
@@ -113,13 +119,22 @@ beforeEach(() => {
   });
 });
 
+async function flushAsyncState() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 describe("PTY test panel", () => {
   it("renders fake and Codex PTY controls with agent doctor status", async () => {
     render(<App />);
 
     expect(screen.getByRole("main", { name: "AIadne runtime test" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Runtime Controls" })).toBeInTheDocument();
     expect(screen.getByLabelText("Runtime info")).toHaveTextContent("Workspace");
+    expect(screen.getByLabelText("Runtime info")).toHaveTextContent("Repository");
     expect(screen.queryByRole("button", { name: "Structured ACP" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
@@ -224,6 +239,229 @@ describe("PTY test panel", () => {
       .toHaveAttribute("aria-pressed", "true");
   });
 
+  it("auto-dismisses workspace toast messages", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "create_project") {
+        return Promise.resolve(defaultProject());
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      await flushAsyncState();
+
+      fireEvent.change(screen.getByLabelText("Project name"), {
+        target: { value: "AIadne" },
+      });
+      fireEvent.change(screen.getByLabelText("Project path"), {
+        target: { value: "/home/katarina/projects/AIadne" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add Project" }));
+      await flushAsyncState();
+
+      expect(screen.getByRole("status")).toHaveTextContent("AIadne added.");
+
+      act(() => {
+        vi.advanceTimersByTime(4_000);
+      });
+
+      expect(screen.queryByText("AIadne added.")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dismisses workspace toast messages manually", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "create_project") {
+        return Promise.resolve(defaultProject());
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByText("No projects yet.");
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "AIadne" },
+    });
+    fireEvent.change(screen.getByLabelText("Project path"), {
+      target: { value: "/home/katarina/projects/AIadne" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Project" }));
+
+    expect(await screen.findByText("AIadne added.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss notification: AIadne added." }));
+
+    expect(screen.queryByText("AIadne added.")).not.toBeInTheDocument();
+  });
+
+  it("fills project name and path from the native folder picker", async () => {
+    const openMock = vi.mocked(open);
+    openMock.mockResolvedValue("/home/katarina/projects/AIadne");
+
+    render(<App />);
+
+    await screen.findByText("No projects yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Choose Folder" }));
+
+    await waitFor(() => {
+      expect(openMock).toHaveBeenCalledWith({
+        directory: true,
+        multiple: false,
+        title: "Choose project folder",
+      });
+    });
+    expect(screen.getByLabelText("Project path")).toHaveValue("/home/katarina/projects/AIadne");
+    expect(screen.getByLabelText("Project name")).toHaveValue("AIadne");
+  });
+
+  it("confirms before deleting the selected project", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "delete_project") {
+        return Promise.resolve(undefined);
+      }
+
+      if (command === "list_acp_sessions") {
+        return Promise.resolve([
+          {
+            id: "acp-session-1",
+            state: "running",
+            pid: 456,
+            cwd: "/home/katarina/projects/AIadne",
+            protocolVersion: 1,
+            agentSessionId: "fake-acp-session",
+            agentName: "fake-acp",
+            agentVersion: "0.1.0",
+            exitCode: null,
+          },
+        ]);
+      }
+
+      if (command === "stop_acp_session") {
+        return Promise.resolve({
+          id: "acp-session-1",
+          state: "killed",
+          pid: 456,
+          cwd: "/home/katarina/projects/AIadne",
+          protocolVersion: 1,
+          agentSessionId: "fake-acp-session",
+          agentName: "fake-acp",
+          agentVersion: "0.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Default repository: /home/katarina/projects/AIadne"))
+      .toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Project" }));
+    expect(screen.getByRole("dialog", { name: "Delete Project" })).toBeInTheDocument();
+    expect(invokeMock).not.toHaveBeenCalledWith("delete_project", {
+      projectId: "project-aiadne",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm delete project" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("list_acp_sessions");
+      expect(invokeMock).toHaveBeenCalledWith("stop_acp_session", {
+        sessionId: "acp-session-1",
+        force: false,
+      });
+      expect(invokeMock).toHaveBeenCalledWith("delete_project", {
+        projectId: "project-aiadne",
+      });
+    });
+    expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "AIadne deleted. Stopped 1 ACP session.",
+    );
+  });
+
   it("adds and selects repositories within a project", async () => {
     const invokeMock = vi.mocked(invoke);
     const apiRepository = defaultProjectRepository({
@@ -287,6 +525,150 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("/home/katarina/projects/AIadne/api")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select API repository" }))
       .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("starts project initialization with user-selected repositories", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const apiRepository = defaultProjectRepository({
+      id: "repo-api",
+      name: "API",
+      path: "/home/katarina/projects/AIadne/api",
+      isDefault: false,
+    });
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve([...defaultProjectRepositories(), apiRepository]);
+      }
+
+      if (command === "create_project_initialization") {
+        return Promise.resolve({
+          id: "init-1",
+          projectId: "project-aiadne",
+          status: "preflight",
+          repositoryCount: 1,
+          createdAt: 1_785_000_010,
+          updatedAt: 1_785_000_010,
+        });
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select AIadne repository" });
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    expect(screen.getByRole("dialog", { name: "Project Initialize" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Include API repository"));
+    fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("create_project_initialization", {
+        request: {
+          projectId: "project-aiadne",
+          repositoryIds: ["repo-aiadne"],
+        },
+      });
+    });
+    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Project Initialize" }))
+        .not.toBeInTheDocument();
+    });
+  });
+
+  it("scopes project initialization status to the selected project", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const secondProject = {
+      id: "project-madsense",
+      name: "MadSense",
+      path: "/home/katarina/projects/MadSense",
+      createdAt: 1_785_000_020,
+      updatedAt: 1_785_000_020,
+    };
+    const secondRepository = defaultProjectRepository({
+      id: "repo-madsense",
+      projectId: secondProject.id,
+      name: "MadSense",
+      path: secondProject.path,
+    });
+
+    invokeMock.mockImplementation((command, args) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject(), secondProject]);
+      }
+
+      if (command === "list_project_repositories") {
+        const projectId = (args as { projectId?: string } | undefined)?.projectId;
+        return Promise.resolve(
+          projectId === secondProject.id ? [secondRepository] : defaultProjectRepositories(),
+        );
+      }
+
+      if (command === "create_project_initialization") {
+        return Promise.resolve({
+          id: "init-1",
+          projectId: "project-aiadne",
+          status: "preflight",
+          repositoryCount: 1,
+          createdAt: 1_785_000_010,
+          updatedAt: 1_785_000_010,
+        });
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select AIadne repository" });
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
+    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select MadSense project" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("preflight · 1 repositories")).not.toBeInTheDocument();
+    });
+    expect(screen.getAllByText("not started").length).toBeGreaterThan(0);
   });
 
   it("renders saved ACP transcript sessions", async () => {
@@ -1130,6 +1512,8 @@ describe("PTY test panel", () => {
       .not.toHaveLength(0);
 
     fireEvent.click(screen.getAllByText("Knowledge Cards")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Add knowledge card" }));
+    expect(screen.getByRole("dialog", { name: "New Knowledge Card" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Knowledge title"), {
       target: { value: "UI palette" },
     });
@@ -1151,6 +1535,9 @@ describe("PTY test panel", () => {
       });
     });
     expect(await screen.findByText("Use earth tones.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "New Knowledge Card" })).not.toBeInTheDocument();
+    });
     expect(invokeMock).toHaveBeenCalledWith("attach_knowledge_to_transcript_session", {
       sessionId: "transcript-1",
       knowledgeItemId: "knowledge-1",
@@ -1247,6 +1634,81 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText("Agent is preparing a response")).not.toBeInTheDocument();
+    });
+  });
+
+  it("clears ACP waiting state after the prompt result even while event drain continues", async () => {
+    const invokeMock = vi.mocked(invoke);
+    let promptSent = false;
+    let resolveHeldDrain: ((events: unknown[]) => void) | undefined;
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve(defaultProjects());
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve({
+          id: "acp-session-1",
+          state: "running",
+          pid: 456,
+          protocolVersion: 1,
+          agentSessionId: "fake-acp-session",
+          agentName: "fake-acp",
+          agentVersion: "0.1.0",
+          exitCode: null,
+        });
+      }
+
+      if (command === "send_acp_prompt") {
+        promptSent = true;
+        return Promise.resolve({
+          sessionId: "acp-session-1",
+          stopReason: "end_turn",
+        });
+      }
+
+      if (command === "drain_acp_events") {
+        if (promptSent && !resolveHeldDrain) {
+          return new Promise((resolve) => {
+            resolveHeldDrain = resolve;
+          });
+        }
+
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Send ACP" })).not.toBeDisabled();
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agent is preparing a response")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveHeldDrain?.([]);
     });
   });
 });
