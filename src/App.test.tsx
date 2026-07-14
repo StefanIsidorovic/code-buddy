@@ -941,6 +941,7 @@ describe("PTY test panel", () => {
 
   it("generates and approves project initialization summary", async () => {
     const invokeMock = vi.mocked(invoke);
+    let summaryApproved = false;
     const draftSummary = defaultProjectInitializationSummary({
       requestedModelProfileId: "openai-gpt-5.6-sol-high",
       requestedModelProviderId: "openai",
@@ -988,6 +989,10 @@ describe("PTY test panel", () => {
         return Promise.resolve(null);
       }
 
+      if (command === "list_project_initialization_knowledge_units") {
+        return Promise.resolve(summaryApproved ? defaultKnowledgeUnits() : []);
+      }
+
       if (command === "list_model_catalog") {
         return Promise.resolve(defaultModelCatalog());
       }
@@ -997,6 +1002,7 @@ describe("PTY test panel", () => {
       }
 
       if (command === "approve_project_initialization_summary") {
+        summaryApproved = true;
         return Promise.resolve(approvedSummary);
       }
 
@@ -1077,6 +1083,21 @@ describe("PTY test panel", () => {
       });
     });
     expect(await screen.findByText("approved")).toBeInTheDocument();
+    expect(invokeMock).toHaveBeenCalledWith("list_project_initialization_knowledge_units", {
+      initializationId: "init-1",
+    });
+    expect(screen.getByLabelText("Published knowledge units")).toHaveTextContent(
+      "Project controls CLI agents",
+    );
+    expect(screen.getByLabelText("Published knowledge units")).toHaveTextContent(
+      "README.md#purpose",
+    );
+    expect(screen.getByLabelText("Published knowledge units")).toHaveTextContent(
+      "needs confirmation",
+    );
+    expect(screen.getByLabelText("Published knowledge units")).toHaveTextContent(
+      "Needs confirmation; no evidence source.",
+    );
   });
 
   it("restores the synthesis profile from a persisted summary", async () => {
@@ -2525,6 +2546,47 @@ function defaultProjectInitializationSummary(overrides = {}) {
     approvedAt: null,
     ...overrides,
   };
+}
+
+function defaultKnowledgeUnits() {
+  return [
+    {
+      id: "unit-purpose",
+      projectId: "project-1",
+      initializationId: "init-1",
+      derivedFromSummaryId: "summary-1",
+      kind: "purpose",
+      topic: "project_purpose",
+      content: "Project controls CLI agents",
+      scope: "project",
+      status: "active",
+      confidence: 100,
+      schemaVersion: 1,
+      sources: [
+        {
+          sourceKey: "README.md#purpose",
+          repositoryId: null,
+          path: null,
+        },
+      ],
+      createdAt: 1_785_000_060,
+    },
+    {
+      id: "unit-question",
+      projectId: "project-1",
+      initializationId: "init-1",
+      derivedFromSummaryId: "summary-1",
+      kind: "open_question",
+      topic: "open_questions",
+      content: "Needs confirmation: canonical commands.",
+      scope: "project",
+      status: "needs_confirmation",
+      confidence: 0,
+      schemaVersion: 1,
+      sources: [],
+      createdAt: 1_785_000_060,
+    },
+  ];
 }
 
 function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTranscriptSession>> = {}) {

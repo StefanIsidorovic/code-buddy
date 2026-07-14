@@ -240,6 +240,28 @@ type ProjectInitializationSummaryInfo = {
   approvedAt: number | null;
 };
 
+type KnowledgeUnitSourceInfo = {
+  sourceKey: string;
+  repositoryId: string | null;
+  path: string | null;
+};
+
+type KnowledgeUnitInfo = {
+  id: string;
+  projectId: string;
+  initializationId: string;
+  derivedFromSummaryId: string;
+  kind: string;
+  topic: string;
+  content: string;
+  scope: string;
+  status: "active" | "needs_confirmation";
+  confidence: number;
+  schemaVersion: number;
+  sources: KnowledgeUnitSourceInfo[];
+  createdAt: number;
+};
+
 type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;
@@ -363,6 +385,11 @@ function App() {
     initializationSummariesByInitializationId,
     setInitializationSummariesByInitializationId,
   ] = useState<Record<string, ProjectInitializationSummaryInfo | null>>({});
+  const [knowledgeUnitsByInitializationId, setKnowledgeUnitsByInitializationId] = useState<
+    Record<string, KnowledgeUnitInfo[]>
+  >({});
+  const [knowledgeUnitsLoading, setKnowledgeUnitsLoading] = useState(false);
+  const [knowledgeUnitsError, setKnowledgeUnitsError] = useState<string | null>(null);
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [openedTranscriptSession, setOpenedTranscriptSession] =
@@ -422,6 +449,9 @@ function App() {
   const projectInitializationSummary = projectInitialization
     ? initializationSummariesByInitializationId[projectInitialization.id] ?? null
     : null;
+  const projectInitializationKnowledgeUnits = projectInitialization
+    ? knowledgeUnitsByInitializationId[projectInitialization.id] ?? []
+    : [];
   const synthesisTierProfiles = useMemo(
     () => (modelCatalog?.profiles ?? []).filter((profile) => profile.tier === synthesisTier),
     [modelCatalog, synthesisTier],
@@ -559,6 +589,7 @@ function App() {
     void refreshProjectInitializationMarkdownFindings(projectInitialization?.id ?? null);
     void refreshProjectInitializationGuardrails(projectInitialization?.id ?? null);
     void refreshProjectInitializationSummary(projectInitialization?.id ?? null);
+    void refreshProjectInitializationKnowledgeUnits(projectInitialization?.id ?? null);
   }, [projectInitialization?.id]);
 
   useEffect(() => {
@@ -1341,6 +1372,30 @@ function App() {
     }
   }
 
+  async function refreshProjectInitializationKnowledgeUnits(initializationId: string | null) {
+    if (!initializationId) {
+      setKnowledgeUnitsError(null);
+      return;
+    }
+
+    setKnowledgeUnitsLoading(true);
+    setKnowledgeUnitsError(null);
+    try {
+      const units =
+        (await invoke<KnowledgeUnitInfo[]>("list_project_initialization_knowledge_units", {
+          initializationId,
+        })) ?? [];
+      setKnowledgeUnitsByInitializationId((current) => ({
+        ...current,
+        [initializationId]: units,
+      }));
+    } catch (err) {
+      setKnowledgeUnitsError(errorText(err));
+    } finally {
+      setKnowledgeUnitsLoading(false);
+    }
+  }
+
   async function approveProjectInitializationSummary() {
     if (!projectInitializationSummary) {
       pushToast("error", "Generate a summary before approving it.");
@@ -1359,6 +1414,7 @@ function App() {
         ...current,
         [summary.initializationId]: summary,
       }));
+      await refreshProjectInitializationKnowledgeUnits(summary.initializationId);
       pushToast("success", "Summary approved as active project profile.");
     } catch (err) {
       pushToast("error", errorText(err));
@@ -3388,6 +3444,57 @@ function App() {
                       <dd>{projectInitializationSummary.openQuestions}</dd>
                     </div>
                   </dl>
+                  <section className="knowledge-unit-preview" aria-label="Published knowledge units">
+                    <div className="knowledge-unit-preview-heading">
+                      <div>
+                        <span>Approved knowledge</span>
+                        <h3>Published units</h3>
+                      </div>
+                      <strong>{projectInitializationKnowledgeUnits.length}</strong>
+                    </div>
+                    {projectInitializationSummary.status !== "approved" ? (
+                      <p className="empty-state">
+                        Units are published only after this Summary is approved.
+                      </p>
+                    ) : knowledgeUnitsLoading ? (
+                      <p className="empty-state">Loading published units…</p>
+                    ) : knowledgeUnitsError ? (
+                      <p className="inline-error" role="alert">
+                        {knowledgeUnitsError}
+                      </p>
+                    ) : projectInitializationKnowledgeUnits.length === 0 ? (
+                      <p className="empty-state">No Knowledge Units were published.</p>
+                    ) : (
+                      <ul className="knowledge-unit-list">
+                        {projectInitializationKnowledgeUnits.map((unit) => (
+                          <li key={unit.id}>
+                            <div className="knowledge-unit-meta">
+                              <span>{unit.kind.replace(/_/g, " ")}</span>
+                              <span>{unit.topic.replace(/_/g, " ")}</span>
+                              <span className={`knowledge-unit-status ${unit.status}`}>
+                                {unit.status.replace(/_/g, " ")}
+                              </span>
+                              <span>{unit.confidence}% confidence</span>
+                            </div>
+                            <p>{unit.content}</p>
+                            <div className="knowledge-unit-sources">
+                              <span>Sources</span>
+                              {unit.sources.length > 0 ? (
+                                unit.sources.map((source) => (
+                                  <code key={`${unit.id}-${source.sourceKey}`}>
+                                    {source.sourceKey}
+                                    {source.path ? ` · ${source.path}` : ""}
+                                  </code>
+                                ))
+                              ) : (
+                                <em>Needs confirmation; no evidence source.</em>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
                 </div>
                 <div className="modal-actions">
                   <button type="button" onClick={() => setInitializeDetailsView(null)}>

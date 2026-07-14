@@ -1452,6 +1452,112 @@ dd {
   margin: 0;
 }
 
+.knowledge-unit-preview {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgb(203 188 173 / 0.72);
+  padding-top: 12px;
+}
+
+.knowledge-unit-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.knowledge-unit-preview-heading div {
+  display: grid;
+  gap: 2px;
+}
+
+.knowledge-unit-preview-heading span,
+.knowledge-unit-sources > span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 840;
+  text-transform: uppercase;
+}
+
+.knowledge-unit-preview-heading h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.knowledge-unit-preview-heading strong {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 999px;
+  color: var(--surface);
+  background: var(--ink-strong);
+}
+
+.knowledge-unit-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(42vh, 440px);
+  margin: 0;
+  padding: 0 4px 0 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.knowledge-unit-list li {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgb(203 188 173 / 0.72);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgb(255 253 248 / 0.86);
+}
+
+.knowledge-unit-list p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.knowledge-unit-meta,
+.knowledge-unit-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.knowledge-unit-meta span {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgb(235 229 209 / 0.82);
+}
+
+.knowledge-unit-status.active {
+  color: var(--mint-strong);
+}
+
+.knowledge-unit-status.needs_confirmation {
+  color: var(--warning);
+}
+
+.knowledge-unit-sources code {
+  max-width: 100%;
+  border-radius: 5px;
+  padding: 3px 6px;
+  color: var(--ink);
+  background: rgb(235 229 209 / 0.82);
+  overflow-wrap: anywhere;
+}
+
+.knowledge-unit-sources em {
+  color: var(--warning);
+  font-style: normal;
+}
+
 .details-summary-list {
   max-height: min(58vh, 640px);
   overflow: auto;
