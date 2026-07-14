@@ -2663,8 +2663,19 @@ textarea:focus {
 }
 
 .sidebar-runtime-info {
-  padding-top: 14px;
-  border-top: 1px solid var(--sidebar-border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgb(255 255 255 / 0.025);
+  box-shadow: none;
+}
+
+.sidebar-runtime-info div,
+.sidebar-runtime-info div:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .sidebar-runtime-info div:first-child dd::before {
@@ -2680,6 +2691,16 @@ textarea:focus {
 
 .sidebar-runtime-info dt {
   color: #899486;
+  font-size: 0.58rem;
+  letter-spacing: 0.055em;
+}
+
+.sidebar-runtime-info dd {
+  margin-top: 2px;
+  color: #aab5a6;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.3;
 }
 
 .control-panel,
@@ -3295,7 +3316,7 @@ textarea:focus {
 
   .sidebar-runtime-info {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px 14px;
   }
 
@@ -3323,7 +3344,6 @@ textarea:focus {
 
 @media (max-width: 620px) {
   .sidebar-scroll,
-  .sidebar-runtime-info,
   .workspace-form:not(.repository-form),
   .initialize-results {
     grid-template-columns: 1fr;
