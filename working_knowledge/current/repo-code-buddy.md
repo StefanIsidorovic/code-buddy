@@ -170,6 +170,14 @@
 - Storage tests cover renaming transcript titles and rejecting blank transcript names.
 
 ## Current Findings
+- Approved Project Initialize summaries now publish normalized, source-backed Knowledge Units through `ProjectStore::approve_project_initialization_summary`; listing is available through `list_project_initialization_knowledge_units` and manual Knowledge Cards remain separate.
+- The frontend Summary Review shows published Knowledge Units only after approval and includes explicit loading, error, empty, source-backed, and needs-confirmation states.
+- Next knowledge slice: add a deterministic task-context selector that filters/ranks/packs immutable units under a strict budget, prioritizes mandatory rules and repository/path matches, and exposes inclusion/exclusion reasons before prompt injection.
+- Repository management is modal-owned through the sidebar context picker; selectedRepositoryId and selectedProjectCwd continue to drive runtime cwd without backend changes.
+- Global project selection is exposed through a sidebar-triggered Workspace modal; selectedProjectId remains the unchanged source for repository, initialization, transcript, knowledge, and runtime scoping.
+- The frontend is one React 19/Vite/Tauri screen with no client router; Workspace, Project Initialization, Runtime/Output, transcript replay, and dialogs are conditional states within App.tsx.
+- App.css owns the complete visual system. Existing earth-tone tokens are usable, but the current rigid four-column test-panel layout, repeated panel chrome, and uniform button hierarchy require refinement.
+- App.test.tsx has 29 mocked integration-style tests covering all key workflows; accessible labels and visible control names are stable behavior contracts for a presentation-focused redesign.
 - AIA-036 research: previous app shell was capped at min(1240px, 100%) and centered; runtime metadata was inside Runtime Controls, so wide desktop windows left large unused margins.
 - 2026-07-13 AIA-036 validation passed with 45 Rust tests and 17 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
 - 2026-07-13 AIA-036 adversarial review found no required fixes; runtime behavior, storage, ACP, PTY, transcript, and Knowledge Card flows were intentionally left unchanged.
@@ -245,5 +253,6 @@
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
 - Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, native project folder picking, and a polished temporary UI theme, but no PTY scrollback persistence or default agent/model settings yet.
 - Knowledge Cards are manual only for now; automatic extraction, relevance suggestions, conflict review, deletion, detaching, and sensitive-content detection are deferred.
-- Project Initialize persists preflight/run selection, local Facts, markdown findings, Interview guardrails, and OpenAI-backed Summary draft/approval records. Automatic approved-profile injection into agent prompts is still deferred.
+- Project Initialize persists preflight/run selection, local Facts, markdown findings, Interview guardrails, and provider-routed Summary draft/approval records; OpenAI Responses is the first concrete `SynthesisProvider`. Automatic approved-profile injection into agent prompts is still deferred.
+- Generated Summary drafts pass a provider-neutral source allowlist check before persistence; approval now adds a stricter line-level gate and publishes independently retrievable Knowledge Units.
 - Runtime mode switch, sidebar history, and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

@@ -125,7 +125,16 @@ Manual smoke test:
   from Facts, Markdown, and Interview data. The review modal must show
   `openai_responses_v1` as Generator. Anthropic and Moonshot profiles stay
   visible but disabled until their synthesis adapters exist. Click `Approve
-  Summary` only after checking the draft.
+  Summary` only after checking the draft. Approval atomically publishes small,
+  source-backed Knowledge Units with stable identifiers, type/topic metadata,
+  status, confidence, schema provenance, and ordered source keys. The Summary
+  review shows these units after approval.
+- Generated Knowledge Units are not injected into agent prompts yet. The next
+  knowledge slice is a deterministic task-context selector that will filter,
+  rank, order, and budget immutable units by task and repository/path relevance,
+  prioritize mandatory rules, and preview inclusion/exclusion reasons before
+  context is sent. Embeddings remain deferred until that explainable baseline
+  is implemented and measured.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
 - Use the `Session History` filter when there are many saved sessions. Click a

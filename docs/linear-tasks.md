@@ -1109,3 +1109,32 @@ Suggested labels: `backend`, `frontend`, `openai`, `knowledge`, `security`
 Depends on: AIA-048
 
 Recommended before: validator/source-reference pass and approved-profile agent injection
+
+## AIA-052: Select minimal task context from Knowledge Units
+
+Description:
+Build the first deterministic task-context selector on top of approved,
+source-backed Knowledge Units. The selector chooses and orders immutable units
+for a concrete task without rewriting their content or provenance.
+
+Acceptance criteria:
+
+- Selector input includes task text, selected project/repository, optional paths,
+  active Knowledge Units, and a strict context budget.
+- Mandatory agent rules and do-not-touch constraints have explicit precedence.
+- Repository/path matches outrank unrelated architecture, commands, and facts.
+- Selection and tie-breaking are deterministic for identical input.
+- Every included and excluded unit has a machine-readable reason.
+- Preview shows the exact ordered context, used/remaining budget, and omissions
+  before anything is sent to an agent.
+- `needs_confirmation` units are never presented as confirmed facts.
+- Selector does not mutate Knowledge Unit content, sources, status, or confidence.
+- Embeddings/vector retrieval are not required for this baseline.
+- Tests cover mandatory-rule priority, repository/path relevance, budget edges,
+  deterministic ties, uncertainty handling, and empty/no-match tasks.
+
+Suggested labels: `backend`, `frontend`, `knowledge`, `context`, `safety`
+
+Depends on: AIA-049, Summary source validation, Knowledge Unit publication
+
+Recommended before: automatic Knowledge Unit prompt injection and embeddings

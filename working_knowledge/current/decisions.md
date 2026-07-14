@@ -1,6 +1,16 @@
 # Decisions
 
 ## Confirmed
+- Knowledge Unit publication: approved Summary lines become deterministic UUIDv5 units in a separate generated schema; legacy manual Knowledge Cards remain unchanged until a later migration decision.
+- Knowledge Unit provenance: preserve exact validated source keys, but leave repository/path scope unset when current evidence labels do not identify one persisted evidence row unambiguously.
+- Task-context selector boundary: select, rank, order, include, exclude, and budget immutable Knowledge Units; do not rewrite unit content or provenance during selection.
+- Task-context selector rollout: start deterministically with mandatory-rule precedence, repository/path relevance, strict budget, and selection reasons; evaluate embeddings only after this baseline is measurable.
+- Repository selection is secondary global context beneath Workspace; keep the active repository visible in the sidebar and move repository management into a modal.
+- Workspace selection is a global application context and belongs in the sidebar; project creation/deletion/refresh are infrequent management actions and belong in a modal.
+- The sidebar picker must always show the active project name and path so hiding the full project list does not hide current context.
+- The redesign uses an editorial engineering-operations-console direction: deep olive command rail, warm parchment workspace surfaces, moss primary actions, amber progress, and terracotta destructive/error accents.
+- The redesign remains presentation-layer focused: preserve the single React shell, Tauri command boundary, state/data flow, and existing accessible names.
+- No new UI, icon, font, or routing dependency is needed; system fonts, CSS tokens, and small semantic JSX hooks are sufficient.
 - Reset direction: remove implemented feature code and keep only a buildable technology skeleton.
 - Stack baseline: keep Tauri v2, Rust, React, TypeScript, and Vite as the active scaffold.
 - Documentation deliverable: create Linear-ready tasks in the repository so they can be copied into Linear.
@@ -74,6 +84,8 @@
 - AIA-049 synthesis route: use the OpenAI Responses API with strict `text.format` JSON Schema and `store=false`; deterministic fallback is forbidden because it would misrepresent the selected generator.
 - AIA-049 credentials: read `OPENAI_API_KEY` only in the Rust process for the first executable provider slice; do not send credentials through React or persist them in SQLite.
 - AIA-049 consistency: prepare evidence before network I/O, release the SQLite lock, then compare current evidence inside the persistence transaction so stale model output cannot overwrite newer initialization data.
+- AIA-050 provider boundary: route Summary through a dedicated `SynthesisProvider` registry while keeping runtime CLI/ACP `AgentAdapter` separate; both may share catalog profiles but not execution contracts.
+- AIA-051 Summary validation: require each generated section to cite an exact supplied evidence source or explicitly state missing evidence/needed confirmation before persistence; claim-level atomization remains the next retrieval foundation.
 
 ## Deferred
 - Keychain/provider account UI, validator/source-reference enforcement, Claude/Kimi synthesis clients, background/cancellation support, usage/cost display, and runtime model pass-through remain separate follow-up slices.

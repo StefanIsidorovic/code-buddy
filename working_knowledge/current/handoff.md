@@ -1,25 +1,22 @@
 # Handoff
 
 ## Current State
-- Plan step 45 connects Project Initialize Summary to OpenAI Responses structured synthesis.
-- Rust prepares owned provider-neutral evidence, releases SQLite before network I/O, parses strict structured output, rejects stale evidence, and atomically persists `openai_responses_v1` drafts.
-- `OPENAI_API_KEY` is read only from the Tauri process environment; Anthropic/Moonshot synthesis profiles remain visible but unavailable.
-- Final validation passes: Rust fmt, 68 Rust tests, clippy with warnings denied, TypeScript typecheck, 29 frontend tests, production build, and diff checks.
-- Live provider smoke test is not run because the current process has no `OPENAI_API_KEY`.
-- Worktree still contains pre-existing overlapping uncommitted Project Initialize/UI changes, so a valid isolated provenance commit remains blocked.
+- Summary provider output is validated against the exact initialization evidence allowlist before persistence.
+- Approved summaries retain their reviewable sections and also publish independently retrievable, source-backed Knowledge Units.
+- Manual Knowledge Cards remain whole-body prompt attachments.
+- Backend Knowledge Unit publication is committed as 87f506e; approval atomically publishes deterministic source-backed units and rejects uncited lines.
+- Summary Review now previews approved units with status, confidence, and exact source keys; frontend work is committed as a65c187.
 
 ## Next Step
-- Manually launch with `OPENAI_API_KEY` and confirm a generated Summary reports `openai_responses_v1`.
-- After manual validation, implement source-reference validation and approved-profile injection before adding Anthropic/Moonshot synthesis clients.
+- Implement a deterministic task-context selector that filters, ranks, and packs Knowledge Units by task and repository/path relevance, mandatory-rule precedence, and strict budget, while explaining every inclusion/exclusion in a preview.
 
 ## Commands To Re-Run
-- `OPENAI_API_KEY=your_key npm run tauri dev`: launch the executable OpenAI synthesis path.
-- `cargo fmt --check && cargo test && cargo clippy -- -D warnings`: validate Rust.
-- `npm run typecheck && npm run test -- --run && npm run build`: validate frontend.
-- `git diff --check`: validate patch whitespace.
+- `cd src-tauri && cargo fmt --check && cargo test && cargo clippy -- -D warnings`: validate backend.
+- `npm run typecheck && npm run test -- --run && npm run build`: validate frontend after step 6.2.
+- `git diff --check`: validate patch hygiene.
 
 ## Watchouts
-- Never treat requested model provenance as proof of execution; only `generation_engine=openai_responses_v1` means OpenAI output was persisted.
-- Provider/API failures must not fall back to deterministic content or replace the previous Summary.
-- Do not expose provider keys to React or SQLite.
-- Resolve the dirty-worktree provenance blocker before claiming a step 45 commit/note.
+- Preserve source markers exactly enough to audit a unit back to initialization evidence.
+- Keep approval and replacement of a Summary's units in one SQLite transaction.
+- Do not alter legacy Knowledge Card attachment or prompt construction in this task.
+- The selector may select and order units, but must not silently rewrite their content or provenance.
