@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import aiadneMark from "./assets/aiadne-mark.svg";
 import "./App.css";
 
 type SessionState = "running" | "exited" | "killed" | "errored";
@@ -2099,7 +2100,7 @@ function App() {
         data-mobile-navigation-open={mobileNavigationOpen}
       >
         <div className="sidebar-brand">
-          <span className="app-mark" aria-hidden="true">A</span>
+          <img className="app-mark" src={aiadneMark} alt="" aria-hidden="true" />
           <div>
             <p className="eyebrow">Agent workspace</p>
             <h1 id="runtime-sidebar-title">AIadne</h1>

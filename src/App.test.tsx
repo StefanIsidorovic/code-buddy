@@ -220,11 +220,15 @@ describe("PTY test panel", () => {
   });
 
   it("presents the AIadne product workspace identity", async () => {
-    render(<App />);
+    const { container } = render(<App />);
     await flushAsyncState();
 
     expect(screen.getByRole("main", { name: "AIadne agent workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
+    const brandMark = container.querySelector<HTMLImageElement>("img.app-mark");
+    expect(brandMark?.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
+    expect(brandMark).toHaveAttribute("alt", "");
+    expect(brandMark).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("Repository intelligence, woven together.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Build agent-ready context" }))
