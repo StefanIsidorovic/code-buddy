@@ -6,6 +6,7 @@ use crate::{
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
+    knowledge::{select_task_context, TaskContextSelectionInfo, TaskContextSelectionRequest},
     models::ModelCatalogInfo,
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
@@ -221,6 +222,15 @@ pub fn list_project_initialization_knowledge_units(
     initialization_id: String,
 ) -> AppResult<Vec<KnowledgeUnitInfo>> {
     state.list_project_initialization_knowledge_units(&initialization_id)
+}
+
+#[tauri::command]
+pub fn select_project_task_context(
+    state: State<'_, ProjectStore>,
+    request: TaskContextSelectionRequest,
+) -> AppResult<TaskContextSelectionInfo> {
+    let units = state.list_project_initialization_knowledge_units(&request.initialization_id)?;
+    select_task_context(request, units)
 }
 
 #[tauri::command]
