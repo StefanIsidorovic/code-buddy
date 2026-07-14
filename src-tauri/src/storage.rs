@@ -2200,6 +2200,9 @@ fn build_knowledge_units(
             .filter(|line| !line.trim().is_empty())
             .enumerate()
         {
+            if is_markdown_heading(line) {
+                continue;
+            }
             let sources = knowledge_unit_source_keys(line)?;
             let content = strip_knowledge_unit_source_markers(line);
             let content = trim_list_prefix(&content);
@@ -2309,6 +2312,19 @@ fn trim_list_prefix(value: &str) -> &str {
         }
     }
     value
+}
+
+fn is_markdown_heading(value: &str) -> bool {
+    let value = value.trim_start_matches(' ').trim_end();
+    let marker_count = value
+        .chars()
+        .take_while(|character| *character == '#')
+        .count();
+    (1..=6).contains(&marker_count)
+        && value[marker_count..]
+            .chars()
+            .next()
+            .is_none_or(char::is_whitespace)
 }
 
 fn is_uncertain_knowledge_content(value: &str) -> bool {
@@ -3328,6 +3344,21 @@ mod tests {
     }
 
     #[test]
+    fn recognizes_only_atx_markdown_headings_as_structure() {
+        for heading in ["# Purpose", "## Needs confirmation", "   ###### Rules", "#"] {
+            assert!(is_markdown_heading(heading), "expected heading: {heading}");
+        }
+        for claim in [
+            "#include <stdio.h>",
+            "####### Too deep",
+            "- # tagged claim",
+            "Purpose",
+        ] {
+            assert!(!is_markdown_heading(claim), "expected claim: {claim}");
+        }
+    }
+
+    #[test]
     fn creates_lists_and_deletes_projects() {
         let store = ProjectStore::in_memory().expect("store opens");
         let path = std::env::current_dir().expect("current dir exists");
@@ -4074,10 +4105,13 @@ mod tests {
                 model_profile_id: "openai-gpt-5.6-sol-high".to_string(),
             })
             .expect("synthesis prepared");
+        let mut draft = test_knowledge_draft();
+        draft.project_purpose = format!("## Project purpose\n{}", draft.project_purpose);
+        draft.open_questions = format!("## Needs confirmation\n{}", draft.open_questions);
         let summary = store
             .persist_project_initialization_summary(
                 &context,
-                test_knowledge_draft(),
+                draft,
                 OPENAI_RESPONSES_GENERATION_ENGINE,
             )
             .expect("summary persisted");
@@ -4104,6 +4138,7 @@ mod tests {
             .list_project_initialization_knowledge_units(&initialization.id)
             .expect("knowledge units listed");
         assert_eq!(units.len(), 8);
+        assert!(units.iter().all(|unit| !unit.content.starts_with('#')));
         assert!(units.iter().all(|unit| {
             unit.derived_from_summary_id == summary.id
                 && unit.schema_version == PROJECT_KNOWLEDGE_SCHEMA_VERSION
