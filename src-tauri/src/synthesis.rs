@@ -7,7 +7,11 @@ use async_trait::async_trait;
 use reqwest::{header::HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 
 pub const OPENAI_RESPONSES_GENERATION_ENGINE: &str = "openai_responses_v1";
 const OPENAI_RESPONSES_URL: &str = "https://api.openai.com/v1/responses";
@@ -67,7 +71,9 @@ impl SynthesisProviderRegistry {
             ))
         })?;
         provider.availability().map_err(AppError::Synthesis)?;
-        provider.synthesize(context).await
+        let result = provider.synthesize(context).await?;
+        validate_source_references(&result.draft, context)?;
+        Ok(result)
     }
 }
 
@@ -125,6 +131,89 @@ impl ProjectInitializationKnowledgeDraft {
             }
         }
         Ok(self)
+    }
+}
+
+fn validate_source_references(
+    draft: &ProjectInitializationKnowledgeDraft,
+    context: &ProjectInitializationSynthesisContext,
+) -> AppResult<()> {
+    let mut allowed_sources = HashSet::from(["project_repositories.path".to_string()]);
+    allowed_sources.extend(context.facts.iter().map(|fact| fact.source.clone()));
+    allowed_sources.extend(
+        context
+            .findings
+            .iter()
+            .map(|finding| finding.source.clone()),
+    );
+    allowed_sources.extend(
+        context
+            .guardrails
+            .iter()
+            .map(|guardrail| guardrail.source.clone()),
+    );
+
+    for (field, value) in draft.sections() {
+        let sources = extract_source_references(field, value)?;
+        if sources.is_empty() && !is_explicit_uncertainty(value) {
+            return Err(AppError::Synthesis(format!(
+                "model returned an uncited {field} section without an explicit uncertainty statement"
+            )));
+        }
+        if let Some(source) = sources
+            .iter()
+            .find(|source| !allowed_sources.contains(source.as_str()))
+        {
+            return Err(AppError::Synthesis(format!(
+                "model cited unknown source in {field}: {source}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn extract_source_references(field: &str, value: &str) -> AppResult<Vec<String>> {
+    const MARKER: &str = "[source:";
+    let mut remaining = value;
+    let mut sources = Vec::new();
+    while let Some(index) = remaining.find(MARKER) {
+        remaining = &remaining[index + MARKER.len()..];
+        let end = remaining.find(']').ok_or_else(|| {
+            AppError::Synthesis(format!(
+                "model returned a malformed source marker in {field}"
+            ))
+        })?;
+        let source = remaining[..end].trim();
+        if source.is_empty() {
+            return Err(AppError::Synthesis(format!(
+                "model returned an empty source marker in {field}"
+            )));
+        }
+        sources.push(source.to_string());
+        remaining = &remaining[end + 1..];
+    }
+    Ok(sources)
+}
+
+fn is_explicit_uncertainty(value: &str) -> bool {
+    let normalized = value.to_ascii_lowercase();
+    normalized.contains("needs confirmation:")
+        || normalized.contains("no evidence")
+        || (normalized.contains("no ") && normalized.contains(" supplied"))
+}
+
+impl ProjectInitializationKnowledgeDraft {
+    fn sections(&self) -> [(&'static str, &str); 8] {
+        [
+            ("project_purpose", &self.project_purpose),
+            ("repository_map", &self.repository_map),
+            ("repository_roles", &self.repository_roles),
+            ("build_test_matrix", &self.build_test_matrix),
+            ("fragile_areas", &self.fragile_areas),
+            ("do_not_touch_rules", &self.do_not_touch_rules),
+            ("agent_working_rules", &self.agent_working_rules),
+            ("open_questions", &self.open_questions),
+        ]
     }
 }
 
@@ -596,6 +685,45 @@ mod tests {
             .iter()
             .filter(|profile| profile.provider_id == "openai")
             .all(|profile| profile.status == crate::models::ModelProfileStatus::Selectable));
+    }
+
+    #[test]
+    fn validates_source_backed_and_explicit_uncertainty_sections() {
+        validate_source_references(&draft(), &context("openai-gpt-5.6-terra-medium"))
+            .expect("known sources and explicit uncertainty pass");
+    }
+
+    #[test]
+    fn rejects_unknown_and_malformed_source_references() {
+        let synthesis_context = context("openai-gpt-5.6-terra-medium");
+        let mut unknown = draft();
+        unknown.project_purpose = "Unsupported claim [source: invented.md#claim]".to_string();
+        assert!(matches!(
+            validate_source_references(&unknown, &synthesis_context),
+            Err(AppError::Synthesis(message)) if message.contains("unknown source")
+        ));
+
+        let mut malformed = draft();
+        malformed.project_purpose = "Broken citation [source: README.md#purpose".to_string();
+        assert!(matches!(
+            validate_source_references(&malformed, &synthesis_context),
+            Err(AppError::Synthesis(message)) if message.contains("malformed source marker")
+        ));
+    }
+
+    #[test]
+    fn rejects_uncited_material_but_accepts_explicit_no_evidence_text() {
+        let synthesis_context = context("openai-gpt-5.6-terra-medium");
+        let mut uncited = draft();
+        uncited.project_purpose = "AIadne is an agent control surface.".to_string();
+        assert!(matches!(
+            validate_source_references(&uncited, &synthesis_context),
+            Err(AppError::Synthesis(message)) if message.contains("uncited project_purpose")
+        ));
+
+        uncited.project_purpose = "No evidence was supplied for the project purpose.".to_string();
+        validate_source_references(&uncited, &synthesis_context)
+            .expect("explicit no-evidence text passes");
     }
 
     #[test]
