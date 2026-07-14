@@ -3425,6 +3425,7 @@ textarea:focus {
   padding: 24px;
   background: rgb(20 26 21 / 0.58);
   backdrop-filter: blur(8px);
+  animation: modal-backdrop-in 140ms ease-out both;
 }
 
 .knowledge-modal {
@@ -3434,6 +3435,7 @@ textarea:focus {
   padding: 22px;
   background: #fffdf9;
   box-shadow: 0 30px 90px rgb(18 24 19 / 0.28);
+  animation: modal-surface-in 180ms ease-out both;
 }
 
 .workspace-modal {
@@ -3539,9 +3541,28 @@ textarea:focus {
 
 .icon-button {
   width: 38px;
+  min-width: 38px;
   min-height: 38px;
   border-radius: 50%;
   padding: 0;
+  box-shadow: none;
+}
+
+.close-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.modal-actions {
+  margin-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
 }
 
 .toast-stack {
@@ -3554,6 +3575,27 @@ textarea:focus {
   background: #263126;
   color: #f9f7ef;
   box-shadow: 0 16px 42px rgb(21 27 21 / 0.23);
+  animation: toast-message-in 180ms ease-out both;
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+@keyframes toast-message-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
 }
 
 .toast-message[data-kind="success"] {

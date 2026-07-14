@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import App, { StateNotice } from "./App";
+import App, { boundToastMessages, StateNotice } from "./App";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -184,6 +184,22 @@ function findCurrentRepository(name: string) {
 }
 
 describe("PTY test panel", () => {
+  it("keeps only the three newest toast messages", () => {
+    const messages = ["one", "two", "three", "four"].map((text, index) => ({
+      id: `toast-${index}`,
+      kind: "success" as const,
+      text,
+    }));
+
+    expect(boundToastMessages([])).toEqual([]);
+    expect(boundToastMessages(messages.slice(0, 2))).toEqual(messages.slice(0, 2));
+    expect(boundToastMessages(messages).map((toast) => toast.text)).toEqual([
+      "two",
+      "three",
+      "four",
+    ]);
+  });
+
   it("distinguishes prerequisite, loading, empty, success, and error notices", () => {
     render(
       <>
@@ -278,6 +294,8 @@ describe("PTY test panel", () => {
     await flushAsyncState();
     openWorkspacePicker();
     expect(screen.getByRole("dialog", { name: "Choose Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close workspace picker" }).querySelector("svg"))
+      .toHaveAttribute("aria-hidden", "true");
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Interactive PTY terminal")).not.toBeInTheDocument();
@@ -1189,10 +1207,12 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByRole("dialog", { name: "Task Context Preview" })).toBeInTheDocument();
+    const contextDialog = await screen.findByRole("dialog", { name: "Task Context Preview" });
     expect(screen.getByLabelText("Task context budget")).toHaveTextContent("120");
     expect(screen.getByLabelText("Included task context")).toHaveTextContent("mandatory kind");
     expect(screen.getByLabelText("Excluded task context")).toHaveTextContent("uncertain status");
+    fireEvent.mouseDown(contextDialog.parentElement as HTMLElement);
+    expect(screen.queryByRole("dialog", { name: "Task Context Preview" })).not.toBeInTheDocument();
   });
 
   it("restores the synthesis profile from a persisted summary", async () => {

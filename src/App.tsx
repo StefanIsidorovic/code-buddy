@@ -321,6 +321,7 @@ type ToastMessage = {
 };
 
 const toastDismissMs = 4_000;
+const maxVisibleToasts = 3;
 
 const initialSize = {
   cols: 80,
@@ -354,6 +355,18 @@ export function StateNotice({
         <p>{description}</p>
       </div>
     </Element>
+  );
+}
+
+export function boundToastMessages(messages: ToastMessage[]) {
+  return messages.slice(-maxVisibleToasts);
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" className="close-icon" viewBox="0 0 16 16">
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </svg>
   );
 }
 
@@ -783,7 +796,7 @@ function App() {
   function pushToast(kind: ToastKind, text: string) {
     const id = `toast-${Date.now()}-${toastSequence.current}`;
     toastSequence.current += 1;
-    setToasts((current) => [...current, { id, kind, text }].slice(-4));
+    setToasts((current) => boundToastMessages([...current, { id, kind, text }]));
     const timerId = window.setTimeout(() => dismissToast(id), toastDismissMs);
     toastTimers.current.push(timerId);
   }
@@ -3156,7 +3169,7 @@ function App() {
                 type="button"
                 onClick={() => setRepositoryDialogOpen(false)}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -3289,7 +3302,7 @@ function App() {
                 type="button"
                 onClick={() => setWorkspaceDialogOpen(false)}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -3417,7 +3430,7 @@ function App() {
                 onClick={closeProjectInitializeDialog}
                 disabled={initializeLoading}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -3513,7 +3526,7 @@ function App() {
                 type="button"
                 onClick={() => setInitializeDetailsView(null)}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -3780,7 +3793,7 @@ function App() {
                 onClick={closeInterviewDialog}
                 disabled={initializeLoading}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -3926,7 +3939,7 @@ function App() {
                 onClick={closeProjectDeleteDialog}
                 disabled={busy}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -3961,7 +3974,14 @@ function App() {
       ) : null}
 
       {taskContextPreviewOpen ? (
-        <div className="modal-backdrop">
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !taskContextPreviewLoading) {
+              setTaskContextPreviewOpen(false);
+            }
+          }}
+        >
           <section
             role="dialog"
             aria-modal="true"
@@ -3976,10 +3996,11 @@ function App() {
               <button
                 type="button"
                 aria-label="Close task context preview"
+                className="icon-button"
                 onClick={() => setTaskContextPreviewOpen(false)}
                 disabled={taskContextPreviewLoading}
               >
-                ×
+                <CloseIcon />
               </button>
             </div>
             {taskContextPreviewLoading ? (
@@ -4080,7 +4101,7 @@ function App() {
                 onClick={closeKnowledgeDialog}
                 disabled={knowledgeLoading}
               >
-                x
+                <CloseIcon />
               </button>
             </div>
 
@@ -4154,7 +4175,7 @@ function App() {
               type="button"
               onClick={() => dismissToast(toast.id)}
             >
-              x
+              <CloseIcon />
             </button>
           </div>
         ))}
