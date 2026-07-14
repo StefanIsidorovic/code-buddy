@@ -183,17 +183,18 @@ pub fn model_catalog() -> ModelCatalogInfo {
     }
 }
 
-pub fn synthesis_model_catalog(openai_configured: bool) -> ModelCatalogInfo {
+pub fn synthesis_model_catalog(
+    provider_availability: &std::collections::HashMap<String, Result<(), String>>,
+) -> ModelCatalogInfo {
     let mut catalog = model_catalog();
     for profile in &mut catalog.profiles {
-        let unavailable_reason = match profile.provider_id.as_str() {
-            "openai" if !openai_configured => {
-                Some("Set OPENAI_API_KEY before starting the app".to_string())
-            }
-            "openai" => None,
-            "anthropic" => Some("Anthropic synthesis adapter is not implemented yet".to_string()),
-            "moonshot" => Some("Moonshot synthesis adapter is not implemented yet".to_string()),
-            _ => Some("Synthesis provider is not supported".to_string()),
+        let unavailable_reason = match provider_availability.get(&profile.provider_id) {
+            Some(Ok(())) => None,
+            Some(Err(reason)) => Some(reason.clone()),
+            None => Some(format!(
+                "{} synthesis adapter is not implemented yet",
+                profile.provider_id
+            )),
         };
         if let Some(reason) = unavailable_reason {
             profile.status = ModelProfileStatus::Unavailable;
@@ -326,13 +327,19 @@ mod tests {
 
     #[test]
     fn synthesis_catalog_reflects_provider_runtime_availability() {
-        let without_key = synthesis_model_catalog(false);
+        let without_key = synthesis_model_catalog(&std::collections::HashMap::from([(
+            "openai".to_string(),
+            Err("Set OPENAI_API_KEY before starting the app".to_string()),
+        )]));
         assert!(without_key.profiles.iter().all(|profile| {
             profile.status == ModelProfileStatus::Unavailable
                 && profile.unavailable_reason.is_some()
         }));
 
-        let with_key = synthesis_model_catalog(true);
+        let with_key = synthesis_model_catalog(&std::collections::HashMap::from([(
+            "openai".to_string(),
+            Ok(()),
+        )]));
         assert!(with_key.profiles.iter().all(|profile| {
             if profile.provider_id == "openai" {
                 profile.status == ModelProfileStatus::Selectable

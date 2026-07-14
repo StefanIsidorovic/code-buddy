@@ -576,6 +576,7 @@ dependencies = [
 name = "code-buddy"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "keyring",
  "portable-pty",
  "reqwest",

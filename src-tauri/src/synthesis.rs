@@ -1,22 +1,81 @@
 use crate::{
     errors::{AppError, AppResult},
-    models::ModelProfileInfo,
+    models::{synthesis_model_catalog, ModelCatalogInfo},
     storage::ProjectInitializationSynthesisContext,
 };
+use async_trait::async_trait;
 use reqwest::{header::HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::time::Duration;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 pub const OPENAI_RESPONSES_GENERATION_ENGINE: &str = "openai_responses_v1";
 const OPENAI_RESPONSES_URL: &str = "https://api.openai.com/v1/responses";
 const SYNTHESIS_TIMEOUT_SECONDS: u64 = 180;
 
-pub struct SynthesisCredentials {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SynthesisResult {
+    pub draft: ProjectInitializationKnowledgeDraft,
+    pub generation_engine: &'static str,
+}
+
+#[async_trait]
+pub trait SynthesisProvider: Send + Sync {
+    fn provider_id(&self) -> &'static str;
+    fn availability(&self) -> Result<(), String>;
+    async fn synthesize(
+        &self,
+        context: &ProjectInitializationSynthesisContext,
+    ) -> AppResult<SynthesisResult>;
+}
+
+pub struct SynthesisProviderRegistry {
+    providers: HashMap<&'static str, Arc<dyn SynthesisProvider>>,
+}
+
+impl SynthesisProviderRegistry {
+    pub fn from_env() -> Self {
+        Self::new(vec![Arc::new(OpenAiResponsesProvider::from_env())])
+    }
+
+    fn new(providers: Vec<Arc<dyn SynthesisProvider>>) -> Self {
+        Self {
+            providers: providers
+                .into_iter()
+                .map(|provider| (provider.provider_id(), provider))
+                .collect(),
+        }
+    }
+
+    pub fn model_catalog(&self) -> ModelCatalogInfo {
+        let availability = self
+            .providers
+            .iter()
+            .map(|(provider_id, provider)| ((*provider_id).to_string(), provider.availability()))
+            .collect();
+        synthesis_model_catalog(&availability)
+    }
+
+    pub async fn synthesize(
+        &self,
+        context: &ProjectInitializationSynthesisContext,
+    ) -> AppResult<SynthesisResult> {
+        let provider_id = context.model_profile.provider_id.as_str();
+        let provider = self.providers.get(provider_id).ok_or_else(|| {
+            AppError::Synthesis(format!(
+                "{provider_id} synthesis adapter is not implemented yet"
+            ))
+        })?;
+        provider.availability().map_err(AppError::Synthesis)?;
+        provider.synthesize(context).await
+    }
+}
+
+pub struct OpenAiResponsesProvider {
     openai_api_key: Option<String>,
 }
 
-impl SynthesisCredentials {
+impl OpenAiResponsesProvider {
     pub fn from_env() -> Self {
         Self {
             openai_api_key: std::env::var("OPENAI_API_KEY")
@@ -24,10 +83,6 @@ impl SynthesisCredentials {
                 .map(|value| value.trim().to_string())
                 .filter(|value| !value.is_empty()),
         }
-    }
-
-    pub fn openai_configured(&self) -> bool {
-        self.openai_api_key.is_some()
     }
 
     #[cfg(test)]
@@ -73,63 +128,71 @@ impl ProjectInitializationKnowledgeDraft {
     }
 }
 
-pub async fn synthesize_project_initialization(
-    context: &ProjectInitializationSynthesisContext,
-    credentials: &SynthesisCredentials,
-) -> AppResult<ProjectInitializationKnowledgeDraft> {
-    let api_key = openai_api_key_for_profile(&context.model_profile, credentials)?;
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(SYNTHESIS_TIMEOUT_SECONDS))
-        .user_agent("AIadne/0.1 project-knowledge-synthesis")
-        .build()
-        .map_err(|error| AppError::Synthesis(format!("HTTP client setup failed: {error}")))?;
-    let request = build_openai_responses_request(context)?;
-    let response = client
-        .post(OPENAI_RESPONSES_URL)
-        .bearer_auth(api_key)
-        .json(&request)
-        .send()
-        .await
-        .map_err(|error| AppError::Synthesis(format!("OpenAI request failed: {error}")))?;
-    let status = response.status();
-    let request_id = openai_request_id(response.headers());
-    let body = response
-        .text()
-        .await
-        .map_err(|error| AppError::Synthesis(format!("OpenAI response read failed: {error}")))?;
-    let response_json: Value = serde_json::from_str(&body).map_err(|error| {
-        AppError::Synthesis(format!(
-            "OpenAI returned invalid JSON{}: {error}",
-            request_id_suffix(request_id.as_deref())
-        ))
-    })?;
-
-    if !status.is_success() {
-        return Err(openai_http_error(
-            status,
-            &response_json,
-            request_id.as_deref(),
-        ));
+#[async_trait]
+impl SynthesisProvider for OpenAiResponsesProvider {
+    fn provider_id(&self) -> &'static str {
+        "openai"
     }
 
-    parse_openai_responses_output(&response_json)
-}
-
-fn openai_api_key_for_profile<'a>(
-    profile: &ModelProfileInfo,
-    credentials: &'a SynthesisCredentials,
-) -> AppResult<&'a str> {
-    if profile.provider_id != "openai" {
-        return Err(AppError::Synthesis(format!(
-            "{} synthesis is not implemented yet",
-            profile.provider_id
-        )));
+    fn availability(&self) -> Result<(), String> {
+        self.openai_api_key.as_ref().map(|_| ()).ok_or_else(|| {
+            "OPENAI_API_KEY is not configured; set it before starting the app".to_string()
+        })
     }
-    credentials.openai_api_key.as_deref().ok_or_else(|| {
-        AppError::Synthesis(
-            "OPENAI_API_KEY is not configured; set it before starting the app".to_string(),
-        )
-    })
+
+    async fn synthesize(
+        &self,
+        context: &ProjectInitializationSynthesisContext,
+    ) -> AppResult<SynthesisResult> {
+        if context.model_profile.provider_id != self.provider_id() {
+            return Err(AppError::Synthesis(format!(
+                "OpenAI adapter cannot synthesize provider {}",
+                context.model_profile.provider_id
+            )));
+        }
+        let api_key = self.openai_api_key.as_deref().ok_or_else(|| {
+            AppError::Synthesis(
+                "OPENAI_API_KEY is not configured; set it before starting the app".to_string(),
+            )
+        })?;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(SYNTHESIS_TIMEOUT_SECONDS))
+            .user_agent("AIadne/0.1 project-knowledge-synthesis")
+            .build()
+            .map_err(|error| AppError::Synthesis(format!("HTTP client setup failed: {error}")))?;
+        let request = build_openai_responses_request(context)?;
+        let response = client
+            .post(OPENAI_RESPONSES_URL)
+            .bearer_auth(api_key)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|error| AppError::Synthesis(format!("OpenAI request failed: {error}")))?;
+        let status = response.status();
+        let request_id = openai_request_id(response.headers());
+        let body = response.text().await.map_err(|error| {
+            AppError::Synthesis(format!("OpenAI response read failed: {error}"))
+        })?;
+        let response_json: Value = serde_json::from_str(&body).map_err(|error| {
+            AppError::Synthesis(format!(
+                "OpenAI returned invalid JSON{}: {error}",
+                request_id_suffix(request_id.as_deref())
+            ))
+        })?;
+
+        if !status.is_success() {
+            return Err(openai_http_error(
+                status,
+                &response_json,
+                request_id.as_deref(),
+            ));
+        }
+
+        Ok(SynthesisResult {
+            draft: parse_openai_responses_output(&response_json)?,
+            generation_engine: OPENAI_RESPONSES_GENERATION_ENGINE,
+        })
+    }
 }
 
 fn build_openai_responses_request(
@@ -468,20 +531,71 @@ mod tests {
 
     #[test]
     fn rejects_missing_credentials_and_unimplemented_providers_before_network_use() {
+        let registry =
+            SynthesisProviderRegistry::new(vec![Arc::new(OpenAiResponsesProvider::new(None))]);
         let openai = context("openai-gpt-5.6-terra-medium");
-        assert!(matches!(
-            openai_api_key_for_profile(&openai.model_profile, &SynthesisCredentials::new(None)),
-            Err(AppError::Synthesis(message)) if message.contains("OPENAI_API_KEY")
-        ));
+        let missing_key = tauri::async_runtime::block_on(registry.synthesize(&openai));
+        assert!(
+            matches!(missing_key, Err(AppError::Synthesis(message)) if message.contains("OPENAI_API_KEY"))
+        );
 
         let anthropic = context("anthropic-claude-sonnet-5-mid");
-        assert!(matches!(
-            openai_api_key_for_profile(
-                &anthropic.model_profile,
-                &SynthesisCredentials::new(Some("not-used"))
-            ),
-            Err(AppError::Synthesis(message)) if message.contains("not implemented")
-        ));
+        let unsupported = tauri::async_runtime::block_on(registry.synthesize(&anthropic));
+        assert!(
+            matches!(unsupported, Err(AppError::Synthesis(message)) if message.contains("not implemented"))
+        );
+    }
+
+    #[test]
+    fn openai_adapter_rejects_cross_provider_profile_before_network_use() {
+        let provider = OpenAiResponsesProvider::new(Some("not-used"));
+        let anthropic = context("anthropic-claude-sonnet-5-mid");
+        let result = tauri::async_runtime::block_on(provider.synthesize(&anthropic));
+
+        assert!(
+            matches!(result, Err(AppError::Synthesis(message)) if message.contains("cannot synthesize provider anthropic"))
+        );
+    }
+
+    struct FakeSynthesisProvider;
+
+    #[async_trait]
+    impl SynthesisProvider for FakeSynthesisProvider {
+        fn provider_id(&self) -> &'static str {
+            "openai"
+        }
+
+        fn availability(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn synthesize(
+            &self,
+            _context: &ProjectInitializationSynthesisContext,
+        ) -> AppResult<SynthesisResult> {
+            Ok(SynthesisResult {
+                draft: draft(),
+                generation_engine: "fake_v1",
+            })
+        }
+    }
+
+    #[test]
+    fn registry_routes_neutral_context_and_generation_engine_to_provider() {
+        let registry = SynthesisProviderRegistry::new(vec![Arc::new(FakeSynthesisProvider)]);
+        let result = tauri::async_runtime::block_on(
+            registry.synthesize(&context("openai-gpt-5.6-terra-medium")),
+        )
+        .expect("fake provider runs");
+
+        assert_eq!(result.draft, draft());
+        assert_eq!(result.generation_engine, "fake_v1");
+        assert!(registry
+            .model_catalog()
+            .profiles
+            .iter()
+            .filter(|profile| profile.provider_id == "openai")
+            .all(|profile| profile.status == crate::models::ModelProfileStatus::Selectable));
     }
 
     #[test]

@@ -6,7 +6,7 @@ use crate::{
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
-    models::{synthesis_model_catalog, ModelCatalogInfo},
+    models::ModelCatalogInfo,
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
@@ -18,17 +18,14 @@ use crate::{
         RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest,
         TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
     },
-    synthesis::{
-        synthesize_project_initialization, SynthesisCredentials, OPENAI_RESPONSES_GENERATION_ENGINE,
-    },
+    synthesis::SynthesisProviderRegistry,
 };
 use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
 pub fn list_model_catalog() -> ModelCatalogInfo {
-    let credentials = SynthesisCredentials::from_env();
-    synthesis_model_catalog(credentials.openai_configured())
+    SynthesisProviderRegistry::from_env().model_catalog()
 }
 
 #[tauri::command]
@@ -205,13 +202,9 @@ pub async fn generate_project_initialization_summary(
     request: GenerateProjectInitializationSummaryRequest,
 ) -> AppResult<ProjectInitializationSummaryInfo> {
     let context = state.prepare_project_initialization_synthesis(request)?;
-    let credentials = SynthesisCredentials::from_env();
-    let draft = synthesize_project_initialization(&context, &credentials).await?;
-    state.persist_project_initialization_summary(
-        &context,
-        draft,
-        OPENAI_RESPONSES_GENERATION_ENGINE,
-    )
+    let registry = SynthesisProviderRegistry::from_env();
+    let result = registry.synthesize(&context).await?;
+    state.persist_project_initialization_summary(&context, result.draft, result.generation_engine)
 }
 
 #[tauri::command]
