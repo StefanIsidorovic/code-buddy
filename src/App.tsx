@@ -262,6 +262,23 @@ type KnowledgeUnitInfo = {
   createdAt: number;
 };
 
+type TaskContextSelectionEntryInfo = {
+  unit: KnowledgeUnitInfo;
+  score: number;
+  reason: string;
+  characterCount: number;
+};
+
+type TaskContextSelectionInfo = {
+  initializationId: string;
+  characterBudget: number;
+  usedCharacters: number;
+  remainingCharacters: number;
+  renderedContext: string;
+  included: TaskContextSelectionEntryInfo[];
+  excluded: TaskContextSelectionEntryInfo[];
+};
+
 type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;
@@ -390,6 +407,11 @@ function App() {
   >({});
   const [knowledgeUnitsLoading, setKnowledgeUnitsLoading] = useState(false);
   const [knowledgeUnitsError, setKnowledgeUnitsError] = useState<string | null>(null);
+  const [taskContextPreview, setTaskContextPreview] =
+    useState<TaskContextSelectionInfo | null>(null);
+  const [taskContextPreviewOpen, setTaskContextPreviewOpen] = useState(false);
+  const [taskContextPreviewLoading, setTaskContextPreviewLoading] = useState(false);
+  const [taskContextPreviewError, setTaskContextPreviewError] = useState<string | null>(null);
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [openedTranscriptSession, setOpenedTranscriptSession] =
@@ -1420,6 +1442,34 @@ function App() {
       pushToast("error", errorText(err));
     } finally {
       setInitializeLoading(false);
+    }
+  }
+
+  async function previewTaskContext() {
+    if (!projectInitialization || projectInitializationSummary?.status !== "approved") {
+      setTaskContextPreviewError("Approve a Summary before previewing task context.");
+      setTaskContextPreviewOpen(true);
+      return;
+    }
+    setTaskContextPreviewOpen(true);
+    setTaskContextPreviewLoading(true);
+    setTaskContextPreviewError(null);
+    try {
+      const preview = await invoke<TaskContextSelectionInfo>("select_project_task_context", {
+        request: {
+          initializationId: projectInitialization.id,
+          task: acpPrompt,
+          repositoryId: selectedRepository?.id ?? null,
+          paths: [],
+          characterBudget: 6000,
+        },
+      });
+      setTaskContextPreview(preview);
+    } catch (err) {
+      setTaskContextPreview(null);
+      setTaskContextPreviewError(errorText(err));
+    } finally {
+      setTaskContextPreviewLoading(false);
     }
   }
 
@@ -2829,6 +2879,19 @@ function App() {
               />
             </label>
 
+            <button
+              type="button"
+              className="context-preview-button"
+              onClick={() => void previewTaskContext()}
+              disabled={
+                taskContextPreviewLoading ||
+                !acpPrompt.trim() ||
+                projectInitializationSummary?.status !== "approved"
+              }
+            >
+              Preview Context
+            </button>
+
             {acpPromptResult ? (
               <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>
             ) : null}
@@ -3721,6 +3784,79 @@ function App() {
                 Delete Project
               </button>
             </div>
+          </section>
+        </div>
+      ) : null}
+
+      {taskContextPreviewOpen ? (
+        <div className="modal-backdrop">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-context-preview-title"
+            className="knowledge-modal task-context-preview-modal"
+          >
+            <div className="modal-heading">
+              <div>
+                <span>Knowledge selector</span>
+                <h2 id="task-context-preview-title">Task Context Preview</h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Close task context preview"
+                onClick={() => setTaskContextPreviewOpen(false)}
+                disabled={taskContextPreviewLoading}
+              >
+                ×
+              </button>
+            </div>
+            {taskContextPreviewLoading ? (
+              <p className="empty-state">Selecting minimal task context…</p>
+            ) : taskContextPreviewError ? (
+              <p className="inline-error" role="alert">{taskContextPreviewError}</p>
+            ) : taskContextPreview ? (
+              <div className="task-context-preview-body">
+                <dl className="task-context-budget" aria-label="Task context budget">
+                  <div><dt>Budget</dt><dd>{taskContextPreview.characterBudget}</dd></div>
+                  <div><dt>Used</dt><dd>{taskContextPreview.usedCharacters}</dd></div>
+                  <div><dt>Remaining</dt><dd>{taskContextPreview.remainingCharacters}</dd></div>
+                </dl>
+                <section aria-label="Included task context">
+                  <h3>Included · {taskContextPreview.included.length}</h3>
+                  {taskContextPreview.included.length > 0 ? (
+                    <ol className="task-context-entry-list">
+                      {taskContextPreview.included.map((entry) => (
+                        <li key={entry.unit.id}>
+                          <div>
+                            <strong>{entry.unit.kind.replace(/_/g, " ")}</strong>
+                            <span>{entry.reason.replace(/_/g, " ")} · score {entry.score}</span>
+                          </div>
+                          <p>{entry.unit.content}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : <p className="empty-state">No units matched this task.</p>}
+                </section>
+                <section aria-label="Excluded task context">
+                  <h3>Excluded · {taskContextPreview.excluded.length}</h3>
+                  <ul className="task-context-entry-list excluded">
+                    {taskContextPreview.excluded.map((entry) => (
+                      <li key={entry.unit.id}>
+                        <div>
+                          <strong>{entry.unit.kind.replace(/_/g, " ")}</strong>
+                          <span>{entry.reason.replace(/_/g, " ")}</span>
+                        </div>
+                        <p>{entry.unit.content}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <label className="field">
+                  <span>Exact rendered context</span>
+                  <textarea readOnly value={taskContextPreview.renderedContext} rows={8} />
+                </label>
+              </div>
+            ) : <p className="empty-state">No preview available.</p>}
           </section>
         </div>
       ) : null}

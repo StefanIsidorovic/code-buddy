@@ -1006,6 +1006,10 @@ describe("PTY test panel", () => {
         return Promise.resolve(approvedSummary);
       }
 
+      if (command === "select_project_task_context") {
+        return Promise.resolve(defaultTaskContextSelection());
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -1098,6 +1102,26 @@ describe("PTY test panel", () => {
     expect(screen.getByLabelText("Published knowledge units")).toHaveTextContent(
       "Needs confirmation; no evidence source.",
     );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.change(screen.getByLabelText("ACP prompt"), {
+      target: { value: "Update project controls" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview Context" }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("select_project_task_context", {
+        request: {
+          initializationId: "init-1",
+          task: "Update project controls",
+          repositoryId: "repo-aiadne",
+          paths: [],
+          characterBudget: 6000,
+        },
+      });
+    });
+    expect(await screen.findByRole("dialog", { name: "Task Context Preview" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Task context budget")).toHaveTextContent("120");
+    expect(screen.getByLabelText("Included task context")).toHaveTextContent("mandatory kind");
+    expect(screen.getByLabelText("Excluded task context")).toHaveTextContent("uncertain status");
   });
 
   it("restores the synthesis profile from a persisted summary", async () => {
@@ -2587,6 +2611,33 @@ function defaultKnowledgeUnits() {
       createdAt: 1_785_000_060,
     },
   ];
+}
+
+function defaultTaskContextSelection() {
+  const [includedUnit, excludedUnit] = defaultKnowledgeUnits();
+  return {
+    initializationId: "init-1",
+    characterBudget: 6000,
+    usedCharacters: 120,
+    remainingCharacters: 5880,
+    renderedContext: "- [purpose / project_purpose] Project controls CLI agents",
+    included: [
+      {
+        unit: includedUnit,
+        score: 1000,
+        reason: "mandatory_kind",
+        characterCount: 120,
+      },
+    ],
+    excluded: [
+      {
+        unit: excludedUnit,
+        score: 0,
+        reason: "uncertain_status",
+        characterCount: 0,
+      },
+    ],
+  };
 }
 
 function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTranscriptSession>> = {}) {
