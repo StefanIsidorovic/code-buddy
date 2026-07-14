@@ -79,6 +79,18 @@ beforeEach(() => {
       return Promise.resolve([]);
     }
 
+    if (command === "list_project_initialization_guardrails") {
+      return Promise.resolve([]);
+    }
+
+    if (command === "list_project_initialization_summary") {
+      return Promise.resolve(null);
+    }
+
+    if (command === "list_model_catalog") {
+      return Promise.resolve(defaultModelCatalog());
+    }
+
     if (command === "list_transcript_sessions") {
       return Promise.resolve(defaultTranscriptSessions());
     }
@@ -138,27 +150,59 @@ async function flushAsyncState() {
   });
 }
 
+function getSidebarSection(name: string) {
+  const summaryText = screen
+    .getAllByText(name)
+    .find((element) => element.closest("summary"));
+  const details = summaryText?.closest("details");
+  if (!details) {
+    throw new Error(`Sidebar section not found: ${name}`);
+  }
+
+  return details;
+}
+
+function openSidebarSection(name: string) {
+  const summary = getSidebarSection(name).querySelector("summary");
+  if (!summary) {
+    throw new Error(`Sidebar summary not found: ${name}`);
+  }
+
+  fireEvent.click(summary);
+}
+
 describe("PTY test panel", () => {
   it("renders fake and Codex PTY controls with agent doctor status", async () => {
     render(<App />);
 
     expect(screen.getByRole("main", { name: "AIadne runtime test" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Runtime Controls" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Workspace" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ACP Controls" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Session Output" })).toBeInTheDocument();
     expect(screen.getByLabelText("Runtime info")).toHaveTextContent("Workspace");
     expect(screen.getByLabelText("Runtime info")).toHaveTextContent("Repository");
     expect(screen.queryByRole("button", { name: "Structured ACP" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Repositories" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Session History" })).toBeInTheDocument();
-    expect(screen.getByText("ACP Agents")).toBeInTheDocument();
+    for (const sidebarSectionName of [
+      "ACP Agents",
+      "Session History",
+      "Knowledge Cards",
+      "Terminal PTY",
+    ]) {
+      expect(getSidebarSection(sidebarSectionName)).toBeInTheDocument();
+      expect(getSidebarSection(sidebarSectionName)).not.toHaveAttribute("open");
+    }
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Add Repository" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Interactive PTY terminal")).not.toBeInTheDocument();
+    openSidebarSection("ACP Agents");
+    openSidebarSection("Session History");
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
@@ -673,6 +717,11 @@ describe("PTY test panel", () => {
     expect(screen.getByLabelText("Project initialization facts")).toHaveTextContent(
       "Tracked files: 53",
     );
+    fireEvent.click(screen.getByRole("button", { name: "View Facts" }));
+    expect(screen.getByRole("dialog", { name: "Facts Detail" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Project initialization fact details")).toHaveTextContent(
+      "git rev-parse --show-toplevel",
+    );
   });
 
   it("analyzes and renders project initialization markdown findings", async () => {
@@ -736,11 +785,350 @@ describe("PTY test panel", () => {
       });
     });
     expect(await screen.findByText("markdown · 1 repositories")).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Project initialization phases" }),
+    ).toHaveTextContent("Markdown");
     const markdownFindings = screen.getByRole("list", {
       name: "Project initialization markdown findings",
     });
+    expect(markdownFindings).toHaveTextContent("setup");
     expect(markdownFindings).toHaveTextContent("Setup");
     expect(markdownFindings).toHaveTextContent("README.md#setup");
+    fireEvent.click(screen.getByRole("button", { name: "View Findings" }));
+    expect(screen.getByRole("dialog", { name: "Markdown Findings" })).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Project initialization markdown finding details"),
+    ).toHaveTextContent("Run npm install before starting.");
+  });
+
+  it("saves project initialization interview guardrails", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "create_project_initialization") {
+        return Promise.resolve(defaultProjectInitialization());
+      }
+
+      if (command === "list_project_initialization_facts") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_project_initialization_markdown_findings") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "list_project_initialization_guardrails") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "save_project_initialization_guardrails") {
+        return Promise.resolve(defaultProjectInitializationGuardrails());
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select AIadne repository" });
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
+    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Interview" }));
+    expect(screen.getByRole("dialog", { name: "Interview Guardrails" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Guardrail type"), {
+      target: { value: "agent_rule" },
+    });
+    fireEvent.change(screen.getByLabelText("Guardrail content"), {
+      target: { value: "Always ask before schema changes." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Guardrail" }));
+    fireEvent.change(screen.getByLabelText("Guardrail scope"), {
+      target: { value: "repository" },
+    });
+    fireEvent.change(screen.getByLabelText("Guardrail type"), {
+      target: { value: "do_not_touch" },
+    });
+    fireEvent.change(screen.getByLabelText("Guardrail path pattern"), {
+      target: { value: "src/generated/**" },
+    });
+    fireEvent.change(screen.getByLabelText("Guardrail content"), {
+      target: { value: "Generated files are overwritten by tooling." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Guardrail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Interview" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("save_project_initialization_guardrails", {
+        request: {
+          initializationId: "init-1",
+          guardrails: [
+            {
+              repositoryId: null,
+              kind: "agent_rule",
+              pathPattern: null,
+              content: "Always ask before schema changes.",
+            },
+            {
+              repositoryId: "repo-aiadne",
+              kind: "do_not_touch",
+              pathPattern: "src/generated/**",
+              content: "Generated files are overwritten by tooling.",
+            },
+          ],
+        },
+      });
+    });
+    expect(await screen.findByText("interview · 1 repositories")).toBeInTheDocument();
+    expect(screen.getByLabelText("Project initialization guardrails")).toHaveTextContent(
+      "Do not touch",
+    );
+  });
+
+  it("generates and approves project initialization summary", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const draftSummary = defaultProjectInitializationSummary({
+      requestedModelProfileId: "openai-gpt-5.6-sol-high",
+      requestedModelProviderId: "openai",
+      requestedModelId: "gpt-5.6-sol",
+      requestedModelTier: "high",
+      requestedModelParameters: [{ name: "reasoning.effort", value: "high" }],
+      generationEngine: "openai_responses_v1",
+    });
+    const approvedSummary = defaultProjectInitializationSummary({
+      requestedModelProfileId: "openai-gpt-5.6-sol-high",
+      requestedModelProviderId: "openai",
+      requestedModelId: "gpt-5.6-sol",
+      requestedModelTier: "high",
+      requestedModelParameters: [{ name: "reasoning.effort", value: "high" }],
+      generationEngine: "openai_responses_v1",
+      status: "approved",
+      approvedAt: 1_785_000_060,
+    });
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "create_project_initialization") {
+        return Promise.resolve(defaultProjectInitialization());
+      }
+
+      if (command === "list_project_initialization_facts") {
+        return Promise.resolve(defaultProjectInitializationFacts());
+      }
+
+      if (command === "list_project_initialization_markdown_findings") {
+        return Promise.resolve(defaultProjectInitializationMarkdownFindings());
+      }
+
+      if (command === "list_project_initialization_guardrails") {
+        return Promise.resolve(defaultProjectInitializationGuardrails());
+      }
+
+      if (command === "list_project_initialization_summary") {
+        return Promise.resolve(null);
+      }
+
+      if (command === "list_model_catalog") {
+        return Promise.resolve(defaultModelCatalog());
+      }
+
+      if (command === "generate_project_initialization_summary") {
+        return Promise.resolve(draftSummary);
+      }
+
+      if (command === "approve_project_initialization_summary") {
+        return Promise.resolve(approvedSummary);
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select AIadne repository" });
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
+    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+
+    expect(screen.getByLabelText("Synthesis model")).toHaveValue(
+      "openai-gpt-5.6-terra-medium",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Max" }));
+    expect(screen.getByRole("option", { name: /Claude Fable 5/ })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Anthropic synthesis adapter is not implemented yet",
+    );
+    expect(screen.getByRole("button", { name: "Generate Summary" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "High" }));
+    fireEvent.change(screen.getByLabelText("Synthesis model"), {
+      target: { value: "openai-gpt-5.6-sol-high" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate Summary" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("generate_project_initialization_summary", {
+        request: {
+          initializationId: "init-1",
+          modelProfileId: "openai-gpt-5.6-sol-high",
+        },
+      });
+    });
+    expect(await screen.findByText("summary · 1 repositories")).toBeInTheDocument();
+    expect(screen.getByLabelText("Project initialization summary preview")).toHaveTextContent(
+      "Draft profile is ready for review.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "View Summary" }));
+    expect(screen.getByRole("dialog", { name: "Summary Review" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Project initialization summary")).toHaveTextContent(
+      "Project controls CLI agents",
+    );
+    expect(screen.getByLabelText("Project initialization summary")).toHaveTextContent(
+      "Do Not Touch",
+    );
+    expect(screen.getByLabelText("Summary generation provenance")).toHaveTextContent(
+      "openai / gpt-5.6-sol",
+    );
+    expect(screen.getByLabelText("Summary generation provenance")).toHaveTextContent(
+      "openai_responses_v1",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve Summary" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("approve_project_initialization_summary", {
+        summaryId: "summary-1",
+      });
+    });
+    expect(await screen.findByText("approved")).toBeInTheDocument();
+  });
+
+  it("restores the synthesis profile from a persisted summary", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+
+      if (command === "list_project_repositories") {
+        return Promise.resolve(defaultProjectRepositories());
+      }
+
+      if (command === "list_project_initializations") {
+        return Promise.resolve([{ ...defaultProjectInitialization(), status: "summary" }]);
+      }
+
+      if (command === "list_project_initialization_facts") {
+        return Promise.resolve(defaultProjectInitializationFacts());
+      }
+
+      if (command === "list_project_initialization_markdown_findings") {
+        return Promise.resolve(defaultProjectInitializationMarkdownFindings());
+      }
+
+      if (command === "list_project_initialization_guardrails") {
+        return Promise.resolve(defaultProjectInitializationGuardrails());
+      }
+
+      if (command === "list_project_initialization_summary") {
+        return Promise.resolve(
+          defaultProjectInitializationSummary({
+            requestedModelProfileId: "anthropic-claude-opus-4.8-high",
+            requestedModelProviderId: "anthropic",
+            requestedModelId: "claude-opus-4-8",
+            requestedModelTier: "high",
+            requestedModelParameters: [{ name: "thinking", value: "adaptive" }],
+          }),
+        );
+      }
+
+      if (command === "list_model_catalog") {
+        return Promise.resolve(defaultModelCatalog());
+      }
+
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+
+      if (command === "list_transcript_sessions" || command === "list_knowledge_items") {
+        return Promise.resolve([]);
+      }
+
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Synthesis model")).toHaveValue(
+        "anthropic-claude-opus-4.8-high",
+      );
+    });
+    expect(screen.getByRole("button", { name: "High" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByLabelText("Project initialization summary preview")).toHaveTextContent(
+      "claude-opus-4-8",
+    );
   });
 
   it("scopes project initialization status to the selected project", async () => {
@@ -1956,6 +2344,154 @@ function defaultProjectInitializationMarkdownFindings() {
       createdAt: 1_785_000_030,
     },
   ];
+}
+
+function defaultProjectInitializationGuardrails() {
+  return [
+    {
+      id: "guardrail-project",
+      initializationId: "init-1",
+      repositoryId: null,
+      repositoryName: null,
+      repositoryPath: null,
+      guardrailIndex: 0,
+      scope: "project",
+      kind: "agent_rule",
+      pathPattern: null,
+      content: "Always ask before schema changes.",
+      source: "user_interview",
+      createdAt: 1_785_000_040,
+    },
+    {
+      id: "guardrail-repo",
+      initializationId: "init-1",
+      repositoryId: "repo-aiadne",
+      repositoryName: "AIadne",
+      repositoryPath: "/home/katarina/projects/AIadne",
+      guardrailIndex: 1,
+      scope: "repository",
+      kind: "do_not_touch",
+      pathPattern: "src/generated/**",
+      content: "Generated files are overwritten by tooling.",
+      source: "user_interview",
+      createdAt: 1_785_000_040,
+    },
+  ];
+}
+
+function defaultModelCatalog() {
+  const supportedCapabilities = {
+    structuredOutput: "supported",
+    reasoningControl: "supported",
+    backgroundMode: "supported",
+    api: "supported",
+    cli: "unknown",
+    acp: "unknown",
+  };
+
+  return {
+    schemaVersion: 1,
+    providers: [
+      { id: "openai", displayName: "OpenAI" },
+      { id: "anthropic", displayName: "Anthropic" },
+    ],
+    profiles: [
+      {
+        id: "openai-gpt-5.6-luna-low",
+        providerId: "openai",
+        modelId: "gpt-5.6-luna",
+        displayName: "GPT-5.6 Luna",
+        tier: "fast",
+        parameters: [{ name: "reasoning.effort", value: "low" }],
+        capabilities: supportedCapabilities,
+        status: "selectable",
+        unavailableReason: null,
+      },
+      {
+        id: "openai-gpt-5.6-terra-medium",
+        providerId: "openai",
+        modelId: "gpt-5.6-terra",
+        displayName: "GPT-5.6 Terra",
+        tier: "mid",
+        parameters: [{ name: "reasoning.effort", value: "medium" }],
+        capabilities: supportedCapabilities,
+        status: "selectable",
+        unavailableReason: null,
+      },
+      {
+        id: "openai-gpt-5.6-sol-high",
+        providerId: "openai",
+        modelId: "gpt-5.6-sol",
+        displayName: "GPT-5.6 Sol",
+        tier: "high",
+        parameters: [{ name: "reasoning.effort", value: "high" }],
+        capabilities: supportedCapabilities,
+        status: "selectable",
+        unavailableReason: null,
+      },
+      {
+        id: "anthropic-claude-opus-4.8-high",
+        providerId: "anthropic",
+        modelId: "claude-opus-4-8",
+        displayName: "Claude Opus 4.8",
+        tier: "high",
+        parameters: [{ name: "thinking", value: "adaptive" }],
+        capabilities: {
+          ...supportedCapabilities,
+          backgroundMode: "unknown",
+        },
+        status: "unavailable",
+        unavailableReason: "Anthropic synthesis adapter is not implemented yet",
+      },
+      {
+        id: "anthropic-claude-fable-5-max",
+        providerId: "anthropic",
+        modelId: "claude-fable-5",
+        displayName: "Claude Fable 5",
+        tier: "max",
+        parameters: [{ name: "thinking", value: "adaptive" }],
+        capabilities: {
+          ...supportedCapabilities,
+          backgroundMode: "unknown",
+        },
+        status: "unavailable",
+        unavailableReason: "Anthropic synthesis adapter is not implemented yet",
+      },
+    ],
+  };
+}
+
+function defaultProjectInitializationSummary(overrides = {}) {
+  return {
+    id: "summary-1",
+    initializationId: "init-1",
+    status: "draft",
+    projectPurpose: "AIadne: Project controls CLI agents. (source: README.md)",
+    repositoryMap: "- AIadne: /home/katarina/projects/AIadne; git: yes; tracked files: 53",
+    repositoryRoles:
+      "- AIadne: Full-stack app with TypeScript frontend and Rust/Tauri backend. Manifests: package.json, src-tauri/Cargo.toml. Entry points: src/App.tsx, src-tauri/src/lib.rs.",
+    buildTestMatrix:
+      "- AIadne: manifests: package.json, src-tauri/Cargo.toml; test files: 12; command hints: Setup (README.md#setup)",
+    fragileAreas: "- AIadne warning: Do not edit generated files. (source: README.md#important)",
+    doNotTouchRules:
+      "- AIadne [src/generated/**]: Generated files are overwritten by tooling. (do not touch)",
+    agentWorkingRules: "- Project-wide: Always ask before schema changes. (agent rule)",
+    openQuestions: "No open questions recorded by initialization.",
+    factCount: 2,
+    markdownFindingCount: 1,
+    guardrailCount: 2,
+    requestedModelProfileId: "openai-gpt-5.6-terra-medium",
+    requestedModelProviderId: "openai",
+    requestedModelId: "gpt-5.6-terra",
+    requestedModelTier: "mid",
+    requestedModelParameters: [{ name: "reasoning.effort", value: "medium" }],
+    modelCatalogSchemaVersion: 1,
+    knowledgeSchemaVersion: 1,
+    generationEngine: "openai_responses_v1",
+    createdAt: 1_785_000_050,
+    approvedAt: null,
+    ...overrides,
+  };
 }
 
 function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTranscriptSession>> = {}) {

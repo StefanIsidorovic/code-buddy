@@ -1,147 +1,25 @@
 # Handoff
 
 ## Current State
-- Repository research for AIA-002 is complete.
-- working_knowledge/current is focused on the PTY session core task.
-- Frontend mock functionality and backend feature modules have been removed locally from the previous reset task.
-- README documents the reset skeleton.
-- docs/linear-tasks.md contains Linear-ready task drafts, including ACP work through AIA-021 and workspace persistence as AIA-022.
-- AIA-002 is implemented locally: portable-pty dependency, SessionManager, fake PTY CLI, Tauri commands, and backend tests.
-- Minimal Tauri frontend PTY test panel is implemented locally.
-- Temporary Codex PTY launch path is implemented locally for manual smoke testing.
-- PTY output panel now uses xterm.js instead of raw preformatted text.
-- PTY test panel no longer creates page-level infinite scroll; terminal output scrolls inside the xterm viewport.
-- PTY keyboard input now flows through xterm onData directly into write_session_input; the separate HTML input field was removed.
-- Sessions now start with the fitted xterm size, and the Resize button syncs the current terminal size to the backend PTY.
-- Active mind map exists: working_knowledge/current/mind_map.md indexes pty-runtime, frontend-terminal, and agent-launch-flow topic files.
-- AIA-003 is implemented locally: AgentAdapter trait, AgentRegistry, built-in codex/claude_code/kimi metadata, test fake adapter, and adapter unit tests.
-- Temporary Codex launch now uses CodexAdapter for detection and command construction.
-- Frontend active-session ref is updated synchronously after start/resize/stop so immediate xterm input is not dropped.
-- AIA-004 is committed as 045f1ae: backend doctor reports, version lookup timeout, Tauri command, Agent Doctor UI, and Codex start blocking when missing/error.
-- AIA-017 is added to the backlog as an ACP stdio transport spike; ACP is documented as structured transport beside PTY, not a PTY replacement.
-- AIA-017 is committed as 6312803: AcpSessionManager, fake ACP stdio subprocess, JSON-RPC initialize/session/new/session/prompt, event drain, transport metadata, and ACP Test UI.
-- AIA-018 is committed as ed5c16d: ACP registry candidates for codex-acp, claude-acp, kimi, and gemini; backend discovery command; ACP Registry UI panel with selectable candidates; Rust/frontend tests.
-- AIA-019 is committed as 1ce5f36: selected ACP registry candidates can be started through the existing ACP stdio runtime with Start Selected ACP.
-- Manual Codex ACP smoke test reached a real Codex ACP session and response; backend now merges message chunks, filters technical updates, and runs ACP process waits off the UI thread.
-- AIA-020/AIA-021 are committed in b0f845d: Start Selected ACP remains generic, Codex ACP events are normalized, prompt waits are longer, child exits release waits, and duplicate prompts are rejected.
-- Codex ACP thought/text-array updates now normalize into readable events instead of raw JSON notices.
-- AIA-022 is committed as a319c23: SQLite ProjectStore, create/list/delete project commands, minimal Workspace panel, and selected workspace cwd wiring for PTY/ACP launches.
-- AIA-023/AIA-024 are committed together as 113bee7: runtime mode switch, mode-specific output, ACP transcript persistence, and a minimal Session History panel.
-- AIA-025/AIA-026/AIA-027/AIA-028/AIA-029/AIA-030 are committed through 4a43282.
-- AIA-031/AIA-032/AIA-033 were committed together as 327e05c.
-- AIA-034 is implemented locally: ACP is the primary runtime UI, and Terminal PTY is available only through a collapsed fallback panel.
-- 2026-07-13 continuation is validating/reviewing the same local AIA-034 diff; no new product code has been added in this session.
-- 2026-07-13 revalidation passed: npm run typecheck; npm run test -- --run; npm run build; git diff --check; cargo test; cargo clippy -- -D warnings.
-- AIA-035 is implemented locally: projects now have child repository folders, Workspace UI can add/select/delete non-default repositories, and PTY/ACP launch cwd uses the selected repository.
-- 2026-07-13 AIA-035 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
-- AIA-034/AIA-035 were committed together as e45971f.
-- AIA-036 is implemented and validated locally: full-width app shell, durable left sidebar, app name at top, runtime info moved to sidebar footer.
-- 2026-07-13 AIA-036 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
-- AIA-037 is implemented and validated locally: controls scroll inside the top panel so Session Output stays visible, and ACP Send clears waiting state after stopReason even if event drain continues.
-- 2026-07-13 AIA-037 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
-- AIA-038 is implemented and validated locally: Knowledge Card creation moved from the inline sidebar form into a `+` popup while existing cards stay listed in the dropdown.
-- 2026-07-13 AIA-038 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo test; cargo clippy -- -D warnings; git diff --check.
-- AIA-039 is implemented locally: Project Initialize is project-level, stores a preflight run, and persists the user-selected repository ids from an Initialize Project popup.
-- 2026-07-13 AIA-039 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
-- AIA-039 review found and fixed stale Project Initialize status when switching projects.
-- AIA-039 docs roadmap is recorded as AIA-039 through AIA-043: preflight/repo selection, facts, markdown analysis, interview guardrails, and summary review.
-- AIA-040 is implemented locally: Project Initialize Facts collects source-backed local metadata for selected repositories and shows it in the Workspace panel.
-- 2026-07-13 AIA-040 validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
-- AIA-041 is implemented and validated locally: Project Initialize Markdown analysis extracts source-backed findings from selected repository markdown files and shows them in the Workspace panel.
-- 2026-07-13 AIA-041 final validation passed: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
-- AIA-044 is implemented locally: Workspace has a visible selected-project `Delete Project` action and a confirmation dialog before calling `delete_project`.
-- 2026-07-13 AIA-044 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
-- AIA-045 is implemented locally: Add Project supports native `Choose Folder`, delete shows a success message, and runtime info shows active session cwd.
-- 2026-07-13 AIA-045 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
-- AIA-046 is implemented locally: confirmed Project delete stops all running ACP sessions before deleting the project record.
-- 2026-07-13 AIA-046 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
-- AIA-047 is implemented locally: transient Workspace success/error messages render as bottom-right auto-dismiss toast notifications with manual close buttons.
-- 2026-07-13 AIA-047 validation passed: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
-- LOCAL_PROGRESS.md exists as a git-ignored human-readable local diary; .gitignore has the tracked ignore rule.
-- HEAD is b6c45a2.
-- Worktree has validated local AIA-041 markdown analysis changes pending commit/provenance; LOCAL_PROGRESS.md is intentionally git-ignored.
+- Plan step 45 connects Project Initialize Summary to OpenAI Responses structured synthesis.
+- Rust prepares owned provider-neutral evidence, releases SQLite before network I/O, parses strict structured output, rejects stale evidence, and atomically persists `openai_responses_v1` drafts.
+- `OPENAI_API_KEY` is read only from the Tauri process environment; Anthropic/Moonshot synthesis profiles remain visible but unavailable.
+- Final validation passes: Rust fmt, 68 Rust tests, clippy with warnings denied, TypeScript typecheck, 29 frontend tests, production build, and diff checks.
+- Live provider smoke test is not run because the current process has no `OPENAI_API_KEY`.
+- Worktree still contains pre-existing overlapping uncommitted Project Initialize/UI changes, so a valid isolated provenance commit remains blocked.
 
 ## Next Step
-- Commit AIA-041 with provenance note if not already committed.
-- Next Project Initialize slice after AIA-041: AIA-042 interview guardrails.
+- Manually launch with `OPENAI_API_KEY` and confirm a generated Summary reports `openai_responses_v1`.
+- After manual validation, implement source-reference validation and approved-profile injection before adding Anthropic/Moonshot synthesis clients.
 
 ## Commands To Re-Run
-- git status --short --branch: confirm dirty files before editing.
-- rg --files: confirm source tree after deleting feature modules.
-- npm run typecheck: validate TypeScript.
-- npm run test -- --run: validate frontend tests.
-- npm run build: validate Vite build.
-- cargo test: validate Rust backend skeleton.
-- cargo clippy -- -D warnings: validate Rust lint status.
-- npm run tauri dev: launch the desktop PTY test panel.
-- In the Tauri app, check Agent Doctor for Codex/Claude/Kimi installed/missing/error states.
-- In the Tauri app, add a Workspace project with an existing folder path and select it before launching runtime sessions.
-- In the Tauri app, use `Choose Folder` to pick a project folder and confirm project name/path are filled.
-- In the Tauri app, click `Delete Project`, cancel once, then confirm and verify the project is removed from the Workspace list.
-- In the Tauri app, confirm a deleted project shows a visible success message.
-- In the Tauri app, confirm Workspace success/error messages appear bottom-right and disappear after a few seconds.
-- In the Tauri app, click a toast close button and confirm the notification disappears immediately.
-- In the Tauri app, start ACP, confirm Project delete, and verify ACP returns to `not started` after deletion.
-- In the Tauri app, start ACP, delete the selected project, and confirm sidebar `Active Folder` still shows the running process cwd.
-- In the Tauri app, add a repository under the selected Workspace, select it, and confirm PTY/ACP launch uses that repository folder.
-- In the Tauri app, click `Initialize Project`, uncheck one repository, start the run, and confirm the status/count reflects the selected subset.
-- In the Tauri app, after preflight, click `Collect Facts` and confirm the status changes to `facts`, a success toast appears, and the Facts list shows Git repository, branch/head, tracked files, markdown files, manifests, test files, entry points, and churn where available.
-- In the Tauri app, click `Analyze Markdown` and confirm the status changes to `markdown`, a success toast appears, and Markdown findings show file/source/category/excerpt rows.
-- Restart the Tauri app, select the project, and confirm the latest initialize status/facts reload from SQLite.
-- In the Tauri app, confirm ACP controls/output are shown by default.
-- In the Tauri app, confirm runtime status/session/pid/workspace/repository appears at the bottom-left of the sidebar.
-- In the Tauri app, open `Terminal PTY` in the sidebar and click `Open PTY` only for fallback terminal testing.
-- In the Tauri app, click Start Fake ACP, Send ACP, and confirm ACP Events shows a structured fake agent message.
-- In the Tauri app, inspect ACP Registry and confirm Codex/Claude/Gemini npx candidates and Kimi binary status look reasonable.
-- In the Tauri app, select Codex ACP and click Start Selected ACP; first npx launch may download @agentclientprotocol/codex-acp.
-- After Codex ACP starts, click Send ACP and confirm ACP Events shows a readable agent message rather than many token rows, and the window stays responsive.
-- Confirm ACP Events does not show raw JSON for agent_thought_chunk/content-array updates; it should show readable Plan or Agent rows.
-- While a Codex ACP prompt is in flight, confirm Send ACP is disabled but Stop ACP and Drain ACP remain enabled.
-- Confirm selected Workspace name appears in the sidebar and launch requests use that folder as cwd.
-- Confirm ACP Events show fewer chopped Agent/Plan fragments; consecutive chunks should read like one message block.
-- Confirm Session History records ACP sessions and increments event count after prompts.
-- Confirm clicking a Session History row opens stored events, and `View Live ACP` returns to live output.
-- Confirm clicking a second Session History row clears the first transcript's messages before rendering the second.
-- Confirm PTY/ACP mode, agent choice, and Session History live in the left sidebar rather than the main controls.
-- Confirm a saved transcript with streamed Codex output shows Question/Answer rows instead of chopped answer chunks.
-- Confirm live ACP output scrolls to the newest event as Codex streams.
-- Create a new Codex ACP transcript after this fix; old transcripts that missed chunks before persistence cannot be fully reconstructed.
-- Confirm the earth-tone UI polish looks good in the Tauri window and does not introduce overlap on the user's screen size.
-- In the Tauri app, open Knowledge Cards, create a card, keep it attached, send ACP, and confirm the response reflects the attached context.
-- In the Tauri app, type into Session History filter and confirm the saved session list narrows.
-- In the Tauri app, confirm Session History renders only three saved rows by default.
-- In the Tauri app, click a saved Session History row, edit Selected name, click Rename, refresh, and confirm the title persists.
-- rg --files working_knowledge/current: verify mind map files are present.
+- `OPENAI_API_KEY=your_key npm run tauri dev`: launch the executable OpenAI synthesis path.
+- `cargo fmt --check && cargo test && cargo clippy -- -D warnings`: validate Rust.
+- `npm run typecheck && npm run test -- --run && npm run build`: validate frontend.
+- `git diff --check`: validate patch whitespace.
 
 ## Watchouts
-- No fake agent sessions, mock project data, storage/secrets commands, or AGENTS.md resolver code remain in the reset skeleton.
-- User has been committing reviewed changes manually; keep providing commit messages and provenance notes unless asked to commit directly.
-- When introducing a new concept, technology, runtime path, workflow, or architectural rule, update relevant docs, Linear tasks, working_knowledge, mind map, and LOCAL_PROGRESS.md in the same step.
-- When there are multiple viable implementation paths, compare the stable/default path with newer relevant approaches and suggest the newer approach when it meaningfully helps AIadne without adding avoidable risk.
-- portable-pty 0.9.0 was fetched and Cargo.lock changed.
-- The Windows fake command is a placeholder; local validation is Linux-first.
-- The PTY panel backend calls work in Tauri runtime, not a normal browser tab.
-- Start Codex uses codex --no-alt-screen --cd <cwd>; full adapter behavior is still deferred.
-- AIA-003 does not validate real Claude Code, Codex, or Kimi CLI flags beyond the existing Codex smoke path; those checks belong to AIA-005/AIA-006/AIA-007.
-- AIA-004 uses generic `--version` readiness checks; real adapter tasks can refine per-CLI detection after help/version validation.
-- ACP should be proven with a fake stdio fixture before depending on real agent behavior.
-- Fake ACP fixture is Unix shell-based; Windows fake ACP behavior still needs a packaging/cross-platform pass.
-- Built-in Codex/Claude/Kimi ACP support remains Unknown until a real ACP path is validated.
-- ACP Registry is side-effect-free discovery; it must not run npx, download packages, or start real agents.
-- ACP Registry selection itself is side-effect-free; Start Selected ACP is the explicit launch action.
-- Start Selected ACP is the explicit launch action; npx-backed ACP candidates may download their package on first launch.
-- Start Selected ACP is the generic registry launch path; avoid adding per-agent direct ACP buttons unless the product design changes.
-- Fake ACP remains the deterministic no-network regression path.
-- Real Codex ACP can emit many technical events; backend filters available_commands/session_info/usage updates from the temporary UI.
-- Real Codex ACP can emit content arrays and agent_thought_chunk updates; these should be normalized by the backend before the frontend sees them.
-- @xterm/xterm and @xterm/addon-fit are installed; npm build reports a non-fatal chunk-size warning.
-- Project storage now persists project name/path, ACP transcript history, and manual Knowledge Cards; PTY scrollback, model defaults, automatic knowledge suggestions, and richer workspace settings are deferred.
-- Knowledge Cards are manual only; no automatic promotion, embedding search, conflict resolution, card delete/detach UI, or sensitive-content detection yet.
-- Project Initialize currently persists preflight selection, local Facts, and markdown findings. Interview guardrails and Knowledge summary approval are still follow-up tasks.
-- Session History filter/rename is intentionally minimal; no tags, archive/delete, grouping, or ranked search yet.
-- Transcript persistence failures are shown separately and should not stop an active ACP session.
-- Selected project path is passed as cwd to PTY and ACP launches; old no-project launch behavior still works.
-- The runtime UI is still a test surface; the current mode switch/sidebar history/accordion layout is a bridge toward the final workspace UI.
-- The page shell is viewport-bound; long output should scroll inside xterm, not the whole desktop page.
-- For Codex, do not use a separate prompt input; click/focus the terminal and type directly so Enter/control keys reach the TUI.
-- Keep working_knowledge/current/mind_map.md and working_knowledge/current/mind_map/* updated when PTY runtime, frontend terminal, adapter boundary, or agent launch flow changes.
+- Never treat requested model provenance as proof of execution; only `generation_engine=openai_responses_v1` means OpenAI output was persisted.
+- Provider/API failures must not fall back to deterministic content or replace the previous Summary.
+- Do not expose provider keys to React or SQLite.
+- Resolve the dirty-worktree provenance blocker before claiming a step 45 commit/note.

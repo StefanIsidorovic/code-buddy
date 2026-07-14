@@ -22,6 +22,8 @@ pub enum AppError {
     Session(String),
     #[error("storage error: {0}")]
     Storage(String),
+    #[error("synthesis error: {0}")]
+    Synthesis(String),
 }
 
 impl From<std::io::Error> for AppError {

@@ -429,9 +429,108 @@
 - acceptance criteria: Markdown analysis runs only after an initialization exists; git repositories scan tracked markdown files; non-git repositories use a bounded fallback scan; findings keep repository, file, category, excerpt, and source attribution; user can trigger and inspect findings from the UI; tests cover backend git/non-git behavior and frontend rendering.
 - required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
 - review status: passed; 2026-07-13 review fixed clippy findings in markdown helper structure and redundant closure before final validation.
-- commit: pending this turn
+- commit: 2b78d66
+
+### 40. Polish Project Initialize UI
+- objective: make the Project Initialize and runtime areas easier to scan by splitting the main workspace into dedicated lanes without changing backend behavior.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: app shell grid; Workspace lane; Project Initialization lane; far-right Runtime lane; left sidebar accordion defaults; phase progress rail; Facts digest cards/details modal; Markdown preview/details modal; frontend tests; frontend-terminal mind map.
+- expected changes: split the main shell into a Workspace lane, Project Initialization lane, and far-right Runtime lane; move ACP/PTY controls and Session Output into the runtime lane; keep Project Initialize actions/findings in the middle lane; keep Workspace project/repository controls separate; stack Workspace forms/actions inside the lane width; start ACP Agents, Session History, Knowledge Cards, and Terminal PTY collapsed; render Facts and Markdown as compact lane previews with full detail modals; keep the five initialize phases in one compact no-scroll row; keep responsive fallback for narrow windows.
+- acceptance criteria: Runtime controls and Session Output are grouped in the far-right lane; Project Initialize content has its own lane immediately left of runtime; Workspace project/repository controls remain separate and do not require horizontal scrolling; sidebar sections start collapsed and can still be opened; Facts and Markdown commands still invoke the same backend commands; Facts/Markdown detail modals expose full collected data; the phase rail stays in one row; existing aria labels remain stable; UI does not overlap on narrow widths; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed; 2026-07-13 review found no backend behavior changes and no remaining lane layout issues after final validation. Sidebar collapse, Project Initialize digest/modal, and one-row phase rail follow-ups required no backend changes.
+- commit: pending
+
+### 41. Add Project Initialize interview guardrails
+- objective: implement the user interview phase by storing project-wide and repository-specific guardrails separately from generated facts/findings.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore guardrail schema/methods; Tauri guardrail commands; Project Initialization Interview card; Interview Guardrails modal; guardrail draft form/list; Rust/frontend tests; frontend-terminal mind map.
+- expected changes: add project_initialization_guardrails storage; expose save/list guardrail commands; validate supported guardrail kinds and selected repository scope; update initialization status to `interview`; render Interview as phase 4 with guardrail preview; let the user add project-wide and repository-specific fragile/do-not-touch/review/agent-rule guardrails from a modal.
+- acceptance criteria: guardrails are user-authored and separate from generated facts/markdown findings; project-wide guardrails can be saved without a repository; repository-specific guardrails are rejected unless the repository belongs to the initialization selection; UI can add multiple guardrails before saving; saved guardrails render in Project Initialization; frontend and Rust tests pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review found and fixed a SQLite mutex deadlock in save-then-list before final validation.
+- commit: pending
+
+### 42. Add Project Initialize knowledge summary review
+- objective: implement the final Project Initialize phase by generating a reviewable project profile from Facts, Markdown findings, and Interview guardrails, then requiring explicit user approval before it is considered active.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; README.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ProjectStore summary schema/methods; Tauri summary commands; Project Initialization Summary card; summary preview/approval UI; Rust/frontend tests; frontend-terminal mind map.
+- expected changes: add project_initialization_summaries storage; generate deterministic draft summaries from selected-repository facts, markdown findings, and guardrails; keep project-wide and repository-specific detail visible in the summary sections; expose list/generate/approve summary commands; render Summary as phase 5; require `Approve Summary` before the summary status becomes `approved`.
+- acceptance criteria: Summary includes project purpose, repository map, repository roles, build/test matrix, fragile areas, do-not-touch rules, agent working rules, and open questions; draft and approved states are distinct; approval is explicit; frontend can generate and approve the profile; backend and frontend tests cover draft vs approved behavior.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; cargo fmt --check; cargo test; cargo clippy -- -D warnings; git diff --check.
+- review status: passed; 2026-07-13 review kept summary generation deterministic/source-backed and separated draft creation from approval.
+- commit: pending
+
+### 43. Collapse Project Initialize Summary into modal review
+- objective: keep the narrow Project Initialization lane compact by moving full Summary profile sections out of the lane and into a modal.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Summary result card; initialization details modal; Summary Review modal content/actions; frontend Summary test; frontend-terminal mind map.
+- expected changes: Summary card shows status, counts, and a short review-ready note; `View Summary` opens a modal with all Summary sections; `Approve Summary` is available in the modal so approval happens after review.
+- acceptance criteria: Summary no longer renders long profile text inline in the lane; full profile remains accessible; approval still calls approve_project_initialization_summary; frontend checks pass.
+- required tests: npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed; 2026-07-13 review found no backend changes and kept approval behind the modal review step.
+- commit: pending
+
+### 44. Add provider-neutral synthesis model selection provenance
+- objective: introduce a versioned provider-neutral model catalog, let the user select a synthesis tier/profile, and persist that requested profile on deterministic Summary drafts without claiming an external model was executed.
+- status: in_progress
+- files: src-tauri/src/models.rs; src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.css; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*.
+- affected units: ModelCatalogInfo; ModelProviderInfo; ModelProfileInfo; ModelCapabilityInfo; list_model_catalog command; GenerateProjectInitializationSummaryRequest; project_initialization_summaries migration/query/insert flow; Project Initialization Summary model controls; Rust/frontend tests.
+- expected changes: separate model providers from API/CLI/ACP execution routes; normalize fast/mid/high/max as app tiers; seed verified OpenAI, Anthropic, and Moonshot/Kimi profiles; accept modelProfileId when generating Summary; persist requested provider/model/tier/parameters and schema versions; explicitly record deterministic_v1 as the current generation engine; render tier/profile controls and capability badges in the Summary phase.
+- acceptance criteria: catalog ids are unique and every app tier has at least one selectable profile; unverified model ids are not seeded; unknown model profiles are rejected; existing SQLite databases gain the new Summary provenance columns; generated/listed/approved summaries preserve model provenance; frontend passes the selected model profile id and shows the persisted selection; no CLI/ACP flags or external API calls are added in this slice.
+- required tests: Rust catalog uniqueness/tier tests; Rust valid/invalid summary profile and persistence tests; Rust legacy Summary table migration test; frontend catalog loading/tier/profile/invoke/disabled-option/provenance tests; cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed after two cycles; cycle 1 hardened malformed catalog handling after existing custom invoke mocks exposed a render crash, and cycle 2 added/stabilized persisted-profile reload coverage. No remaining issues.
+- commit: blocked by pre-existing uncommitted Project Initialize UI/interview/summary changes in the same files; a valid isolated step commit cannot be produced without first resolving that baseline.
+
+### 45. Connect Project Initialize Summary to OpenAI Responses synthesis
+- objective: replace the deterministic Summary formatter with a real, provider-bounded OpenAI Responses structured synthesis call while preserving the provider-neutral evidence, summary, and provenance contracts.
+- status: blocked
+- files: src-tauri/Cargo.toml; src-tauri/Cargo.lock; src-tauri/src/lib.rs; src-tauri/src/commands.rs; src-tauri/src/errors.rs; src-tauri/src/models.rs; src-tauri/src/storage.rs; src-tauri/src/synthesis.rs; src/App.tsx; src/App.test.tsx; docs/linear-tasks.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ModelCatalogInfo availability; ProjectInitializationSynthesisContext; ProjectInitializationKnowledgeDraft; OpenAiResponsesSynthesisClient; Responses request/schema/response parser; ProjectStore evidence preparation and atomic summary persistence; async generate_project_initialization_summary command; Summary generation UX; Rust/frontend tests.
+- expected changes: load selected-repository Facts, Markdown findings, and Interview guardrails into an owned provider-neutral evidence pack; release SQLite before the network call; call POST /v1/responses with the selected OpenAI profile, reasoning parameters, store=false, and strict text.format JSON Schema; reject refusals, incomplete responses, malformed output, missing credentials, and unsupported providers without deterministic fallback; atomically replace the draft only after valid model output; record openai_responses_v1 as the generation engine; mark profiles unavailable when their synthesis provider cannot currently launch.
+- acceptance criteria: Generate Summary invokes the selected available OpenAI model and persists its structured content; persisted provenance identifies the requested profile and openai_responses_v1; API errors leave an existing summary unchanged; API keys never cross the frontend or enter SQLite; Anthropic/Moonshot choices remain visible but disabled with a reason until their synthesis adapters exist.
+- required tests: Rust request/profile/evidence/schema tests; Rust valid/refusal/incomplete/malformed Responses parsing tests; Rust missing-key and unsupported-provider tests; Rust atomic persistence and previous-summary preservation tests; frontend unavailable-model and real-generator provenance tests; cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: passed after two cycles; cycle 1 removed unsupported Structured Outputs `minLength` and added stale-evidence rejection, and cycle 2 found no remaining correctness, security, or regression issue.
+- commit: blocked by the same pre-existing overlapping uncommitted Project Initialize/model-catalog baseline; an isolated buildable step 45 commit cannot be produced without first committing or consolidating that baseline.
+
+### 46. Consolidate Project Initialize steps 40-45 baseline
+- objective: durably record the already implemented and jointly validated Project Initialize UI, interview, Summary, model-catalog, and OpenAI synthesis baseline that cannot be separated retroactively without reconstructing overlapping source changes.
+- status: in_progress
+- files: README.md; docs/linear-tasks.md; src-tauri/Cargo.toml; src-tauri/Cargo.lock; src-tauri/src/commands.rs; src-tauri/src/errors.rs; src-tauri/src/lib.rs; src-tauri/src/models.rs; src-tauri/src/storage.rs; src-tauri/src/synthesis.rs; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*.
+- affected units: Project Initialize lanes and modals; guardrail, Summary, model-catalog, and synthesis storage/commands; OpenAI Responses synthesis client; related Rust/frontend tests and active knowledge maps.
+- expected changes: commit the approved existing dirty baseline as one explicitly documented consolidation exception, without changing its validated behavior.
+- acceptance criteria: all current source and knowledge changes are included; Rust/frontend validation passes; adversarial diff review finds no unresolved issue; the commit carries one valid provenance note that honestly identifies the consolidation scope.
+- required tests: cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check; active mind-map index parity.
+- review status: not_started
+- commit: none
+
+### 47. Add provider-neutral synthesis adapter boundary
+- objective: route Project Initialize Summary generation through a provider-neutral synthesis registry so OpenAI Responses is one adapter rather than the orchestration contract.
+- status: pending
+- files: src-tauri/src/synthesis.rs; src-tauri/src/synthesis/provider.rs; src-tauri/src/synthesis/openai.rs; src-tauri/src/commands.rs; src-tauri/src/models.rs; Rust tests; working_knowledge/current/*.
+- affected units: SynthesisProvider trait; SynthesisProviderRegistry; provider-neutral synthesis request/result; OpenAI Responses adapter; credentials and availability discovery; generate_project_initialization_summary command.
+- expected changes: preserve the provider-neutral evidence and knowledge draft; move OpenAI request/response details behind an adapter; resolve adapters by provider id; expose consistent unavailable-provider errors; add a fake provider for routing and contract tests.
+- acceptance criteria: command and storage contain no OpenAI request/response logic; OpenAI behavior and provenance remain unchanged through the adapter; unknown/unimplemented providers fail before network use; adding Anthropic or Moonshot requires a new adapter rather than Summary/UI changes.
+- required tests: provider registry resolution; fake-provider routing; OpenAI request/parser regression; missing credentials; unsupported provider; cargo fmt --check; cargo test; cargo clippy -- -D warnings; npm run typecheck; npm run test -- --run; npm run build; git diff --check.
+- review status: not_started
+- commit: none
 
 ## Plan Assumptions
+- The user explicitly approved consolidating the inseparable pre-existing steps 40-45 dirty baseline into one commit before provider-boundary work.
+- Step 47 introduces the extensibility boundary and retains OpenAI as the only executable synthesis adapter; real Anthropic and Moonshot clients are later plan items.
+- Step 45 reads OPENAI_API_KEY from the Tauri process environment; credentials UI/keychain storage and provider account management are separate security-sensitive work.
+- Step 45 performs one synchronous Responses request with store=false; background mode, retries, cancellation, usage/cost display, and a second validator pass remain follow-up work.
+- Step 45 has no deterministic fallback: a provider failure is visible to the user and cannot overwrite a previously valid draft.
+- Step 44 records the requested synthesis target while generation_engine remains deterministic_v1; it does not claim that OpenAI, Anthropic, or Moonshot processed repository data.
+- Model provider ids are openai, anthropic, and moonshot; codex_cli, claude_code, API, and ACP are execution surfaces and remain outside the provider enum.
+- Kimi catalog entries use the currently documented kimi-k2.6 model and thinking modes; unverified kimi-k2.7-code names are not seeded.
+- Step 42 summary generation is deterministic and source-backed; LLM-assisted rewriting, automatic profile injection into prompts, and conflict resolution remain follow-up work.
+- AIA-043 Interview guardrails are manual user-authored rules only; guided questions remain a follow-up beyond the deterministic summary review.
+- AIA-042 is frontend-only UI/lane polish; it does not change storage schema, Tauri commands, repository selection, facts collection, markdown analysis semantics, or ACP/PTY runtime behavior.
 - AIA-041 uses deterministic markdown heading/category extraction only; semantic summarization and user approval remain deferred to the summary phase.
 - AIA-040 uses local deterministic repository metadata only; agent summarization remains deferred to the later summary phase.
 - AIA-047 covers transient Workspace notifications only; modal-local errors intentionally remain inline inside the active modal.

@@ -28,6 +28,8 @@
 - AGENTS.md delivery: AgentsMdDelivery records native, prompt-prefix, unsupported, or unknown strategies.
 
 ## Current Integration
+- The model catalog is a separate backend boundary; provider ids do not reuse Codex/Claude/Kimi adapter ids.
+- Catalog CLI/ACP capability states stay Unknown until adapter-specific model mapping is validated.
 - start_codex_session is still a temporary smoke-test command.
 - The Codex launch path now uses CodexAdapter for detection and command construction.
 - list_agent_doctor_reports exposes registry doctor status through Tauri.
@@ -48,6 +50,7 @@
 
 ## Watchouts
 - Do not hardcode unvalidated CLI flags for Claude Code, Codex, or Kimi before their adapter tasks.
+- Do not translate app model tiers into CLI/ACP arguments in the frontend; adapters own that future mapping.
 - Doctor UI should keep using list_agent_doctor_reports instead of duplicating resolver/version logic in frontend.
 - AIA-010 should replace Unknown AGENTS.md delivery decisions with verified native or injection behavior.
 - Do not mark ACP stdio Supported for a real adapter until an actual ACP subprocess path passes initialize/session/prompt tests.

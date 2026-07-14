@@ -1,5 +1,10 @@
 use crate::errors::{AppError, AppResult};
-use rusqlite::{params, Connection};
+use crate::models::{
+    model_profile, ModelParameterInfo, ModelProfileInfo, MODEL_CATALOG_SCHEMA_VERSION,
+    PROJECT_KNOWLEDGE_SCHEMA_VERSION,
+};
+use crate::synthesis::ProjectInitializationKnowledgeDraft;
+use rusqlite::{params, types::Type, Connection};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -95,6 +100,85 @@ pub struct ProjectInitializationMarkdownFindingInfo {
     pub excerpt: String,
     pub source: String,
     pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveProjectInitializationGuardrailsRequest {
+    pub initialization_id: String,
+    pub guardrails: Vec<ProjectInitializationGuardrailInput>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationGuardrailInput {
+    pub repository_id: Option<String>,
+    pub kind: String,
+    pub path_pattern: Option<String>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationGuardrailInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub repository_id: Option<String>,
+    pub repository_name: Option<String>,
+    pub repository_path: Option<PathBuf>,
+    pub guardrail_index: i64,
+    pub scope: String,
+    pub kind: String,
+    pub path_pattern: Option<String>,
+    pub content: String,
+    pub source: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationSummaryInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub status: String,
+    pub project_purpose: String,
+    pub repository_map: String,
+    pub repository_roles: String,
+    pub build_test_matrix: String,
+    pub fragile_areas: String,
+    pub do_not_touch_rules: String,
+    pub agent_working_rules: String,
+    pub open_questions: String,
+    pub fact_count: i64,
+    pub markdown_finding_count: i64,
+    pub guardrail_count: i64,
+    pub requested_model_profile_id: Option<String>,
+    pub requested_model_provider_id: Option<String>,
+    pub requested_model_id: Option<String>,
+    pub requested_model_tier: Option<String>,
+    pub requested_model_parameters: Vec<ModelParameterInfo>,
+    pub model_catalog_schema_version: Option<i64>,
+    pub knowledge_schema_version: i64,
+    pub generation_engine: String,
+    pub created_at: i64,
+    pub approved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateProjectInitializationSummaryRequest {
+    pub initialization_id: String,
+    pub model_profile_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectInitializationSynthesisContext {
+    pub initialization_id: String,
+    pub repositories: Vec<ProjectRepositoryInfo>,
+    pub facts: Vec<ProjectInitializationFactInfo>,
+    pub findings: Vec<ProjectInitializationMarkdownFindingInfo>,
+    pub guardrails: Vec<ProjectInitializationGuardrailInfo>,
+    pub model_profile: ModelProfileInfo,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -584,6 +668,238 @@ impl ProjectStore {
         list_project_initialization_markdown_findings(&connection, initialization_id)
     }
 
+    pub fn save_project_initialization_guardrails(
+        &self,
+        request: SaveProjectInitializationGuardrailsRequest,
+    ) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+        let initialization_id = request.initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+        if request.guardrails.is_empty() {
+            return Err(AppError::InvalidInput(
+                "at least one guardrail is required".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, initialization_id)?;
+        let selected_repository_ids =
+            selected_initialization_repository_ids(&transaction, initialization_id)?;
+        let guardrails = request
+            .guardrails
+            .into_iter()
+            .enumerate()
+            .map(|(index, guardrail)| {
+                normalize_project_initialization_guardrail(
+                    initialization_id,
+                    guardrail,
+                    index as i64,
+                    &selected_repository_ids,
+                    now,
+                )
+            })
+            .collect::<AppResult<Vec<_>>>()?;
+
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_guardrails WHERE initialization_id = ?1",
+                params![initialization_id],
+            )
+            .map_err(storage_error)?;
+        for guardrail in &guardrails {
+            insert_project_initialization_guardrail(&transaction, guardrail)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["interview", now, initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        self.list_project_initialization_guardrails(initialization_id)
+    }
+
+    pub fn list_project_initialization_guardrails(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_guardrails(&connection, initialization_id)
+    }
+
+    pub fn prepare_project_initialization_synthesis(
+        &self,
+        request: GenerateProjectInitializationSummaryRequest,
+    ) -> AppResult<ProjectInitializationSynthesisContext> {
+        let initialization_id = request.initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+        let model_profile_id = request.model_profile_id.trim();
+        if model_profile_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "model profile id must not be empty".to_string(),
+            ));
+        }
+        let profile = model_profile(model_profile_id).ok_or_else(|| {
+            AppError::InvalidInput(format!("model profile not found: {model_profile_id}"))
+        })?;
+
+        let (repositories, facts, findings, guardrails) = {
+            let connection = self.connection()?;
+            require_project_initialization(&connection, initialization_id)?;
+            (
+                list_initialization_repositories(&connection, initialization_id)?,
+                list_project_initialization_facts(&connection, initialization_id)?,
+                list_project_initialization_markdown_findings(&connection, initialization_id)?,
+                list_project_initialization_guardrails(&connection, initialization_id)?,
+            )
+        };
+        Ok(ProjectInitializationSynthesisContext {
+            initialization_id: initialization_id.to_string(),
+            repositories,
+            facts,
+            findings,
+            guardrails,
+            model_profile: profile,
+        })
+    }
+
+    pub fn persist_project_initialization_summary(
+        &self,
+        context: &ProjectInitializationSynthesisContext,
+        draft: ProjectInitializationKnowledgeDraft,
+        generation_engine: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let generation_engine = generation_engine.trim();
+        if generation_engine.is_empty() {
+            return Err(AppError::InvalidInput(
+                "generation engine must not be empty".to_string(),
+            ));
+        }
+        let draft = draft.validate()?;
+        let now = unix_timestamp()?;
+        let summary = build_project_initialization_summary(context, draft, generation_engine, now);
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, &context.initialization_id)?;
+        if list_initialization_repositories(&transaction, &context.initialization_id)?
+            != context.repositories
+            || list_project_initialization_facts(&transaction, &context.initialization_id)?
+                != context.facts
+            || list_project_initialization_markdown_findings(
+                &transaction,
+                &context.initialization_id,
+            )? != context.findings
+            || list_project_initialization_guardrails(&transaction, &context.initialization_id)?
+                != context.guardrails
+        {
+            return Err(AppError::Synthesis(
+                "initialization evidence changed while synthesis was running; generate the summary again"
+                    .to_string(),
+            ));
+        }
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_summaries WHERE initialization_id = ?1",
+                params![&context.initialization_id],
+            )
+            .map_err(storage_error)?;
+        insert_project_initialization_summary(&transaction, &summary)?;
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["summary", now, &context.initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        self.list_project_initialization_summary(&context.initialization_id)?
+            .ok_or_else(|| AppError::Storage("generated summary was not persisted".to_string()))
+    }
+
+    pub fn list_project_initialization_summary(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_summary(&connection, initialization_id)
+    }
+
+    pub fn approve_project_initialization_summary(
+        &self,
+        summary_id: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let summary_id = summary_id.trim();
+        if summary_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary id must not be empty".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let updated = transaction
+            .execute(
+                "UPDATE project_initialization_summaries
+                 SET status = ?1, approved_at = ?2
+                 WHERE id = ?3",
+                params!["approved", now, summary_id],
+            )
+            .map_err(storage_error)?;
+        if updated == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "project initialization summary not found: {summary_id}"
+            )));
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs
+                 SET status = ?1, updated_at = ?2
+                 WHERE id = (
+                    SELECT initialization_id
+                    FROM project_initialization_summaries
+                    WHERE id = ?3
+                 )",
+                params!["summary", now, summary_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        let connection = self.connection()?;
+        project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| AppError::Storage("approved summary was not found".to_string()))
+    }
+
     pub fn create_transcript_session(
         &self,
         request: CreateTranscriptSessionRequest,
@@ -1003,6 +1319,53 @@ impl ProjectStore {
                 CREATE INDEX IF NOT EXISTS idx_project_initialization_markdown_findings_initialization
                     ON project_initialization_markdown_findings(initialization_id, repository_id, file_path);
 
+                CREATE TABLE IF NOT EXISTS project_initialization_guardrails (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    guardrail_index INTEGER NOT NULL,
+                    scope TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    path_pattern TEXT,
+                    content TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(initialization_id, guardrail_index)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_guardrails_initialization
+                    ON project_initialization_guardrails(initialization_id, repository_id, guardrail_index);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_summaries (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL UNIQUE REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    project_purpose TEXT NOT NULL,
+                    repository_map TEXT NOT NULL,
+                    repository_roles TEXT NOT NULL,
+                    build_test_matrix TEXT NOT NULL,
+                    fragile_areas TEXT NOT NULL,
+                    do_not_touch_rules TEXT NOT NULL,
+                    agent_working_rules TEXT NOT NULL,
+                    open_questions TEXT NOT NULL,
+                    fact_count INTEGER NOT NULL,
+                    markdown_finding_count INTEGER NOT NULL,
+                    guardrail_count INTEGER NOT NULL,
+                    requested_model_profile_id TEXT,
+                    requested_model_provider_id TEXT,
+                    requested_model_id TEXT,
+                    requested_model_tier TEXT,
+                    requested_model_parameters_json TEXT NOT NULL DEFAULT '[]',
+                    model_catalog_schema_version INTEGER,
+                    knowledge_schema_version INTEGER NOT NULL DEFAULT 1,
+                    generation_engine TEXT NOT NULL DEFAULT 'deterministic_v1',
+                    created_at INTEGER NOT NULL,
+                    approved_at INTEGER
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_summaries_initialization
+                    ON project_initialization_summaries(initialization_id, status);
+
                 CREATE TABLE IF NOT EXISTS transcript_sessions (
                     id TEXT PRIMARY KEY,
                     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -1055,7 +1418,58 @@ impl ProjectStore {
                     ON transcript_knowledge_links(knowledge_item_id);
                 "#,
             )
-            .map_err(storage_error)
+            .map_err(storage_error)?;
+
+        let connection = self.connection()?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_profile_id",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_provider_id",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_id",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_tier",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_parameters_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "model_catalog_schema_version",
+            "INTEGER",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "knowledge_schema_version",
+            "INTEGER NOT NULL DEFAULT 1",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "generation_engine",
+            "TEXT NOT NULL DEFAULT 'deterministic_v1'",
+        )?;
+        Ok(())
     }
 
     fn connection(&self) -> AppResult<MutexGuard<'_, Connection>> {
@@ -1196,6 +1610,60 @@ fn project_initialization_markdown_finding_from_row(
     })
 }
 
+fn project_initialization_guardrail_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationGuardrailInfo> {
+    let repository_path: Option<String> = row.get(4)?;
+    Ok(ProjectInitializationGuardrailInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        repository_id: row.get(2)?,
+        repository_name: row.get(3)?,
+        repository_path: repository_path.map(PathBuf::from),
+        guardrail_index: row.get(5)?,
+        scope: row.get(6)?,
+        kind: row.get(7)?,
+        path_pattern: row.get(8)?,
+        content: row.get(9)?,
+        source: row.get(10)?,
+        created_at: row.get(11)?,
+    })
+}
+
+fn project_initialization_summary_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationSummaryInfo> {
+    let requested_model_parameters_json: String = row.get(20)?;
+    let requested_model_parameters = serde_json::from_str(&requested_model_parameters_json)
+        .map_err(|err| rusqlite::Error::FromSqlConversionFailure(20, Type::Text, Box::new(err)))?;
+    Ok(ProjectInitializationSummaryInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        status: row.get(2)?,
+        project_purpose: row.get(3)?,
+        repository_map: row.get(4)?,
+        repository_roles: row.get(5)?,
+        build_test_matrix: row.get(6)?,
+        fragile_areas: row.get(7)?,
+        do_not_touch_rules: row.get(8)?,
+        agent_working_rules: row.get(9)?,
+        open_questions: row.get(10)?,
+        fact_count: row.get(11)?,
+        markdown_finding_count: row.get(12)?,
+        guardrail_count: row.get(13)?,
+        created_at: row.get(14)?,
+        approved_at: row.get(15)?,
+        requested_model_profile_id: row.get(16)?,
+        requested_model_provider_id: row.get(17)?,
+        requested_model_id: row.get(18)?,
+        requested_model_tier: row.get(19)?,
+        requested_model_parameters,
+        model_catalog_schema_version: row.get(21)?,
+        knowledge_schema_version: row.get(22)?,
+        generation_engine: row.get(23)?,
+    })
+}
+
 fn transcript_session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSessionInfo> {
     Ok(TranscriptSessionInfo {
         id: row.get(0)?,
@@ -1328,6 +1796,26 @@ fn list_initialization_repositories(
     Ok(repositories)
 }
 
+fn selected_initialization_repository_ids(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<HashSet<String>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT repository_id
+             FROM project_initialization_repositories
+             WHERE initialization_id = ?1",
+        )
+        .map_err(storage_error)?;
+    let repository_ids = statement
+        .query_map(params![initialization_id], |row| row.get::<_, String>(0))
+        .map_err(storage_error)?
+        .collect::<Result<HashSet<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(repository_ids)
+}
+
 fn list_project_initialization_facts(
     connection: &Connection,
     initialization_id: &str,
@@ -1427,6 +1915,268 @@ fn insert_project_initialization_markdown_finding(
         )
         .map_err(storage_error)?;
     Ok(())
+}
+
+fn list_project_initialization_guardrails(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT g.id, g.initialization_id, g.repository_id, pr.name, pr.path,
+                    g.guardrail_index, g.scope, g.kind, g.path_pattern, g.content, g.source, g.created_at
+             FROM project_initialization_guardrails g
+             LEFT JOIN project_repositories pr ON pr.id = g.repository_id
+             WHERE g.initialization_id = ?1
+             ORDER BY g.guardrail_index ASC",
+        )
+        .map_err(storage_error)?;
+    let guardrails = statement
+        .query_map(
+            params![initialization_id],
+            project_initialization_guardrail_from_row,
+        )
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(guardrails)
+}
+
+fn insert_project_initialization_guardrail(
+    connection: &Connection,
+    guardrail: &ProjectInitializationGuardrailInfo,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO project_initialization_guardrails
+             (id, initialization_id, repository_id, guardrail_index, scope, kind, path_pattern, content, source, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                &guardrail.id,
+                &guardrail.initialization_id,
+                &guardrail.repository_id,
+                guardrail.guardrail_index,
+                &guardrail.scope,
+                &guardrail.kind,
+                &guardrail.path_pattern,
+                &guardrail.content,
+                &guardrail.source,
+                guardrail.created_at
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn list_project_initialization_summary(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, initialization_id, status, project_purpose, repository_map,
+                    repository_roles, build_test_matrix, fragile_areas,
+                    do_not_touch_rules, agent_working_rules, open_questions,
+                    fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
+                    requested_model_profile_id, requested_model_provider_id,
+                    requested_model_id, requested_model_tier,
+                    requested_model_parameters_json, model_catalog_schema_version,
+                    knowledge_schema_version, generation_engine
+             FROM project_initialization_summaries
+             WHERE initialization_id = ?1",
+        )
+        .map_err(storage_error)?;
+    let mut rows = statement
+        .query(params![initialization_id])
+        .map_err(storage_error)?;
+    if let Some(row) = rows.next().map_err(storage_error)? {
+        Ok(Some(
+            project_initialization_summary_from_row(row).map_err(storage_error)?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+fn project_initialization_summary_by_id(
+    connection: &Connection,
+    summary_id: &str,
+) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, initialization_id, status, project_purpose, repository_map,
+                    repository_roles, build_test_matrix, fragile_areas,
+                    do_not_touch_rules, agent_working_rules, open_questions,
+                    fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
+                    requested_model_profile_id, requested_model_provider_id,
+                    requested_model_id, requested_model_tier,
+                    requested_model_parameters_json, model_catalog_schema_version,
+                    knowledge_schema_version, generation_engine
+             FROM project_initialization_summaries
+             WHERE id = ?1",
+        )
+        .map_err(storage_error)?;
+    let mut rows = statement
+        .query(params![summary_id])
+        .map_err(storage_error)?;
+    if let Some(row) = rows.next().map_err(storage_error)? {
+        Ok(Some(
+            project_initialization_summary_from_row(row).map_err(storage_error)?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+fn insert_project_initialization_summary(
+    connection: &Connection,
+    summary: &ProjectInitializationSummaryInfo,
+) -> AppResult<()> {
+    let requested_model_parameters_json =
+        serde_json::to_string(&summary.requested_model_parameters)
+            .map_err(|err| AppError::Storage(err.to_string()))?;
+    connection
+        .execute(
+            "INSERT INTO project_initialization_summaries
+             (id, initialization_id, status, project_purpose, repository_map,
+              repository_roles, build_test_matrix, fragile_areas,
+              do_not_touch_rules, agent_working_rules, open_questions,
+              fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
+              requested_model_profile_id, requested_model_provider_id, requested_model_id,
+              requested_model_tier, requested_model_parameters_json,
+              model_catalog_schema_version, knowledge_schema_version, generation_engine)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+                     ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
+            params![
+                &summary.id,
+                &summary.initialization_id,
+                &summary.status,
+                &summary.project_purpose,
+                &summary.repository_map,
+                &summary.repository_roles,
+                &summary.build_test_matrix,
+                &summary.fragile_areas,
+                &summary.do_not_touch_rules,
+                &summary.agent_working_rules,
+                &summary.open_questions,
+                summary.fact_count,
+                summary.markdown_finding_count,
+                summary.guardrail_count,
+                summary.created_at,
+                summary.approved_at,
+                &summary.requested_model_profile_id,
+                &summary.requested_model_provider_id,
+                &summary.requested_model_id,
+                &summary.requested_model_tier,
+                &requested_model_parameters_json,
+                summary.model_catalog_schema_version,
+                summary.knowledge_schema_version,
+                &summary.generation_engine
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn normalize_project_initialization_guardrail(
+    initialization_id: &str,
+    input: ProjectInitializationGuardrailInput,
+    guardrail_index: i64,
+    selected_repository_ids: &HashSet<String>,
+    created_at: i64,
+) -> AppResult<ProjectInitializationGuardrailInfo> {
+    let kind = input.kind.trim();
+    if !is_supported_guardrail_kind(kind) {
+        return Err(AppError::InvalidInput(format!(
+            "unsupported guardrail kind: {kind}"
+        )));
+    }
+
+    let repository_id = input
+        .repository_id
+        .map(|repository_id| repository_id.trim().to_string())
+        .filter(|repository_id| !repository_id.is_empty());
+    if let Some(repository_id) = &repository_id {
+        if !selected_repository_ids.contains(repository_id) {
+            return Err(AppError::InvalidInput(format!(
+                "repository is not selected for initialization: {repository_id}"
+            )));
+        }
+    }
+
+    let content = input.content.trim();
+    if content.is_empty() {
+        return Err(AppError::InvalidInput(
+            "guardrail content must not be empty".to_string(),
+        ));
+    }
+
+    let path_pattern = input
+        .path_pattern
+        .map(|path_pattern| path_pattern.trim().to_string())
+        .filter(|path_pattern| !path_pattern.is_empty());
+    let scope = if repository_id.is_some() {
+        "repository".to_string()
+    } else {
+        "project".to_string()
+    };
+
+    Ok(ProjectInitializationGuardrailInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: initialization_id.to_string(),
+        repository_id,
+        repository_name: None,
+        repository_path: None,
+        guardrail_index,
+        scope,
+        kind: kind.to_string(),
+        path_pattern,
+        content: content.to_string(),
+        source: "user_interview".to_string(),
+        created_at,
+    })
+}
+
+fn is_supported_guardrail_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "fragile" | "do_not_touch" | "requires_review" | "agent_rule"
+    )
+}
+
+fn build_project_initialization_summary(
+    context: &ProjectInitializationSynthesisContext,
+    draft: ProjectInitializationKnowledgeDraft,
+    generation_engine: &str,
+    created_at: i64,
+) -> ProjectInitializationSummaryInfo {
+    ProjectInitializationSummaryInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: context.initialization_id.clone(),
+        status: "draft".to_string(),
+        project_purpose: draft.project_purpose,
+        repository_map: draft.repository_map,
+        repository_roles: draft.repository_roles,
+        build_test_matrix: draft.build_test_matrix,
+        fragile_areas: draft.fragile_areas,
+        do_not_touch_rules: draft.do_not_touch_rules,
+        agent_working_rules: draft.agent_working_rules,
+        open_questions: draft.open_questions,
+        fact_count: context.facts.len() as i64,
+        markdown_finding_count: context.findings.len() as i64,
+        guardrail_count: context.guardrails.len() as i64,
+        requested_model_profile_id: Some(context.model_profile.id.clone()),
+        requested_model_provider_id: Some(context.model_profile.provider_id.clone()),
+        requested_model_id: Some(context.model_profile.model_id.clone()),
+        requested_model_tier: Some(context.model_profile.tier.as_str().to_string()),
+        requested_model_parameters: context.model_profile.parameters.clone(),
+        model_catalog_schema_version: Some(MODEL_CATALOG_SCHEMA_VERSION),
+        knowledge_schema_version: PROJECT_KNOWLEDGE_SCHEMA_VERSION,
+        generation_engine: generation_engine.to_string(),
+        created_at,
+        approved_at: None,
+    }
 }
 
 fn analyze_repository_markdown(
@@ -2153,9 +2903,59 @@ fn storage_error(err: rusqlite::Error) -> AppError {
     AppError::Storage(err.to_string())
 }
 
+fn ensure_table_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> AppResult<()> {
+    let mut statement = connection
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(storage_error)?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+    drop(statement);
+
+    if columns.iter().any(|candidate| candidate == column) {
+        return Ok(());
+    }
+
+    connection
+        .execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+            [],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::DEFAULT_SYNTHESIS_MODEL_PROFILE_ID;
+    use crate::synthesis::OPENAI_RESPONSES_GENERATION_ENGINE;
+
+    fn test_knowledge_draft() -> ProjectInitializationKnowledgeDraft {
+        ProjectInitializationKnowledgeDraft {
+            project_purpose: "AIadne controls coding-agent workflows [source: README.md#aiadne]"
+                .to_string(),
+            repository_map:
+                "- AIadne: selected application repository [source: project_repositories.path]"
+                    .to_string(),
+            repository_roles: "- AIadne: agent control application [source: README.md#aiadne]"
+                .to_string(),
+            build_test_matrix: "- Run Commands checks [source: README.md#commands]".to_string(),
+            fragile_areas: "- Do not edit generated files [source: README.md#important]"
+                .to_string(),
+            do_not_touch_rules: "- src/generated/** is protected [source: user_interview]"
+                .to_string(),
+            agent_working_rules: "- Ask before schema changes [source: user_interview]".to_string(),
+            open_questions: "- Confirm repository role with the user.".to_string(),
+        }
+    }
 
     #[test]
     fn creates_lists_and_deletes_projects() {
@@ -2605,6 +3405,556 @@ mod tests {
         assert!(!findings
             .iter()
             .any(|finding| finding.file_path.contains("node_modules")));
+    }
+
+    #[test]
+    fn saves_project_initialization_guardrails() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("guardrails-project"),
+            })
+            .expect("project created");
+        let default_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let ui_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "UI".to_string(),
+                path: temp_project_path("guardrails-ui"),
+            })
+            .expect("repository created");
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![default_repository.id.clone(), ui_repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let guardrails = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![
+                    ProjectInitializationGuardrailInput {
+                        repository_id: None,
+                        kind: "agent_rule".to_string(),
+                        path_pattern: None,
+                        content: "Always ask before schema changes.".to_string(),
+                    },
+                    ProjectInitializationGuardrailInput {
+                        repository_id: Some(ui_repository.id.clone()),
+                        kind: "do_not_touch".to_string(),
+                        path_pattern: Some("src/generated/**".to_string()),
+                        content: "Generated UI files are overwritten by tooling.".to_string(),
+                    },
+                ],
+            })
+            .expect("guardrails saved");
+
+        assert_eq!(guardrails.len(), 2);
+        assert_eq!(guardrails[0].scope, "project");
+        assert_eq!(guardrails[0].kind, "agent_rule");
+        assert_eq!(guardrails[0].source, "user_interview");
+        assert_eq!(guardrails[1].scope, "repository");
+        assert_eq!(
+            guardrails[1].repository_id.as_deref(),
+            Some(ui_repository.id.as_str())
+        );
+        assert_eq!(guardrails[1].repository_name.as_deref(), Some("UI"));
+        assert_eq!(
+            guardrails[1].path_pattern.as_deref(),
+            Some("src/generated/**")
+        );
+
+        let listed_guardrails = store
+            .list_project_initialization_guardrails(&initialization.id)
+            .expect("guardrails listed");
+        assert_eq!(listed_guardrails, guardrails);
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "interview");
+    }
+
+    #[test]
+    fn rejects_invalid_project_initialization_guardrails() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: temp_project_path("guardrails-one"),
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path: temp_project_path("guardrails-two"),
+            })
+            .expect("second project created");
+        let first_repository = store
+            .list_project_repositories(&first_project.id)
+            .expect("first repositories listed")
+            .remove(0);
+        let second_repository = store
+            .list_project_repositories(&second_project.id)
+            .expect("second repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id,
+                repository_ids: vec![first_repository.id],
+            })
+            .expect("initialization created");
+
+        let empty = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![],
+            })
+            .expect_err("empty guardrails rejected");
+        assert!(matches!(empty, AppError::InvalidInput(_)));
+
+        let unsupported_kind = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: None,
+                    kind: "generated_fact".to_string(),
+                    path_pattern: None,
+                    content: "Wrong source.".to_string(),
+                }],
+            })
+            .expect_err("unsupported kind rejected");
+        assert!(matches!(unsupported_kind, AppError::InvalidInput(_)));
+
+        let blank_content = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: None,
+                    kind: "agent_rule".to_string(),
+                    path_pattern: None,
+                    content: " ".to_string(),
+                }],
+            })
+            .expect_err("blank content rejected");
+        assert!(matches!(blank_content, AppError::InvalidInput(_)));
+
+        let unselected_repository = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id,
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: Some(second_repository.id),
+                    kind: "do_not_touch".to_string(),
+                    path_pattern: Some("src/**".to_string()),
+                    content: "Wrong project.".to_string(),
+                }],
+            })
+            .expect_err("unselected repository rejected");
+        assert!(matches!(unselected_repository, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn generates_project_initialization_summary_draft() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("summary-draft-project");
+        fs::write(
+            project_path.join("README.md"),
+            "# AIadne\n\nProject controls CLI agents.\n\n## Commands\nRun npm test for checks.\n\n## Important\nDo not edit generated files.\n",
+        )
+        .expect("README written");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path,
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![repository.id.clone()],
+            })
+            .expect("initialization created");
+        store
+            .collect_project_initialization_facts(&initialization.id)
+            .expect("facts collected");
+        store
+            .analyze_project_initialization_markdown(&initialization.id)
+            .expect("markdown analyzed");
+        store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![
+                    ProjectInitializationGuardrailInput {
+                        repository_id: None,
+                        kind: "agent_rule".to_string(),
+                        path_pattern: None,
+                        content: "Always ask before schema changes.".to_string(),
+                    },
+                    ProjectInitializationGuardrailInput {
+                        repository_id: Some(repository.id.clone()),
+                        kind: "do_not_touch".to_string(),
+                        path_pattern: Some("src/generated/**".to_string()),
+                        content: "Generated files are overwritten by tooling.".to_string(),
+                    },
+                ],
+            })
+            .expect("guardrails saved");
+
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("summary persisted");
+
+        assert_eq!(summary.status, "draft");
+        assert!(summary.project_purpose.contains("AIadne"));
+        assert!(summary.repository_map.contains("AIadne"));
+        assert!(summary.build_test_matrix.contains("Commands"));
+        assert!(summary
+            .fragile_areas
+            .contains("Do not edit generated files"));
+        assert!(summary.do_not_touch_rules.contains("src/generated/**"));
+        assert!(summary.agent_working_rules.contains("schema changes"));
+        assert!(summary.open_questions.contains("Confirm repository role"));
+        assert_eq!(summary.fact_count, 2);
+        assert_eq!(summary.guardrail_count, 2);
+        assert!(summary.markdown_finding_count >= 3);
+        assert_eq!(
+            summary.requested_model_profile_id.as_deref(),
+            Some(DEFAULT_SYNTHESIS_MODEL_PROFILE_ID)
+        );
+        assert_eq!(
+            summary.requested_model_provider_id.as_deref(),
+            Some("openai")
+        );
+        assert_eq!(summary.requested_model_id.as_deref(), Some("gpt-5.6-terra"));
+        assert_eq!(summary.requested_model_tier.as_deref(), Some("mid"));
+        assert_eq!(
+            summary.requested_model_parameters,
+            vec![ModelParameterInfo {
+                name: "reasoning.effort".to_string(),
+                value: "medium".to_string(),
+            }]
+        );
+        assert_eq!(
+            summary.model_catalog_schema_version,
+            Some(MODEL_CATALOG_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            summary.knowledge_schema_version,
+            PROJECT_KNOWLEDGE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            summary.generation_engine,
+            OPENAI_RESPONSES_GENERATION_ENGINE
+        );
+        assert_eq!(summary.approved_at, None);
+
+        let listed_summary = store
+            .list_project_initialization_summary(&initialization.id)
+            .expect("summary listed")
+            .expect("summary exists");
+        assert_eq!(listed_summary, summary);
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "summary");
+    }
+
+    #[test]
+    fn approves_project_initialization_summary() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-approval-project"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: "openai-gpt-5.6-sol-high".to_string(),
+            })
+            .expect("synthesis prepared");
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("summary persisted");
+
+        let approved = store
+            .approve_project_initialization_summary(&summary.id)
+            .expect("summary approved");
+
+        assert_eq!(approved.id, summary.id);
+        assert_eq!(approved.status, "approved");
+        assert!(approved.approved_at.is_some());
+        let listed_summary = store
+            .list_project_initialization_summary(&initialization.id)
+            .expect("summary listed")
+            .expect("summary exists");
+        assert_eq!(listed_summary.status, "approved");
+        assert_eq!(
+            listed_summary.requested_model_profile_id.as_deref(),
+            Some("openai-gpt-5.6-sol-high")
+        );
+        assert_eq!(listed_summary.requested_model_tier.as_deref(), Some("high"));
+
+        let missing = store
+            .approve_project_initialization_summary("missing-summary")
+            .expect_err("missing summary rejected");
+        assert!(matches!(missing, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_unknown_or_empty_summary_model_profiles() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-model-validation"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+
+        for model_profile_id in ["", "unknown-profile"] {
+            let error = store
+                .prepare_project_initialization_synthesis(
+                    GenerateProjectInitializationSummaryRequest {
+                        initialization_id: initialization.id.clone(),
+                        model_profile_id: model_profile_id.to_string(),
+                    },
+                )
+                .expect_err("invalid model profile rejected");
+            assert!(matches!(error, AppError::InvalidInput(_)));
+        }
+
+        assert!(store
+            .list_project_initialization_summary(&initialization.id)
+            .expect("summary checked")
+            .is_none());
+    }
+
+    #[test]
+    fn invalid_synthesis_output_preserves_previous_summary() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-atomic-replacement"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let original = store
+            .persist_project_initialization_summary(
+                &context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("initial summary persisted");
+        let mut invalid = test_knowledge_draft();
+        invalid.project_purpose = " ".to_string();
+
+        let error = store
+            .persist_project_initialization_summary(
+                &context,
+                invalid,
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect_err("invalid model output rejected");
+        assert!(matches!(error, AppError::Synthesis(_)));
+        assert_eq!(
+            store
+                .list_project_initialization_summary(&initialization.id)
+                .expect("summary listed")
+                .expect("summary remains"),
+            original
+        );
+    }
+
+    #[test]
+    fn stale_synthesis_output_preserves_previous_summary() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-stale-evidence"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let original_context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("initial synthesis prepared");
+        let original = store
+            .persist_project_initialization_summary(
+                &original_context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("initial summary persisted");
+        store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: None,
+                    kind: "agent_rule".to_string(),
+                    path_pattern: None,
+                    content: "Review schema changes.".to_string(),
+                }],
+            })
+            .expect("evidence changed");
+
+        let error = store
+            .persist_project_initialization_summary(
+                &original_context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect_err("stale synthesis rejected");
+        assert!(matches!(
+            error,
+            AppError::Synthesis(message) if message.contains("evidence changed")
+        ));
+        assert_eq!(
+            store
+                .list_project_initialization_summary(&initialization.id)
+                .expect("summary listed")
+                .expect("summary remains"),
+            original
+        );
+    }
+
+    #[test]
+    fn migrates_existing_summary_table_without_losing_drafts() {
+        let database_directory = temp_project_path("summary-model-migration");
+        let database_path = database_directory.join("legacy.sqlite");
+        let legacy_connection = Connection::open(&database_path).expect("legacy database opens");
+        legacy_connection
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE projects (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL UNIQUE,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE project_initialization_runs (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE project_initialization_summaries (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL UNIQUE REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    project_purpose TEXT NOT NULL,
+                    repository_map TEXT NOT NULL,
+                    repository_roles TEXT NOT NULL,
+                    build_test_matrix TEXT NOT NULL,
+                    fragile_areas TEXT NOT NULL,
+                    do_not_touch_rules TEXT NOT NULL,
+                    agent_working_rules TEXT NOT NULL,
+                    open_questions TEXT NOT NULL,
+                    fact_count INTEGER NOT NULL,
+                    markdown_finding_count INTEGER NOT NULL,
+                    guardrail_count INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    approved_at INTEGER
+                 );
+                 INSERT INTO projects VALUES ('project-1', 'Legacy', '/tmp/legacy', 1, 1);
+                 INSERT INTO project_initialization_runs VALUES ('init-1', 'project-1', 'summary', 1, 1);
+                 INSERT INTO project_initialization_summaries VALUES (
+                    'summary-1', 'init-1', 'draft', 'purpose', 'map', 'roles', 'tests',
+                    'fragile', 'do-not-touch', 'rules', 'questions', 2, 3, 4, 1, NULL
+                 );",
+            )
+            .expect("legacy schema created");
+        drop(legacy_connection);
+
+        let store = ProjectStore::open(&database_path).expect("store migrates");
+        let summary = store
+            .list_project_initialization_summary("init-1")
+            .expect("legacy summary listed")
+            .expect("legacy summary preserved");
+
+        assert_eq!(summary.id, "summary-1");
+        assert_eq!(summary.project_purpose, "purpose");
+        assert_eq!(summary.requested_model_profile_id, None);
+        assert!(summary.requested_model_parameters.is_empty());
+        assert_eq!(summary.knowledge_schema_version, 1);
+        assert_eq!(summary.generation_engine, "deterministic_v1");
+
+        drop(store);
+        fs::remove_dir_all(database_directory).expect("temporary database removed");
     }
 
     #[test]

@@ -12,6 +12,8 @@
 - mind_map/agent-launch-flow.md: fake CLI, temporary Codex PTY, selected ACP launch flow, cwd/PATH constraints, and deferred agent integration.
 - mind_map/acp-transport.md: Agent Client Protocol meaning, fit beside PTY, fake runtime, registry discovery, selected launch, and risks.
 - mind_map/workspace-persistence.md: SQLite project/repository storage, ACP transcript persistence/replay/rename, manual Knowledge Cards, Workspace/Session History UI state, selected repository cwd launch wiring, and deferred persistence scope.
+- mind_map/model-catalog.md: provider-neutral model tiers/profiles, capability metadata, Summary selection provenance, schema versioning, UI flow, and deferred provider/runtime mappings.
+- mind_map/knowledge-synthesis.md: provider-neutral evidence flow, OpenAI Responses adapter, strict output parsing, atomic persistence, credential boundary, and failure semantics.
 
 ## Update Rules
 - Update the relevant topic file whenever code changes alter that topic's data flow, ownership, constraints, or risks.

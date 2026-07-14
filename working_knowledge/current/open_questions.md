@@ -1,9 +1,11 @@
 # Open Questions
 
 ## Blocking
-- None.
+- Provenance commit: earlier uncommitted Project Initialize UI/interview/summary changes overlap every source file changed by AIA-048, so the user must first commit that baseline or explicitly choose a consolidated commit before step 44 can satisfy the one-plan-item/one-note rule.
 
 ## Non-Blocking
+- Should provider credentials move from process environment variables into OS keychain-backed account settings before Anthropic/Moonshot synthesis is added?
+- Should a project persist its preferred synthesis profile before generation, or is Summary-draft provenance sufficient for the first API-backed slice?
 - Should the package/crate/app identity be renamed from code-buddy to AIadne?
 - Should planned frontend dependencies such as Zustand and Tailwind be installed immediately or added when their milestones begin?
 - Should AIA-002 fake CLI support Windows immediately, or is Linux-first enough until packaging?
@@ -14,6 +16,8 @@
 - Should the next transcript step be continue-from-transcript context, rich chat/tool-call UI, session grouping/tags, or PTY scrollback persistence?
 
 ## Resolved
+- AIA-049 first credential route: use `OPENAI_API_KEY` from the Tauri process environment; do not pass it through React or store it in SQLite.
+- AIA-049 generator behavior: OpenAI Responses strict structured output replaces deterministic generation, and provider failures do not fall back silently.
 - AIA-041 scope: Markdown analysis now extracts source-backed setup/command/convention/warning/architecture/decision/process findings from selected initialization repositories only.
 - AIA-040 scope: Facts collection now gathers deterministic local git/repository facts for selected initialization repositories only; agent summarization remains deferred.
 - AIA-047 scope: transient Workspace success/error messages now use bottom-right auto-dismiss toasts; modal-local errors stay inline.

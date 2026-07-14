@@ -2,8 +2,10 @@ pub mod acp;
 pub mod adapters;
 pub mod commands;
 pub mod errors;
+pub mod models;
 pub mod session;
 pub mod storage;
+pub mod synthesis;
 
 use acp::AcpSessionManager;
 use session::SessionManager;
@@ -28,6 +30,7 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             app_status,
+            commands::list_model_catalog,
             commands::create_project,
             commands::list_projects,
             commands::delete_project,
@@ -40,6 +43,11 @@ pub fn run() {
             commands::list_project_initialization_facts,
             commands::analyze_project_initialization_markdown,
             commands::list_project_initialization_markdown_findings,
+            commands::save_project_initialization_guardrails,
+            commands::list_project_initialization_guardrails,
+            commands::generate_project_initialization_summary,
+            commands::list_project_initialization_summary,
+            commands::approve_project_initialization_summary,
             commands::create_transcript_session,
             commands::append_transcript_events,
             commands::list_transcript_sessions,

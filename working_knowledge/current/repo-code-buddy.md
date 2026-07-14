@@ -30,12 +30,15 @@
 - Backend now stores project_initialization_runs and selected repositories for each project-level initialization preflight.
 - Backend now stores project_initialization_facts for local facts collected during Project Initialize.
 - Backend now stores project_initialization_markdown_findings for markdown-derived initialization findings.
+- Backend now stores project_initialization_guardrails for user-authored Interview guardrails.
+- Backend stores project_initialization_summaries for provider-generated Summary drafts and explicit approval state.
+- Backend `synthesis.rs` owns OpenAI Responses request construction, strict structured output parsing, credential isolation, and provider errors.
 - Frontend now has a minimal Workspace panel for adding, selecting, refreshing, and deleting projects.
 - Frontend now requires confirmation before deleting a project and exposes a visible selected-project `Delete Project` action.
 - Frontend now supports native folder selection for Add Project through Tauri dialog plugin and shows success feedback after project deletion.
 - Frontend now stops all running ACP sessions before deleting a project.
 - Frontend now lets the selected Workspace hold multiple repositories.
-- Frontend now exposes `Initialize Project` in the Workspace panel and opens a popup where the user chooses which project repositories participate.
+- Frontend now exposes `Initialize Project` in the Project Initialization lane and opens a popup where the user chooses which project repositories participate.
 - PTY and ACP launch requests include selected repository cwd when one is selected and fall back to project.path otherwise.
 - PTY and ACP session info now include the resolved runtime cwd, which the sidebar displays as `Active Folder`.
 - ProjectStore now persists ACP transcript sessions and ordered transcript events in SQLite.
@@ -51,7 +54,7 @@
 - Frontend now has a minimal Knowledge Cards sidebar panel for explicit attach selection and ACP prompt context injection, with new-card creation moved into a `+` popup.
 - Frontend now shows a live ACP waiting status/card while send_acp_prompt is in flight.
 - The left sidebar now contains runtime mode selection, collapsible PTY/ACP agent selection, Session History, and compact runtime status instead of the old large Runtime Test hero.
-- Frontend now treats ACP as the primary runtime UI, keeps Terminal PTY in a collapsed fallback panel, and shows runtime metadata in the lower-left sidebar footer.
+- Frontend now treats ACP as the primary runtime UI, starts ACP Agents, Session History, Knowledge Cards, and Terminal PTY collapsed in the left sidebar, and shows runtime metadata in the lower-left sidebar footer.
 - Frontend now uses a full-width app shell with a durable left sidebar instead of a centered floating card layout.
 - Frontend groups ACP agent choice and PTY fallback tooling in accordion sections to keep the temporary control panel compact.
 - Output panel now gives more space to the active runtime output: PTY stream in Terminal PTY mode or ACP events in Structured ACP mode, with adjacent Agent/Plan ACP events coalesced for display.
@@ -77,8 +80,10 @@
 - Transcript event writes are treated as non-blocking runtime support; frontend surfaces transcript errors separately from ACP runtime errors.
 - Transcript session titles are user-editable through rename_transcript_session and are stored in SQLite.
 - Knowledge card links are explicit; checked cards are injected into ACP prompts, while saved transcript history keeps the original user prompt.
-- Project initialization runs are project-scoped and persist user-selected repository ids before later markdown/interview/summary phases run.
+- Project initialization runs are project-scoped and persist user-selected repository ids before later analysis phases run.
 - Project initialization facts are tied to one initialization run and one selected repository, with source labels for auditability.
+- Project initialization guardrails are user-authored, tied to one initialization run, and may be project-wide or scoped to a repository selected in that initialization.
+- Project initialization summaries are OpenAI-generated review records grounded in facts, markdown findings, and guardrails; approval is explicit and tracked separately from draft generation.
 - Project-scoped Knowledge Cards cannot be attached to a transcript session from another project.
 - ACP drain polling depends on the active transcript id and also reads transcriptSessionRef to avoid stale closure writes.
 - Saved transcript replay uses list_transcript_events and does not require an active ACP session.
@@ -97,11 +102,13 @@
 - Project storage backend commands: create_project, list_projects, delete_project.
 - Project repository backend commands: create_project_repository, list_project_repositories, delete_project_repository.
 - Project initialization backend commands: create_project_initialization, list_project_initializations, collect_project_initialization_facts, list_project_initialization_facts, analyze_project_initialization_markdown, list_project_initialization_markdown_findings.
+- Project initialization Interview backend commands: save_project_initialization_guardrails, list_project_initialization_guardrails.
+- Project initialization Summary backend commands: generate_project_initialization_summary, list_project_initialization_summary, approve_project_initialization_summary.
 - Transcript storage backend commands: create_transcript_session, append_transcript_events, list_transcript_sessions, list_transcript_events, rename_transcript_session.
 - Knowledge backend commands: create_knowledge_item, list_knowledge_items, attach_knowledge_to_transcript_session, list_attached_knowledge.
 - Adapter module: src-tauri/src/adapters.rs defines AgentAdapter, AgentRegistry, BinaryResolver, AgentCommand, AgentInput, and structured parse hook types.
 - ACP module: src-tauri/src/acp.rs defines AcpSessionManager, fake ACP stdio fixture, ACP session info/events, JSON-RPC framing, and prompt flow.
-- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, CreateProjectInitializationRequest, ProjectInitializationInfo, ProjectInitializationFactInfo, ProjectInitializationMarkdownFindingInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, project initialization preflight/facts/markdown CRUD, transcript CRUD, and Knowledge Card CRUD/linking.
+- Storage module: src-tauri/src/storage.rs defines ProjectStore, CreateProjectRequest, ProjectInfo, CreateProjectRepositoryRequest, ProjectRepositoryInfo, CreateProjectInitializationRequest, ProjectInitializationInfo, ProjectInitializationFactInfo, ProjectInitializationMarkdownFindingInfo, ProjectInitializationGuardrailInfo, ProjectInitializationSummaryInfo, transcript and knowledge request/response types, SQLite migration, project/repository path validation, project initialization preflight/facts/markdown/interview/summary CRUD, transcript CRUD, and Knowledge Card CRUD/linking.
 - Tauri plugins: tauri-plugin-opener and tauri-plugin-dialog are registered in src-tauri/src/lib.rs; dialog permission is enabled in src-tauri/capabilities/default.json.
 
 ## Tests
@@ -134,6 +141,10 @@
 - AIA-040 frontend test covers triggering Facts collection and rendering returned facts.
 - AIA-041 backend tests cover git-tracked markdown extraction, non-git bounded fallback, skip rules, selected-repository scoping, and status update to `markdown`.
 - AIA-041 frontend test covers triggering Markdown analysis and rendering returned findings.
+- AIA-043 backend tests cover saving/listing project-wide and repository-specific guardrails, status update to `interview`, invalid kind/content, and unselected repository rejection.
+- AIA-043 frontend test covers adding project-wide and repository-specific Interview guardrails and saving them through the modal.
+- Summary backend tests cover structured request/response handling, source counts, atomic/stale persistence, status update to `summary`, explicit approval, and missing-summary rejection.
+- Summary frontend test covers generating a draft summary, rendering required sections, and approving it.
 - AIA-044 frontend test covers the Project delete confirmation flow and verifies `delete_project` is not called before confirmation.
 - AIA-045 frontend tests cover native folder picker path/name population; Rust tests cover that session info still returns successfully with cwd after adding the field.
 - AIA-046 frontend test covers listing/stopping running ACP sessions before invoking delete_project.
@@ -146,7 +157,7 @@
 - Frontend tests cover filtering Session History and renaming the selected saved transcript.
 - Frontend tests cover ACP as the primary runtime UI and PTY activation through the fallback panel.
 - 2026-07-13 AIA-034 revalidation passed with 16 frontend tests and 43 Rust tests, plus frontend build, typecheck, clippy, and git diff --check.
-- Frontend tests cover opening collapsed agent accordions before selecting ACP candidates.
+- Frontend tests cover the default-collapsed sidebar accordions and open collapsed agent/history sections before asserting their contents.
 - Frontend tests cover chunked saved transcript replay as one readable answer and coalesced transcript persistence calls.
 - Frontend tests cover ACP output autoscroll when structured events render.
 - Frontend tests continue to pass after the CSS-only UI polish changes.
@@ -172,12 +183,18 @@
 - AIA-039 implementation: first slice persists a preflight run plus selected repository ids and shows a popup with repository checkboxes; it does not yet collect facts, scan markdown, run the interview, or approve summaries.
 - AIA-040 implementation: Facts collection records repository path, git presence, branch/head, tracked file count, markdown count, detected manifests, test-file count, likely entry points, and recent churn for selected repositories only.
 - AIA-041 implementation: Markdown analysis extracts document and heading findings from selected repositories, prioritizing AGENTS/README/CONTRIBUTING/ARCHITECTURE/docs files and categorizing setup, commands, conventions, warnings, architecture, decisions, and process headings.
+- AIA-042 implementation: main content is split into Workspace, Project Initialization, and far-right Runtime lanes; Project Initialize frontend is polished with a compact one-row no-scroll phase mini-stepper, compact Facts/Markdown digest cards, full detail modals, markdown category badges, source metadata, responsive layout rules, and default-collapsed sidebar sections without changing backend commands.
+- AIA-043 implementation: Interview guardrails are saved as user-authored initialization artefacts with project/repository scope, kind, optional path/glob, content, and `user_interview` source.
+- Summary implementation: deterministic review profiles are generated from Facts, Markdown findings, and Interview guardrails with purpose, repository map, repo roles, build/test matrix, fragile areas, do-not-touch rules, agent rules, and open questions; approval changes the profile status to `approved`.
 - 2026-07-13 AIA-039 validation passed with 47 Rust tests and 20 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
 - 2026-07-13 AIA-039 review found and fixed stale Project Initialize status when switching projects.
 - AIA-044 implementation: selected Workspace now has a visible `Delete Project` action; row-level Delete opens the same confirmation dialog; backend delete_project is called only after confirmation.
 - AIA-045 implementation: Add Project has `Choose Folder`; project deletion shows a success message; runtime info displays active session cwd so deleted/unselected projects are not confused with running process cwd.
 - AIA-046 implementation: confirmed Project delete calls list_acp_sessions, stops every running ACP session, clears active ACP UI state, then calls delete_project and reports stopped session count.
 - AIA-047 implementation: transient Workspace success/error messages now render as bottom-right toasts, auto-dismiss after 4 seconds, and can be manually closed; modal-local errors remain inline.
+- AIA-048 implementation: backend-owned model catalog separates providers from execution surfaces, exposes verified fast/mid/high/max profiles, and records requested synthesis profile provenance on deterministic Summary drafts.
+- AIA-048 migration: existing project_initialization_summaries tables gain requested model, schema version, and generation engine columns without dropping stored drafts.
+- AIA-048 frontend: Summary phase has tier/model controls, capability badges, disabled unavailable profiles, and persisted model/generator metadata in preview and review modal.
 - 2026-07-13 AIA-035 final validation passed with 45 Rust tests and 17 frontend tests, plus clippy, frontend build, typecheck, and git diff --check.
 - 2026-07-13 AIA-035 adversarial review found and fixed a stale selected-repository race when switching projects before repository reload completed.
 - AIA-035 research: current storage model has `projects.path` as the only launch folder; frontend uses `selectedProjectCwd(selectedProject)` for PTY/ACP cwd; multi-repo support needs a child repository table plus selected repository UI state.
@@ -228,5 +245,5 @@
 - Manual Codex ACP smoke testing showed successful real Codex ACP startup and response chunks; display normalization was needed for readable UI.
 - Workspace project persistence now includes ACP transcript history, stable background drain recording, normalized minimal replay, native project folder picking, and a polished temporary UI theme, but no PTY scrollback persistence or default agent/model settings yet.
 - Knowledge Cards are manual only for now; automatic extraction, relevance suggestions, conflict review, deletion, detaching, and sensitive-content detection are deferred.
-- Project Initialize currently persists preflight/run selection, local Facts, and markdown findings. Interview guardrails and summary approval are deferred to AIA-042 through AIA-043.
+- Project Initialize persists preflight/run selection, local Facts, markdown findings, Interview guardrails, and OpenAI-backed Summary draft/approval records. Automatic approved-profile injection into agent prompts is still deferred.
 - Runtime mode switch, sidebar history, and agent accordions are temporary-panel UX polish, not the final workspace/session shell.

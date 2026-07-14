@@ -67,8 +67,16 @@
 - AIA-045 active cwd display: expose resolved PTY/ACP session cwd in runtime info because a running process keeps its launch cwd even if the saved project record is later deleted.
 - AIA-046 project delete runtime safety: stop all running ACP sessions before deleting a project, because ACP session metadata currently has cwd but not a durable project_id link.
 - AIA-047 Workspace notifications: route transient Workspace success/error messages through bottom-right auto-dismiss toasts while keeping modal-local errors inline in their modals.
+- AIA-048 model taxonomy: keep providers (`openai`, `anthropic`, `moonshot`) separate from runtime surfaces (API, CLI, ACP, Codex, Claude Code, Kimi).
+- AIA-048 tier taxonomy: use app-level `fast`, `mid`, `high`, and `max`; each profile owns provider-specific model and reasoning/thinking parameters.
+- AIA-048 provenance: persist the requested synthesis profile but keep `generation_engine=deterministic_v1` until an external provider actually generates the project knowledge.
+- AIA-048 model verification: seed only model ids confirmed by current provider documentation; use `kimi-k2.6` and exclude unverified `kimi-k2.7-code*` ids.
+- AIA-049 synthesis route: use the OpenAI Responses API with strict `text.format` JSON Schema and `store=false`; deterministic fallback is forbidden because it would misrepresent the selected generator.
+- AIA-049 credentials: read `OPENAI_API_KEY` only in the Rust process for the first executable provider slice; do not send credentials through React or persist them in SQLite.
+- AIA-049 consistency: prepare evidence before network I/O, release the SQLite lock, then compare current evidence inside the persistence transaction so stale model output cannot overwrite newer initialization data.
 
 ## Deferred
+- Keychain/provider account UI, validator/source-reference enforcement, Claude/Kimi synthesis clients, background/cancellation support, usage/cost display, and runtime model pass-through remain separate follow-up slices.
 - App/package rename from code-buddy to AIadne: defer until explicitly requested.
 - Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
 - Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.

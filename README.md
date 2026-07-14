@@ -7,7 +7,7 @@ Fresh foundation for the AIadne multi-agent coding desktop app.
 This repository is intentionally early-stage. It keeps the desktop app
 foundation and now includes the first backend PTY session core, adapter
 boundary, agent doctor, ACP transport spike, minimal project/workspace
-persistence with ACP session history, and a project-level Initialize preflight.
+persistence with ACP session history, and a project-level Initialize workflow.
 
 Kept:
 
@@ -22,6 +22,8 @@ Kept:
 - ACP registry discovery for compatible adapter candidates
 - SQLite-backed project list with multiple repository folders per project
 - project-level Initialize runs with user-selected repository participation
+- Project Initialize facts, markdown analysis, interview guardrails, and
+  OpenAI-backed structured summary approval
 - SQLite-backed ACP transcript session/event history with minimal replay
 - React frontend
 - TypeScript
@@ -68,6 +70,14 @@ Run the desktop app test panel:
 npm run tauri dev
 ```
 
+OpenAI-backed Project Initialize Summary requires the key in the Tauri process
+environment. The key stays in the Rust backend and is not sent through the
+frontend or stored in SQLite:
+
+```bash
+OPENAI_API_KEY=your_key npm run tauri dev
+```
+
 The PTY controls require the Tauri desktop runtime. Opening the Vite URL in a
 normal browser shows the frontend, but backend command calls are available in
 the Tauri window.
@@ -107,6 +117,15 @@ Manual smoke test:
 - Click `Analyze Markdown` to extract source-backed setup, command,
   convention, warning, architecture, decision, and process findings from
   selected repository markdown files.
+- Click `Open Interview` to record fragile areas, do-not-touch paths, review
+  requirements, and agent working rules for the project or selected
+  repositories.
+- Start the app with `OPENAI_API_KEY`, choose an available OpenAI synthesis
+  profile, and click `Generate Summary` to create a structured project profile
+  from Facts, Markdown, and Interview data. The review modal must show
+  `openai_responses_v1` as Generator. Anthropic and Moonshot profiles stay
+  visible but disabled until their synthesis adapters exist. Click `Approve
+  Summary` only after checking the draft.
 - After starting ACP and sending a prompt, check `Session History` in the left
   sidebar for the saved session and event count.
 - Use the `Session History` filter when there are many saved sessions. Click a

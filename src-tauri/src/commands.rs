@@ -6,18 +6,30 @@ use crate::{
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
+    models::{synthesis_model_catalog, ModelCatalogInfo},
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
-        KnowledgeItemInfo, ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationInfo,
-        ProjectInitializationMarkdownFindingInfo, ProjectRepositoryInfo, ProjectStore,
-        RenameTranscriptSessionRequest, TranscriptEventInfo, TranscriptEventInput,
-        TranscriptSessionInfo,
+        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, ProjectInfo,
+        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
+        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
+        RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest,
+        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+    },
+    synthesis::{
+        synthesize_project_initialization, SynthesisCredentials, OPENAI_RESPONSES_GENERATION_ENGINE,
     },
 };
 use std::sync::Arc;
 use tauri::State;
+
+#[tauri::command]
+pub fn list_model_catalog() -> ModelCatalogInfo {
+    let credentials = SynthesisCredentials::from_env();
+    synthesis_model_catalog(credentials.openai_configured())
+}
 
 #[tauri::command]
 pub fn start_fake_session(
@@ -169,6 +181,53 @@ pub fn list_project_initialization_markdown_findings(
     initialization_id: String,
 ) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
     state.list_project_initialization_markdown_findings(&initialization_id)
+}
+
+#[tauri::command]
+pub fn save_project_initialization_guardrails(
+    state: State<'_, ProjectStore>,
+    request: SaveProjectInitializationGuardrailsRequest,
+) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+    state.save_project_initialization_guardrails(request)
+}
+
+#[tauri::command]
+pub fn list_project_initialization_guardrails(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+    state.list_project_initialization_guardrails(&initialization_id)
+}
+
+#[tauri::command]
+pub async fn generate_project_initialization_summary(
+    state: State<'_, ProjectStore>,
+    request: GenerateProjectInitializationSummaryRequest,
+) -> AppResult<ProjectInitializationSummaryInfo> {
+    let context = state.prepare_project_initialization_synthesis(request)?;
+    let credentials = SynthesisCredentials::from_env();
+    let draft = synthesize_project_initialization(&context, &credentials).await?;
+    state.persist_project_initialization_summary(
+        &context,
+        draft,
+        OPENAI_RESPONSES_GENERATION_ENGINE,
+    )
+}
+
+#[tauri::command]
+pub fn list_project_initialization_summary(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+    state.list_project_initialization_summary(&initialization_id)
+}
+
+#[tauri::command]
+pub fn approve_project_initialization_summary(
+    state: State<'_, ProjectStore>,
+    summary_id: String,
+) -> AppResult<ProjectInitializationSummaryInfo> {
+    state.approve_project_initialization_summary(&summary_id)
 }
 
 #[tauri::command]

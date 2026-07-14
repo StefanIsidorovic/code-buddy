@@ -1047,3 +1047,65 @@ Suggested labels: `frontend`, `ux`, `workspace`
 Depends on: AIA-044, AIA-045, AIA-046
 
 Recommended before: broader workspace settings UI
+
+## AIA-048: Add synthesis model catalog and Summary provenance
+
+Description:
+Add a provider-neutral model catalog for Project Initialize knowledge synthesis.
+The first slice lets users select a model tier/profile and records that requested
+profile on the deterministic Summary draft; external model execution follows in
+a separate task.
+
+Acceptance criteria:
+
+- Model providers are separate from runtime surfaces such as CLI and ACP.
+- Model tiers use the app-level `fast`, `mid`, `high`, and `max` vocabulary.
+- The catalog contains only model ids verified against current provider docs.
+- Project Initialize Summary exposes tier and model selection controls.
+- Summary generation persists the requested provider, model, tier, parameters,
+  catalog schema version, and knowledge schema version.
+- Stored Summary provenance explicitly identifies the current generator as
+  `deterministic_v1` until a provider API is connected.
+- Existing SQLite databases migrate without losing Summary data.
+- No unvalidated CLI or ACP model flags are introduced.
+- Rust and frontend tests cover catalog validation, persistence, migration, and
+  selection behavior.
+
+Suggested labels: `backend`, `frontend`, `storage`, `models`, `knowledge`
+
+Depends on: AIA-043
+
+Recommended before: OpenAI Responses structured knowledge synthesis
+
+## AIA-049: Execute OpenAI Responses project knowledge synthesis
+
+Description:
+Replace the deterministic Project Initialize Summary formatter with a real
+OpenAI Responses structured synthesis provider while preserving the
+provider-neutral evidence and persisted Summary schema.
+
+Acceptance criteria:
+
+- Summary generation prepares an owned evidence pack from selected repository
+  Facts, Markdown findings, and Interview guardrails before network I/O.
+- The OpenAI adapter uses `POST /v1/responses`, `store: false`, profile-specific
+  reasoning effort, and strict `text.format` JSON Schema output.
+- `OPENAI_API_KEY` remains in the Rust process environment and is never passed
+  through the frontend or written to SQLite.
+- Missing credentials, unavailable providers, refusals, incomplete responses,
+  malformed output, and stale evidence return explicit errors without a
+  deterministic fallback.
+- A valid response atomically replaces the previous Summary and records
+  `generation_engine=openai_responses_v1`.
+- Anthropic and Moonshot profiles remain visible but disabled until provider
+  synthesis adapters are implemented.
+- Rust tests cover request construction, response parsing, credentials/provider
+  rejection, output validation, atomic replacement, and stale evidence.
+- Frontend tests cover unavailable model messaging, selected model payload, and
+  OpenAI generator provenance.
+
+Suggested labels: `backend`, `frontend`, `openai`, `knowledge`, `security`
+
+Depends on: AIA-048
+
+Recommended before: validator/source-reference pass and approved-profile agent injection
