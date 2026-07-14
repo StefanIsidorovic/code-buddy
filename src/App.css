@@ -2996,6 +2996,28 @@ textarea:focus {
   letter-spacing: -0.025em;
 }
 
+.section-description {
+  max-width: 560px;
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.project-initialize-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.project-initialize-copy p {
+  max-width: 520px;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .initialize-run-status {
   border-color: #bdcbb5;
   color: #4f634b;
@@ -3047,6 +3069,63 @@ textarea:focus {
 
 .initialize-results {
   gap: 12px;
+}
+
+.initialize-preflight-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+}
+
+.initialize-preflight-summary > div > span {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.initialize-preflight-summary h4,
+.initialize-preflight-summary p {
+  margin: 0;
+}
+
+.initialize-preflight-summary h4 {
+  color: var(--ink-strong);
+  font-size: 0.92rem;
+  letter-spacing: -0.015em;
+}
+
+.initialize-preflight-summary p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.initialize-preflight-summary > strong {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.initialize-preflight-summary[data-state="complete"] {
+  border-color: #aeba9f;
+  background: #ebf1e7;
+}
+
+.initialize-preflight-summary[data-state="complete"] > strong {
+  border-color: #bdcbb5;
+  color: #4f634b;
 }
 
 .initialize-result-card {
@@ -3696,6 +3775,15 @@ textarea:focus {
   .workspace-form:not(.repository-form),
   .initialize-results {
     grid-template-columns: 1fr;
+  }
+
+  .initialize-preflight-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .initialize-preflight-summary > strong {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .brand-tagline {

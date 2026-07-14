@@ -2457,22 +2457,28 @@ function App() {
 
       <section className="initialize-lane" aria-labelledby="project-initialize-lane-title">
         <div className="section-heading">
-          <p className="eyebrow">Initialize</p>
+          <p className="eyebrow">Project knowledge</p>
           <h2 id="project-initialize-lane-title">Project Initialization</h2>
+          <p className="section-description">
+            Turn repository evidence and working rules into reviewable agent context.
+          </p>
         </div>
 
         <div className="project-initialize-section">
           <div className="project-initialize-hero">
-            <div>
-              <span className="section-kicker">Project Initialize</span>
-              <h3 id="project-initialize-title">Project Initialize</h3>
+            <div className="project-initialize-copy">
+              <span className="section-kicker">Evidence workflow</span>
+              <h3 id="project-initialize-title">Build agent-ready context</h3>
+              <p>
+                Choose repository scope, collect evidence, add guardrails, and approve the result.
+              </p>
             </div>
             <span className="initialize-run-status">
               {projectInitialization
-                ? `${projectInitialization.status} · ${projectInitialization.repositoryCount} repositories`
+                ? `${projectInitializationStatusLabel(projectInitialization.status)} · ${projectInitialization.repositoryCount} ${projectInitialization.repositoryCount === 1 ? "repository" : "repositories"}`
                 : selectedProject
-                  ? "not started"
-                  : "select project"}
+                  ? "Ready to start"
+                  : "Select workspace"}
             </span>
             <button
               className="primary-action"
@@ -2492,8 +2498,28 @@ function App() {
             ))}
           </ol>
           {projectInitialization ? (
-            <div className="initialize-results">
-              <section className="initialize-result-card" aria-labelledby="initialize-facts-title">
+            <>
+              <section
+                className="initialize-preflight-summary"
+                data-state={projectInitializationPhases[0]?.state}
+                aria-labelledby="initialize-preflight-title"
+              >
+                <span className="initialize-phase-index">01</span>
+                <div>
+                  <span>Phase 1</span>
+                  <h4 id="initialize-preflight-title">Preflight scope</h4>
+                  <p>
+                    {projectInitialization.repositoryCount}{" "}
+                    {projectInitialization.repositoryCount === 1 ? "repository" : "repositories"}{" "}
+                    selected for this initialization run.
+                  </p>
+                </div>
+                <strong>
+                  {projectInitializationPhases[0]?.state === "complete" ? "complete" : "scope saved"}
+                </strong>
+              </section>
+              <div className="initialize-results">
+                <section className="initialize-result-card" aria-labelledby="initialize-facts-title">
                 <div className="initialize-card-topline">
                   <span className="initialize-phase-index">02</span>
                   <div>
@@ -2565,7 +2591,7 @@ function App() {
                     description="Run deterministic repository inspection to populate this phase."
                   />
                 )}
-              </section>
+                </section>
               <section
                 className="initialize-result-card"
                 aria-labelledby="initialize-markdown-title"
@@ -2838,12 +2864,25 @@ function App() {
                   />
                 )}
               </section>
-            </div>
+              </div>
+            </>
           ) : (
             <StateNotice
               kind="prerequisite"
-              title="Project knowledge is not initialized"
-              description="Select project repositories and start Initialize to build the evidence workflow."
+              title={
+                !selectedProject
+                  ? "Choose a workspace to begin"
+                  : projectRepositories.length === 0
+                    ? "Add a repository before initialization"
+                    : "Ready to initialize project knowledge"
+              }
+              description={
+                !selectedProject
+                  ? "Select or create a workspace from the navigation before starting this workflow."
+                  : projectRepositories.length === 0
+                    ? "Open repository management and add at least one repository to define the evidence scope."
+                    : "Start Initialize to choose repository scope and create the Preflight record."
+              }
             />
           )}
         </div>
@@ -4202,6 +4241,13 @@ const projectInitializationPhaseDefinitions = [
   { id: "interview", label: "Interview" },
   { id: "summary", label: "Summary" },
 ];
+
+function projectInitializationStatusLabel(status: string) {
+  return status
+    .split("_")
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(" ");
+}
 
 function projectInitializationPhaseItems(status: string | null) {
   const activeIndex = projectInitializationPhaseDefinitions.findIndex((phase) => phase.id === status);

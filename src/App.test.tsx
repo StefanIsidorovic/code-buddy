@@ -211,6 +211,9 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
     expect(screen.getByText("Repository intelligence, woven together.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Build agent-ready context" }))
+      .toBeInTheDocument();
+    expect(screen.getByText("Choose a workspace to begin")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Session Output" })).toBeInTheDocument();
   });
 
@@ -286,7 +289,7 @@ describe("PTY test panel", () => {
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.").closest(".state-notice"))
       .toHaveAttribute("data-kind", "empty");
-    expect(screen.getByText("Project knowledge is not initialized").closest(".state-notice"))
+    expect(screen.getByText("Choose a workspace to begin").closest(".state-notice"))
       .toHaveAttribute("data-kind", "prerequisite");
     expect(await screen.findByText("No saved sessions yet.")).toBeInTheDocument();
     expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
@@ -739,7 +742,11 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Preflight · 1 repository")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preflight scope")).toHaveAttribute("data-state", "current");
+    expect(screen.getByLabelText("Preflight scope")).toHaveTextContent(
+      "1 repository selected for this initialization run.",
+    );
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "Project Initialize" }))
         .not.toBeInTheDocument();
@@ -793,7 +800,7 @@ describe("PTY test panel", () => {
     await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
-    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Preflight · 1 repository")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Collect Facts" }));
 
@@ -802,7 +809,8 @@ describe("PTY test panel", () => {
         initializationId: "init-1",
       });
     });
-    expect(await screen.findByText("facts · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Facts · 1 repository")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preflight scope")).toHaveAttribute("data-state", "complete");
     expect(screen.getByLabelText("Project initialization facts")).toHaveTextContent(
       "Git repository: yes",
     );
@@ -868,7 +876,7 @@ describe("PTY test panel", () => {
     await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
-    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Preflight · 1 repository")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Analyze Markdown" }));
 
@@ -877,7 +885,7 @@ describe("PTY test panel", () => {
         initializationId: "init-1",
       });
     });
-    expect(await screen.findByText("markdown · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Markdown · 1 repository")).toBeInTheDocument();
     expect(
       screen.getByRole("list", { name: "Project initialization phases" }),
     ).toHaveTextContent("Markdown");
@@ -949,7 +957,7 @@ describe("PTY test panel", () => {
     await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
-    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Preflight · 1 repository")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open Interview" }));
     expect(screen.getByRole("dialog", { name: "Interview Guardrails" })).toBeInTheDocument();
@@ -996,7 +1004,7 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("interview · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Interview · 1 repository")).toBeInTheDocument();
     expect(screen.getByLabelText("Project initialization guardrails")).toHaveTextContent(
       "Do not touch",
     );
@@ -1097,7 +1105,7 @@ describe("PTY test panel", () => {
     await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
-    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Preflight · 1 repository")).toBeInTheDocument();
 
     expect(screen.getByLabelText("Synthesis model")).toHaveValue(
       "openai-gpt-5.6-terra-medium",
@@ -1123,7 +1131,7 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("summary · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Summary · 1 repository")).toBeInTheDocument();
     expect(screen.getByLabelText("Project initialization summary preview")).toHaveTextContent(
       "Draft profile is ready for review.",
     );
@@ -1332,14 +1340,14 @@ describe("PTY test panel", () => {
     await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
-    expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
+    expect(await screen.findByText("Preflight · 1 repository")).toBeInTheDocument();
 
     openWorkspacePicker();
     fireEvent.click(screen.getByRole("button", { name: "Select MadSense project" }));
     expect(screen.queryByRole("dialog", { name: "Choose Workspace" })).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.queryByText("preflight · 1 repositories")).not.toBeInTheDocument();
+      expect(screen.queryByText("Preflight · 1 repository")).not.toBeInTheDocument();
     });
     expect(screen.getAllByText("not started").length).toBeGreaterThan(0);
   });
