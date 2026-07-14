@@ -429,6 +429,9 @@ describe("PTY test panel", () => {
       await flushAsyncState();
 
       expect(screen.getByRole("status")).toHaveTextContent("AIadne added.");
+      expect(screen.getByRole("status")).toHaveAttribute("data-kind", "success");
+      expect(screen.getByRole("button", { name: "Dismiss notification: AIadne added." }))
+        .toHaveClass("toast-close");
 
       act(() => {
         vi.advanceTimersByTime(4_000);

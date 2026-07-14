@@ -4078,6 +4078,133 @@ pre,
   letter-spacing: 0;
 }
 
+/* Interaction and contrast states */
+button:disabled {
+  border-color: #d8d4cc;
+  color: #6b6d67;
+  background: #f0eee9;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+button.primary-action:disabled {
+  border-color: #cdd2ca;
+  color: #666d64;
+  background: #e1e4dd;
+  box-shadow: none;
+}
+
+button.danger-button:disabled {
+  border-color: #dfcbc6;
+  color: #a9867f;
+  background: #f6efed;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+textarea:read-only {
+  border-color: #d8d4cc;
+  color: #6b6d67;
+  background: #f1efe9;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+textarea:read-only {
+  cursor: default;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: #fff9f7;
+  box-shadow: 0 0 0 3px rgb(163 79 67 / 0.12);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  border-color: #71866b;
+  outline: 3px solid rgb(113 134 107 / 0.34);
+  outline-offset: 2px;
+}
+
+.intro-panel button:focus-visible,
+.intro-panel input:focus-visible,
+.intro-panel select:focus-visible,
+.intro-panel textarea:focus-visible,
+.intro-panel summary:focus-visible {
+  border-color: #bacab3;
+  outline-color: rgb(202 218 194 / 0.55);
+}
+
+.intro-panel button:disabled,
+.accordion-body button:disabled {
+  border-color: rgb(255 255 255 / 0.08);
+  color: #899487;
+  background: rgb(255 255 255 / 0.025);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.accordion-body input:disabled,
+.accordion-body select:disabled,
+.accordion-body textarea:disabled {
+  border-color: rgb(255 255 255 / 0.08);
+  color: #899487;
+  background: rgb(7 11 8 / 0.24);
+}
+
+.repository-picker:disabled {
+  opacity: 1;
+}
+
+.repository-picker:disabled .workspace-picker-label,
+.repository-picker:disabled small,
+.repository-picker:disabled .workspace-picker-action {
+  color: #818d7f;
+}
+
+.repository-picker:disabled strong {
+  color: #9ba598;
+}
+
+.workspace-picker-label,
+.sidebar-runtime-info dt {
+  color: #a5b1a1;
+}
+
+.agent-accordion summary strong,
+.sidebar-runtime-info dd {
+  color: #bdc7ba;
+}
+
+.toast-message[data-kind="success"] {
+  color: #f4f8f1;
+}
+
+.toast-message[data-kind="error"] {
+  color: #fff4f1;
+}
+
+.toast-message .toast-close {
+  border-color: rgb(255 255 255 / 0.22);
+  color: inherit;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.toast-message .toast-close:not(:disabled):hover {
+  border-color: rgb(255 255 255 / 0.42);
+  background: rgb(255 255 255 / 0.18);
+  box-shadow: none;
+  transform: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
