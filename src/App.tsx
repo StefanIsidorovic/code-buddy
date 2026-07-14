@@ -1943,13 +1943,14 @@ function App() {
   }
 
   return (
-    <main className="app-shell" aria-label="AIadne runtime test">
+    <main className="app-shell" aria-label="AIadne agent workspace">
       <section className="intro-panel" aria-labelledby="runtime-sidebar-title">
         <div className="sidebar-brand">
           <span className="app-mark" aria-hidden="true">A</span>
           <div>
-            <p className="eyebrow">Workspace</p>
+            <p className="eyebrow">Agent workspace</p>
             <h1 id="runtime-sidebar-title">AIadne</h1>
+            <span className="brand-tagline">Repository intelligence, woven together.</span>
           </div>
         </div>
 
@@ -2317,6 +2318,7 @@ function App() {
               Choose Folder
             </button>
             <button
+              className="primary-action"
               type="button"
               onClick={() => void createProject()}
               disabled={busy || projectFolderPicking || !projectName.trim() || !projectPath.trim()}
@@ -2482,6 +2484,7 @@ function App() {
                   : "select project"}
             </span>
             <button
+              className="primary-action"
               type="button"
               onClick={openProjectInitializeDialog}
               disabled={!selectedProject || projectRepositories.length === 0 || initializeLoading}
@@ -2514,6 +2517,7 @@ function App() {
                 </div>
                 <div className="initialize-card-actions">
                   <button
+                    className="primary-action"
                     type="button"
                     onClick={() => void collectProjectInitializationFacts()}
                     disabled={initializeLoading}
@@ -2585,6 +2589,7 @@ function App() {
                 </div>
                 <div className="initialize-card-actions">
                   <button
+                    className="primary-action"
                     type="button"
                     onClick={() => void analyzeProjectInitializationMarkdown()}
                     disabled={initializeLoading}
@@ -2642,7 +2647,12 @@ function App() {
                   </strong>
                 </div>
                 <div className="initialize-card-actions initialize-card-actions-single">
-                  <button type="button" onClick={openInterviewDialog} disabled={initializeLoading}>
+                  <button
+                    className="primary-action"
+                    type="button"
+                    onClick={openInterviewDialog}
+                    disabled={initializeLoading}
+                  >
                     Open Interview
                   </button>
                 </div>
@@ -2761,6 +2771,7 @@ function App() {
                 </div>
                 <div className="initialize-card-actions">
                   <button
+                    className="primary-action"
                     type="button"
                     onClick={() => void generateProjectInitializationSummary()}
                     disabled={

@@ -172,10 +172,21 @@ function openSidebarSection(name: string) {
 }
 
 describe("PTY test panel", () => {
+  it("presents the AIadne product workspace identity", async () => {
+    render(<App />);
+    await flushAsyncState();
+
+    expect(screen.getByRole("main", { name: "AIadne agent workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
+    expect(screen.getByText("Repository intelligence, woven together.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Session Output" })).toBeInTheDocument();
+  });
+
   it("renders fake and Codex PTY controls with agent doctor status", async () => {
     render(<App />);
 
-    expect(screen.getByRole("main", { name: "AIadne runtime test" })).toBeInTheDocument();
+    expect(screen.getByRole("main", { name: "AIadne agent workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "Workspace" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
