@@ -325,6 +325,7 @@ function App() {
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
   const [projectRepositories, setProjectRepositories] = useState<ProjectRepositoryInfo[]>([]);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<string | null>(null);
+  const [repositoryDialogOpen, setRepositoryDialogOpen] = useState(false);
   const [repositoryName, setRepositoryName] = useState("");
   const [repositoryPath, setRepositoryPath] = useState("");
   const [repositoryLoading, setRepositoryLoading] = useState(false);
@@ -1969,6 +1970,21 @@ function App() {
           </span>
         </button>
 
+        <button
+          aria-haspopup="dialog"
+          className="workspace-picker repository-picker"
+          type="button"
+          onClick={() => setRepositoryDialogOpen(true)}
+          disabled={!selectedProject}
+        >
+          <span className="workspace-picker-label">Current repository</span>
+          <strong>{selectedRepository?.name ?? (selectedProject ? "Choose a repository" : "No workspace")}</strong>
+          <small>{selectedRepository?.path ?? "Select a workspace first"}</small>
+          <span className="workspace-picker-action" aria-hidden="true">
+            Manage
+          </span>
+        </button>
+
         <div className="sidebar-scroll">
           <details className="agent-accordion sidebar-agent">
             <summary>
@@ -2281,115 +2297,6 @@ function App() {
             <dd>{activeRuntimeCwd ?? "none"}</dd>
           </div>
         </dl>
-      </section>
-
-      <section className="control-panel workspace-lane" aria-labelledby="controls-title">
-        <div className="section-heading">
-          <p className="eyebrow">Workspace</p>
-          <h2 id="controls-title">Repositories</h2>
-        </div>
-
-        <section className="workspace-panel" aria-labelledby="repositories-title">
-          <div className="repository-section">
-            <div className="doctor-heading">
-              <h3 id="repositories-title">Repository management</h3>
-              <span>
-                {selectedRepository
-                  ? selectedRepository.name
-                  : selectedProject
-                    ? "default path"
-                    : "select project"}
-              </span>
-              <button
-                type="button"
-                onClick={() => void refreshProjectRepositories()}
-                disabled={!selectedProject || repositoryLoading}
-              >
-                Refresh
-              </button>
-            </div>
-
-            <div className="workspace-form repository-form">
-              <label>
-                <span>Name</span>
-                <input
-                  aria-label="Repository name"
-                  onChange={(event) => setRepositoryName(event.target.value)}
-                  value={repositoryName}
-                />
-              </label>
-              <label>
-                <span>Path</span>
-                <input
-                  aria-label="Repository path"
-                  onChange={(event) => setRepositoryPath(event.target.value)}
-                  value={repositoryPath}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void createProjectRepository()}
-                disabled={
-                  busy ||
-                  repositoryLoading ||
-                  !selectedProject ||
-                  !repositoryName.trim() ||
-                  !repositoryPath.trim()
-                }
-              >
-                Add Repository
-              </button>
-            </div>
-
-            {!selectedProject ? (
-              <p className="empty-state">Select a project to manage repositories.</p>
-            ) : (
-              <ul className="project-list repository-list" aria-label="Project repositories">
-                {projectRepositories.length === 0 ? (
-                  <li>No repositories yet.</li>
-                ) : (
-                  projectRepositories.map((repository) => (
-                    <li
-                      data-selected={repository.id === selectedRepository?.id}
-                      key={repository.id}
-                    >
-                      <div>
-                        <strong>{repository.name}</strong>
-                        <span>{repository.path}</span>
-                        {repository.isDefault ? <small>Default</small> : null}
-                      </div>
-                      <div className="project-actions">
-                        <button
-                          aria-label={`Select ${repository.name} repository`}
-                          aria-pressed={repository.id === selectedRepository?.id}
-                          type="button"
-                          onClick={() => setSelectedRepositoryId(repository.id)}
-                          disabled={busy || canUseSession || canUseAcpSession}
-                        >
-                          {repository.id === selectedRepository?.id ? "Selected" : "Select"}
-                        </button>
-                        <button
-                          aria-label={`Delete ${repository.name} repository`}
-                          type="button"
-                          onClick={() => void deleteProjectRepository(repository.id)}
-                          disabled={
-                            busy ||
-                            repositoryLoading ||
-                            canUseSession ||
-                            canUseAcpSession ||
-                            repository.isDefault
-                          }
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </li>
-                  ))
-                )}
-              </ul>
-            )}
-          </div>
-        </section>
       </section>
 
       <section className="initialize-lane" aria-labelledby="project-initialize-lane-title">
@@ -2964,6 +2871,134 @@ function App() {
         </div>
       </section>
       </section>
+
+      {repositoryDialogOpen ? (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setRepositoryDialogOpen(false);
+            }
+          }}
+        >
+          <section
+            aria-labelledby="repository-dialog-title"
+            aria-modal="true"
+            className="knowledge-modal workspace-modal repository-modal"
+            role="dialog"
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">{selectedProject?.name ?? "Workspace"}</p>
+                <h2 id="repository-dialog-title">Choose Repository</h2>
+                <span>Select which repository agents should use, or add another folder.</span>
+              </div>
+              <button
+                aria-label="Close repository picker"
+                className="icon-button"
+                type="button"
+                onClick={() => setRepositoryDialogOpen(false)}
+              >
+                x
+              </button>
+            </div>
+
+            <div className="workspace-modal-toolbar">
+              <strong>{projectRepositories.length} repositories</strong>
+              <button
+                type="button"
+                onClick={() => void refreshProjectRepositories()}
+                disabled={!selectedProject || repositoryLoading}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <ul className="project-list workspace-project-list" aria-label="Project repositories">
+              {projectRepositories.length === 0 ? (
+                <li className="empty-state">No repositories yet. Add one below.</li>
+              ) : (
+                projectRepositories.map((repository) => (
+                  <li data-selected={repository.id === selectedRepository?.id} key={repository.id}>
+                    <div>
+                      <strong>{repository.name}</strong>
+                      <span>{repository.path}</span>
+                      {repository.isDefault ? <small>Default repository</small> : null}
+                    </div>
+                    <div className="project-actions">
+                      <button
+                        aria-label={`Select ${repository.name} repository`}
+                        aria-pressed={repository.id === selectedRepository?.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedRepositoryId(repository.id);
+                          setRepositoryDialogOpen(false);
+                        }}
+                        disabled={busy || canUseSession || canUseAcpSession}
+                      >
+                        {repository.id === selectedRepository?.id ? "Selected" : "Select"}
+                      </button>
+                      <button
+                        aria-label={`Delete ${repository.name} repository`}
+                        type="button"
+                        onClick={() => void deleteProjectRepository(repository.id)}
+                        disabled={
+                          busy ||
+                          repositoryLoading ||
+                          canUseSession ||
+                          canUseAcpSession ||
+                          repository.isDefault
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+
+            <div className="workspace-create-panel">
+              <div>
+                <span className="section-kicker">New repository</span>
+                <h3>Add a repository folder</h3>
+              </div>
+              <div className="workspace-form repository-form">
+                <label>
+                  <span>Name</span>
+                  <input
+                    aria-label="Repository name"
+                    onChange={(event) => setRepositoryName(event.target.value)}
+                    value={repositoryName}
+                  />
+                </label>
+                <label>
+                  <span>Path</span>
+                  <input
+                    aria-label="Repository path"
+                    onChange={(event) => setRepositoryPath(event.target.value)}
+                    value={repositoryPath}
+                  />
+                </label>
+                <button
+                  className="primary-action"
+                  type="button"
+                  onClick={() => void createProjectRepository()}
+                  disabled={
+                    busy ||
+                    repositoryLoading ||
+                    !selectedProject ||
+                    !repositoryName.trim() ||
+                    !repositoryPath.trim()
+                  }
+                >
+                  Add Repository
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {workspaceDialogOpen ? (
         <div

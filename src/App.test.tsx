@@ -175,6 +175,14 @@ function openWorkspacePicker() {
   fireEvent.click(screen.getByRole("button", { name: /Current workspace/i }));
 }
 
+function openRepositoryPicker() {
+  fireEvent.click(screen.getByRole("button", { name: /Current repository/i }));
+}
+
+function findCurrentRepository(name: string) {
+  return screen.findByRole("button", { name: new RegExp(`Current repository.*${name}`, "i") });
+}
+
 describe("PTY test panel", () => {
   it("presents the AIadne product workspace identity", async () => {
     render(<App />);
@@ -202,7 +210,7 @@ describe("PTY test panel", () => {
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Repositories" })).not.toHaveLength(0);
+    expect(screen.getByRole("button", { name: /Current repository/i })).toBeDisabled();
     for (const sidebarSectionName of [
       "ACP Agents",
       "Session History",
@@ -216,7 +224,6 @@ describe("PTY test panel", () => {
     openWorkspacePicker();
     expect(screen.getByRole("dialog", { name: "Choose Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Add Repository" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Interactive PTY terminal")).not.toBeInTheDocument();
     openSidebarSection("ACP Agents");
@@ -306,7 +313,7 @@ describe("PTY test panel", () => {
       });
     });
     expect(await screen.findAllByText("/home/katarina/projects/AIadne")).not.toHaveLength(0);
-    expect(screen.getByLabelText("Project repositories")).toHaveTextContent(
+    expect(await findCurrentRepository("AIadne")).toHaveTextContent(
       "/home/katarina/projects/AIadne",
     );
     expect(screen.getByRole("button", { name: "Select AIadne project" }))
@@ -581,6 +588,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    await findCurrentRepository("AIadne");
+    openRepositoryPicker();
     await screen.findByLabelText("Project repositories");
     fireEvent.change(screen.getByLabelText("Repository name"), {
       target: { value: "API" },
@@ -599,7 +608,7 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("/home/katarina/projects/AIadne/api")).toBeInTheDocument();
+    expect(await screen.findAllByText("/home/katarina/projects/AIadne/api")).not.toHaveLength(0);
     expect(screen.getByRole("button", { name: "Select API repository" }))
       .toHaveAttribute("aria-pressed", "true");
   });
@@ -653,7 +662,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Select AIadne repository" });
+    await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     expect(screen.getByRole("dialog", { name: "Project Initialize" })).toBeInTheDocument();
 
@@ -719,7 +728,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Select AIadne repository" });
+    await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
     expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
@@ -793,7 +802,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Select AIadne repository" });
+    await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
     expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
@@ -874,7 +883,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Select AIadne repository" });
+    await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
     expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
@@ -1012,7 +1021,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Select AIadne repository" });
+    await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
     expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
@@ -1212,7 +1221,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByRole("button", { name: "Select AIadne repository" });
+    await findCurrentRepository("AIadne");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
     expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
@@ -1593,6 +1602,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    await findCurrentRepository("AIadne");
+    openRepositoryPicker();
     fireEvent.click(await screen.findByRole("button", { name: "Select API repository" }));
     await openPtyFallback();
     fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
