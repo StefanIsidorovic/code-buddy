@@ -442,6 +442,7 @@ function App() {
   const [acpPromptBusy, setAcpPromptBusy] = useState(false);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
 
   const canUseSession = session?.state === "running";
   const canUseAcpSession = acpSession?.state === "running";
@@ -2052,7 +2053,11 @@ function App() {
 
   return (
     <main className="app-shell" aria-label="AIadne agent workspace">
-      <section className="intro-panel" aria-labelledby="runtime-sidebar-title">
+      <section
+        className="intro-panel"
+        aria-labelledby="runtime-sidebar-title"
+        data-mobile-navigation-open={mobileNavigationOpen}
+      >
         <div className="sidebar-brand">
           <span className="app-mark" aria-hidden="true">A</span>
           <div>
@@ -2060,8 +2065,25 @@ function App() {
             <h1 id="runtime-sidebar-title">AIadne</h1>
             <span className="brand-tagline">Repository intelligence, woven together.</span>
           </div>
+          <button
+            aria-controls="mobile-sidebar-navigation"
+            aria-expanded={mobileNavigationOpen}
+            aria-label={mobileNavigationOpen ? "Close navigation" : "Open navigation"}
+            className="mobile-navigation-toggle"
+            type="button"
+            onClick={() => setMobileNavigationOpen((current) => !current)}
+          >
+            {mobileNavigationOpen ? "Close" : "Menu"}
+          </button>
         </div>
 
+        <p className="mobile-context-summary" aria-live="polite">
+          <span>{selectedProject?.name ?? "No workspace"}</span>
+          <span aria-hidden="true">/</span>
+          <span>{selectedRepository?.name ?? (selectedProject ? "Default repository" : "No repository")}</span>
+        </p>
+
+        <div className="mobile-sidebar-content" id="mobile-sidebar-navigation">
         <button
           aria-haspopup="dialog"
           className="workspace-picker"
@@ -2403,6 +2425,7 @@ function App() {
             <dd>{activeRuntimeCwd ?? "none"}</dd>
           </div>
         </dl>
+        </div>
       </section>
 
       <section className="initialize-lane" aria-labelledby="project-initialize-lane-title">

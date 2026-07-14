@@ -195,6 +195,34 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("heading", { name: "Session Output" })).toBeInTheDocument();
   });
 
+  it("exposes the sidebar through an accessible mobile navigation toggle", async () => {
+    const { container } = render(<App />);
+    await flushAsyncState();
+
+    const sidebar = container.querySelector(".intro-panel");
+    const contextSummary = container.querySelector(".mobile-context-summary");
+    const navigation = container.querySelector("#mobile-sidebar-navigation");
+    const openNavigation = screen.getByRole("button", { name: "Open navigation" });
+
+    expect(sidebar).toHaveAttribute("data-mobile-navigation-open", "false");
+    expect(openNavigation).toHaveAttribute("aria-expanded", "false");
+    expect(openNavigation).toHaveAttribute("aria-controls", "mobile-sidebar-navigation");
+    expect(navigation).toBeInTheDocument();
+    expect(contextSummary).toHaveTextContent("No workspace/No repository");
+
+    fireEvent.click(openNavigation);
+
+    const closeNavigation = screen.getByRole("button", { name: "Close navigation" });
+    expect(sidebar).toHaveAttribute("data-mobile-navigation-open", "true");
+    expect(closeNavigation).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(closeNavigation);
+
+    expect(screen.getByRole("button", { name: "Open navigation" }))
+      .toHaveAttribute("aria-expanded", "false");
+    expect(sidebar).toHaveAttribute("data-mobile-navigation-open", "false");
+  });
+
   it("renders fake and Codex PTY controls with agent doctor status", async () => {
     render(<App />);
 
@@ -315,6 +343,9 @@ describe("PTY test panel", () => {
     expect(await screen.findAllByText("/home/katarina/projects/AIadne")).not.toHaveLength(0);
     expect(await findCurrentRepository("AIadne")).toHaveTextContent(
       "/home/katarina/projects/AIadne",
+    );
+    expect(document.querySelector(".mobile-context-summary")).toHaveTextContent(
+      "AIadne/AIadne",
     );
     expect(screen.getByRole("button", { name: "Select AIadne project" }))
       .toHaveAttribute("aria-pressed", "true");
