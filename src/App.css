@@ -2573,12 +2573,15 @@ textarea:focus {
 
 .agent-accordion summary {
   min-height: 52px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) 18px;
   padding: 10px 12px;
   color: #eef1e9;
 }
 
 .agent-accordion summary::after {
   content: "+";
+  grid-column: 3;
+  justify-self: end;
   color: #9fae99;
   font-size: 1.08rem;
   font-weight: 500;
@@ -2595,6 +2598,14 @@ textarea:focus {
 .agent-accordion summary strong,
 .sidebar-runtime-info dd {
   color: #9eaa99;
+}
+
+.agent-accordion summary strong {
+  justify-self: end;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .accordion-body {
