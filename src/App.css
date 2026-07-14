@@ -3114,6 +3114,133 @@ textarea:focus {
   text-align: center;
 }
 
+.state-notice {
+  min-width: 0;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 13px 14px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.state-notice > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.state-notice strong {
+  color: var(--ink-strong);
+  font-size: var(--type-ui);
+  font-weight: 600;
+  line-height: var(--leading-ui);
+}
+
+.state-notice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-label);
+  line-height: var(--leading-ui);
+}
+
+.state-notice-indicator {
+  width: 11px;
+  height: 11px;
+  margin: 3px 0 0 2px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.state-notice[data-kind="prerequisite"] {
+  border-color: #ddd2b8;
+  background: #faf6e9;
+}
+
+.state-notice[data-kind="prerequisite"] .state-notice-indicator {
+  color: #a17b36;
+}
+
+.state-notice[data-kind="loading"] {
+  border-color: #cbd7c5;
+  background: #f1f5ee;
+}
+
+.state-notice[data-kind="loading"] .state-notice-indicator {
+  color: var(--mint);
+  background: currentColor;
+  animation: state-notice-pulse 1.2s ease-in-out infinite;
+}
+
+.state-notice[data-kind="success"] {
+  border-color: #b9cbb1;
+  background: #edf4e9;
+}
+
+.state-notice[data-kind="success"] .state-notice-indicator {
+  color: #5f7857;
+  background: currentColor;
+}
+
+.state-notice[data-kind="error"] {
+  border-color: #e0b7ad;
+  background: #fcf0ed;
+}
+
+.state-notice[data-kind="error"] .state-notice-indicator {
+  color: var(--danger);
+  background: currentColor;
+}
+
+.state-notice[data-kind="error"] strong,
+.state-notice[data-kind="error"] p {
+  color: #7b372f;
+}
+
+.initialize-card-topline > strong[data-state="success"] {
+  border-color: #b9cbb1;
+  color: #536b4d;
+  background: #edf4e9;
+}
+
+.initialize-card-topline > strong[data-state="success"]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #66815e;
+  vertical-align: 1px;
+}
+
+.acp-events-panel li.state-notice {
+  grid-template-columns: 20px minmax(0, 1fr);
+  border-left-width: 1px;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+@keyframes state-notice-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.72);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .error-message {
   border: 1px solid #e0b7ad;
   border-left: 4px solid var(--danger);

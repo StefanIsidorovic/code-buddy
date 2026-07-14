@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import App from "./App";
+import App, { StateNotice } from "./App";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -184,6 +184,25 @@ function findCurrentRepository(name: string) {
 }
 
 describe("PTY test panel", () => {
+  it("distinguishes prerequisite, loading, empty, success, and error notices", () => {
+    render(
+      <>
+        <StateNotice kind="prerequisite" title="Needs setup" description="Complete setup first." />
+        <StateNotice kind="loading" title="Loading data" description="Please wait." />
+        <StateNotice kind="empty" title="No results" description="Try another query." />
+        <StateNotice kind="success" title="Ready" description="The operation completed." />
+        <StateNotice kind="error" title="Could not load" description="Try again." />
+      </>,
+    );
+
+    expect(screen.getByText("Needs setup").closest(".state-notice"))
+      .toHaveAttribute("data-kind", "prerequisite");
+    expect(screen.getByText("No results").closest(".state-notice"))
+      .toHaveAttribute("data-kind", "empty");
+    expect(screen.getAllByRole("status")).toHaveLength(2);
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not loadTry again.");
+  });
+
   it("presents the AIadne product workspace identity", async () => {
     render(<App />);
     await flushAsyncState();
@@ -265,6 +284,10 @@ describe("PTY test panel", () => {
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
     expect(await screen.findByText(/No workspaces yet/)).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
+    expect(screen.getByText("No ACP events yet.").closest(".state-notice"))
+      .toHaveAttribute("data-kind", "empty");
+    expect(screen.getByText("Project knowledge is not initialized").closest(".state-notice"))
+      .toHaveAttribute("data-kind", "prerequisite");
     expect(await screen.findByText("No saved sessions yet.")).toBeInTheDocument();
     expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
       .not.toHaveLength(0);
@@ -783,6 +806,7 @@ describe("PTY test panel", () => {
     expect(screen.getByLabelText("Project initialization facts")).toHaveTextContent(
       "Tracked files: 53",
     );
+    expect(screen.getByText("2 collected")).toHaveAttribute("data-state", "success");
     fireEvent.click(screen.getByRole("button", { name: "View Facts" }));
     expect(screen.getByRole("dialog", { name: "Facts Detail" })).toBeInTheDocument();
     expect(screen.getByLabelText("Project initialization fact details")).toHaveTextContent(

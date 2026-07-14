@@ -330,6 +330,33 @@ const initialSize = {
 const modelTiers: ModelTier[] = ["fast", "mid", "high", "max"];
 const defaultSynthesisModelProfileId = "openai-gpt-5.6-terra-medium";
 
+type StateNoticeKind = "prerequisite" | "loading" | "empty" | "success" | "error";
+
+export function StateNotice({
+  as = "div",
+  description,
+  kind,
+  title,
+}: {
+  as?: "div" | "li";
+  description: string;
+  kind: StateNoticeKind;
+  title: string;
+}) {
+  const Element = as;
+  const role = kind === "error" ? "alert" : kind === "loading" || kind === "success" ? "status" : undefined;
+
+  return (
+    <Element className="state-notice" data-kind={kind} role={role}>
+      <span className="state-notice-indicator" aria-hidden="true" />
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+    </Element>
+  );
+}
+
 function App() {
   const terminalElement = useRef<HTMLDivElement | null>(null);
   const acpEventsList = useRef<HTMLUListElement | null>(null);
@@ -2473,7 +2500,7 @@ function App() {
                     <span>Phase 2</span>
                     <h4 id="initialize-facts-title">Facts</h4>
                   </div>
-                  <strong>
+                  <strong data-state={projectInitializationFacts.length > 0 ? "success" : "pending"}>
                     {projectInitializationFacts.length > 0
                       ? `${projectInitializationFacts.length} collected`
                       : "not collected"}
@@ -2532,7 +2559,11 @@ function App() {
                     </ul>
                   </>
                 ) : (
-                  <p className="empty-state">Facts have not been collected yet.</p>
+                  <StateNotice
+                    kind="prerequisite"
+                    title="Facts are ready to collect"
+                    description="Run deterministic repository inspection to populate this phase."
+                  />
                 )}
               </section>
               <section
@@ -2545,7 +2576,9 @@ function App() {
                     <span>Phase 3</span>
                     <h4 id="initialize-markdown-title">Markdown</h4>
                   </div>
-                  <strong>
+                  <strong
+                    data-state={projectInitializationMarkdownFindings.length > 0 ? "success" : "pending"}
+                  >
                     {projectInitializationMarkdownFindings.length > 0
                       ? `${projectInitializationMarkdownFindings.length} findings`
                       : "not analyzed"}
@@ -2591,7 +2624,11 @@ function App() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="empty-state">Markdown has not been analyzed yet.</p>
+                  <StateNotice
+                    kind="prerequisite"
+                    title="Markdown is ready to analyze"
+                    description="Scan repository documentation to surface sourced project findings."
+                  />
                 )}
               </section>
               <section
@@ -2604,7 +2641,9 @@ function App() {
                     <span>Phase 4</span>
                     <h4 id="initialize-interview-title">Interview</h4>
                   </div>
-                  <strong>
+                  <strong
+                    data-state={projectInitializationGuardrails.length > 0 ? "success" : "pending"}
+                  >
                     {projectInitializationGuardrails.length > 0
                       ? `${projectInitializationGuardrails.length} guardrails`
                       : "not started"}
@@ -2641,9 +2680,11 @@ function App() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="empty-state">
-                    Capture fragile areas, do-not-touch paths, and review rules.
-                  </p>
+                  <StateNotice
+                    kind="prerequisite"
+                    title="No guardrails captured"
+                    description="Add fragile areas, do-not-touch paths, and review rules in the Interview."
+                  />
                 )}
               </section>
               <section
@@ -2656,7 +2697,7 @@ function App() {
                     <span>Phase 5</span>
                     <h4 id="initialize-summary-title">Summary</h4>
                   </div>
-                  <strong>
+                  <strong data-state={projectInitializationSummary ? "success" : "pending"}>
                     {projectInitializationSummary
                       ? projectInitializationSummary.status
                       : "not generated"}
@@ -2790,14 +2831,20 @@ function App() {
                     </p>
                   </div>
                 ) : (
-                  <p className="empty-state">
-                    Generate a reviewable profile from Facts, Markdown, and Interview.
-                  </p>
+                  <StateNotice
+                    kind="prerequisite"
+                    title="No summary draft"
+                    description="Generate a reviewable profile from Facts, Markdown, and Interview evidence."
+                  />
                 )}
               </section>
             </div>
           ) : (
-            <p className="empty-state">Start Project Initialize to build project knowledge.</p>
+            <StateNotice
+              kind="prerequisite"
+              title="Project knowledge is not initialized"
+              description="Select project repositories and start Initialize to build the evidence workflow."
+            />
           )}
         </div>
       </section>
@@ -2999,11 +3046,16 @@ function App() {
               </div>
               <ul aria-label="ACP events" ref={acpEventsList}>
                 {displayAcpEvents.length === 0 && !showAcpWaiting ? (
-                  <li>
-                    {openedTranscriptSession
+                  <StateNotice
+                    as="li"
+                    kind="empty"
+                    title={openedTranscriptSession
                       ? "No saved events in this transcript yet."
                       : "No ACP events yet."}
-                  </li>
+                    description={openedTranscriptSession
+                      ? "This saved session does not contain any recorded transcript events."
+                      : "Start an ACP session and send a prompt to see structured events here."}
+                  />
                 ) : (
                   <>
                     {displayAcpEvents.map((event, index) => (
@@ -3082,7 +3134,12 @@ function App() {
 
             <ul className="project-list workspace-project-list" aria-label="Project repositories">
               {projectRepositories.length === 0 ? (
-                <li className="empty-state">No repositories yet. Add one below.</li>
+                <StateNotice
+                  as="li"
+                  kind="empty"
+                  title="No repositories yet"
+                  description="Add the first repository for this workspace below."
+                />
               ) : (
                 projectRepositories.map((repository) => (
                   <li data-selected={repository.id === selectedRepository?.id} key={repository.id}>
@@ -3206,7 +3263,12 @@ function App() {
 
             <ul className="project-list workspace-project-list" aria-label="Projects">
               {projects.length === 0 ? (
-                <li className="empty-state">No workspaces yet. Add your first project below.</li>
+                <StateNotice
+                  as="li"
+                  kind="empty"
+                  title="No workspaces yet"
+                  description="Add your first project folder below to begin."
+                />
               ) : (
                 projects.map((project) => (
                   <li data-selected={project.id === selectedProject?.id} key={project.id}>
@@ -3442,7 +3504,11 @@ function App() {
                   ))}
                 </ul>
               ) : (
-                <p className="empty-state">Facts have not been collected yet.</p>
+                <StateNotice
+                  kind="prerequisite"
+                  title="Facts have not been collected yet"
+                  description="Return to Project Initialization and run Collect Facts first."
+                />
               )
             ) : initializeDetailsView === "markdown" ? (
               projectInitializationMarkdownFindings.length > 0 ? (
@@ -3469,7 +3535,11 @@ function App() {
                   ))}
                 </ul>
               ) : (
-                <p className="empty-state">Markdown has not been analyzed yet.</p>
+                <StateNotice
+                  kind="prerequisite"
+                  title="Markdown has not been analyzed yet"
+                  description="Return to Project Initialization and run Analyze Markdown first."
+                />
               )
             ) : projectInitializationSummary ? (
               <>
@@ -3563,17 +3633,29 @@ function App() {
                       <strong>{projectInitializationKnowledgeUnits.length}</strong>
                     </div>
                     {projectInitializationSummary.status !== "approved" ? (
-                      <p className="empty-state">
-                        Units are published only after this Summary is approved.
-                      </p>
+                      <StateNotice
+                        kind="prerequisite"
+                        title="Approval required"
+                        description="Knowledge Units are published only after this Summary is approved."
+                      />
                     ) : knowledgeUnitsLoading ? (
-                      <p className="empty-state">Loading published units…</p>
+                      <StateNotice
+                        kind="loading"
+                        title="Loading published units…"
+                        description="Retrieving approved Knowledge Units and their source provenance."
+                      />
                     ) : knowledgeUnitsError ? (
-                      <p className="inline-error" role="alert">
-                        {knowledgeUnitsError}
-                      </p>
+                      <StateNotice
+                        kind="error"
+                        title="Published units could not be loaded"
+                        description={knowledgeUnitsError}
+                      />
                     ) : projectInitializationKnowledgeUnits.length === 0 ? (
-                      <p className="empty-state">No Knowledge Units were published.</p>
+                      <StateNotice
+                        kind="empty"
+                        title="No Knowledge Units were published"
+                        description="The approved Summary did not produce any active or reviewable units."
+                      />
                     ) : (
                       <ul className="knowledge-unit-list">
                         {projectInitializationKnowledgeUnits.map((unit) => (
@@ -3622,7 +3704,11 @@ function App() {
                 </div>
               </>
             ) : (
-              <p className="empty-state">Generate a summary before opening review.</p>
+              <StateNotice
+                kind="prerequisite"
+                title="No summary available for review"
+                description="Generate a Summary draft before opening the detailed review."
+              />
             )}
           </section>
         </div>
@@ -3858,9 +3944,17 @@ function App() {
               </button>
             </div>
             {taskContextPreviewLoading ? (
-              <p className="empty-state">Selecting minimal task context…</p>
+              <StateNotice
+                kind="loading"
+                title="Selecting minimal task context…"
+                description="Ranking approved units against the current task and character budget."
+              />
             ) : taskContextPreviewError ? (
-              <p className="inline-error" role="alert">{taskContextPreviewError}</p>
+              <StateNotice
+                kind="error"
+                title="Task context could not be selected"
+                description={taskContextPreviewError}
+              />
             ) : taskContextPreview ? (
               <div className="task-context-preview-body">
                 <dl className="task-context-budget" aria-label="Task context budget">
@@ -3882,7 +3976,13 @@ function App() {
                         </li>
                       ))}
                     </ol>
-                  ) : <p className="empty-state">No units matched this task.</p>}
+                  ) : (
+                    <StateNotice
+                      kind="empty"
+                      title="No units matched this task"
+                      description="Try a more specific task or review the approved Knowledge Units."
+                    />
+                  )}
                 </section>
                 <section aria-label="Excluded task context">
                   <h3>Excluded · {taskContextPreview.excluded.length}</h3>
@@ -3903,7 +4003,13 @@ function App() {
                   <textarea readOnly value={taskContextPreview.renderedContext} rows={8} />
                 </label>
               </div>
-            ) : <p className="empty-state">No preview available.</p>}
+            ) : (
+              <StateNotice
+                kind="empty"
+                title="No preview available"
+                description="Run the selector again to build an auditable task-context preview."
+              />
+            )}
           </section>
         </div>
       ) : null}
