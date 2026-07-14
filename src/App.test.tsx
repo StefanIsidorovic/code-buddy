@@ -171,6 +171,10 @@ function openSidebarSection(name: string) {
   fireEvent.click(summary);
 }
 
+function openWorkspacePicker() {
+  fireEvent.click(screen.getByRole("button", { name: /Current workspace/i }));
+}
+
 describe("PTY test panel", () => {
   it("presents the AIadne product workspace identity", async () => {
     render(<App />);
@@ -188,7 +192,7 @@ describe("PTY test panel", () => {
 
     expect(screen.getByRole("main", { name: "AIadne agent workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AIadne" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Workspace" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Current workspace/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ACP Controls" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Session Output" })).toBeInTheDocument();
@@ -198,7 +202,7 @@ describe("PTY test panel", () => {
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Repositories" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Repositories" })).not.toHaveLength(0);
     for (const sidebarSectionName of [
       "ACP Agents",
       "Session History",
@@ -208,6 +212,9 @@ describe("PTY test panel", () => {
       expect(getSidebarSection(sidebarSectionName)).toBeInTheDocument();
       expect(getSidebarSection(sidebarSectionName)).not.toHaveAttribute("open");
     }
+    await flushAsyncState();
+    openWorkspacePicker();
+    expect(screen.getByRole("dialog", { name: "Choose Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Project" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Add Repository" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
@@ -216,7 +223,7 @@ describe("PTY test panel", () => {
     openSidebarSection("Session History");
     expect(screen.getByLabelText("ACP registry candidates")).toBeInTheDocument();
     expect(screen.getByLabelText("ACP prompt")).toBeInTheDocument();
-    expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
+    expect(await screen.findByText(/No workspaces yet/)).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
     expect(await screen.findByText("No saved sessions yet.")).toBeInTheDocument();
     expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
@@ -280,7 +287,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByText("No projects yet.");
+    openWorkspacePicker();
+    await screen.findByText(/No workspaces yet/);
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "AIadne" },
     });
@@ -297,8 +305,7 @@ describe("PTY test panel", () => {
         },
       });
     });
-    expect(await screen.findByText("Default repository: /home/katarina/projects/AIadne"))
-      .toBeInTheDocument();
+    expect(await screen.findAllByText("/home/katarina/projects/AIadne")).not.toHaveLength(0);
     expect(screen.getByLabelText("Project repositories")).toHaveTextContent(
       "/home/katarina/projects/AIadne",
     );
@@ -344,6 +351,7 @@ describe("PTY test panel", () => {
     try {
       render(<App />);
       await flushAsyncState();
+      openWorkspacePicker();
 
       fireEvent.change(screen.getByLabelText("Project name"), {
         target: { value: "AIadne" },
@@ -402,7 +410,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByText("No projects yet.");
+    openWorkspacePicker();
+    await screen.findByText(/No workspaces yet/);
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "AIadne" },
     });
@@ -423,7 +432,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByText("No projects yet.");
+    openWorkspacePicker();
+    await screen.findByText(/No workspaces yet/);
     fireEvent.click(screen.getByRole("button", { name: "Choose Folder" }));
 
     await waitFor(() => {
@@ -503,9 +513,9 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Default repository: /home/katarina/projects/AIadne"))
-      .toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Delete Project" }));
+    await screen.findByRole("button", { name: /Current workspace.*AIadne/i });
+    openWorkspacePicker();
+    fireEvent.click(screen.getByRole("button", { name: "Delete AIadne project" }));
     expect(screen.getByRole("dialog", { name: "Delete Project" })).toBeInTheDocument();
     expect(invokeMock).not.toHaveBeenCalledWith("delete_project", {
       projectId: "project-aiadne",
@@ -523,7 +533,7 @@ describe("PTY test panel", () => {
         projectId: "project-aiadne",
       });
     });
-    expect(await screen.findByText("No projects yet.")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Choose a workspace/i })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
       "AIadne deleted. Stopped 1 ACP session.",
     );
@@ -1207,7 +1217,9 @@ describe("PTY test panel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start Initialize" }));
     expect(await screen.findByText("preflight · 1 repositories")).toBeInTheDocument();
 
+    openWorkspacePicker();
     fireEvent.click(screen.getByRole("button", { name: "Select MadSense project" }));
+    expect(screen.queryByRole("dialog", { name: "Choose Workspace" })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.queryByText("preflight · 1 repositories")).not.toBeInTheDocument();
@@ -1581,8 +1593,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    await screen.findByText("/home/katarina/projects/AIadne");
-    fireEvent.click(screen.getByRole("button", { name: "Select API repository" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Select API repository" }));
     await openPtyFallback();
     fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
 

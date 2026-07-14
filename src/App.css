@@ -170,7 +170,7 @@ textarea:focus {
   border-radius: 0;
   padding: 20px 16px 18px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 16px;
   overflow: hidden;
   background:
@@ -2483,6 +2483,68 @@ textarea:focus {
   line-height: 1.35;
 }
 
+.workspace-picker {
+  position: relative;
+  min-width: 0;
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-content: center;
+  border: 1px solid rgb(183 199 172 / 0.2);
+  border-radius: 13px;
+  padding: 11px 12px;
+  color: #f5f4ed;
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.035));
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.08);
+  text-align: left;
+}
+
+.workspace-picker:not(:disabled):hover {
+  border-color: rgb(190 205 179 / 0.42);
+  color: #fff;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.13);
+}
+
+.workspace-picker-label {
+  grid-column: 1 / -1;
+  color: #98a594;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workspace-picker strong {
+  min-width: 0;
+  color: #f7f5ee;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-picker small {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: #aeb7aa;
+  font-size: 0.68rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-picker-action {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  color: #c3d1bc;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
 .sidebar-scroll {
   padding-right: 4px;
   scrollbar-color: #526151 transparent;
@@ -2968,6 +3030,92 @@ textarea:focus {
   box-shadow: 0 30px 90px rgb(18 24 19 / 0.28);
 }
 
+.workspace-modal {
+  width: min(760px, calc(100vw - 32px));
+  display: grid;
+  grid-template-rows: auto auto minmax(120px, 1fr) auto;
+  gap: 14px;
+}
+
+.workspace-modal .modal-heading span {
+  display: block;
+  max-width: 520px;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.workspace-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-modal-toolbar strong {
+  color: var(--muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspace-project-list {
+  min-height: 0;
+  max-height: 280px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 2px;
+  scrollbar-color: #b1b9aa transparent;
+}
+
+.workspace-project-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.workspace-project-list li[data-selected="true"]::before {
+  display: none;
+}
+
+.workspace-project-list li > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.workspace-project-list li > div:first-child span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-project-list .empty-state {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.workspace-create-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+}
+
+.workspace-create-panel h3 {
+  margin: 1px 0 0;
+  color: var(--ink-strong);
+  font-size: 0.98rem;
+}
+
+.workspace-modal .workspace-form {
+  grid-template-columns: minmax(140px, 0.7fr) minmax(220px, 1.3fr) auto auto;
+  align-items: end;
+}
+
 .modal-heading {
   margin: -2px -2px 16px;
   padding-bottom: 14px;
@@ -3116,6 +3264,10 @@ textarea:focus {
     padding-bottom: 14px;
   }
 
+  .workspace-picker {
+    min-height: 68px;
+  }
+
   .sidebar-scroll {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3208,6 +3360,19 @@ textarea:focus {
     max-height: 92vh;
     border-radius: 20px 20px 12px 12px;
     padding: 18px;
+  }
+
+  .workspace-modal {
+    grid-template-rows: auto auto minmax(100px, 1fr) auto;
+  }
+
+  .workspace-modal .workspace-form,
+  .workspace-project-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-project-list .project-actions {
+    width: 100%;
   }
 
   .runtime-lane {
