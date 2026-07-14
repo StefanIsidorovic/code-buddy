@@ -2862,58 +2862,82 @@ function App() {
               <span>{acpStatusLabel}</span>
             </div>
 
-            <div className="button-row">
-              <button
-                type="button"
-                onClick={() => void startSelectedAcpSession()}
-                disabled={busy || !canStartSelectedAcpCandidate}
-              >
-                Start Selected ACP
-              </button>
-              <button type="button" onClick={() => void startFakeAcpSession()} disabled={busy || canUseAcpSession}>
-                Start Fake ACP
-              </button>
-              <button
-                type="button"
-                onClick={() => void sendAcpPrompt()}
-                disabled={busy || acpPromptBusy || !canUseAcpSession}
-              >
-                Send ACP
-              </button>
-              <button type="button" onClick={() => void drainAcpEvents()} disabled={!acpSession}>
-                Drain ACP
-              </button>
-              <button type="button" onClick={() => void stopAcpSession(false)} disabled={!acpSession}>
-                Stop ACP
-              </button>
+            <div className="acp-session-toolbar" data-active={canUseAcpSession}>
+              {!canUseAcpSession ? (
+                <div className="acp-start-actions" aria-label="ACP session start actions">
+                  <button
+                    className="primary-action"
+                    type="button"
+                    onClick={() => void startSelectedAcpSession()}
+                    disabled={busy || !canStartSelectedAcpCandidate}
+                  >
+                    Start Selected ACP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void startFakeAcpSession()}
+                    disabled={busy || canUseAcpSession}
+                  >
+                    Start Fake ACP
+                  </button>
+                </div>
+              ) : (
+                <p className="acp-session-status">
+                  <span aria-hidden="true" />
+                  Active session · {acpStatusLabel}
+                </p>
+              )}
+
+              {acpSession ? (
+                <div className="acp-session-utilities" aria-label="ACP active session actions">
+                  <button type="button" onClick={() => void drainAcpEvents()}>
+                    Drain ACP
+                  </button>
+                  <button
+                    className="danger-button"
+                    type="button"
+                    onClick={() => void stopAcpSession(false)}
+                  >
+                    Stop ACP
+                  </button>
+                </div>
+              ) : null}
             </div>
 
-            {canUseAcpSession ? (
-              <p className="acp-result">Active ACP: {acpStatusLabel}. Stop it before starting another ACP session.</p>
-            ) : null}
+            <div className="acp-composer">
+              <label className="prompt-field">
+                <span>Prompt</span>
+                <textarea
+                  aria-label="ACP prompt"
+                  onChange={(event) => setAcpPrompt(event.target.value)}
+                  rows={3}
+                  value={acpPrompt}
+                />
+              </label>
 
-            <label className="prompt-field">
-              <span>Prompt</span>
-              <textarea
-                aria-label="ACP prompt"
-                onChange={(event) => setAcpPrompt(event.target.value)}
-                rows={3}
-                value={acpPrompt}
-              />
-            </label>
-
-            <button
-              type="button"
-              className="context-preview-button"
-              onClick={() => void previewTaskContext()}
-              disabled={
-                taskContextPreviewLoading ||
-                !acpPrompt.trim() ||
-                projectInitializationSummary?.status !== "approved"
-              }
-            >
-              Preview Context
-            </button>
+              <div className="acp-composer-actions" aria-label="ACP prompt actions">
+                <button
+                  type="button"
+                  className="context-preview-button"
+                  onClick={() => void previewTaskContext()}
+                  disabled={
+                    taskContextPreviewLoading ||
+                    !acpPrompt.trim() ||
+                    projectInitializationSummary?.status !== "approved"
+                  }
+                >
+                  Preview Context
+                </button>
+                <button
+                  className="primary-action"
+                  type="button"
+                  onClick={() => void sendAcpPrompt()}
+                  disabled={busy || acpPromptBusy || !canUseAcpSession}
+                >
+                  Send ACP
+                </button>
+              </div>
+            </div>
 
             {acpPromptResult ? (
               <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>

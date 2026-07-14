@@ -238,6 +238,11 @@ describe("PTY test panel", () => {
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
+    expect(screen.getByLabelText("ACP session start actions"))
+      .toContainElement(screen.getByRole("button", { name: "Start Selected ACP" }));
+    expect(screen.queryByLabelText("ACP active session actions")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("ACP prompt actions"))
+      .toContainElement(screen.getByRole("button", { name: "Send ACP" }));
     expect(screen.getByRole("button", { name: /Current repository/i })).toBeDisabled();
     for (const sidebarSectionName of [
       "ACP Agents",
@@ -1766,6 +1771,9 @@ describe("PTY test panel", () => {
     });
     expect(await screen.findAllByText("Codex · running · codex-acp-session"))
       .not.toHaveLength(0);
+    expect(screen.queryByLabelText("ACP session start actions")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("ACP active session actions"))
+      .toContainElement(screen.getByRole("button", { name: "Stop ACP" }));
   });
 
   it("starts a non-default launchable ACP registry candidate", async () => {
