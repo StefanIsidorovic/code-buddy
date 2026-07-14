@@ -47,6 +47,7 @@ pub fn run() {
             commands::list_project_initialization_guardrails,
             commands::generate_project_initialization_summary,
             commands::list_project_initialization_summary,
+            commands::list_project_initialization_knowledge_units,
             commands::approve_project_initialization_summary,
             commands::create_transcript_session,
             commands::append_transcript_events,

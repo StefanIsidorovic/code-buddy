@@ -171,6 +171,32 @@ pub struct GenerateProjectInitializationSummaryRequest {
     pub model_profile_id: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeUnitSourceInfo {
+    pub source_key: String,
+    pub repository_id: Option<String>,
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeUnitInfo {
+    pub id: String,
+    pub project_id: String,
+    pub initialization_id: String,
+    pub derived_from_summary_id: String,
+    pub kind: String,
+    pub topic: String,
+    pub content: String,
+    pub scope: String,
+    pub status: String,
+    pub confidence: i64,
+    pub schema_version: i64,
+    pub sources: Vec<KnowledgeUnitSourceInfo>,
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct ProjectInitializationSynthesisContext {
     pub initialization_id: String,
@@ -867,7 +893,22 @@ impl ProjectStore {
         let now = unix_timestamp()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(storage_error)?;
-        let updated = transaction
+        let summary =
+            project_initialization_summary_by_id(&transaction, summary_id)?.ok_or_else(|| {
+                AppError::InvalidInput(format!(
+                    "project initialization summary not found: {summary_id}"
+                ))
+            })?;
+        let project_id: String = transaction
+            .query_row(
+                "SELECT project_id FROM project_initialization_runs WHERE id = ?1",
+                params![&summary.initialization_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let knowledge_units = build_knowledge_units(&summary, &project_id, now)?;
+
+        transaction
             .execute(
                 "UPDATE project_initialization_summaries
                  SET status = ?1, approved_at = ?2
@@ -875,10 +916,14 @@ impl ProjectStore {
                 params!["approved", now, summary_id],
             )
             .map_err(storage_error)?;
-        if updated == 0 {
-            return Err(AppError::InvalidInput(format!(
-                "project initialization summary not found: {summary_id}"
-            )));
+        transaction
+            .execute(
+                "DELETE FROM knowledge_units WHERE derived_from_summary_id = ?1",
+                params![summary_id],
+            )
+            .map_err(storage_error)?;
+        for unit in &knowledge_units {
+            insert_knowledge_unit(&transaction, unit)?;
         }
         transaction
             .execute(
@@ -898,6 +943,21 @@ impl ProjectStore {
         let connection = self.connection()?;
         project_initialization_summary_by_id(&connection, summary_id)?
             .ok_or_else(|| AppError::Storage("approved summary was not found".to_string()))
+    }
+
+    pub fn list_project_initialization_knowledge_units(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<KnowledgeUnitInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_knowledge_units(&connection, initialization_id)
     }
 
     pub fn create_transcript_session(
@@ -1365,6 +1425,33 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_project_initialization_summaries_initialization
                     ON project_initialization_summaries(initialization_id, status);
+
+                CREATE TABLE IF NOT EXISTS knowledge_units (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    derived_from_summary_id TEXT NOT NULL REFERENCES project_initialization_summaries(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    confidence INTEGER NOT NULL,
+                    schema_version INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_knowledge_units_initialization
+                    ON knowledge_units(initialization_id, status, kind, id);
+
+                CREATE TABLE IF NOT EXISTS knowledge_unit_sources (
+                    knowledge_unit_id TEXT NOT NULL REFERENCES knowledge_units(id) ON DELETE CASCADE,
+                    source_index INTEGER NOT NULL,
+                    source_key TEXT NOT NULL,
+                    repository_id TEXT REFERENCES project_repositories(id) ON DELETE SET NULL,
+                    path TEXT,
+                    PRIMARY KEY (knowledge_unit_id, source_index)
+                );
 
                 CREATE TABLE IF NOT EXISTS transcript_sessions (
                     id TEXT PRIMARY KEY,
@@ -2077,6 +2164,288 @@ fn insert_project_initialization_summary(
         )
         .map_err(storage_error)?;
     Ok(())
+}
+
+fn build_knowledge_units(
+    summary: &ProjectInitializationSummaryInfo,
+    project_id: &str,
+    created_at: i64,
+) -> AppResult<Vec<KnowledgeUnitInfo>> {
+    let sections = [
+        ("project_purpose", "purpose", &summary.project_purpose),
+        ("repository_map", "repository", &summary.repository_map),
+        (
+            "repository_roles",
+            "repository_role",
+            &summary.repository_roles,
+        ),
+        ("build_test_matrix", "command", &summary.build_test_matrix),
+        ("fragile_areas", "fragile_area", &summary.fragile_areas),
+        (
+            "do_not_touch_rules",
+            "constraint",
+            &summary.do_not_touch_rules,
+        ),
+        (
+            "agent_working_rules",
+            "agent_rule",
+            &summary.agent_working_rules,
+        ),
+        ("open_questions", "open_question", &summary.open_questions),
+    ];
+    let mut units = Vec::new();
+    for (topic, kind, section) in sections {
+        for (line_index, line) in section
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .enumerate()
+        {
+            let sources = knowledge_unit_source_keys(line)?;
+            let content = strip_knowledge_unit_source_markers(line);
+            let content = trim_list_prefix(&content);
+            if content.is_empty() {
+                return Err(AppError::InvalidInput(format!(
+                    "summary {topic} contains a source marker without knowledge content"
+                )));
+            }
+            let is_uncertain = is_uncertain_knowledge_content(content);
+            if sources.is_empty() && !is_uncertain {
+                return Err(AppError::InvalidInput(format!(
+                    "summary {topic} contains an uncited knowledge unit"
+                )));
+            }
+            let identity = format!("{}\n{topic}\n{line_index}\n{content}", summary.id);
+            units.push(KnowledgeUnitInfo {
+                id: Uuid::new_v5(&Uuid::NAMESPACE_OID, identity.as_bytes()).to_string(),
+                project_id: project_id.to_string(),
+                initialization_id: summary.initialization_id.clone(),
+                derived_from_summary_id: summary.id.clone(),
+                kind: kind.to_string(),
+                topic: topic.to_string(),
+                content: content.to_string(),
+                scope: "project".to_string(),
+                status: if is_uncertain {
+                    "needs_confirmation".to_string()
+                } else {
+                    "active".to_string()
+                },
+                confidence: if is_uncertain { 0 } else { 100 },
+                schema_version: summary.knowledge_schema_version,
+                sources: sources
+                    .into_iter()
+                    .map(|source_key| KnowledgeUnitSourceInfo {
+                        source_key,
+                        repository_id: None,
+                        path: None,
+                    })
+                    .collect(),
+                created_at,
+            });
+        }
+    }
+    if units.is_empty() {
+        return Err(AppError::InvalidInput(
+            "approved summary must produce at least one knowledge unit".to_string(),
+        ));
+    }
+    Ok(units)
+}
+
+fn knowledge_unit_source_keys(value: &str) -> AppResult<Vec<String>> {
+    const MARKER: &str = "[source:";
+    let mut remaining = value;
+    let mut sources = Vec::new();
+    while let Some(index) = remaining.find(MARKER) {
+        remaining = &remaining[index + MARKER.len()..];
+        let end = remaining.find(']').ok_or_else(|| {
+            AppError::InvalidInput("summary contains a malformed source marker".to_string())
+        })?;
+        let source = remaining[..end].trim();
+        if source.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary contains an empty source marker".to_string(),
+            ));
+        }
+        if !sources.iter().any(|existing| existing == source) {
+            sources.push(source.to_string());
+        }
+        remaining = &remaining[end + 1..];
+    }
+    Ok(sources)
+}
+
+fn strip_knowledge_unit_source_markers(value: &str) -> String {
+    let mut content = String::with_capacity(value.len());
+    let mut remaining = value;
+    while let Some(index) = remaining.find("[source:") {
+        content.push_str(&remaining[..index]);
+        let marker = &remaining[index..];
+        let Some(end) = marker.find(']') else {
+            content.push_str(marker);
+            return content.trim().to_string();
+        };
+        remaining = &marker[end + 1..];
+    }
+    content.push_str(remaining);
+    content.trim().to_string()
+}
+
+fn trim_list_prefix(value: &str) -> &str {
+    let value = value.trim();
+    if let Some(stripped) = value
+        .strip_prefix("- ")
+        .or_else(|| value.strip_prefix("* "))
+    {
+        return stripped.trim();
+    }
+    let digit_count = value
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .count();
+    if digit_count > 0 {
+        let suffix = &value[digit_count..];
+        if let Some(stripped) = suffix.strip_prefix(". ") {
+            return stripped.trim();
+        }
+    }
+    value
+}
+
+fn is_uncertain_knowledge_content(value: &str) -> bool {
+    let normalized = value.to_ascii_lowercase();
+    normalized.contains("needs confirmation:")
+        || normalized.contains("no evidence")
+        || (normalized.contains("no ") && normalized.contains(" supplied"))
+}
+
+fn insert_knowledge_unit(connection: &Connection, unit: &KnowledgeUnitInfo) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO knowledge_units
+             (id, project_id, initialization_id, derived_from_summary_id, kind, topic,
+              content, scope, status, confidence, schema_version, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                &unit.id,
+                &unit.project_id,
+                &unit.initialization_id,
+                &unit.derived_from_summary_id,
+                &unit.kind,
+                &unit.topic,
+                &unit.content,
+                &unit.scope,
+                &unit.status,
+                unit.confidence,
+                unit.schema_version,
+                unit.created_at,
+            ],
+        )
+        .map_err(storage_error)?;
+    for (source_index, source) in unit.sources.iter().enumerate() {
+        connection
+            .execute(
+                "INSERT INTO knowledge_unit_sources
+                 (knowledge_unit_id, source_index, source_key, repository_id, path)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    &unit.id,
+                    source_index as i64,
+                    &source.source_key,
+                    &source.repository_id,
+                    &source.path,
+                ],
+            )
+            .map_err(storage_error)?;
+    }
+    Ok(())
+}
+
+fn list_project_initialization_knowledge_units(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<KnowledgeUnitInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, project_id, initialization_id, derived_from_summary_id, kind, topic,
+                    content, scope, status, confidence, schema_version, created_at
+             FROM knowledge_units
+             WHERE initialization_id = ?1
+             ORDER BY topic, id",
+        )
+        .map_err(storage_error)?;
+    let rows = statement
+        .query_map(params![initialization_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, String>(8)?,
+                row.get::<_, i64>(9)?,
+                row.get::<_, i64>(10)?,
+                row.get::<_, i64>(11)?,
+            ))
+        })
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+    rows.into_iter()
+        .map(
+            |(
+                id,
+                project_id,
+                initialization_id,
+                derived_from_summary_id,
+                kind,
+                topic,
+                content,
+                scope,
+                status,
+                confidence,
+                schema_version,
+                created_at,
+            )| {
+                let mut source_statement = connection
+                    .prepare(
+                        "SELECT source_key, repository_id, path
+                         FROM knowledge_unit_sources
+                         WHERE knowledge_unit_id = ?1
+                         ORDER BY source_index",
+                    )
+                    .map_err(storage_error)?;
+                let sources = source_statement
+                    .query_map(params![&id], |row| {
+                        Ok(KnowledgeUnitSourceInfo {
+                            source_key: row.get(0)?,
+                            repository_id: row.get(1)?,
+                            path: row.get(2)?,
+                        })
+                    })
+                    .map_err(storage_error)?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(storage_error)?;
+                Ok(KnowledgeUnitInfo {
+                    id,
+                    project_id,
+                    initialization_id,
+                    derived_from_summary_id,
+                    kind,
+                    topic,
+                    content,
+                    scope,
+                    status,
+                    confidence,
+                    schema_version,
+                    sources,
+                    created_at,
+                })
+            },
+        )
+        .collect()
 }
 
 fn normalize_project_initialization_guardrail(
@@ -2953,7 +3322,8 @@ mod tests {
             do_not_touch_rules: "- src/generated/** is protected [source: user_interview]"
                 .to_string(),
             agent_working_rules: "- Ask before schema changes [source: user_interview]".to_string(),
-            open_questions: "- Confirm repository role with the user.".to_string(),
+            open_questions: "- Needs confirmation: Confirm repository role with the user."
+                .to_string(),
         }
     }
 
@@ -3730,10 +4100,109 @@ mod tests {
         );
         assert_eq!(listed_summary.requested_model_tier.as_deref(), Some("high"));
 
+        let units = store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units listed");
+        assert_eq!(units.len(), 8);
+        assert!(units.iter().all(|unit| {
+            unit.derived_from_summary_id == summary.id
+                && unit.schema_version == PROJECT_KNOWLEDGE_SCHEMA_VERSION
+        }));
+        let purpose = units
+            .iter()
+            .find(|unit| unit.topic == "project_purpose")
+            .expect("purpose unit exists");
+        assert_eq!(purpose.kind, "purpose");
+        assert_eq!(purpose.status, "active");
+        assert_eq!(purpose.confidence, 100);
+        assert_eq!(purpose.content, "AIadne controls coding-agent workflows");
+        assert_eq!(
+            purpose.sources,
+            vec![KnowledgeUnitSourceInfo {
+                source_key: "README.md#aiadne".to_string(),
+                repository_id: None,
+                path: None,
+            }]
+        );
+        let open_question = units
+            .iter()
+            .find(|unit| unit.topic == "open_questions")
+            .expect("open question unit exists");
+        assert_eq!(open_question.status, "needs_confirmation");
+        assert_eq!(open_question.confidence, 0);
+        assert!(open_question.sources.is_empty());
+
+        let initial_ids = units.iter().map(|unit| unit.id.clone()).collect::<Vec<_>>();
+        store
+            .approve_project_initialization_summary(&summary.id)
+            .expect("reapproval succeeds");
+        let repeated_ids = store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units relisted")
+            .into_iter()
+            .map(|unit| unit.id)
+            .collect::<Vec<_>>();
+        assert_eq!(repeated_ids, initial_ids);
+
         let missing = store
             .approve_project_initialization_summary("missing-summary")
             .expect_err("missing summary rejected");
         assert!(matches!(missing, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_uncited_claim_during_summary_approval_without_publishing_units() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-unit-validation"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let mut draft = test_knowledge_draft();
+        draft
+            .project_purpose
+            .push_str("\n- This second claim has no source");
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                draft,
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("section-valid summary persisted");
+
+        let error = store
+            .approve_project_initialization_summary(&summary.id)
+            .expect_err("uncited unit rejected");
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert_eq!(
+            store
+                .list_project_initialization_summary(&initialization.id)
+                .expect("summary listed")
+                .expect("summary exists")
+                .status,
+            "draft"
+        );
+        assert!(store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units listed")
+            .is_empty());
     }
 
     #[test]

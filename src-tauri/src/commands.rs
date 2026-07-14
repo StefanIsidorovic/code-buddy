@@ -11,8 +11,8 @@ use crate::{
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
-        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, ProjectInfo,
-        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
+        ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
         ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
         ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
         RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest,
@@ -213,6 +213,14 @@ pub fn list_project_initialization_summary(
     initialization_id: String,
 ) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
     state.list_project_initialization_summary(&initialization_id)
+}
+
+#[tauri::command]
+pub fn list_project_initialization_knowledge_units(
+    state: State<'_, ProjectStore>,
+    initialization_id: String,
+) -> AppResult<Vec<KnowledgeUnitInfo>> {
+    state.list_project_initialization_knowledge_units(&initialization_id)
 }
 
 #[tauri::command]
