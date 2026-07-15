@@ -42,3 +42,4 @@
 - Do not send provider credentials through the frontend or persist them in SQLite.
 - Keychain credential UX and runtime-agent model selection are not implemented in this slice.
 - Revalidate model ids against current provider docs when catalog version changes.
+- Synthesis profile availability is supplied by `SynthesisProviderRegistry`, not hardcoded as provider-specific UI or catalog branching.

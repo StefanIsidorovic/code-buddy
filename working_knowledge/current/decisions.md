@@ -1,97 +1,21 @@
 # Decisions
 
 ## Confirmed
-- Knowledge Unit publication: approved Summary lines become deterministic UUIDv5 units in a separate generated schema; legacy manual Knowledge Cards remain unchanged until a later migration decision.
-- Knowledge Unit provenance: preserve exact validated source keys, but leave repository/path scope unset when current evidence labels do not identify one persisted evidence row unambiguously.
-- Task-context selector boundary: select, rank, order, include, exclude, and budget immutable Knowledge Units; do not rewrite unit content or provenance during selection.
-- Task-context selector rollout: start deterministically with mandatory-rule precedence, repository/path relevance, strict budget, and selection reasons; evaluate embeddings only after this baseline is measurable.
-- Repository selection is secondary global context beneath Workspace; keep the active repository visible in the sidebar and move repository management into a modal.
-- Workspace selection is a global application context and belongs in the sidebar; project creation/deletion/refresh are infrequent management actions and belong in a modal.
-- The sidebar picker must always show the active project name and path so hiding the full project list does not hide current context.
-- The redesign uses an editorial engineering-operations-console direction: deep olive command rail, warm parchment workspace surfaces, moss primary actions, amber progress, and terracotta destructive/error accents.
-- The redesign remains presentation-layer focused: preserve the single React shell, Tauri command boundary, state/data flow, and existing accessible names.
-- No new UI, icon, font, or routing dependency is needed; system fonts, CSS tokens, and small semantic JSX hooks are sufficient.
-- Reset direction: remove implemented feature code and keep only a buildable technology skeleton.
-- Stack baseline: keep Tauri v2, Rust, React, TypeScript, and Vite as the active scaffold.
-- Documentation deliverable: create Linear-ready tasks in the repository so they can be copied into Linear.
-- Scope control: do not implement PTY, adapters, persistence, keychain, AGENTS.md embedding, or session UI in this reset pass.
-- Commit ownership: user will review and commit the local changes.
-- AIA-002 implementation: use portable-pty and a fake echo CLI before real agent adapters.
-- AIA-002 streaming validation: expose a bounded backend output buffer that tests and later IPC can drain.
-- AIA-002 platform scope: validate fake CLI on Linux now; harden Windows behavior in a later cross-platform pass.
-- Codex smoke test: add a temporary start_codex_session path using codex --no-alt-screen --cd <cwd>, while keeping the full adapter abstraction deferred.
-- PTY rendering: introduce xterm.js early for the smoke-test panel because real Codex output is ANSI/TUI and is not readable in a raw pre block.
-- PTY panel scrolling: keep the desktop test page fixed to the viewport and let long output scroll only inside xterm.
-- PTY input: route keyboard data through xterm onData directly into the backend PTY; a separate HTML input form cannot support Codex TUI interactions reliably.
-- Mind map usage: maintain an active mind map for cross-cutting PTY runtime, frontend terminal, and agent launch flow knowledge.
-- AIA-003 adapter boundary: add AgentAdapter and AgentRegistry before full real-agent adapters; keep unvalidated Claude/Codex/Kimi capabilities as Unknown where appropriate.
-- Codex smoke integration: route the temporary Codex command construction through CodexAdapter, but defer full Codex adapter behavior to AIA-006.
-- AIA-004 doctor: use backend-owned detection/version reports and keep frontend as a display/blocking layer.
-- AIA-004 version checks: use `<binary> --version` with a timeout and convert failures into error states rather than panics.
-- Local progress: maintain LOCAL_PROGRESS.md as a git-ignored human-readable project diary.
-- ACP direction: add Agent Client Protocol as a structured transport spike beside PTY; keep PTY as the universal fallback for terminal-only agents.
-- AIA-017 ACP implementation: keep ACP in a separate AcpSessionManager instead of mixing JSON-RPC sessions into the PTY SessionManager.
-- AIA-017 fixture scope: use a fake ACP stdio subprocess first; built-in real adapters keep ACP support Unknown until validated.
-- Knowledge hygiene: whenever a new concept, technology, runtime path, workflow, or architectural rule is introduced, update all relevant docs, Linear task drafts, working_knowledge files, mind map files, and LOCAL_PROGRESS.md in the same work step.
-- Approach selection: when a task can be solved in multiple ways, compare the stable/default path with newer relevant approaches and propose the newer option when it offers real product or architecture value without unnecessary risk.
-- AIA-018 ACP registry discovery: use a curated candidate list from the official ACP registry before real launches; report ready/installable/missing states without downloading packages or starting agents.
-- AIA-019 ACP launch boundary: starting a registry-backed ACP candidate must happen only through an explicit user action; discovery and selection remain side-effect-free.
-- AIA-020 generic ACP launch: keep `Start Selected ACP` as the single registry-backed ACP launch action instead of adding per-agent direct buttons; this keeps the same flow usable for Codex, Claude, Kimi, Gemini, and future candidates.
-- AIA-021 Codex ACP runtime: harden the validated Codex ACP path before UI polish by using longer prompt waits, short control waits, child-exit-aware response waiting, and duplicate prompt rejection.
-- AIA-022 workspace persistence: use a small Rust-owned SQLite ProjectStore for saved project folders before building final session UI or transcript history.
-- AIA-022 launch cwd: PTY and ACP sessions should run in the selected project directory when a workspace is selected, and should still work without a selected workspace.
-- AIA-023 runtime UI: keep ACP as the default structured runtime mode in the temporary panel, with PTY available through an explicit mode switch.
-- AIA-023 output UI: show only the active runtime output, PTY stream for Terminal PTY and ACP events for Structured ACP.
-- AIA-023 ACP display: coalesce adjacent Agent/Plan events in the frontend display only, so backend event data stays unchanged while the UI reads like normal text.
-- AIA-024 transcript persistence: store ACP transcript sessions and ordered events in the existing Rust-owned SQLite ProjectStore before building the final chat/session UI.
-- AIA-024 runtime resilience: transcript write failures should surface in the UI but should not block an active ACP session from starting or responding.
-- AIA-025 transcript replay: open saved ACP transcripts through the existing `list_transcript_events` command and render them in the current output panel as a minimal replay view.
-- AIA-025 live/saved boundary: starting or sending a live ACP prompt returns the output panel to live ACP events so users do not accidentally type into a hidden live session.
-- AIA-026 transcript selection: treat opened transcript as the single selected history row, clear old replay events on switch, and ignore stale transcript-open responses.
-- AIA-026 sidebar layout: use the left sidebar for runtime mode, collapsible agent selection, Session History, and compact status instead of a large `Runtime Test` hero block.
-- AIA-027 saved transcript display: treat saved ACP history as a chat transcript by preserving user prompts as questions and coalescing adjacent agent/plan chunks into readable answers.
-- AIA-028 ACP drain stability: keep the current transcript in a ref and restart drain polling when transcript id changes, so background ACP chunks are recorded to the active transcript instead of being lost to a stale closure.
-- AIA-028 ACP output scroll: auto-scroll the ACP event list to the newest event because live agent responses can exceed the visible output area.
-- AIA-029 runtime UI polish: improve the temporary runtime workspace through CSS-only pastel design tokens, softer surfaces, clearer control states, and more readable event/history cards without adding dependencies or changing runtime behavior.
-- AIA-030 UI palette: use the user-provided earth-tone palette as the current product visual direction, with CSS-only tokens based on ebony #4F5743, reseda #6B7460, bone #DCD1C3, beaver #B29784, and taupe #483C32; do not add font dependencies yet.
-- AIA-031 Knowledge Cards: start with manual card creation and explicit attach controls, not automatic promotion, so cross-session knowledge transfer stays understandable and avoids hidden context drift.
-- AIA-031 prompt injection: inject attached cards into the ACP prompt sent to the agent, but persist the user's original prompt in transcript history so saved chat remains readable.
-- AIA-032 ACP waiting UX: show a live-only waiting indicator while send_acp_prompt is in flight, because real agents can take time before the first response event appears.
-- AIA-033 Session History management: add simple local filtering, explicit selected-session rename, and a three-visible-row sidebar list before a larger session library UI, because the current sidebar history is already useful but becomes unmanageable with many default-named sessions.
-- AIA-034 runtime UI: make ACP the primary visible runtime and keep Terminal PTY only as a collapsed fallback, because ACP has been manually validated and PTY should no longer compete for first-screen attention.
-- 2026-07-13 continuation: validate and review the existing local AIA-034 diff before starting a new product item.
-- AIA-035 workspace model: treat Project as the user-facing container and add child Repository folders for agent launch cwd; keep `projects.path` as the legacy/default repository path for compatibility.
-- AIA-036 app shell: use a full-width desktop shell with durable left sidebar and move runtime metadata to the sidebar footer, matching the user's reference direction while keeping current sidebar sections.
-- AIA-037 output visibility: keep Workspace/ACP controls in a bounded scrolling top panel so Session Output remains visible in the full-width shell.
-- AIA-037 ACP send UX: clear prompt waiting state when `send_acp_prompt` returns `stopReason`; event drain/transcript recording can continue afterward without keeping Send disabled.
-- AIA-038 Knowledge Cards UX: keep existing cards in the sidebar dropdown and move new-card creation behind a compact `+` popup to reduce sidebar clutter.
-- AIA-039 Project Initialize scope: initialization belongs to the project container, not an individual repository, because the project may include multiple repositories that together define the working context.
-- AIA-039 repository participation: the user chooses which repositories participate in each initialization run; defaulting to all repositories is only a convenience and must remain editable.
-- AIA-039 phase split: persist the initialize run and selected repositories first, then implement Facts, Markdown analysis, Interview guardrails, and Knowledge summary review as separate follow-up tasks.
-- AIA-040 facts scope: collect deterministic local repository facts before any agent summarization; facts are tied to the initialization run and selected repositories.
-- AIA-040 fact sources: use `git` CLI metadata for git repositories and store source labels with each fact so later summaries can stay auditable.
-- AIA-041 markdown analysis scope: extract deterministic findings from selected-repository markdown files and keep them as draft findings with file/heading source attribution.
-- AIA-041 scan policy: use git-tracked markdown files for git repositories; use bounded filesystem fallback only for non-git repositories.
-- AIA-044 project delete UX: keep backend deletion semantics unchanged but require a frontend confirmation dialog before calling `delete_project`.
-- AIA-045 folder picker: use Tauri's official dialog plugin for native project folder selection while preserving manual path entry.
-- AIA-045 active cwd display: expose resolved PTY/ACP session cwd in runtime info because a running process keeps its launch cwd even if the saved project record is later deleted.
-- AIA-046 project delete runtime safety: stop all running ACP sessions before deleting a project, because ACP session metadata currently has cwd but not a durable project_id link.
-- AIA-047 Workspace notifications: route transient Workspace success/error messages through bottom-right auto-dismiss toasts while keeping modal-local errors inline in their modals.
-- AIA-048 model taxonomy: keep providers (`openai`, `anthropic`, `moonshot`) separate from runtime surfaces (API, CLI, ACP, Codex, Claude Code, Kimi).
-- AIA-048 tier taxonomy: use app-level `fast`, `mid`, `high`, and `max`; each profile owns provider-specific model and reasoning/thinking parameters.
-- AIA-048 provenance: persist the requested synthesis profile but keep `generation_engine=deterministic_v1` until an external provider actually generates the project knowledge.
-- AIA-048 model verification: seed only model ids confirmed by current provider documentation; use `kimi-k2.6` and exclude unverified `kimi-k2.7-code*` ids.
-- AIA-049 synthesis route: use the OpenAI Responses API with strict `text.format` JSON Schema and `store=false`; deterministic fallback is forbidden because it would misrepresent the selected generator.
-- AIA-049 credentials: read `OPENAI_API_KEY` only in the Rust process for the first executable provider slice; do not send credentials through React or persist them in SQLite.
-- AIA-049 consistency: prepare evidence before network I/O, release the SQLite lock, then compare current evidence inside the persistence transaction so stale model output cannot overwrite newer initialization data.
-- AIA-050 provider boundary: route Summary through a dedicated `SynthesisProvider` registry while keeping runtime CLI/ACP `AgentAdapter` separate; both may share catalog profiles but not execution contracts.
-- AIA-051 Summary validation: require each generated section to cite an exact supplied evidence source or explicitly state missing evidence/needed confirmation before persistence; claim-level atomization remains the next retrieval foundation.
+- Product identity: display AIadne in the UI and Tauri window while retaining internal `code-buddy` names and `com.codebuddy.app` until a deliberate migration.
+- Runtime boundary: use structured ACP as the primary agent interaction and keep PTY as the compatibility fallback.
+- Workspace boundary: projects own repositories; the selected repository supplies runtime cwd.
+- Persistence: SQLite owns projects, repositories, initialization artefacts, transcripts, Knowledge Cards, summaries, and generated Knowledge Units.
+- Knowledge boundary: manual Knowledge Cards remain user-authored prompt attachments; approved summaries publish separate immutable, source-backed Knowledge Units.
+- Validation: unknown or generic synthesis source labels are rejected; one bounded provider correction may retry without remapping citations.
+- Selection: use deterministic mandatory/repository/path/lexical ranking, stable ordering, explicit reasons, and a configurable 6000-character default budget before considering embeddings.
+- Prompt boundary: selector output remains preview-only until the user can explicitly approve the exact generated context sent to ACP.
+- UI identity: use the local AIadne thread/maze mark, Geist Sans, Ariadne Atelier semantic colors, a light parchment workspace, and fixed dark command rail/terminal regions.
+- Accessibility: preserve semantic text identity, focus-visible states, explicit disabled colors, reduced-motion behavior, accessible state notices, and named icon controls.
+- Documentation: LOCAL_PROGRESS.md becomes tracked because the user explicitly requested committing the full reconciled project record.
 
 ## Deferred
-- Keychain/provider account UI, validator/source-reference enforcement, Claude/Kimi synthesis clients, background/cancellation support, usage/cost display, and runtime model pass-through remain separate follow-up slices.
-- App/package rename from code-buddy to AIadne: defer until explicitly requested.
-- Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
-- Adapter-specific ACP validation: defer claims that Codex/Claude/Kimi/Gemini are fully supported until each candidate passes manual initialize/session/prompt testing.
-- PTY scrollback persistence and rich chat replay: defer until after the minimal saved transcript replay is manually validated.
-- Automatic knowledge suggestions, embeddings, conflict detection, card archive/delete/detach UI, sensitive-content redaction, richer session library organization, and final runtime navigation: defer until the manual Knowledge Cards and basic Session History controls are validated.
-- Project Initialize interview guardrails and summary approval behavior: defer to AIA-042 and AIA-043 after markdown analysis is validated.
+- Automatic or session-sticky Knowledge Unit prompt injection: pending explicit UX and transcript-provenance design.
+- Continue-from-transcript context strategy: pending a bounded raw-turn versus summary decision.
+- Embeddings and semantic retrieval: pending measurement of deterministic selector quality.
+- Internal package, crate, application identifier, and storage migration: pending a dedicated compatibility plan.
+- Platform-specific AIadne icon pack, packaging, and release automation: pending post-MVP acceptance testing.

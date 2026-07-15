@@ -29,6 +29,7 @@
 
 ## Current Integration
 - The model catalog is a separate backend boundary; provider ids do not reuse Codex/Claude/Kimi adapter ids.
+- Summary `SynthesisProvider` and runtime `AgentAdapter` are separate extension points because API synthesis and CLI/ACP sessions have different lifecycle and transport contracts.
 - Catalog CLI/ACP capability states stay Unknown until adapter-specific model mapping is validated.
 - start_codex_session is still a temporary smoke-test command.
 - The Codex launch path now uses CodexAdapter for detection and command construction.

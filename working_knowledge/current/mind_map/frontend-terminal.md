@@ -7,9 +7,14 @@
 - package.json
 
 ## Current Shape
+- Repository context is always visible under Workspace in the sidebar; repository management lives in a modal and the removed permanent lane gives Initialization/Runtime the remaining desktop width.
+- Workspace project context is now always visible in a sidebar picker; project list/create/delete/refresh live in its modal and the main left lane is dedicated to repositories.
+- The temporary panel now presents as an editorial engineering operations console while preserving its existing single-shell behavior and command boundary.
+- A deep-olive command rail anchors warm parchment Workspace, Project Initialization, and Runtime/Output surfaces; primary actions use moss, progress uses amber, and destructive/error states use terracotta.
+- Responsive behavior uses four work zones on wide displays, a sticky command rail with stacked work areas on compact desktops, a two-column sidebar grid on tablets, and a single flowing layout on mobile.
 - Project Initialization Summary now loads the backend model catalog and renders compact fast/mid/high/max plus profile selection controls with capability badges.
 - Persisted Summary model selection is restored on reload; the preview/modal distinguish requested model provenance from the deterministic generator.
-- App.tsx is a temporary runtime smoke-test panel, not the final product UI.
+- App.tsx is the current single-screen product coordinator and remains a decomposition risk as workflows grow.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.
@@ -100,6 +105,8 @@
 - While send_acp_prompt is in flight, the live ACP output shows a waiting card and the controls show a waiting status.
 
 ## Layout Rules
+- Sidebar runtime metadata remains a quiet two-column grid across desktop, tablet, and mobile widths.
+- Sidebar accordion summaries reserve a fixed rightmost column for the plus/minus toggle; status text truncates before it rather than wrapping the toggle below.
 - html, body, #root, and app-shell are viewport-bound.
 - Page-level scrolling is disabled for the PTY test page.
 - App shell fills the available window width; main controls/output expand beside the fixed-width sidebar.
@@ -122,12 +129,14 @@
 - Sidebar accordion default state is intentionally compact: tests should open sections before asserting body contents.
 
 ## Tests
+- A product-shell regression test asserts the AIadne workspace identity and primary surface headings; the frontend suite contains 33 tests.
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
 - Tests also cover Workspace rendering, project creation/selection, native folder picker population, Project delete confirmation and ACP stop-before-delete behavior, Workspace toast auto-dismiss/manual dismiss, Project Initialize repository selection/project-scoped status/Facts collection/Markdown analysis/Interview guardrail save/Summary generate-approve, Facts/Markdown detail modals, default-collapsed sidebar sections, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card popup creation and prompt injection, ACP waiting state display, and ACP waiting-state release after a prompt result.
 
 ## Watchouts
+- CSS includes a final product-shell refinement layer after the historical rules; future visual work should consolidate or modify that final layer rather than accidentally overriding it earlier in the file.
 - Output polling interval is currently 400 ms and may feel slow.
 - Every keypress can become a separate Tauri invoke; batching may be needed.
 - Vite build warns about xterm chunk size over 500 kB; build still succeeds.
@@ -143,4 +152,10 @@
 - Stop ACP must remain available while a prompt is in flight because Codex tasks can run longer than setup commands.
 - Repository path entry is manual for now; native picking currently covers Add Project only.
 - Project Initialize currently supports preflight, local Facts, Markdown analysis, user-authored Interview guardrails, and deterministic Summary draft/approval review. Automatic approved-profile prompt injection is intentionally deferred.
-- This is a test panel; final session UI should be redesigned after adapter and persistence tasks.
+- Runtime/output remains a normalized MVP surface; richer chat/tool-call presentation and component decomposition are deferred.
+## Brand Identity
+- Tauri's visible product and primary window title are AIadne; the internal application identifier remains `com.codebuddy.app` to preserve continuity.
+- `src/assets/aiadne-mark.svg` is the local AIadne thread/maze/agent-node mark rendered decoratively beside the accessible sidebar heading.
+- Vite inlines the small SVG; desktop and mobile header sizing is owned by the existing `.app-mark` cascade.
+- Ariadne Atelier is the active semantic color system: cypress for primary/navigation, burnished copper for brand/selection/focus/progress/links, parchment neutrals for workspace hierarchy, and laurel/gold/kiln for success/warning/error.
+- The frontend has no full dark mode; the dark cypress command rail and terminal are intentional fixed product regions within the light workspace.

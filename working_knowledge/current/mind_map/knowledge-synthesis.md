@@ -20,6 +20,8 @@
 - `ProjectStore::persist_project_initialization_summary` compares current evidence with the prepared context and atomically replaces the Summary only when evidence is unchanged.
 - Summary approval atomically derives line-sized `knowledge_units` plus ordered `knowledge_unit_sources`; UUIDv5 identities are stable for repeated approval of the same Summary.
 - Uncited lines block approval and publish nothing; explicit uncertainty becomes `needs_confirmation` with zero confidence.
+- ATX Markdown headings inside structured Summary fields are ignored as presentation structure; uncited bullets/prose still block the transaction. Provider instructions also forbid redundant field headings.
+- OpenAI requests include the sorted exact source-label allowlist. A source-invalid first draft triggers one correction request with bounded JSON diagnostic feedback; a second failure remains explicit and nothing invalid is persisted.
 - Summary Review loads initialization-scoped units and exposes their type, topic, status, confidence, and exact source keys before any prompt-selection integration exists.
 
 ## Next Selector Boundary
@@ -29,6 +31,7 @@
 - Budget: enforce a strict character/token budget with deterministic tie-breaking and explicit per-unit inclusion/exclusion reasons.
 - Preview: show exactly what will be sent to the agent, why each unit was selected, and what was omitted by relevance or budget.
 - Embeddings remain deferred until the deterministic selector can be tested and measured as a baseline.
+- Implemented baseline: Rust selector returns stable included/excluded entries, reason codes, scores, and exact rendered-character budget; frontend `Preview Context` exposes this output without changing ACP prompts.
 
 ## Security And Provenance
 - Repository evidence is untrusted prompt data; system instructions tell the model not to follow embedded directives.

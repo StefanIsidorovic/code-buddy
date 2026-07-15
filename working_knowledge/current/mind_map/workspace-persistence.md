@@ -62,6 +62,8 @@
 - Tauri manages ProjectStore as application state and exposes project and transcript commands.
 
 ## Frontend Shape
+- Repository selection/creation/deletion is presented through a sidebar Repository picker and modal; storage commands and project-scoped repository loading are unchanged.
+- Project selection and management are presented through the global sidebar Workspace picker and modal; persistence commands and selected-project data flow are unchanged.
 - App.tsx loads projects on mount through list_projects.
 - App.tsx loads repositories for the selected project through list_project_repositories.
 - App.tsx loads transcript sessions for the selected project.
@@ -143,8 +145,8 @@
 - No session tags, archive/delete, grouping, or ranked search yet.
 - No default agent/model/instructions per project yet.
 - Transcripts and Knowledge Cards are still project-scoped, not repository-scoped.
-- Project Initialize has preflight/selection, local Facts, markdown findings, Interview guardrails, and deterministic Summary approval with requested-model provenance. External model synthesis is not implemented yet.
+- Project Initialize has preflight/selection, local Facts, markdown findings, Interview guardrails, provider-routed Summary synthesis/approval, and requested-model provenance; OpenAI Responses is the first implemented external synthesis provider.
 - No automatic knowledge extraction, search, embeddings, conflict resolution, archive/delete, detach UI, or sensitive-content redaction yet.
 - SQLite is local-only and not encrypted; do not store secrets here.
-- The temporary runtime UI still needs final product redesign.
+- The runtime UI is an MVP surface; richer chat/tool-call presentation and frontend decomposition remain deferred.
 - Existing transcripts that were already saved with missing chunks cannot be reconstructed if those chunks were never persisted.
