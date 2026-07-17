@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Code Buddy",
+  "productName": "AIadne",
   "version": "0.1.0",
   "identifier": "com.codebuddy.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Code Buddy",
+        "title": "AIadne",
         "width": 1280,
         "height": 820,
         "minWidth": 960,

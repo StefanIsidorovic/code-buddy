@@ -1,4 +1,7 @@
-use crate::errors::{AppError, AppResult};
+use crate::{
+    adapters::{AgentAdapter, AgentCommandRequest, CodexAdapter, SystemBinaryResolver},
+    errors::{AppError, AppResult},
+};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -60,6 +63,7 @@ pub struct SessionInfo {
     pub id: SessionId,
     pub state: SessionState,
     pub pid: Option<u32>,
+    pub cwd: PathBuf,
     pub cols: u16,
     pub rows: u16,
     pub exit_code: Option<u32>,
@@ -81,10 +85,7 @@ impl SessionManager {
         Ok(info)
     }
 
-    pub fn start_codex_session(
-        &self,
-        request: StartCodexSessionRequest,
-    ) -> AppResult<SessionInfo> {
+    pub fn start_codex_session(&self, request: StartCodexSessionRequest) -> AppResult<SessionInfo> {
         let cwd = resolve_cwd(request.cwd)?;
         let (cols, rows) = resolve_size(request.cols, request.rows)?;
         let session = Arc::new(PtySession::spawn_codex(cwd, cols, rows)?);
@@ -147,6 +148,7 @@ impl Drop for SessionManager {
 
 struct PtySession {
     id: SessionId,
+    cwd: PathBuf,
     master: Mutex<Box<dyn MasterPty + Send>>,
     writer: Mutex<Box<dyn Write + Send>>,
     child: Mutex<Box<dyn Child + Send>>,
@@ -171,14 +173,19 @@ impl RuntimeState {
 
 impl PtySession {
     fn spawn_fake(cwd: PathBuf, cols: u16, rows: u16) -> AppResult<Self> {
-        Self::spawn_command(fake_command(&cwd), cols, rows)
+        Self::spawn_command(fake_command(&cwd), cwd, cols, rows)
     }
 
     fn spawn_codex(cwd: PathBuf, cols: u16, rows: u16) -> AppResult<Self> {
-        Self::spawn_command(codex_command(&cwd)?, cols, rows)
+        Self::spawn_command(codex_command(&cwd)?, cwd, cols, rows)
     }
 
-    fn spawn_command(command: CommandBuilder, cols: u16, rows: u16) -> AppResult<Self> {
+    fn spawn_command(
+        command: CommandBuilder,
+        cwd: PathBuf,
+        cols: u16,
+        rows: u16,
+    ) -> AppResult<Self> {
         let id = Uuid::new_v4().to_string();
         let pty_system = native_pty_system();
         let pair = pty_system
@@ -208,6 +215,7 @@ impl PtySession {
 
         Ok(Self {
             id,
+            cwd,
             master: Mutex::new(pair.master),
             writer: Mutex::new(writer),
             child: Mutex::new(child),
@@ -271,6 +279,7 @@ impl PtySession {
             id: self.id.clone(),
             state: runtime.state,
             pid,
+            cwd: self.cwd.clone(),
             cols: size.cols,
             rows: size.rows,
             exit_code: runtime.exit_code,
@@ -439,14 +448,14 @@ fn resolve_size(cols: Option<u16>, rows: Option<u16>) -> AppResult<(u16, u16)> {
 }
 
 fn codex_command(cwd: &std::path::Path) -> AppResult<CommandBuilder> {
-    let codex = which::which("codex")
-        .map_err(|_| AppError::InvalidInput("codex CLI was not found on PATH".to_string()))?;
-    let mut command = CommandBuilder::new(codex);
-    command.arg("--no-alt-screen");
-    command.arg("--cd");
-    command.arg(cwd.display().to_string());
-    command.cwd(cwd);
-    Ok(command)
+    let adapter = CodexAdapter;
+    let detection = adapter.detect(&SystemBinaryResolver);
+    let executable_path = detection
+        .path
+        .ok_or_else(|| AppError::InvalidInput("codex CLI was not found on PATH".to_string()))?;
+    let request = AgentCommandRequest::new(executable_path, cwd.to_path_buf());
+
+    Ok(adapter.build_command(&request)?.into_command_builder())
 }
 
 #[cfg(unix)]

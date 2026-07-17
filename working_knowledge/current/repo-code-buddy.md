@@ -1,58 +1,46 @@
 # Repository Notes
 
 ## Identity
-- name: code-buddy
+- name: code-buddy (visible product: AIadne)
 - path: /home/katarina/projects/AIadne
 - branch: new/start
 
 ## Architecture
-- Current scaffold is a Tauri v2 desktop app with a Rust backend and React/TypeScript/Vite frontend.
-- Frontend renders a static reset skeleton showing the planned stack and build milestones.
-- Frontend now renders a minimal PTY test panel for AIA-002 manual validation.
-- Frontend has Start Fake and Start Codex controls; Start Codex is a temporary smoke-test path.
-- PTY output is rendered through xterm.js with FitAddon instead of a raw pre block.
-- PTY output scroll is constrained to the xterm viewport; the desktop page itself is viewport-bound.
-- PTY input now uses xterm onData to write raw keyboard data into write_session_input; the old line-send HTML input was removed.
-- Session start and manual Resize use the fitted xterm cols/rows so Codex draws to the visible terminal size.
-- Backend exposes the Tauri run entry, app_status, AIA-002 PTY commands, and the temporary Codex command.
-- Feature modules for adapters, SQLite storage, keyring secrets, AGENTS.md resolution, domain types, and app state were removed locally.
-- AIA-002 adds backend-only PTY session orchestration with a fake CLI; real agent adapters remain out of scope.
-- SessionManager stores PTY sessions, bounded output buffers, child handles, and resize/write/stop operations.
+- Tauri 2 desktop application with a React 19/TypeScript/Vite frontend and Rust backend.
+- `src/App.tsx` coordinates the single-screen workspace, initialization, runtime, history, and dialog workflows; `src/App.css` owns the visual system.
+- Rust modules separate PTY sessions, ACP transport, agent adapters, SQLite storage, model catalog, synthesis providers, Knowledge Unit selection, commands, and errors.
+- SQLite persists projects, repositories, initialization artefacts, summaries, Knowledge Units, ACP transcripts, and manual Knowledge Cards.
+- Structured ACP is the primary runtime surface; xterm-backed PTY remains the compatibility fallback.
 
 ## Entry Points
-- Frontend entry: src/main.tsx renders src/App.tsx.
-- Backend entry: src-tauri/src/main.rs calls code_buddy_lib::run().
-- Baseline backend command: app_status.
-- AIA-002 backend commands: start_fake_session, write_session_input, resize_session, stop_session, drain_session_output, list_sessions.
-- Temporary Codex backend command: start_codex_session.
+- `src/main.tsx`: React bootstrap.
+- `src/App.tsx`: application UI and frontend orchestration.
+- `src-tauri/src/main.rs`: desktop executable.
+- `src-tauri/src/lib.rs`: Tauri builder, state, plugins, and command registration.
+- `src-tauri/src/commands.rs`: frontend/backend command boundary.
 
 ## Tests
-- Frontend: Vitest + Testing Library via src/App.test.tsx.
-- Frontend test mocks @tauri-apps/api/core and checks PTY panel controls.
-- Frontend test mocks @xterm/xterm and @xterm/addon-fit.
-- Backend: cargo test covers the minimal app_status command.
-- AIA-002 backend tests cover fake session start/output, input, resize, stop, force stop, cleanup, missing session errors, and 8-session concurrency.
+- `src/App.test.tsx` contains 33 mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, PTY, and responsive product-shell contracts.
+- Rust has 80 unit/integration tests across PTY/ACP lifecycle, adapters, storage, synthesis, model catalog, and deterministic context selection.
+- Current validation commands: `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`.
 
 ## Current Findings
-- AGENTS.md requires research, plan, tests, adversarial review, one commit per plan item, and provenance notes.
-- working_knowledge was stale and has been regenerated for the reset task.
-- package-lock.json has a pre-existing metadata-only change unrelated to the reset.
-- HEAD 74ca850 has no provenance note under refs/notes/provenance.
-- docs/linear-tasks.md contains 16 task drafts mapped to the restart build plan.
-- README documents the reset skeleton and validation commands.
-- portable-pty 0.9.0 docs confirm native_pty_system/openpty, spawn_command, reader/writer handles, resize, try_wait, and kill APIs.
-- portable-pty 0.9.0 was added to Cargo.toml and Cargo.lock.
-- Validation passed: cargo test, cargo clippy -- -D warnings, npm run typecheck, npm run test -- --run, npm run build.
-- Manual PTY UI validation should use npm run tauri dev; browser-only Vite mode cannot call Tauri backend commands.
-- Local Codex CLI check: codex-cli 0.142.5; help supports interactive mode, --cd, and --no-alt-screen.
-- npm build succeeds with a non-fatal >500 kB chunk warning after adding xterm.
-- Frontend validation now includes a test that xterm keyboard data is forwarded to write_session_input for the active session.
+- Workspace projects own repositories; the selected repository path is passed as PTY/ACP cwd.
+- Project Initialize persists selected scope, Facts, Markdown findings, Interview guardrails, provider-routed Summary drafts, approval status, and requested-model provenance.
+- OpenAI Responses is the implemented synthesis provider; exact source allowlists and one bounded correction attempt protect citation integrity.
+- Summary approval atomically publishes deterministic, source-backed Knowledge Units; valid ATX headings are treated as structure, while uncited claims still block approval.
+- `select_project_task_context` deterministically prioritizes mandatory rules, repository/path scope, and lexical matches under an exact character budget; the frontend exposes an auditable preview.
+- Generated selector context is not yet sent to ACP. `Send ACP` continues to inject only explicitly attached manual Knowledge Cards and persists the original user prompt.
+- ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
+- AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
+- The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
+- `src/App.tsx` is over 4,500 lines and is the primary maintainability risk before several more stateful frontend workflows are added.
 
 ## Constraints
-- Preserve user changes and do not revert package-lock.json.
-- Keep reset narrow: no new product functionality in this pass.
-- Use apply_patch for manual file edits.
-- User will commit after reviewing local changes.
-- Linux-first fake CLI is implemented with /bin/sh; Windows placeholder needs later hardening.
-- Start Codex depends on codex being available on PATH in the terminal that launches npm run tauri dev.
-- xterm dependencies are now in package.json/package-lock.json.
+- Preserve source markers and generated Knowledge Unit content/provenance exactly through selection and future prompt integration.
+- Keep manual Knowledge Cards and generated Knowledge Units separate until an explicit migration decision.
+- Do not hold the SQLite lock during provider network calls; reject stale synthesis results when evidence changes.
+- Keep credentials in the Rust process and out of React/SQLite.
+- Real CLI/ACP behavior depends on locally installed tools and PATH; browser-only Vite mode cannot validate Tauri commands.
+- The Vite bundle currently has a known non-fatal >500 kB chunk warning.
+- Linux-first fake CLI/runtime helpers still need platform hardening before cross-platform release.

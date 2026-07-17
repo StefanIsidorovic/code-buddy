@@ -4,15 +4,13 @@
 - None.
 
 ## Non-Blocking
-- Should the package/crate/app identity be renamed from code-buddy to AIadne?
-- Should planned frontend dependencies such as xterm.js, Zustand, and Tailwind be installed immediately or added when their milestones begin?
-- Should the missing provenance note for pre-existing commit 74ca850 be repaired with a retrospective note?
-- Should AIA-002 fake CLI support Windows immediately, or is Linux-first enough until packaging?
+- Should generated Knowledge Unit context be opt-in per prompt, sticky per ACP session, or both?
+- Should continue-from-transcript use selected raw turns, a generated summary, or a bounded combination?
+- Should manual Knowledge Cards later migrate into the Knowledge Unit schema or remain a separate user-authored layer?
+- When should the internal package/crate name and `com.codebuddy.app` identifier migrate from Code Buddy to AIadne?
 
 ## Resolved
-- Current task: reset to a clean implementation skeleton and produce Linear-ready tasks.
-- Repository target: single repository at /home/katarina/projects/AIadne.
-- Pre-existing dirty file: package-lock.json; avoid touching it unless necessary.
-- Commit ownership for this task: user will review and commit local changes.
-- AIA-002 can proceed without product-level clarification; use test harness output buffering for streaming validation.
-- AIA-002 dependency: portable-pty 0.9.0 added and fetched.
+- Should embeddings precede deterministic selection?: No; the explainable baseline is implemented first.
+- Should generated units immediately replace manual prompt injection?: No; preview and explicit user control come first.
+- Should repository/path scope be inferred from prose?: No; only persisted evidence relationships may establish scope.
+- Should the selector rewrite Knowledge Unit content?: No; it selects and orders immutable units while preserving provenance.

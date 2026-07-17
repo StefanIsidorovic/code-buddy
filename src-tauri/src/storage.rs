@@ -1,0 +1,4898 @@
+use crate::errors::{AppError, AppResult};
+use crate::models::{
+    model_profile, ModelParameterInfo, ModelProfileInfo, MODEL_CATALOG_SCHEMA_VERSION,
+    PROJECT_KNOWLEDGE_SCHEMA_VERSION,
+};
+use crate::synthesis::ProjectInitializationKnowledgeDraft;
+use rusqlite::{params, types::Type, Connection};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{Mutex, MutexGuard},
+    time::{SystemTime, UNIX_EPOCH},
+};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProjectRequest {
+    pub name: String,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInfo {
+    pub id: String,
+    pub name: String,
+    pub path: PathBuf,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProjectRepositoryRequest {
+    pub project_id: String,
+    pub name: String,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectRepositoryInfo {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub path: PathBuf,
+    pub is_default: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProjectInitializationRequest {
+    pub project_id: String,
+    pub repository_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationInfo {
+    pub id: String,
+    pub project_id: String,
+    pub status: String,
+    pub repository_count: i64,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationFactInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub repository_id: String,
+    pub repository_name: String,
+    pub repository_path: PathBuf,
+    pub kind: String,
+    pub label: String,
+    pub value: String,
+    pub source: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationMarkdownFindingInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub repository_id: String,
+    pub repository_name: String,
+    pub repository_path: PathBuf,
+    pub file_path: String,
+    pub category: String,
+    pub title: String,
+    pub excerpt: String,
+    pub source: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveProjectInitializationGuardrailsRequest {
+    pub initialization_id: String,
+    pub guardrails: Vec<ProjectInitializationGuardrailInput>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationGuardrailInput {
+    pub repository_id: Option<String>,
+    pub kind: String,
+    pub path_pattern: Option<String>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationGuardrailInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub repository_id: Option<String>,
+    pub repository_name: Option<String>,
+    pub repository_path: Option<PathBuf>,
+    pub guardrail_index: i64,
+    pub scope: String,
+    pub kind: String,
+    pub path_pattern: Option<String>,
+    pub content: String,
+    pub source: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationSummaryInfo {
+    pub id: String,
+    pub initialization_id: String,
+    pub status: String,
+    pub project_purpose: String,
+    pub repository_map: String,
+    pub repository_roles: String,
+    pub build_test_matrix: String,
+    pub fragile_areas: String,
+    pub do_not_touch_rules: String,
+    pub agent_working_rules: String,
+    pub open_questions: String,
+    pub fact_count: i64,
+    pub markdown_finding_count: i64,
+    pub guardrail_count: i64,
+    pub requested_model_profile_id: Option<String>,
+    pub requested_model_provider_id: Option<String>,
+    pub requested_model_id: Option<String>,
+    pub requested_model_tier: Option<String>,
+    pub requested_model_parameters: Vec<ModelParameterInfo>,
+    pub model_catalog_schema_version: Option<i64>,
+    pub knowledge_schema_version: i64,
+    pub generation_engine: String,
+    pub created_at: i64,
+    pub approved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateProjectInitializationSummaryRequest {
+    pub initialization_id: String,
+    pub model_profile_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeUnitSourceInfo {
+    pub source_key: String,
+    pub repository_id: Option<String>,
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeUnitInfo {
+    pub id: String,
+    pub project_id: String,
+    pub initialization_id: String,
+    pub derived_from_summary_id: String,
+    pub kind: String,
+    pub topic: String,
+    pub content: String,
+    pub scope: String,
+    pub status: String,
+    pub confidence: i64,
+    pub schema_version: i64,
+    pub sources: Vec<KnowledgeUnitSourceInfo>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectInitializationSynthesisContext {
+    pub initialization_id: String,
+    pub repositories: Vec<ProjectRepositoryInfo>,
+    pub facts: Vec<ProjectInitializationFactInfo>,
+    pub findings: Vec<ProjectInitializationMarkdownFindingInfo>,
+    pub guardrails: Vec<ProjectInitializationGuardrailInfo>,
+    pub model_profile: ModelProfileInfo,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTranscriptSessionRequest {
+    pub project_id: Option<String>,
+    pub runtime: String,
+    pub source: String,
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptEventInput {
+    pub kind: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameTranscriptSessionRequest {
+    pub session_id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptSessionInfo {
+    pub id: String,
+    pub project_id: Option<String>,
+    pub runtime: String,
+    pub source: String,
+    pub title: String,
+    pub started_at: i64,
+    pub updated_at: i64,
+    pub event_count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptEventInfo {
+    pub id: String,
+    pub session_id: String,
+    pub sequence: i64,
+    pub kind: String,
+    pub content: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateKnowledgeItemRequest {
+    pub project_id: Option<String>,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+    pub scope: String,
+    pub source_transcript_session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeItemInfo {
+    pub id: String,
+    pub project_id: Option<String>,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+    pub scope: String,
+    pub source_transcript_session_id: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+pub struct ProjectStore {
+    connection: Mutex<Connection>,
+}
+
+impl ProjectStore {
+    pub fn open(path: impl AsRef<Path>) -> AppResult<Self> {
+        if let Some(parent) = path.as_ref().parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let connection = Connection::open(path).map_err(storage_error)?;
+        let store = Self {
+            connection: Mutex::new(connection),
+        };
+        store.migrate()?;
+        Ok(store)
+    }
+
+    #[cfg(test)]
+    fn in_memory() -> AppResult<Self> {
+        let store = Self {
+            connection: Mutex::new(Connection::open_in_memory().map_err(storage_error)?),
+        };
+        store.migrate()?;
+        Ok(store)
+    }
+
+    pub fn create_project(&self, request: CreateProjectRequest) -> AppResult<ProjectInfo> {
+        let name = request.name.trim();
+        if name.is_empty() {
+            return Err(AppError::InvalidInput(
+                "project name must not be empty".to_string(),
+            ));
+        }
+
+        let path = resolve_project_path(&request.path)?;
+        let now = unix_timestamp()?;
+        let project = ProjectInfo {
+            id: Uuid::new_v4().to_string(),
+            name: name.to_string(),
+            path,
+            created_at: now,
+            updated_at: now,
+        };
+        let path_text = project.path.to_string_lossy().to_string();
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        transaction.execute(
+            "INSERT INTO projects (id, name, path, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                &project.id,
+                &project.name,
+                path_text,
+                project.created_at,
+                project.updated_at
+            ],
+        )
+        .map_err(|err| {
+            if is_unique_constraint(&err) {
+                AppError::InvalidInput("project path already exists".to_string())
+            } else {
+                storage_error(err)
+            }
+        })?;
+        insert_project_repository(
+            &transaction,
+            ProjectRepositoryInfo {
+                id: Uuid::new_v4().to_string(),
+                project_id: project.id.clone(),
+                name: project.name.clone(),
+                path: project.path.clone(),
+                is_default: true,
+                created_at: now,
+                updated_at: now,
+            },
+        )?;
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(project)
+    }
+
+    pub fn list_projects(&self) -> AppResult<Vec<ProjectInfo>> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, name, path, created_at, updated_at FROM projects ORDER BY updated_at DESC, name ASC",
+            )
+            .map_err(storage_error)?;
+        let projects = statement
+            .query_map([], project_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(projects)
+    }
+
+    pub fn delete_project(&self, project_id: &str) -> AppResult<()> {
+        let deleted = self
+            .connection()?
+            .execute("DELETE FROM projects WHERE id = ?1", params![project_id])
+            .map_err(storage_error)?;
+        if deleted == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "project not found: {project_id}"
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn create_project_repository(
+        &self,
+        request: CreateProjectRepositoryRequest,
+    ) -> AppResult<ProjectRepositoryInfo> {
+        let project_id = request.project_id.trim();
+        if project_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "repository project id must not be empty".to_string(),
+            ));
+        }
+        self.require_project(project_id)?;
+
+        let name = request.name.trim();
+        if name.is_empty() {
+            return Err(AppError::InvalidInput(
+                "repository name must not be empty".to_string(),
+            ));
+        }
+
+        let path = resolve_project_path(&request.path)?;
+        let now = unix_timestamp()?;
+        let repository = ProjectRepositoryInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: project_id.to_string(),
+            name: name.to_string(),
+            path,
+            is_default: false,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let connection = self.connection()?;
+        insert_project_repository(&connection, repository.clone())?;
+        Ok(repository)
+    }
+
+    pub fn list_project_repositories(
+        &self,
+        project_id: &str,
+    ) -> AppResult<Vec<ProjectRepositoryInfo>> {
+        self.require_project(project_id)?;
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, project_id, name, path, is_default, created_at, updated_at
+                 FROM project_repositories
+                 WHERE project_id = ?1
+                 ORDER BY is_default DESC, updated_at DESC, name ASC",
+            )
+            .map_err(storage_error)?;
+        let repositories = statement
+            .query_map(params![project_id], project_repository_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(repositories)
+    }
+
+    pub fn delete_project_repository(&self, repository_id: &str) -> AppResult<()> {
+        let deleted = self
+            .connection()?
+            .execute(
+                "DELETE FROM project_repositories WHERE id = ?1",
+                params![repository_id],
+            )
+            .map_err(storage_error)?;
+        if deleted == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "project repository not found: {repository_id}"
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn create_project_initialization(
+        &self,
+        request: CreateProjectInitializationRequest,
+    ) -> AppResult<ProjectInitializationInfo> {
+        let project_id = request.project_id.trim();
+        if project_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization project id must not be empty".to_string(),
+            ));
+        }
+        self.require_project(project_id)?;
+
+        let mut seen_repository_ids = HashSet::new();
+        let mut repository_ids = Vec::new();
+        for repository_id in request.repository_ids {
+            let repository_id = repository_id.trim();
+            if repository_id.is_empty() {
+                return Err(AppError::InvalidInput(
+                    "initialization repository id must not be empty".to_string(),
+                ));
+            }
+            if !seen_repository_ids.insert(repository_id.to_string()) {
+                return Err(AppError::InvalidInput(format!(
+                    "duplicate initialization repository id: {repository_id}"
+                )));
+            }
+            repository_ids.push(repository_id.to_string());
+        }
+        if repository_ids.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization must include at least one repository".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let initialization = ProjectInitializationInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: project_id.to_string(),
+            status: "preflight".to_string(),
+            repository_count: repository_ids.len() as i64,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        for repository_id in &repository_ids {
+            require_project_repository(&transaction, project_id, repository_id)?;
+        }
+        transaction
+            .execute(
+                "INSERT INTO project_initialization_runs
+                 (id, project_id, status, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    &initialization.id,
+                    &initialization.project_id,
+                    &initialization.status,
+                    initialization.created_at,
+                    initialization.updated_at
+                ],
+            )
+            .map_err(storage_error)?;
+        for (repository_index, repository_id) in repository_ids.iter().enumerate() {
+            transaction
+                .execute(
+                    "INSERT INTO project_initialization_repositories
+                     (initialization_id, repository_id, repository_index, created_at)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        &initialization.id,
+                        repository_id,
+                        repository_index as i64,
+                        now
+                    ],
+                )
+                .map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(initialization)
+    }
+
+    pub fn list_project_initializations(
+        &self,
+        project_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationInfo>> {
+        self.require_project(project_id)?;
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT r.id, r.project_id, r.status, COUNT(ir.repository_id), r.created_at, r.updated_at
+                 FROM project_initialization_runs r
+                 LEFT JOIN project_initialization_repositories ir ON ir.initialization_id = r.id
+                 WHERE r.project_id = ?1
+                 GROUP BY r.id, r.project_id, r.status, r.created_at, r.updated_at
+                 ORDER BY r.updated_at DESC, r.created_at DESC",
+            )
+            .map_err(storage_error)?;
+        let initializations = statement
+            .query_map(params![project_id], project_initialization_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(initializations)
+    }
+
+    pub fn collect_project_initialization_facts(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let repositories = {
+            let connection = self.connection()?;
+            list_initialization_repositories(&connection, initialization_id)?
+        };
+        let now = unix_timestamp()?;
+        let facts = repositories
+            .iter()
+            .flat_map(|repository| collect_repository_facts(initialization_id, repository, now))
+            .collect::<Vec<_>>();
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, initialization_id)?;
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_facts WHERE initialization_id = ?1",
+                params![initialization_id],
+            )
+            .map_err(storage_error)?;
+        for fact in &facts {
+            insert_project_initialization_fact(&transaction, fact)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["facts", now, initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(facts)
+    }
+
+    pub fn list_project_initialization_facts(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_facts(&connection, initialization_id)
+    }
+
+    pub fn analyze_project_initialization_markdown(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let repositories = {
+            let connection = self.connection()?;
+            list_initialization_repositories(&connection, initialization_id)?
+        };
+        let now = unix_timestamp()?;
+        let findings = repositories
+            .iter()
+            .flat_map(|repository| analyze_repository_markdown(initialization_id, repository, now))
+            .collect::<Vec<_>>();
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, initialization_id)?;
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_markdown_findings WHERE initialization_id = ?1",
+                params![initialization_id],
+            )
+            .map_err(storage_error)?;
+        for finding in &findings {
+            insert_project_initialization_markdown_finding(&transaction, finding)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["markdown", now, initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(findings)
+    }
+
+    pub fn list_project_initialization_markdown_findings(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_markdown_findings(&connection, initialization_id)
+    }
+
+    pub fn save_project_initialization_guardrails(
+        &self,
+        request: SaveProjectInitializationGuardrailsRequest,
+    ) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+        let initialization_id = request.initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+        if request.guardrails.is_empty() {
+            return Err(AppError::InvalidInput(
+                "at least one guardrail is required".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, initialization_id)?;
+        let selected_repository_ids =
+            selected_initialization_repository_ids(&transaction, initialization_id)?;
+        let guardrails = request
+            .guardrails
+            .into_iter()
+            .enumerate()
+            .map(|(index, guardrail)| {
+                normalize_project_initialization_guardrail(
+                    initialization_id,
+                    guardrail,
+                    index as i64,
+                    &selected_repository_ids,
+                    now,
+                )
+            })
+            .collect::<AppResult<Vec<_>>>()?;
+
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_guardrails WHERE initialization_id = ?1",
+                params![initialization_id],
+            )
+            .map_err(storage_error)?;
+        for guardrail in &guardrails {
+            insert_project_initialization_guardrail(&transaction, guardrail)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["interview", now, initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        self.list_project_initialization_guardrails(initialization_id)
+    }
+
+    pub fn list_project_initialization_guardrails(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_guardrails(&connection, initialization_id)
+    }
+
+    pub fn prepare_project_initialization_synthesis(
+        &self,
+        request: GenerateProjectInitializationSummaryRequest,
+    ) -> AppResult<ProjectInitializationSynthesisContext> {
+        let initialization_id = request.initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+        let model_profile_id = request.model_profile_id.trim();
+        if model_profile_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "model profile id must not be empty".to_string(),
+            ));
+        }
+        let profile = model_profile(model_profile_id).ok_or_else(|| {
+            AppError::InvalidInput(format!("model profile not found: {model_profile_id}"))
+        })?;
+
+        let (repositories, facts, findings, guardrails) = {
+            let connection = self.connection()?;
+            require_project_initialization(&connection, initialization_id)?;
+            (
+                list_initialization_repositories(&connection, initialization_id)?,
+                list_project_initialization_facts(&connection, initialization_id)?,
+                list_project_initialization_markdown_findings(&connection, initialization_id)?,
+                list_project_initialization_guardrails(&connection, initialization_id)?,
+            )
+        };
+        Ok(ProjectInitializationSynthesisContext {
+            initialization_id: initialization_id.to_string(),
+            repositories,
+            facts,
+            findings,
+            guardrails,
+            model_profile: profile,
+        })
+    }
+
+    pub fn persist_project_initialization_summary(
+        &self,
+        context: &ProjectInitializationSynthesisContext,
+        draft: ProjectInitializationKnowledgeDraft,
+        generation_engine: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let generation_engine = generation_engine.trim();
+        if generation_engine.is_empty() {
+            return Err(AppError::InvalidInput(
+                "generation engine must not be empty".to_string(),
+            ));
+        }
+        let draft = draft.validate()?;
+        let now = unix_timestamp()?;
+        let summary = build_project_initialization_summary(context, draft, generation_engine, now);
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_project_initialization(&transaction, &context.initialization_id)?;
+        if list_initialization_repositories(&transaction, &context.initialization_id)?
+            != context.repositories
+            || list_project_initialization_facts(&transaction, &context.initialization_id)?
+                != context.facts
+            || list_project_initialization_markdown_findings(
+                &transaction,
+                &context.initialization_id,
+            )? != context.findings
+            || list_project_initialization_guardrails(&transaction, &context.initialization_id)?
+                != context.guardrails
+        {
+            return Err(AppError::Synthesis(
+                "initialization evidence changed while synthesis was running; generate the summary again"
+                    .to_string(),
+            ));
+        }
+        transaction
+            .execute(
+                "DELETE FROM project_initialization_summaries WHERE initialization_id = ?1",
+                params![&context.initialization_id],
+            )
+            .map_err(storage_error)?;
+        insert_project_initialization_summary(&transaction, &summary)?;
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params!["summary", now, &context.initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        self.list_project_initialization_summary(&context.initialization_id)?
+            .ok_or_else(|| AppError::Storage("generated summary was not persisted".to_string()))
+    }
+
+    pub fn list_project_initialization_summary(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_summary(&connection, initialization_id)
+    }
+
+    pub fn approve_project_initialization_summary(
+        &self,
+        summary_id: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let summary_id = summary_id.trim();
+        if summary_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary id must not be empty".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let summary =
+            project_initialization_summary_by_id(&transaction, summary_id)?.ok_or_else(|| {
+                AppError::InvalidInput(format!(
+                    "project initialization summary not found: {summary_id}"
+                ))
+            })?;
+        let project_id: String = transaction
+            .query_row(
+                "SELECT project_id FROM project_initialization_runs WHERE id = ?1",
+                params![&summary.initialization_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let knowledge_units = build_knowledge_units(&summary, &project_id, now)?;
+
+        transaction
+            .execute(
+                "UPDATE project_initialization_summaries
+                 SET status = ?1, approved_at = ?2
+                 WHERE id = ?3",
+                params!["approved", now, summary_id],
+            )
+            .map_err(storage_error)?;
+        transaction
+            .execute(
+                "DELETE FROM knowledge_units WHERE derived_from_summary_id = ?1",
+                params![summary_id],
+            )
+            .map_err(storage_error)?;
+        for unit in &knowledge_units {
+            insert_knowledge_unit(&transaction, unit)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs
+                 SET status = ?1, updated_at = ?2
+                 WHERE id = (
+                    SELECT initialization_id
+                    FROM project_initialization_summaries
+                    WHERE id = ?3
+                 )",
+                params!["summary", now, summary_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        let connection = self.connection()?;
+        project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| AppError::Storage("approved summary was not found".to_string()))
+    }
+
+    pub fn list_project_initialization_knowledge_units(
+        &self,
+        initialization_id: &str,
+    ) -> AppResult<Vec<KnowledgeUnitInfo>> {
+        let initialization_id = initialization_id.trim();
+        if initialization_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "initialization id must not be empty".to_string(),
+            ));
+        }
+        let connection = self.connection()?;
+        require_project_initialization(&connection, initialization_id)?;
+        list_project_initialization_knowledge_units(&connection, initialization_id)
+    }
+
+    pub fn create_transcript_session(
+        &self,
+        request: CreateTranscriptSessionRequest,
+    ) -> AppResult<TranscriptSessionInfo> {
+        let runtime = request.runtime.trim();
+        if runtime.is_empty() {
+            return Err(AppError::InvalidInput(
+                "transcript runtime must not be empty".to_string(),
+            ));
+        }
+        let source = request.source.trim();
+        if source.is_empty() {
+            return Err(AppError::InvalidInput(
+                "transcript source must not be empty".to_string(),
+            ));
+        }
+
+        if let Some(project_id) = request.project_id.as_deref() {
+            self.require_project(project_id)?;
+        }
+
+        let now = unix_timestamp()?;
+        let title = request
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or(source)
+            .to_string();
+        let session = TranscriptSessionInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: request.project_id,
+            runtime: runtime.to_string(),
+            source: source.to_string(),
+            title,
+            started_at: now,
+            updated_at: now,
+            event_count: 0,
+        };
+
+        self.connection()?.execute(
+            "INSERT INTO transcript_sessions (id, project_id, runtime, source, title, started_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &session.id,
+                session.project_id.as_deref(),
+                &session.runtime,
+                &session.source,
+                &session.title,
+                session.started_at,
+                session.updated_at
+            ],
+        )
+        .map_err(storage_error)?;
+
+        Ok(session)
+    }
+
+    pub fn append_transcript_events(
+        &self,
+        session_id: &str,
+        events: Vec<TranscriptEventInput>,
+    ) -> AppResult<Vec<TranscriptEventInfo>> {
+        if events.is_empty() {
+            return Err(AppError::InvalidInput(
+                "transcript event batch must not be empty".to_string(),
+            ));
+        }
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        require_transcript_session(&transaction, session_id)?;
+
+        let next_sequence: i64 = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(sequence), -1) + 1 FROM transcript_events WHERE session_id = ?1",
+                params![session_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let now = unix_timestamp()?;
+        let mut inserted = Vec::with_capacity(events.len());
+
+        for (offset, event) in events.into_iter().enumerate() {
+            let kind = event.kind.trim();
+            if kind.is_empty() {
+                return Err(AppError::InvalidInput(
+                    "transcript event kind must not be empty".to_string(),
+                ));
+            }
+            if event.content.trim().is_empty() {
+                return Err(AppError::InvalidInput(
+                    "transcript event content must not be empty".to_string(),
+                ));
+            }
+
+            let info = TranscriptEventInfo {
+                id: Uuid::new_v4().to_string(),
+                session_id: session_id.to_string(),
+                sequence: next_sequence + offset as i64,
+                kind: kind.to_string(),
+                content: event.content,
+                created_at: now,
+            };
+
+            transaction
+                .execute(
+                    "INSERT INTO transcript_events (id, session_id, sequence, kind, content, created_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        &info.id,
+                        &info.session_id,
+                        info.sequence,
+                        &info.kind,
+                        &info.content,
+                        info.created_at
+                    ],
+                )
+                .map_err(storage_error)?;
+            inserted.push(info);
+        }
+
+        transaction
+            .execute(
+                "UPDATE transcript_sessions SET updated_at = ?1 WHERE id = ?2",
+                params![now, session_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(inserted)
+    }
+
+    pub fn list_transcript_sessions(
+        &self,
+        project_id: Option<&str>,
+    ) -> AppResult<Vec<TranscriptSessionInfo>> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT s.id, s.project_id, s.runtime, s.source, s.title, s.started_at, s.updated_at, COUNT(e.id)
+                 FROM transcript_sessions s
+                 LEFT JOIN transcript_events e ON e.session_id = s.id
+                 WHERE (?1 IS NULL OR s.project_id = ?1)
+                 GROUP BY s.id, s.project_id, s.runtime, s.source, s.title, s.started_at, s.updated_at
+                 ORDER BY s.updated_at DESC, s.started_at DESC",
+            )
+            .map_err(storage_error)?;
+        let sessions = statement
+            .query_map(params![project_id], transcript_session_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(sessions)
+    }
+
+    pub fn list_transcript_events(&self, session_id: &str) -> AppResult<Vec<TranscriptEventInfo>> {
+        self.require_transcript_session(session_id)?;
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, session_id, sequence, kind, content, created_at
+                 FROM transcript_events
+                 WHERE session_id = ?1
+                 ORDER BY sequence ASC",
+            )
+            .map_err(storage_error)?;
+        let events = statement
+            .query_map(params![session_id], transcript_event_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(events)
+    }
+
+    pub fn rename_transcript_session(
+        &self,
+        request: RenameTranscriptSessionRequest,
+    ) -> AppResult<TranscriptSessionInfo> {
+        let title = request.title.trim();
+        if title.is_empty() {
+            return Err(AppError::InvalidInput(
+                "transcript title must not be empty".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let updated = self
+            .connection()?
+            .execute(
+                "UPDATE transcript_sessions SET title = ?1, updated_at = ?2 WHERE id = ?3",
+                params![title, now, &request.session_id],
+            )
+            .map_err(storage_error)?;
+        if updated == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "transcript session not found: {}",
+                request.session_id
+            )));
+        }
+
+        self.transcript_session(&request.session_id)
+    }
+
+    pub fn create_knowledge_item(
+        &self,
+        request: CreateKnowledgeItemRequest,
+    ) -> AppResult<KnowledgeItemInfo> {
+        let title = request.title.trim();
+        if title.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge title must not be empty".to_string(),
+            ));
+        }
+
+        let body = request.body.trim();
+        if body.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge body must not be empty".to_string(),
+            ));
+        }
+
+        let kind = request.kind.trim();
+        if kind.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge kind must not be empty".to_string(),
+            ));
+        }
+
+        let scope = request.scope.trim();
+        if scope.is_empty() {
+            return Err(AppError::InvalidInput(
+                "knowledge scope must not be empty".to_string(),
+            ));
+        }
+
+        if let Some(project_id) = request.project_id.as_deref() {
+            self.require_project(project_id)?;
+        }
+        if let Some(session_id) = request.source_transcript_session_id.as_deref() {
+            self.require_transcript_session(session_id)?;
+        }
+
+        let now = unix_timestamp()?;
+        let item = KnowledgeItemInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: request.project_id,
+            title: title.to_string(),
+            body: body.to_string(),
+            kind: kind.to_string(),
+            scope: scope.to_string(),
+            source_transcript_session_id: request.source_transcript_session_id,
+            created_at: now,
+            updated_at: now,
+        };
+
+        self.connection()?.execute(
+            "INSERT INTO knowledge_items
+             (id, project_id, title, body, kind, scope, source_transcript_session_id, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &item.id,
+                item.project_id.as_deref(),
+                &item.title,
+                &item.body,
+                &item.kind,
+                &item.scope,
+                item.source_transcript_session_id.as_deref(),
+                item.created_at,
+                item.updated_at
+            ],
+        )
+        .map_err(storage_error)?;
+
+        Ok(item)
+    }
+
+    pub fn list_knowledge_items(
+        &self,
+        project_id: Option<&str>,
+    ) -> AppResult<Vec<KnowledgeItemInfo>> {
+        if let Some(project_id) = project_id {
+            self.require_project(project_id)?;
+        }
+
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, project_id, title, body, kind, scope, source_transcript_session_id, created_at, updated_at
+                 FROM knowledge_items
+                 WHERE (?1 IS NULL AND project_id IS NULL) OR (?1 IS NOT NULL AND (project_id IS NULL OR project_id = ?1))
+                 ORDER BY CASE WHEN project_id IS NULL THEN 1 ELSE 0 END, updated_at DESC, title ASC",
+            )
+            .map_err(storage_error)?;
+        let items = statement
+            .query_map(params![project_id], knowledge_item_from_row)
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+
+        Ok(items)
+    }
+
+    pub fn attach_knowledge_to_transcript_session(
+        &self,
+        session_id: &str,
+        knowledge_item_id: &str,
+    ) -> AppResult<Vec<KnowledgeItemInfo>> {
+        let connection = self.connection()?;
+        require_transcript_session(&connection, session_id)?;
+        require_knowledge_item(&connection, knowledge_item_id)?;
+        require_knowledge_available_for_session(&connection, session_id, knowledge_item_id)?;
+
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO transcript_knowledge_links
+                 (transcript_session_id, knowledge_item_id, created_at)
+                 VALUES (?1, ?2, ?3)",
+                params![session_id, knowledge_item_id, unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+
+        list_attached_knowledge_items(&connection, session_id)
+    }
+
+    pub fn list_attached_knowledge(&self, session_id: &str) -> AppResult<Vec<KnowledgeItemInfo>> {
+        let connection = self.connection()?;
+        require_transcript_session(&connection, session_id)?;
+        list_attached_knowledge_items(&connection, session_id)
+    }
+
+    fn migrate(&self) -> AppResult<()> {
+        self.connection()?
+            .execute_batch(
+                r#"
+                PRAGMA foreign_keys = ON;
+
+                CREATE TABLE IF NOT EXISTS projects (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL UNIQUE,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS project_repositories (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL UNIQUE,
+                    is_default INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_repositories_project_updated
+                    ON project_repositories(project_id, is_default DESC, updated_at DESC);
+
+                INSERT OR IGNORE INTO project_repositories
+                    (id, project_id, name, path, is_default, created_at, updated_at)
+                SELECT 'legacy-' || id, id, name, path, 1, created_at, updated_at
+                FROM projects
+                WHERE path IS NOT NULL AND path != '';
+
+                CREATE TABLE IF NOT EXISTS project_initialization_runs (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_runs_project_updated
+                    ON project_initialization_runs(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_repositories (
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    repository_index INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    PRIMARY KEY (initialization_id, repository_id),
+                    UNIQUE(initialization_id, repository_index)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_repositories_repo
+                    ON project_initialization_repositories(repository_id);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_facts (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_facts_initialization
+                    ON project_initialization_facts(initialization_id, repository_id, kind);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_markdown_findings (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    file_path TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    excerpt TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_markdown_findings_initialization
+                    ON project_initialization_markdown_findings(initialization_id, repository_id, file_path);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_guardrails (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    repository_id TEXT REFERENCES project_repositories(id) ON DELETE CASCADE,
+                    guardrail_index INTEGER NOT NULL,
+                    scope TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    path_pattern TEXT,
+                    content TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(initialization_id, guardrail_index)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_guardrails_initialization
+                    ON project_initialization_guardrails(initialization_id, repository_id, guardrail_index);
+
+                CREATE TABLE IF NOT EXISTS project_initialization_summaries (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL UNIQUE REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    project_purpose TEXT NOT NULL,
+                    repository_map TEXT NOT NULL,
+                    repository_roles TEXT NOT NULL,
+                    build_test_matrix TEXT NOT NULL,
+                    fragile_areas TEXT NOT NULL,
+                    do_not_touch_rules TEXT NOT NULL,
+                    agent_working_rules TEXT NOT NULL,
+                    open_questions TEXT NOT NULL,
+                    fact_count INTEGER NOT NULL,
+                    markdown_finding_count INTEGER NOT NULL,
+                    guardrail_count INTEGER NOT NULL,
+                    requested_model_profile_id TEXT,
+                    requested_model_provider_id TEXT,
+                    requested_model_id TEXT,
+                    requested_model_tier TEXT,
+                    requested_model_parameters_json TEXT NOT NULL DEFAULT '[]',
+                    model_catalog_schema_version INTEGER,
+                    knowledge_schema_version INTEGER NOT NULL DEFAULT 1,
+                    generation_engine TEXT NOT NULL DEFAULT 'deterministic_v1',
+                    created_at INTEGER NOT NULL,
+                    approved_at INTEGER
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_project_initialization_summaries_initialization
+                    ON project_initialization_summaries(initialization_id, status);
+
+                CREATE TABLE IF NOT EXISTS knowledge_units (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    initialization_id TEXT NOT NULL REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    derived_from_summary_id TEXT NOT NULL REFERENCES project_initialization_summaries(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    confidence INTEGER NOT NULL,
+                    schema_version INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_knowledge_units_initialization
+                    ON knowledge_units(initialization_id, status, kind, id);
+
+                CREATE TABLE IF NOT EXISTS knowledge_unit_sources (
+                    knowledge_unit_id TEXT NOT NULL REFERENCES knowledge_units(id) ON DELETE CASCADE,
+                    source_index INTEGER NOT NULL,
+                    source_key TEXT NOT NULL,
+                    repository_id TEXT REFERENCES project_repositories(id) ON DELETE SET NULL,
+                    path TEXT,
+                    PRIMARY KEY (knowledge_unit_id, source_index)
+                );
+
+                CREATE TABLE IF NOT EXISTS transcript_sessions (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+                    runtime TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    started_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_transcript_sessions_project_updated
+                    ON transcript_sessions(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS transcript_events (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    sequence INTEGER NOT NULL,
+                    kind TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(session_id, sequence)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_transcript_events_session_sequence
+                    ON transcript_events(session_id, sequence);
+
+                CREATE TABLE IF NOT EXISTS knowledge_items (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    source_transcript_session_id TEXT REFERENCES transcript_sessions(id) ON DELETE SET NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_knowledge_items_project_updated
+                    ON knowledge_items(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS transcript_knowledge_links (
+                    transcript_session_id TEXT NOT NULL REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    knowledge_item_id TEXT NOT NULL REFERENCES knowledge_items(id) ON DELETE CASCADE,
+                    created_at INTEGER NOT NULL,
+                    PRIMARY KEY (transcript_session_id, knowledge_item_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_transcript_knowledge_links_item
+                    ON transcript_knowledge_links(knowledge_item_id);
+                "#,
+            )
+            .map_err(storage_error)?;
+
+        let connection = self.connection()?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_profile_id",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_provider_id",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_id",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_tier",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "requested_model_parameters_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "model_catalog_schema_version",
+            "INTEGER",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "knowledge_schema_version",
+            "INTEGER NOT NULL DEFAULT 1",
+        )?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "generation_engine",
+            "TEXT NOT NULL DEFAULT 'deterministic_v1'",
+        )?;
+        Ok(())
+    }
+
+    fn connection(&self) -> AppResult<MutexGuard<'_, Connection>> {
+        self.connection
+            .lock()
+            .map_err(|_| AppError::Storage("project store lock poisoned".to_string()))
+    }
+
+    fn require_project(&self, project_id: &str) -> AppResult<()> {
+        let exists: i64 = self
+            .connection()?
+            .query_row(
+                "SELECT COUNT(*) FROM projects WHERE id = ?1",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if exists == 0 {
+            return Err(AppError::InvalidInput(format!(
+                "project not found: {project_id}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn require_transcript_session(&self, session_id: &str) -> AppResult<()> {
+        let connection = self.connection()?;
+        require_transcript_session(&connection, session_id)
+    }
+
+    fn transcript_session(&self, session_id: &str) -> AppResult<TranscriptSessionInfo> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT s.id, s.project_id, s.runtime, s.source, s.title, s.started_at, s.updated_at, COUNT(e.id)
+                 FROM transcript_sessions s
+                 LEFT JOIN transcript_events e ON e.session_id = s.id
+                 WHERE s.id = ?1
+                 GROUP BY s.id, s.project_id, s.runtime, s.source, s.title, s.started_at, s.updated_at",
+            )
+            .map_err(storage_error)?;
+        statement
+            .query_row(params![session_id], transcript_session_from_row)
+            .map_err(|err| {
+                if matches!(err, rusqlite::Error::QueryReturnedNoRows) {
+                    AppError::InvalidInput(format!("transcript session not found: {session_id}"))
+                } else {
+                    storage_error(err)
+                }
+            })
+    }
+}
+
+pub fn default_database_path() -> AppResult<PathBuf> {
+    if let Some(path) = std::env::var_os("AIADNE_DB_PATH") {
+        return Ok(PathBuf::from(path));
+    }
+
+    let data_home = if let Some(path) = std::env::var_os("XDG_DATA_HOME") {
+        PathBuf::from(path)
+    } else if let Some(home) = std::env::var_os("HOME") {
+        PathBuf::from(home).join(".local").join("share")
+    } else {
+        std::env::current_dir()?
+    };
+
+    Ok(data_home.join("aiadne").join("aiadne.sqlite3"))
+}
+
+fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectInfo> {
+    Ok(ProjectInfo {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        path: PathBuf::from(row.get::<_, String>(2)?),
+        created_at: row.get(3)?,
+        updated_at: row.get(4)?,
+    })
+}
+
+fn project_repository_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectRepositoryInfo> {
+    let is_default: i64 = row.get(4)?;
+    Ok(ProjectRepositoryInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        name: row.get(2)?,
+        path: PathBuf::from(row.get::<_, String>(3)?),
+        is_default: is_default != 0,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
+    })
+}
+
+fn project_initialization_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationInfo> {
+    Ok(ProjectInitializationInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        status: row.get(2)?,
+        repository_count: row.get(3)?,
+        created_at: row.get(4)?,
+        updated_at: row.get(5)?,
+    })
+}
+
+fn project_initialization_fact_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationFactInfo> {
+    Ok(ProjectInitializationFactInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        repository_id: row.get(2)?,
+        repository_name: row.get(3)?,
+        repository_path: PathBuf::from(row.get::<_, String>(4)?),
+        kind: row.get(5)?,
+        label: row.get(6)?,
+        value: row.get(7)?,
+        source: row.get(8)?,
+        created_at: row.get(9)?,
+    })
+}
+
+fn project_initialization_markdown_finding_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationMarkdownFindingInfo> {
+    Ok(ProjectInitializationMarkdownFindingInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        repository_id: row.get(2)?,
+        repository_name: row.get(3)?,
+        repository_path: PathBuf::from(row.get::<_, String>(4)?),
+        file_path: row.get(5)?,
+        category: row.get(6)?,
+        title: row.get(7)?,
+        excerpt: row.get(8)?,
+        source: row.get(9)?,
+        created_at: row.get(10)?,
+    })
+}
+
+fn project_initialization_guardrail_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationGuardrailInfo> {
+    let repository_path: Option<String> = row.get(4)?;
+    Ok(ProjectInitializationGuardrailInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        repository_id: row.get(2)?,
+        repository_name: row.get(3)?,
+        repository_path: repository_path.map(PathBuf::from),
+        guardrail_index: row.get(5)?,
+        scope: row.get(6)?,
+        kind: row.get(7)?,
+        path_pattern: row.get(8)?,
+        content: row.get(9)?,
+        source: row.get(10)?,
+        created_at: row.get(11)?,
+    })
+}
+
+fn project_initialization_summary_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectInitializationSummaryInfo> {
+    let requested_model_parameters_json: String = row.get(20)?;
+    let requested_model_parameters = serde_json::from_str(&requested_model_parameters_json)
+        .map_err(|err| rusqlite::Error::FromSqlConversionFailure(20, Type::Text, Box::new(err)))?;
+    Ok(ProjectInitializationSummaryInfo {
+        id: row.get(0)?,
+        initialization_id: row.get(1)?,
+        status: row.get(2)?,
+        project_purpose: row.get(3)?,
+        repository_map: row.get(4)?,
+        repository_roles: row.get(5)?,
+        build_test_matrix: row.get(6)?,
+        fragile_areas: row.get(7)?,
+        do_not_touch_rules: row.get(8)?,
+        agent_working_rules: row.get(9)?,
+        open_questions: row.get(10)?,
+        fact_count: row.get(11)?,
+        markdown_finding_count: row.get(12)?,
+        guardrail_count: row.get(13)?,
+        created_at: row.get(14)?,
+        approved_at: row.get(15)?,
+        requested_model_profile_id: row.get(16)?,
+        requested_model_provider_id: row.get(17)?,
+        requested_model_id: row.get(18)?,
+        requested_model_tier: row.get(19)?,
+        requested_model_parameters,
+        model_catalog_schema_version: row.get(21)?,
+        knowledge_schema_version: row.get(22)?,
+        generation_engine: row.get(23)?,
+    })
+}
+
+fn transcript_session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSessionInfo> {
+    Ok(TranscriptSessionInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        runtime: row.get(2)?,
+        source: row.get(3)?,
+        title: row.get(4)?,
+        started_at: row.get(5)?,
+        updated_at: row.get(6)?,
+        event_count: row.get(7)?,
+    })
+}
+
+fn transcript_event_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptEventInfo> {
+    Ok(TranscriptEventInfo {
+        id: row.get(0)?,
+        session_id: row.get(1)?,
+        sequence: row.get(2)?,
+        kind: row.get(3)?,
+        content: row.get(4)?,
+        created_at: row.get(5)?,
+    })
+}
+
+fn knowledge_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<KnowledgeItemInfo> {
+    Ok(KnowledgeItemInfo {
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        title: row.get(2)?,
+        body: row.get(3)?,
+        kind: row.get(4)?,
+        scope: row.get(5)?,
+        source_transcript_session_id: row.get(6)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
+    })
+}
+
+fn require_transcript_session(connection: &Connection, session_id: &str) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM transcript_sessions WHERE id = ?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "transcript session not found: {session_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn require_knowledge_item(connection: &Connection, knowledge_item_id: &str) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM knowledge_items WHERE id = ?1",
+            params![knowledge_item_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "knowledge item not found: {knowledge_item_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn require_project_repository(
+    connection: &Connection,
+    project_id: &str,
+    repository_id: &str,
+) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM project_repositories WHERE id = ?1 AND project_id = ?2",
+            params![repository_id, project_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "project repository not found for project: {repository_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn require_project_initialization(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<()> {
+    let exists: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM project_initialization_runs WHERE id = ?1",
+            params![initialization_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if exists == 0 {
+        return Err(AppError::InvalidInput(format!(
+            "project initialization not found: {initialization_id}"
+        )));
+    }
+    Ok(())
+}
+
+fn list_initialization_repositories(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectRepositoryInfo>> {
+    require_project_initialization(connection, initialization_id)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT pr.id, pr.project_id, pr.name, pr.path, pr.is_default, pr.created_at, pr.updated_at
+             FROM project_initialization_repositories ir
+             JOIN project_repositories pr ON pr.id = ir.repository_id
+             WHERE ir.initialization_id = ?1
+             ORDER BY ir.repository_index ASC",
+        )
+        .map_err(storage_error)?;
+    let repositories = statement
+        .query_map(params![initialization_id], project_repository_from_row)
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(repositories)
+}
+
+fn selected_initialization_repository_ids(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<HashSet<String>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT repository_id
+             FROM project_initialization_repositories
+             WHERE initialization_id = ?1",
+        )
+        .map_err(storage_error)?;
+    let repository_ids = statement
+        .query_map(params![initialization_id], |row| row.get::<_, String>(0))
+        .map_err(storage_error)?
+        .collect::<Result<HashSet<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(repository_ids)
+}
+
+fn list_project_initialization_facts(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectInitializationFactInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT f.id, f.initialization_id, f.repository_id, pr.name, pr.path,
+                    f.kind, f.label, f.value, f.source, f.created_at
+             FROM project_initialization_facts f
+             JOIN project_repositories pr ON pr.id = f.repository_id
+             WHERE f.initialization_id = ?1
+             ORDER BY pr.name ASC, f.created_at ASC, f.kind ASC",
+        )
+        .map_err(storage_error)?;
+    let facts = statement
+        .query_map(
+            params![initialization_id],
+            project_initialization_fact_from_row,
+        )
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(facts)
+}
+
+fn insert_project_initialization_fact(
+    connection: &Connection,
+    fact: &ProjectInitializationFactInfo,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO project_initialization_facts
+             (id, initialization_id, repository_id, kind, label, value, source, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &fact.id,
+                &fact.initialization_id,
+                &fact.repository_id,
+                &fact.kind,
+                &fact.label,
+                &fact.value,
+                &fact.source,
+                fact.created_at
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn list_project_initialization_markdown_findings(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectInitializationMarkdownFindingInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT f.id, f.initialization_id, f.repository_id, pr.name, pr.path,
+                    f.file_path, f.category, f.title, f.excerpt, f.source, f.created_at
+             FROM project_initialization_markdown_findings f
+             JOIN project_repositories pr ON pr.id = f.repository_id
+             WHERE f.initialization_id = ?1
+             ORDER BY pr.name ASC, f.file_path ASC, f.created_at ASC, f.category ASC",
+        )
+        .map_err(storage_error)?;
+    let findings = statement
+        .query_map(
+            params![initialization_id],
+            project_initialization_markdown_finding_from_row,
+        )
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(findings)
+}
+
+fn insert_project_initialization_markdown_finding(
+    connection: &Connection,
+    finding: &ProjectInitializationMarkdownFindingInfo,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO project_initialization_markdown_findings
+             (id, initialization_id, repository_id, file_path, category, title, excerpt, source, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &finding.id,
+                &finding.initialization_id,
+                &finding.repository_id,
+                &finding.file_path,
+                &finding.category,
+                &finding.title,
+                &finding.excerpt,
+                &finding.source,
+                finding.created_at
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn list_project_initialization_guardrails(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<ProjectInitializationGuardrailInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT g.id, g.initialization_id, g.repository_id, pr.name, pr.path,
+                    g.guardrail_index, g.scope, g.kind, g.path_pattern, g.content, g.source, g.created_at
+             FROM project_initialization_guardrails g
+             LEFT JOIN project_repositories pr ON pr.id = g.repository_id
+             WHERE g.initialization_id = ?1
+             ORDER BY g.guardrail_index ASC",
+        )
+        .map_err(storage_error)?;
+    let guardrails = statement
+        .query_map(
+            params![initialization_id],
+            project_initialization_guardrail_from_row,
+        )
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(guardrails)
+}
+
+fn insert_project_initialization_guardrail(
+    connection: &Connection,
+    guardrail: &ProjectInitializationGuardrailInfo,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO project_initialization_guardrails
+             (id, initialization_id, repository_id, guardrail_index, scope, kind, path_pattern, content, source, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                &guardrail.id,
+                &guardrail.initialization_id,
+                &guardrail.repository_id,
+                guardrail.guardrail_index,
+                &guardrail.scope,
+                &guardrail.kind,
+                &guardrail.path_pattern,
+                &guardrail.content,
+                &guardrail.source,
+                guardrail.created_at
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn list_project_initialization_summary(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, initialization_id, status, project_purpose, repository_map,
+                    repository_roles, build_test_matrix, fragile_areas,
+                    do_not_touch_rules, agent_working_rules, open_questions,
+                    fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
+                    requested_model_profile_id, requested_model_provider_id,
+                    requested_model_id, requested_model_tier,
+                    requested_model_parameters_json, model_catalog_schema_version,
+                    knowledge_schema_version, generation_engine
+             FROM project_initialization_summaries
+             WHERE initialization_id = ?1",
+        )
+        .map_err(storage_error)?;
+    let mut rows = statement
+        .query(params![initialization_id])
+        .map_err(storage_error)?;
+    if let Some(row) = rows.next().map_err(storage_error)? {
+        Ok(Some(
+            project_initialization_summary_from_row(row).map_err(storage_error)?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+fn project_initialization_summary_by_id(
+    connection: &Connection,
+    summary_id: &str,
+) -> AppResult<Option<ProjectInitializationSummaryInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, initialization_id, status, project_purpose, repository_map,
+                    repository_roles, build_test_matrix, fragile_areas,
+                    do_not_touch_rules, agent_working_rules, open_questions,
+                    fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
+                    requested_model_profile_id, requested_model_provider_id,
+                    requested_model_id, requested_model_tier,
+                    requested_model_parameters_json, model_catalog_schema_version,
+                    knowledge_schema_version, generation_engine
+             FROM project_initialization_summaries
+             WHERE id = ?1",
+        )
+        .map_err(storage_error)?;
+    let mut rows = statement
+        .query(params![summary_id])
+        .map_err(storage_error)?;
+    if let Some(row) = rows.next().map_err(storage_error)? {
+        Ok(Some(
+            project_initialization_summary_from_row(row).map_err(storage_error)?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+fn insert_project_initialization_summary(
+    connection: &Connection,
+    summary: &ProjectInitializationSummaryInfo,
+) -> AppResult<()> {
+    let requested_model_parameters_json =
+        serde_json::to_string(&summary.requested_model_parameters)
+            .map_err(|err| AppError::Storage(err.to_string()))?;
+    connection
+        .execute(
+            "INSERT INTO project_initialization_summaries
+             (id, initialization_id, status, project_purpose, repository_map,
+              repository_roles, build_test_matrix, fragile_areas,
+              do_not_touch_rules, agent_working_rules, open_questions,
+              fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
+              requested_model_profile_id, requested_model_provider_id, requested_model_id,
+              requested_model_tier, requested_model_parameters_json,
+              model_catalog_schema_version, knowledge_schema_version, generation_engine)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+                     ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
+            params![
+                &summary.id,
+                &summary.initialization_id,
+                &summary.status,
+                &summary.project_purpose,
+                &summary.repository_map,
+                &summary.repository_roles,
+                &summary.build_test_matrix,
+                &summary.fragile_areas,
+                &summary.do_not_touch_rules,
+                &summary.agent_working_rules,
+                &summary.open_questions,
+                summary.fact_count,
+                summary.markdown_finding_count,
+                summary.guardrail_count,
+                summary.created_at,
+                summary.approved_at,
+                &summary.requested_model_profile_id,
+                &summary.requested_model_provider_id,
+                &summary.requested_model_id,
+                &summary.requested_model_tier,
+                &requested_model_parameters_json,
+                summary.model_catalog_schema_version,
+                summary.knowledge_schema_version,
+                &summary.generation_engine
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+fn build_knowledge_units(
+    summary: &ProjectInitializationSummaryInfo,
+    project_id: &str,
+    created_at: i64,
+) -> AppResult<Vec<KnowledgeUnitInfo>> {
+    let sections = [
+        ("project_purpose", "purpose", &summary.project_purpose),
+        ("repository_map", "repository", &summary.repository_map),
+        (
+            "repository_roles",
+            "repository_role",
+            &summary.repository_roles,
+        ),
+        ("build_test_matrix", "command", &summary.build_test_matrix),
+        ("fragile_areas", "fragile_area", &summary.fragile_areas),
+        (
+            "do_not_touch_rules",
+            "constraint",
+            &summary.do_not_touch_rules,
+        ),
+        (
+            "agent_working_rules",
+            "agent_rule",
+            &summary.agent_working_rules,
+        ),
+        ("open_questions", "open_question", &summary.open_questions),
+    ];
+    let mut units = Vec::new();
+    for (topic, kind, section) in sections {
+        for (line_index, line) in section
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .enumerate()
+        {
+            if is_markdown_heading(line) {
+                continue;
+            }
+            let sources = knowledge_unit_source_keys(line)?;
+            let content = strip_knowledge_unit_source_markers(line);
+            let content = trim_list_prefix(&content);
+            if content.is_empty() {
+                return Err(AppError::InvalidInput(format!(
+                    "summary {topic} contains a source marker without knowledge content"
+                )));
+            }
+            let is_uncertain = is_uncertain_knowledge_content(content);
+            if sources.is_empty() && !is_uncertain {
+                return Err(AppError::InvalidInput(format!(
+                    "summary {topic} contains an uncited knowledge unit"
+                )));
+            }
+            let identity = format!("{}\n{topic}\n{line_index}\n{content}", summary.id);
+            units.push(KnowledgeUnitInfo {
+                id: Uuid::new_v5(&Uuid::NAMESPACE_OID, identity.as_bytes()).to_string(),
+                project_id: project_id.to_string(),
+                initialization_id: summary.initialization_id.clone(),
+                derived_from_summary_id: summary.id.clone(),
+                kind: kind.to_string(),
+                topic: topic.to_string(),
+                content: content.to_string(),
+                scope: "project".to_string(),
+                status: if is_uncertain {
+                    "needs_confirmation".to_string()
+                } else {
+                    "active".to_string()
+                },
+                confidence: if is_uncertain { 0 } else { 100 },
+                schema_version: summary.knowledge_schema_version,
+                sources: sources
+                    .into_iter()
+                    .map(|source_key| KnowledgeUnitSourceInfo {
+                        source_key,
+                        repository_id: None,
+                        path: None,
+                    })
+                    .collect(),
+                created_at,
+            });
+        }
+    }
+    if units.is_empty() {
+        return Err(AppError::InvalidInput(
+            "approved summary must produce at least one knowledge unit".to_string(),
+        ));
+    }
+    Ok(units)
+}
+
+fn knowledge_unit_source_keys(value: &str) -> AppResult<Vec<String>> {
+    const MARKER: &str = "[source:";
+    let mut remaining = value;
+    let mut sources = Vec::new();
+    while let Some(index) = remaining.find(MARKER) {
+        remaining = &remaining[index + MARKER.len()..];
+        let end = remaining.find(']').ok_or_else(|| {
+            AppError::InvalidInput("summary contains a malformed source marker".to_string())
+        })?;
+        let source = remaining[..end].trim();
+        if source.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary contains an empty source marker".to_string(),
+            ));
+        }
+        if !sources.iter().any(|existing| existing == source) {
+            sources.push(source.to_string());
+        }
+        remaining = &remaining[end + 1..];
+    }
+    Ok(sources)
+}
+
+fn strip_knowledge_unit_source_markers(value: &str) -> String {
+    let mut content = String::with_capacity(value.len());
+    let mut remaining = value;
+    while let Some(index) = remaining.find("[source:") {
+        content.push_str(&remaining[..index]);
+        let marker = &remaining[index..];
+        let Some(end) = marker.find(']') else {
+            content.push_str(marker);
+            return content.trim().to_string();
+        };
+        remaining = &marker[end + 1..];
+    }
+    content.push_str(remaining);
+    content.trim().to_string()
+}
+
+fn trim_list_prefix(value: &str) -> &str {
+    let value = value.trim();
+    if let Some(stripped) = value
+        .strip_prefix("- ")
+        .or_else(|| value.strip_prefix("* "))
+    {
+        return stripped.trim();
+    }
+    let digit_count = value
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .count();
+    if digit_count > 0 {
+        let suffix = &value[digit_count..];
+        if let Some(stripped) = suffix.strip_prefix(". ") {
+            return stripped.trim();
+        }
+    }
+    value
+}
+
+fn is_markdown_heading(value: &str) -> bool {
+    let value = value.trim_start_matches(' ').trim_end();
+    let marker_count = value
+        .chars()
+        .take_while(|character| *character == '#')
+        .count();
+    (1..=6).contains(&marker_count)
+        && value[marker_count..]
+            .chars()
+            .next()
+            .is_none_or(char::is_whitespace)
+}
+
+fn is_uncertain_knowledge_content(value: &str) -> bool {
+    let normalized = value.to_ascii_lowercase();
+    normalized.contains("needs confirmation:")
+        || normalized.contains("no evidence")
+        || (normalized.contains("no ") && normalized.contains(" supplied"))
+}
+
+fn insert_knowledge_unit(connection: &Connection, unit: &KnowledgeUnitInfo) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO knowledge_units
+             (id, project_id, initialization_id, derived_from_summary_id, kind, topic,
+              content, scope, status, confidence, schema_version, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                &unit.id,
+                &unit.project_id,
+                &unit.initialization_id,
+                &unit.derived_from_summary_id,
+                &unit.kind,
+                &unit.topic,
+                &unit.content,
+                &unit.scope,
+                &unit.status,
+                unit.confidence,
+                unit.schema_version,
+                unit.created_at,
+            ],
+        )
+        .map_err(storage_error)?;
+    for (source_index, source) in unit.sources.iter().enumerate() {
+        connection
+            .execute(
+                "INSERT INTO knowledge_unit_sources
+                 (knowledge_unit_id, source_index, source_key, repository_id, path)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    &unit.id,
+                    source_index as i64,
+                    &source.source_key,
+                    &source.repository_id,
+                    &source.path,
+                ],
+            )
+            .map_err(storage_error)?;
+    }
+    Ok(())
+}
+
+fn list_project_initialization_knowledge_units(
+    connection: &Connection,
+    initialization_id: &str,
+) -> AppResult<Vec<KnowledgeUnitInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, project_id, initialization_id, derived_from_summary_id, kind, topic,
+                    content, scope, status, confidence, schema_version, created_at
+             FROM knowledge_units
+             WHERE initialization_id = ?1
+             ORDER BY topic, id",
+        )
+        .map_err(storage_error)?;
+    let rows = statement
+        .query_map(params![initialization_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, String>(8)?,
+                row.get::<_, i64>(9)?,
+                row.get::<_, i64>(10)?,
+                row.get::<_, i64>(11)?,
+            ))
+        })
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+    rows.into_iter()
+        .map(
+            |(
+                id,
+                project_id,
+                initialization_id,
+                derived_from_summary_id,
+                kind,
+                topic,
+                content,
+                scope,
+                status,
+                confidence,
+                schema_version,
+                created_at,
+            )| {
+                let mut source_statement = connection
+                    .prepare(
+                        "SELECT source_key, repository_id, path
+                         FROM knowledge_unit_sources
+                         WHERE knowledge_unit_id = ?1
+                         ORDER BY source_index",
+                    )
+                    .map_err(storage_error)?;
+                let sources = source_statement
+                    .query_map(params![&id], |row| {
+                        Ok(KnowledgeUnitSourceInfo {
+                            source_key: row.get(0)?,
+                            repository_id: row.get(1)?,
+                            path: row.get(2)?,
+                        })
+                    })
+                    .map_err(storage_error)?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(storage_error)?;
+                Ok(KnowledgeUnitInfo {
+                    id,
+                    project_id,
+                    initialization_id,
+                    derived_from_summary_id,
+                    kind,
+                    topic,
+                    content,
+                    scope,
+                    status,
+                    confidence,
+                    schema_version,
+                    sources,
+                    created_at,
+                })
+            },
+        )
+        .collect()
+}
+
+fn normalize_project_initialization_guardrail(
+    initialization_id: &str,
+    input: ProjectInitializationGuardrailInput,
+    guardrail_index: i64,
+    selected_repository_ids: &HashSet<String>,
+    created_at: i64,
+) -> AppResult<ProjectInitializationGuardrailInfo> {
+    let kind = input.kind.trim();
+    if !is_supported_guardrail_kind(kind) {
+        return Err(AppError::InvalidInput(format!(
+            "unsupported guardrail kind: {kind}"
+        )));
+    }
+
+    let repository_id = input
+        .repository_id
+        .map(|repository_id| repository_id.trim().to_string())
+        .filter(|repository_id| !repository_id.is_empty());
+    if let Some(repository_id) = &repository_id {
+        if !selected_repository_ids.contains(repository_id) {
+            return Err(AppError::InvalidInput(format!(
+                "repository is not selected for initialization: {repository_id}"
+            )));
+        }
+    }
+
+    let content = input.content.trim();
+    if content.is_empty() {
+        return Err(AppError::InvalidInput(
+            "guardrail content must not be empty".to_string(),
+        ));
+    }
+
+    let path_pattern = input
+        .path_pattern
+        .map(|path_pattern| path_pattern.trim().to_string())
+        .filter(|path_pattern| !path_pattern.is_empty());
+    let scope = if repository_id.is_some() {
+        "repository".to_string()
+    } else {
+        "project".to_string()
+    };
+
+    Ok(ProjectInitializationGuardrailInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: initialization_id.to_string(),
+        repository_id,
+        repository_name: None,
+        repository_path: None,
+        guardrail_index,
+        scope,
+        kind: kind.to_string(),
+        path_pattern,
+        content: content.to_string(),
+        source: "user_interview".to_string(),
+        created_at,
+    })
+}
+
+fn is_supported_guardrail_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "fragile" | "do_not_touch" | "requires_review" | "agent_rule"
+    )
+}
+
+fn build_project_initialization_summary(
+    context: &ProjectInitializationSynthesisContext,
+    draft: ProjectInitializationKnowledgeDraft,
+    generation_engine: &str,
+    created_at: i64,
+) -> ProjectInitializationSummaryInfo {
+    ProjectInitializationSummaryInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: context.initialization_id.clone(),
+        status: "draft".to_string(),
+        project_purpose: draft.project_purpose,
+        repository_map: draft.repository_map,
+        repository_roles: draft.repository_roles,
+        build_test_matrix: draft.build_test_matrix,
+        fragile_areas: draft.fragile_areas,
+        do_not_touch_rules: draft.do_not_touch_rules,
+        agent_working_rules: draft.agent_working_rules,
+        open_questions: draft.open_questions,
+        fact_count: context.facts.len() as i64,
+        markdown_finding_count: context.findings.len() as i64,
+        guardrail_count: context.guardrails.len() as i64,
+        requested_model_profile_id: Some(context.model_profile.id.clone()),
+        requested_model_provider_id: Some(context.model_profile.provider_id.clone()),
+        requested_model_id: Some(context.model_profile.model_id.clone()),
+        requested_model_tier: Some(context.model_profile.tier.as_str().to_string()),
+        requested_model_parameters: context.model_profile.parameters.clone(),
+        model_catalog_schema_version: Some(MODEL_CATALOG_SCHEMA_VERSION),
+        knowledge_schema_version: PROJECT_KNOWLEDGE_SCHEMA_VERSION,
+        generation_engine: generation_engine.to_string(),
+        created_at,
+        approved_at: None,
+    }
+}
+
+fn analyze_repository_markdown(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    created_at: i64,
+) -> Vec<ProjectInitializationMarkdownFindingInfo> {
+    markdown_paths_for_repository(&repository.path)
+        .into_iter()
+        .take(100)
+        .flat_map(|file_path| {
+            analyze_markdown_file(initialization_id, repository, &file_path, created_at)
+        })
+        .collect()
+}
+
+fn markdown_paths_for_repository(repository_path: &Path) -> Vec<String> {
+    let is_git_repository = git_output(repository_path, &["rev-parse", "--show-toplevel"])
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
+    let tracked_files = git_lines(repository_path, &["ls-files"]);
+    let mut markdown_files = tracked_files
+        .into_iter()
+        .filter(|path| is_markdown_path(path) && !is_skipped_repository_path(path))
+        .collect::<Vec<_>>();
+    if !is_git_repository && markdown_files.is_empty() {
+        markdown_files = collect_filesystem_markdown_paths(repository_path);
+    }
+
+    markdown_files.sort_by(|left, right| {
+        markdown_priority(left)
+            .cmp(&markdown_priority(right))
+            .then_with(|| left.cmp(right))
+    });
+    markdown_files
+}
+
+fn analyze_markdown_file(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    file_path: &str,
+    created_at: i64,
+) -> Vec<ProjectInitializationMarkdownFindingInfo> {
+    let context = MarkdownFindingContext {
+        initialization_id,
+        repository,
+        created_at,
+    };
+    let absolute_path = repository.path.join(file_path);
+    let metadata = match fs::metadata(&absolute_path) {
+        Ok(metadata) => metadata,
+        Err(_) => return Vec::new(),
+    };
+    if metadata.len() > 256 * 1024 {
+        return Vec::new();
+    }
+
+    let content = match fs::read_to_string(&absolute_path) {
+        Ok(content) => content,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut findings = Vec::new();
+    if let Some(excerpt) = first_meaningful_excerpt(&content) {
+        findings.push(build_markdown_finding(
+            &context,
+            file_path,
+            "document",
+            markdown_title(file_path, &content),
+            excerpt,
+            file_path,
+        ));
+    }
+
+    for section in markdown_sections(&content).into_iter().take(12) {
+        if let Some(category) = markdown_category(&section.heading) {
+            let source = format!("{file_path}#{}", markdown_anchor(&section.heading));
+            findings.push(build_markdown_finding(
+                &context,
+                file_path,
+                category,
+                section.heading,
+                section_excerpt(&section.body),
+                source,
+            ));
+        }
+        if findings.len() >= 6 {
+            break;
+        }
+    }
+
+    findings
+}
+
+struct MarkdownFindingContext<'a> {
+    initialization_id: &'a str,
+    repository: &'a ProjectRepositoryInfo,
+    created_at: i64,
+}
+
+fn build_markdown_finding(
+    context: &MarkdownFindingContext<'_>,
+    file_path: &str,
+    category: &str,
+    title: impl Into<String>,
+    excerpt: impl Into<String>,
+    source: impl Into<String>,
+) -> ProjectInitializationMarkdownFindingInfo {
+    ProjectInitializationMarkdownFindingInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: context.initialization_id.to_string(),
+        repository_id: context.repository.id.clone(),
+        repository_name: context.repository.name.clone(),
+        repository_path: context.repository.path.clone(),
+        file_path: file_path.to_string(),
+        category: category.to_string(),
+        title: title.into(),
+        excerpt: excerpt.into(),
+        source: source.into(),
+        created_at: context.created_at,
+    }
+}
+
+fn collect_filesystem_markdown_paths(repository_path: &Path) -> Vec<String> {
+    let mut markdown_files = Vec::new();
+    collect_filesystem_markdown_paths_inner(repository_path, repository_path, &mut markdown_files);
+    markdown_files
+}
+
+fn collect_filesystem_markdown_paths_inner(
+    root: &Path,
+    current: &Path,
+    markdown_files: &mut Vec<String>,
+) {
+    if markdown_files.len() >= 100 {
+        return;
+    }
+
+    let entries = match fs::read_dir(current) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let relative = match relative_repository_path(root, &path) {
+            Some(relative) => relative,
+            None => continue,
+        };
+        if is_skipped_repository_path(&relative) {
+            continue;
+        }
+
+        if path.is_dir() {
+            collect_filesystem_markdown_paths_inner(root, &path, markdown_files);
+        } else if is_markdown_path(&relative) {
+            markdown_files.push(relative);
+        }
+
+        if markdown_files.len() >= 100 {
+            return;
+        }
+    }
+}
+
+fn relative_repository_path(root: &Path, path: &Path) -> Option<String> {
+    path.strip_prefix(root)
+        .ok()
+        .map(|relative| relative.to_string_lossy().replace('\\', "/"))
+}
+
+fn is_markdown_path(path: &str) -> bool {
+    path.to_ascii_lowercase().ends_with(".md")
+}
+
+fn is_skipped_repository_path(path: &str) -> bool {
+    path.split('/').any(|part| {
+        matches!(
+            part,
+            ".git" | ".next" | "build" | "coverage" | "dist" | "node_modules" | "target" | "vendor"
+        )
+    })
+}
+
+fn markdown_priority(path: &str) -> u8 {
+    let lower = path.to_ascii_lowercase();
+    if lower == "agents.md" {
+        0
+    } else if lower == "readme.md" {
+        1
+    } else if lower == "contributing.md" {
+        2
+    } else if lower == "architecture.md" {
+        3
+    } else if lower.starts_with("docs/") {
+        4
+    } else {
+        5
+    }
+}
+
+fn markdown_title(file_path: &str, content: &str) -> String {
+    content
+        .lines()
+        .find_map(markdown_heading_text)
+        .unwrap_or_else(|| file_path.to_string())
+}
+
+fn first_meaningful_excerpt(content: &str) -> Option<String> {
+    let excerpt = content
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .take(8)
+        .collect::<Vec<_>>()
+        .join(" ");
+    truncate_excerpt(&excerpt)
+}
+
+#[derive(Debug)]
+struct MarkdownSection {
+    heading: String,
+    body: Vec<String>,
+}
+
+fn markdown_sections(content: &str) -> Vec<MarkdownSection> {
+    let mut sections = Vec::new();
+    let mut current_heading: Option<String> = None;
+    let mut current_body = Vec::new();
+
+    for line in content.lines() {
+        if let Some(heading) = markdown_heading_text(line) {
+            if let Some(previous_heading) = current_heading.replace(heading) {
+                sections.push(MarkdownSection {
+                    heading: previous_heading,
+                    body: current_body,
+                });
+                current_body = Vec::new();
+            }
+            continue;
+        }
+
+        if current_heading.is_some() {
+            current_body.push(line.to_string());
+        }
+    }
+
+    if let Some(heading) = current_heading {
+        sections.push(MarkdownSection {
+            heading,
+            body: current_body,
+        });
+    }
+
+    sections
+}
+
+fn markdown_heading_text(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('#') {
+        return None;
+    }
+
+    let heading = trimmed.trim_start_matches('#').trim();
+    if heading.is_empty() {
+        None
+    } else {
+        Some(heading.to_string())
+    }
+}
+
+fn markdown_category(heading: &str) -> Option<&'static str> {
+    let lower = heading.to_ascii_lowercase();
+    if contains_any(
+        &lower,
+        &["install", "setup", "getting started", "quickstart"],
+    ) {
+        Some("setup")
+    } else if contains_any(&lower, &["command", "script", "run", "build", "test"]) {
+        Some("commands")
+    } else if contains_any(&lower, &["convention", "style", "standard", "workflow"]) {
+        Some("conventions")
+    } else if contains_any(
+        &lower,
+        &[
+            "warning",
+            "caution",
+            "important",
+            "do not",
+            "danger",
+            "fragile",
+        ],
+    ) {
+        Some("warnings")
+    } else if contains_any(
+        &lower,
+        &["architecture", "design", "overview", "structure", "layout"],
+    ) {
+        Some("architecture")
+    } else if contains_any(&lower, &["decision", "rationale", "tradeoff"]) {
+        Some("decisions")
+    } else if contains_any(&lower, &["contributing", "review", "release"]) {
+        Some("process")
+    } else {
+        None
+    }
+}
+
+fn contains_any(value: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| value.contains(needle))
+}
+
+fn section_excerpt(body: &[String]) -> String {
+    let excerpt = body
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .take(8)
+        .collect::<Vec<_>>()
+        .join(" ");
+    truncate_excerpt(&excerpt).unwrap_or_else(|| "Heading has no body text.".to_string())
+}
+
+fn truncate_excerpt(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let mut excerpt = trimmed.chars().take(520).collect::<String>();
+    if trimmed.chars().count() > 520 {
+        excerpt.push_str("...");
+    }
+    Some(excerpt)
+}
+
+fn markdown_anchor(heading: &str) -> String {
+    heading
+        .chars()
+        .filter_map(|character| {
+            if character.is_ascii_alphanumeric() {
+                Some(character.to_ascii_lowercase())
+            } else if character.is_whitespace() || character == '-' {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
+fn collect_repository_facts(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    created_at: i64,
+) -> Vec<ProjectInitializationFactInfo> {
+    let mut facts = vec![build_initialization_fact(
+        initialization_id,
+        repository,
+        "repository_path",
+        "Repository path",
+        repository.path.to_string_lossy(),
+        "project_repositories.path",
+        created_at,
+    )];
+
+    let git_root = git_output(&repository.path, &["rev-parse", "--show-toplevel"]);
+    let is_git_repository = git_root
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "git_repository",
+        "Git repository",
+        if is_git_repository { "yes" } else { "no" },
+        "git rev-parse --show-toplevel",
+        created_at,
+    ));
+
+    if !is_git_repository {
+        return facts;
+    }
+
+    let branch = git_output(&repository.path, &["branch", "--show-current"])
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| git_output(&repository.path, &["rev-parse", "--abbrev-ref", "HEAD"]))
+        .unwrap_or_else(|| "unknown".to_string());
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "git_branch",
+        "Git branch",
+        branch,
+        "git branch --show-current",
+        created_at,
+    ));
+
+    let head = git_output(&repository.path, &["rev-parse", "--short", "HEAD"])
+        .unwrap_or_else(|| "unknown".to_string());
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "git_head",
+        "Git HEAD",
+        head,
+        "git rev-parse --short HEAD",
+        created_at,
+    ));
+
+    let tracked_files = git_lines(&repository.path, &["ls-files"]);
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "tracked_file_count",
+        "Tracked files",
+        tracked_files.len().to_string(),
+        "git ls-files",
+        created_at,
+    ));
+
+    let markdown_file_count = tracked_files
+        .iter()
+        .filter(|path| path.to_ascii_lowercase().ends_with(".md"))
+        .count();
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "markdown_file_count",
+        "Markdown files",
+        markdown_file_count.to_string(),
+        "git ls-files",
+        created_at,
+    ));
+
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "detected_manifests",
+        "Detected manifests",
+        detected_manifests_summary(&tracked_files),
+        "git ls-files",
+        created_at,
+    ));
+
+    let test_file_count = tracked_files
+        .iter()
+        .filter(|path| is_likely_test_file(path))
+        .count();
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "test_file_count",
+        "Test files",
+        test_file_count.to_string(),
+        "git ls-files",
+        created_at,
+    ));
+
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "likely_entry_points",
+        "Likely entry points",
+        likely_entry_points_summary(&tracked_files),
+        "git ls-files",
+        created_at,
+    ));
+
+    facts.push(build_initialization_fact(
+        initialization_id,
+        repository,
+        "recent_churn",
+        "Recent churn",
+        recent_churn_summary(&repository.path),
+        "git log --name-only --max-count=30",
+        created_at,
+    ));
+
+    facts
+}
+
+fn detected_manifests_summary(tracked_files: &[String]) -> String {
+    let manifest_names = [
+        "package.json",
+        "Cargo.toml",
+        "pyproject.toml",
+        "requirements.txt",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "Makefile",
+    ];
+    let manifests = tracked_files
+        .iter()
+        .filter(|path| manifest_names.iter().any(|name| path.ends_with(name)))
+        .take(8)
+        .cloned()
+        .collect::<Vec<_>>();
+    if manifests.is_empty() {
+        "none".to_string()
+    } else {
+        manifests.join(", ")
+    }
+}
+
+fn is_likely_test_file(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    lower.contains("/test/")
+        || lower.contains("/tests/")
+        || lower.ends_with("_test.rs")
+        || lower.ends_with(".test.ts")
+        || lower.ends_with(".test.tsx")
+        || lower.ends_with(".spec.ts")
+        || lower.ends_with(".spec.tsx")
+}
+
+fn likely_entry_points_summary(tracked_files: &[String]) -> String {
+    let entry_names = [
+        "src/main.rs",
+        "src/lib.rs",
+        "src/main.ts",
+        "src/main.tsx",
+        "src/App.tsx",
+        "main.py",
+        "app.py",
+        "index.ts",
+        "index.tsx",
+    ];
+    let entry_points = tracked_files
+        .iter()
+        .filter(|path| entry_names.iter().any(|name| path.ends_with(name)))
+        .take(8)
+        .cloned()
+        .collect::<Vec<_>>();
+    if entry_points.is_empty() {
+        "none".to_string()
+    } else {
+        entry_points.join(", ")
+    }
+}
+
+fn build_initialization_fact(
+    initialization_id: &str,
+    repository: &ProjectRepositoryInfo,
+    kind: &str,
+    label: &str,
+    value: impl Into<String>,
+    source: &str,
+    created_at: i64,
+) -> ProjectInitializationFactInfo {
+    ProjectInitializationFactInfo {
+        id: Uuid::new_v4().to_string(),
+        initialization_id: initialization_id.to_string(),
+        repository_id: repository.id.clone(),
+        repository_name: repository.name.clone(),
+        repository_path: repository.path.clone(),
+        kind: kind.to_string(),
+        label: label.to_string(),
+        value: value.into(),
+        source: source.to_string(),
+        created_at,
+    }
+}
+
+fn git_output(repository_path: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repository_path)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn git_lines(repository_path: &Path, args: &[&str]) -> Vec<String> {
+    git_output(repository_path, args)
+        .map(|output| {
+            output
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn recent_churn_summary(repository_path: &Path) -> String {
+    let mut counts = HashMap::<String, usize>::new();
+    for line in git_lines(
+        repository_path,
+        &["log", "--name-only", "--pretty=format:", "--max-count=30"],
+    ) {
+        *counts.entry(line).or_default() += 1;
+    }
+
+    let mut entries = counts.into_iter().collect::<Vec<_>>();
+    entries.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+
+    let summary = entries
+        .into_iter()
+        .take(5)
+        .map(|(path, count)| format!("{path} ({count})"))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    if summary.is_empty() {
+        "none".to_string()
+    } else {
+        summary
+    }
+}
+
+fn require_knowledge_available_for_session(
+    connection: &Connection,
+    session_id: &str,
+    knowledge_item_id: &str,
+) -> AppResult<()> {
+    let available: i64 = connection
+        .query_row(
+            "SELECT COUNT(*)
+             FROM transcript_sessions s, knowledge_items k
+             WHERE s.id = ?1
+               AND k.id = ?2
+               AND (k.project_id IS NULL OR k.project_id = s.project_id)",
+            params![session_id, knowledge_item_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if available == 0 {
+        return Err(AppError::InvalidInput(
+            "knowledge item is not available for this transcript session".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn list_attached_knowledge_items(
+    connection: &Connection,
+    session_id: &str,
+) -> AppResult<Vec<KnowledgeItemInfo>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT k.id, k.project_id, k.title, k.body, k.kind, k.scope,
+                    k.source_transcript_session_id, k.created_at, k.updated_at
+             FROM transcript_knowledge_links l
+             JOIN knowledge_items k ON k.id = l.knowledge_item_id
+             WHERE l.transcript_session_id = ?1
+             ORDER BY l.created_at ASC, k.title ASC",
+        )
+        .map_err(storage_error)?;
+    let items = statement
+        .query_map(params![session_id], knowledge_item_from_row)
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+
+    Ok(items)
+}
+
+fn insert_project_repository(
+    connection: &Connection,
+    repository: ProjectRepositoryInfo,
+) -> AppResult<()> {
+    let path_text = repository.path.to_string_lossy().to_string();
+    connection
+        .execute(
+            "INSERT INTO project_repositories
+             (id, project_id, name, path, is_default, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &repository.id,
+                &repository.project_id,
+                &repository.name,
+                path_text,
+                if repository.is_default { 1 } else { 0 },
+                repository.created_at,
+                repository.updated_at
+            ],
+        )
+        .map_err(|err| {
+            if is_unique_constraint(&err) {
+                AppError::InvalidInput("repository path already exists".to_string())
+            } else {
+                storage_error(err)
+            }
+        })?;
+    Ok(())
+}
+
+fn resolve_project_path(path: &Path) -> AppResult<PathBuf> {
+    if !path.is_dir() {
+        return Err(AppError::InvalidInput(format!(
+            "project path is not a directory: {}",
+            path.display()
+        )));
+    }
+    Ok(path.canonicalize()?)
+}
+
+fn unix_timestamp() -> AppResult<i64> {
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|err| AppError::Storage(err.to_string()))?;
+    Ok(duration.as_secs() as i64)
+}
+
+fn is_unique_constraint(err: &rusqlite::Error) -> bool {
+    matches!(
+        err,
+        rusqlite::Error::SqliteFailure(error, _)
+            if error.code == rusqlite::ErrorCode::ConstraintViolation
+    )
+}
+
+fn storage_error(err: rusqlite::Error) -> AppError {
+    AppError::Storage(err.to_string())
+}
+
+fn ensure_table_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> AppResult<()> {
+    let mut statement = connection
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(storage_error)?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+    drop(statement);
+
+    if columns.iter().any(|candidate| candidate == column) {
+        return Ok(());
+    }
+
+    connection
+        .execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+            [],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::DEFAULT_SYNTHESIS_MODEL_PROFILE_ID;
+    use crate::synthesis::OPENAI_RESPONSES_GENERATION_ENGINE;
+
+    fn test_knowledge_draft() -> ProjectInitializationKnowledgeDraft {
+        ProjectInitializationKnowledgeDraft {
+            project_purpose: "AIadne controls coding-agent workflows [source: README.md#aiadne]"
+                .to_string(),
+            repository_map:
+                "- AIadne: selected application repository [source: project_repositories.path]"
+                    .to_string(),
+            repository_roles: "- AIadne: agent control application [source: README.md#aiadne]"
+                .to_string(),
+            build_test_matrix: "- Run Commands checks [source: README.md#commands]".to_string(),
+            fragile_areas: "- Do not edit generated files [source: README.md#important]"
+                .to_string(),
+            do_not_touch_rules: "- src/generated/** is protected [source: user_interview]"
+                .to_string(),
+            agent_working_rules: "- Ask before schema changes [source: user_interview]".to_string(),
+            open_questions: "- Needs confirmation: Confirm repository role with the user."
+                .to_string(),
+        }
+    }
+
+    #[test]
+    fn recognizes_only_atx_markdown_headings_as_structure() {
+        for heading in ["# Purpose", "## Needs confirmation", "   ###### Rules", "#"] {
+            assert!(is_markdown_heading(heading), "expected heading: {heading}");
+        }
+        for claim in [
+            "#include <stdio.h>",
+            "####### Too deep",
+            "- # tagged claim",
+            "Purpose",
+        ] {
+            assert!(!is_markdown_heading(claim), "expected claim: {claim}");
+        }
+    }
+
+    #[test]
+    fn creates_lists_and_deletes_projects() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let path = std::env::current_dir().expect("current dir exists");
+
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "  AIadne  ".to_string(),
+                path: path.clone(),
+            })
+            .expect("project created");
+        let projects = store.list_projects().expect("projects list");
+
+        assert_eq!(projects, vec![project.clone()]);
+        assert_eq!(project.name, "AIadne");
+        assert_eq!(
+            project.path,
+            path.canonicalize().expect("path canonicalizes")
+        );
+
+        store.delete_project(&project.id).expect("project deleted");
+        assert!(store.list_projects().expect("projects list").is_empty());
+    }
+
+    #[test]
+    fn rejects_invalid_project_input() {
+        let store = ProjectStore::in_memory().expect("store opens");
+
+        let empty_name = store
+            .create_project(CreateProjectRequest {
+                name: " ".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect_err("empty name rejected");
+        assert!(matches!(empty_name, AppError::InvalidInput(_)));
+
+        let missing_path = store
+            .create_project(CreateProjectRequest {
+                name: "Missing".to_string(),
+                path: PathBuf::from("/definitely/not/a/project"),
+            })
+            .expect_err("missing path rejected");
+        assert!(matches!(missing_path, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_duplicate_project_paths() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let path = std::env::current_dir().expect("current dir exists");
+
+        store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: path.clone(),
+            })
+            .expect("project created");
+        let duplicate = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path,
+            })
+            .expect_err("duplicate rejected");
+
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
+        assert!(duplicate.to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn creates_lists_and_deletes_project_repositories() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("project-root");
+        let extra_path = temp_project_path("project-api");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path.clone(),
+            })
+            .expect("project created");
+
+        let initial_repositories = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed");
+        assert_eq!(initial_repositories.len(), 1);
+        assert_eq!(initial_repositories[0].project_id, project.id);
+        assert_eq!(initial_repositories[0].name, "AIadne");
+        assert_eq!(
+            initial_repositories[0].path,
+            project_path.canonicalize().expect("path canonicalizes")
+        );
+        assert!(initial_repositories[0].is_default);
+
+        let extra = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "  API  ".to_string(),
+                path: extra_path.clone(),
+            })
+            .expect("repository created");
+        assert_eq!(extra.name, "API");
+        assert_eq!(extra.project_id, project.id);
+        assert_eq!(
+            extra.path,
+            extra_path.canonicalize().expect("path canonicalizes")
+        );
+        assert!(!extra.is_default);
+
+        let repositories = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed");
+        assert_eq!(repositories.len(), 2);
+        assert_eq!(repositories[0].name, "AIadne");
+        assert_eq!(repositories[1].name, "API");
+
+        store
+            .delete_project_repository(&extra.id)
+            .expect("repository deleted");
+        let remaining = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].name, "AIadne");
+
+        store.delete_project(&project.id).expect("project deleted");
+        let missing_project = store
+            .list_project_repositories(&project.id)
+            .expect_err("deleted project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_invalid_project_repository_input() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("repo-project");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path.clone(),
+            })
+            .expect("project created");
+
+        let missing_project = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: "missing-project".to_string(),
+                name: "Repo".to_string(),
+                path: temp_project_path("missing-project-repo"),
+            })
+            .expect_err("missing project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+
+        let empty_name = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: " ".to_string(),
+                path: temp_project_path("empty-name-repo"),
+            })
+            .expect_err("empty name rejected");
+        assert!(matches!(empty_name, AppError::InvalidInput(_)));
+
+        let missing_path = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "Missing path".to_string(),
+                path: PathBuf::from("/definitely/not/a/repository"),
+            })
+            .expect_err("missing path rejected");
+        assert!(matches!(missing_path, AppError::InvalidInput(_)));
+
+        let duplicate = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id,
+                name: "Duplicate".to_string(),
+                path: project_path,
+            })
+            .expect_err("duplicate path rejected");
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
+        assert!(duplicate.to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn creates_project_initialization_with_selected_repositories() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("init-project"),
+            })
+            .expect("project created");
+        let default_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let api_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "API".to_string(),
+                path: temp_project_path("init-api"),
+            })
+            .expect("repository created");
+
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![default_repository.id, api_repository.id],
+            })
+            .expect("initialization created");
+
+        assert_eq!(initialization.project_id, project.id);
+        assert_eq!(initialization.status, "preflight");
+        assert_eq!(initialization.repository_count, 2);
+
+        let listed = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed");
+        assert_eq!(listed, vec![initialization]);
+    }
+
+    #[test]
+    fn collects_non_git_project_initialization_facts() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("facts-non-git"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let facts = store
+            .collect_project_initialization_facts(&initialization.id)
+            .expect("facts collected");
+
+        assert_eq!(facts.len(), 2);
+        assert!(facts.iter().all(|fact| fact.repository_id == repository.id));
+        assert!(facts.iter().any(|fact| {
+            fact.kind == "repository_path" && fact.value == repository.path.to_string_lossy()
+        }));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "git_repository" && fact.value == "no"));
+        assert!(!facts.iter().any(|fact| fact.kind == "git_branch"));
+
+        let listed_facts = store
+            .list_project_initialization_facts(&initialization.id)
+            .expect("facts listed");
+        assert_eq!(listed_facts.len(), facts.len());
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "facts");
+    }
+
+    #[test]
+    fn collects_git_project_initialization_facts_for_selected_repositories() {
+        if !git_available_for_tests() {
+            return;
+        }
+
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("facts-project-root"),
+            })
+            .expect("project created");
+        let git_repository_path = temp_project_path("facts-git-repo");
+        initialize_git_repository_for_tests(&git_repository_path);
+        let selected_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "Git repo".to_string(),
+                path: git_repository_path,
+            })
+            .expect("git repository created");
+        let unselected_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .into_iter()
+            .find(|repository| repository.is_default)
+            .expect("default repository exists");
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![selected_repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let facts = store
+            .collect_project_initialization_facts(&initialization.id)
+            .expect("facts collected");
+
+        assert!(facts
+            .iter()
+            .all(|fact| fact.repository_id == selected_repository.id));
+        assert!(!facts
+            .iter()
+            .any(|fact| fact.repository_id == unselected_repository.id));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "git_repository" && fact.value == "yes"));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "tracked_file_count" && fact.value == "2"));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "markdown_file_count" && fact.value == "1"));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "likely_entry_points" && fact.value.contains("src/lib.rs")));
+        assert!(facts
+            .iter()
+            .any(|fact| fact.kind == "recent_churn" && fact.value.contains("README.md")));
+    }
+
+    #[test]
+    fn analyzes_git_tracked_markdown_for_selected_repositories() {
+        if !git_available_for_tests() {
+            return;
+        }
+
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("markdown-project-root"),
+            })
+            .expect("project created");
+        let git_repository_path = temp_project_path("markdown-git-repo");
+        initialize_git_repository_for_tests(&git_repository_path);
+        fs::write(
+            git_repository_path.join("README.md"),
+            "# AIadne\n\n## Setup\nRun npm install before starting.\n\n## Commands\nUse npm test for checks.\n\n## Architecture\nThe frontend calls Tauri commands.\n",
+        )
+        .expect("README updated");
+        run_git_for_tests(&git_repository_path, &["add", "README.md"]);
+        run_git_for_tests(
+            &git_repository_path,
+            &[
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "add docs",
+            ],
+        );
+        let selected_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "Docs repo".to_string(),
+                path: git_repository_path,
+            })
+            .expect("repository created");
+        let unselected_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .into_iter()
+            .find(|repository| repository.is_default)
+            .expect("default repository exists");
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![selected_repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let findings = store
+            .analyze_project_initialization_markdown(&initialization.id)
+            .expect("markdown analyzed");
+
+        assert!(findings
+            .iter()
+            .all(|finding| finding.repository_id == selected_repository.id));
+        assert!(!findings
+            .iter()
+            .any(|finding| finding.repository_id == unselected_repository.id));
+        assert!(findings.iter().any(|finding| {
+            finding.file_path == "README.md"
+                && finding.category == "setup"
+                && finding.excerpt.contains("npm install")
+                && finding.source == "README.md#setup"
+        }));
+        assert!(findings
+            .iter()
+            .any(|finding| finding.category == "architecture"));
+        let listed_findings = store
+            .list_project_initialization_markdown_findings(&initialization.id)
+            .expect("markdown findings listed");
+        assert_eq!(listed_findings.len(), findings.len());
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "markdown");
+    }
+
+    #[test]
+    fn analyzes_non_git_markdown_with_bounded_skip_rules() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("markdown-non-git");
+        fs::write(
+            project_path.join("README.md"),
+            "# Non Git\n\n## Important\nDo not edit generated files.\n",
+        )
+        .expect("README written");
+        fs::create_dir_all(project_path.join("node_modules")).expect("node_modules dir created");
+        fs::write(
+            project_path.join("node_modules").join("README.md"),
+            "# Vendor\n\n## Setup\nIgnore me.\n",
+        )
+        .expect("vendor README written");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path,
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+
+        let findings = store
+            .analyze_project_initialization_markdown(&initialization.id)
+            .expect("markdown analyzed");
+
+        assert!(findings
+            .iter()
+            .any(|finding| finding.file_path == "README.md" && finding.category == "warnings"));
+        assert!(!findings
+            .iter()
+            .any(|finding| finding.file_path.contains("node_modules")));
+    }
+
+    #[test]
+    fn saves_project_initialization_guardrails() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("guardrails-project"),
+            })
+            .expect("project created");
+        let default_repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let ui_repository = store
+            .create_project_repository(CreateProjectRepositoryRequest {
+                project_id: project.id.clone(),
+                name: "UI".to_string(),
+                path: temp_project_path("guardrails-ui"),
+            })
+            .expect("repository created");
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![default_repository.id.clone(), ui_repository.id.clone()],
+            })
+            .expect("initialization created");
+
+        let guardrails = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![
+                    ProjectInitializationGuardrailInput {
+                        repository_id: None,
+                        kind: "agent_rule".to_string(),
+                        path_pattern: None,
+                        content: "Always ask before schema changes.".to_string(),
+                    },
+                    ProjectInitializationGuardrailInput {
+                        repository_id: Some(ui_repository.id.clone()),
+                        kind: "do_not_touch".to_string(),
+                        path_pattern: Some("src/generated/**".to_string()),
+                        content: "Generated UI files are overwritten by tooling.".to_string(),
+                    },
+                ],
+            })
+            .expect("guardrails saved");
+
+        assert_eq!(guardrails.len(), 2);
+        assert_eq!(guardrails[0].scope, "project");
+        assert_eq!(guardrails[0].kind, "agent_rule");
+        assert_eq!(guardrails[0].source, "user_interview");
+        assert_eq!(guardrails[1].scope, "repository");
+        assert_eq!(
+            guardrails[1].repository_id.as_deref(),
+            Some(ui_repository.id.as_str())
+        );
+        assert_eq!(guardrails[1].repository_name.as_deref(), Some("UI"));
+        assert_eq!(
+            guardrails[1].path_pattern.as_deref(),
+            Some("src/generated/**")
+        );
+
+        let listed_guardrails = store
+            .list_project_initialization_guardrails(&initialization.id)
+            .expect("guardrails listed");
+        assert_eq!(listed_guardrails, guardrails);
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "interview");
+    }
+
+    #[test]
+    fn rejects_invalid_project_initialization_guardrails() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: temp_project_path("guardrails-one"),
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path: temp_project_path("guardrails-two"),
+            })
+            .expect("second project created");
+        let first_repository = store
+            .list_project_repositories(&first_project.id)
+            .expect("first repositories listed")
+            .remove(0);
+        let second_repository = store
+            .list_project_repositories(&second_project.id)
+            .expect("second repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id,
+                repository_ids: vec![first_repository.id],
+            })
+            .expect("initialization created");
+
+        let empty = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![],
+            })
+            .expect_err("empty guardrails rejected");
+        assert!(matches!(empty, AppError::InvalidInput(_)));
+
+        let unsupported_kind = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: None,
+                    kind: "generated_fact".to_string(),
+                    path_pattern: None,
+                    content: "Wrong source.".to_string(),
+                }],
+            })
+            .expect_err("unsupported kind rejected");
+        assert!(matches!(unsupported_kind, AppError::InvalidInput(_)));
+
+        let blank_content = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: None,
+                    kind: "agent_rule".to_string(),
+                    path_pattern: None,
+                    content: " ".to_string(),
+                }],
+            })
+            .expect_err("blank content rejected");
+        assert!(matches!(blank_content, AppError::InvalidInput(_)));
+
+        let unselected_repository = store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id,
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: Some(second_repository.id),
+                    kind: "do_not_touch".to_string(),
+                    path_pattern: Some("src/**".to_string()),
+                    content: "Wrong project.".to_string(),
+                }],
+            })
+            .expect_err("unselected repository rejected");
+        assert!(matches!(unselected_repository, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn generates_project_initialization_summary_draft() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project_path = temp_project_path("summary-draft-project");
+        fs::write(
+            project_path.join("README.md"),
+            "# AIadne\n\nProject controls CLI agents.\n\n## Commands\nRun npm test for checks.\n\n## Important\nDo not edit generated files.\n",
+        )
+        .expect("README written");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: project_path,
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id.clone(),
+                repository_ids: vec![repository.id.clone()],
+            })
+            .expect("initialization created");
+        store
+            .collect_project_initialization_facts(&initialization.id)
+            .expect("facts collected");
+        store
+            .analyze_project_initialization_markdown(&initialization.id)
+            .expect("markdown analyzed");
+        store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![
+                    ProjectInitializationGuardrailInput {
+                        repository_id: None,
+                        kind: "agent_rule".to_string(),
+                        path_pattern: None,
+                        content: "Always ask before schema changes.".to_string(),
+                    },
+                    ProjectInitializationGuardrailInput {
+                        repository_id: Some(repository.id.clone()),
+                        kind: "do_not_touch".to_string(),
+                        path_pattern: Some("src/generated/**".to_string()),
+                        content: "Generated files are overwritten by tooling.".to_string(),
+                    },
+                ],
+            })
+            .expect("guardrails saved");
+
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("summary persisted");
+
+        assert_eq!(summary.status, "draft");
+        assert!(summary.project_purpose.contains("AIadne"));
+        assert!(summary.repository_map.contains("AIadne"));
+        assert!(summary.build_test_matrix.contains("Commands"));
+        assert!(summary
+            .fragile_areas
+            .contains("Do not edit generated files"));
+        assert!(summary.do_not_touch_rules.contains("src/generated/**"));
+        assert!(summary.agent_working_rules.contains("schema changes"));
+        assert!(summary.open_questions.contains("Confirm repository role"));
+        assert_eq!(summary.fact_count, 2);
+        assert_eq!(summary.guardrail_count, 2);
+        assert!(summary.markdown_finding_count >= 3);
+        assert_eq!(
+            summary.requested_model_profile_id.as_deref(),
+            Some(DEFAULT_SYNTHESIS_MODEL_PROFILE_ID)
+        );
+        assert_eq!(
+            summary.requested_model_provider_id.as_deref(),
+            Some("openai")
+        );
+        assert_eq!(summary.requested_model_id.as_deref(), Some("gpt-5.6-terra"));
+        assert_eq!(summary.requested_model_tier.as_deref(), Some("mid"));
+        assert_eq!(
+            summary.requested_model_parameters,
+            vec![ModelParameterInfo {
+                name: "reasoning.effort".to_string(),
+                value: "medium".to_string(),
+            }]
+        );
+        assert_eq!(
+            summary.model_catalog_schema_version,
+            Some(MODEL_CATALOG_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            summary.knowledge_schema_version,
+            PROJECT_KNOWLEDGE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            summary.generation_engine,
+            OPENAI_RESPONSES_GENERATION_ENGINE
+        );
+        assert_eq!(summary.approved_at, None);
+
+        let listed_summary = store
+            .list_project_initialization_summary(&initialization.id)
+            .expect("summary listed")
+            .expect("summary exists");
+        assert_eq!(listed_summary, summary);
+        let listed_initialization = store
+            .list_project_initializations(&project.id)
+            .expect("initializations listed")
+            .remove(0);
+        assert_eq!(listed_initialization.status, "summary");
+    }
+
+    #[test]
+    fn approves_project_initialization_summary() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-approval-project"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: "openai-gpt-5.6-sol-high".to_string(),
+            })
+            .expect("synthesis prepared");
+        let mut draft = test_knowledge_draft();
+        draft.project_purpose = format!("## Project purpose\n{}", draft.project_purpose);
+        draft.open_questions = format!("## Needs confirmation\n{}", draft.open_questions);
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                draft,
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("summary persisted");
+
+        let approved = store
+            .approve_project_initialization_summary(&summary.id)
+            .expect("summary approved");
+
+        assert_eq!(approved.id, summary.id);
+        assert_eq!(approved.status, "approved");
+        assert!(approved.approved_at.is_some());
+        let listed_summary = store
+            .list_project_initialization_summary(&initialization.id)
+            .expect("summary listed")
+            .expect("summary exists");
+        assert_eq!(listed_summary.status, "approved");
+        assert_eq!(
+            listed_summary.requested_model_profile_id.as_deref(),
+            Some("openai-gpt-5.6-sol-high")
+        );
+        assert_eq!(listed_summary.requested_model_tier.as_deref(), Some("high"));
+
+        let units = store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units listed");
+        assert_eq!(units.len(), 8);
+        assert!(units.iter().all(|unit| !unit.content.starts_with('#')));
+        assert!(units.iter().all(|unit| {
+            unit.derived_from_summary_id == summary.id
+                && unit.schema_version == PROJECT_KNOWLEDGE_SCHEMA_VERSION
+        }));
+        let purpose = units
+            .iter()
+            .find(|unit| unit.topic == "project_purpose")
+            .expect("purpose unit exists");
+        assert_eq!(purpose.kind, "purpose");
+        assert_eq!(purpose.status, "active");
+        assert_eq!(purpose.confidence, 100);
+        assert_eq!(purpose.content, "AIadne controls coding-agent workflows");
+        assert_eq!(
+            purpose.sources,
+            vec![KnowledgeUnitSourceInfo {
+                source_key: "README.md#aiadne".to_string(),
+                repository_id: None,
+                path: None,
+            }]
+        );
+        let open_question = units
+            .iter()
+            .find(|unit| unit.topic == "open_questions")
+            .expect("open question unit exists");
+        assert_eq!(open_question.status, "needs_confirmation");
+        assert_eq!(open_question.confidence, 0);
+        assert!(open_question.sources.is_empty());
+
+        let initial_ids = units.iter().map(|unit| unit.id.clone()).collect::<Vec<_>>();
+        store
+            .approve_project_initialization_summary(&summary.id)
+            .expect("reapproval succeeds");
+        let repeated_ids = store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units relisted")
+            .into_iter()
+            .map(|unit| unit.id)
+            .collect::<Vec<_>>();
+        assert_eq!(repeated_ids, initial_ids);
+
+        let missing = store
+            .approve_project_initialization_summary("missing-summary")
+            .expect_err("missing summary rejected");
+        assert!(matches!(missing, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_uncited_claim_during_summary_approval_without_publishing_units() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-unit-validation"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let mut draft = test_knowledge_draft();
+        draft
+            .project_purpose
+            .push_str("\n- This second claim has no source");
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                draft,
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("section-valid summary persisted");
+
+        let error = store
+            .approve_project_initialization_summary(&summary.id)
+            .expect_err("uncited unit rejected");
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert_eq!(
+            store
+                .list_project_initialization_summary(&initialization.id)
+                .expect("summary listed")
+                .expect("summary exists")
+                .status,
+            "draft"
+        );
+        assert!(store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units listed")
+            .is_empty());
+    }
+
+    #[test]
+    fn rejects_unknown_or_empty_summary_model_profiles() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-model-validation"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+
+        for model_profile_id in ["", "unknown-profile"] {
+            let error = store
+                .prepare_project_initialization_synthesis(
+                    GenerateProjectInitializationSummaryRequest {
+                        initialization_id: initialization.id.clone(),
+                        model_profile_id: model_profile_id.to_string(),
+                    },
+                )
+                .expect_err("invalid model profile rejected");
+            assert!(matches!(error, AppError::InvalidInput(_)));
+        }
+
+        assert!(store
+            .list_project_initialization_summary(&initialization.id)
+            .expect("summary checked")
+            .is_none());
+    }
+
+    #[test]
+    fn invalid_synthesis_output_preserves_previous_summary() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-atomic-replacement"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let original = store
+            .persist_project_initialization_summary(
+                &context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("initial summary persisted");
+        let mut invalid = test_knowledge_draft();
+        invalid.project_purpose = " ".to_string();
+
+        let error = store
+            .persist_project_initialization_summary(
+                &context,
+                invalid,
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect_err("invalid model output rejected");
+        assert!(matches!(error, AppError::Synthesis(_)));
+        assert_eq!(
+            store
+                .list_project_initialization_summary(&initialization.id)
+                .expect("summary listed")
+                .expect("summary remains"),
+            original
+        );
+    }
+
+    #[test]
+    fn stale_synthesis_output_preserves_previous_summary() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("summary-stale-evidence"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let original_context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("initial synthesis prepared");
+        let original = store
+            .persist_project_initialization_summary(
+                &original_context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("initial summary persisted");
+        store
+            .save_project_initialization_guardrails(SaveProjectInitializationGuardrailsRequest {
+                initialization_id: initialization.id.clone(),
+                guardrails: vec![ProjectInitializationGuardrailInput {
+                    repository_id: None,
+                    kind: "agent_rule".to_string(),
+                    path_pattern: None,
+                    content: "Review schema changes.".to_string(),
+                }],
+            })
+            .expect("evidence changed");
+
+        let error = store
+            .persist_project_initialization_summary(
+                &original_context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect_err("stale synthesis rejected");
+        assert!(matches!(
+            error,
+            AppError::Synthesis(message) if message.contains("evidence changed")
+        ));
+        assert_eq!(
+            store
+                .list_project_initialization_summary(&initialization.id)
+                .expect("summary listed")
+                .expect("summary remains"),
+            original
+        );
+    }
+
+    #[test]
+    fn migrates_existing_summary_table_without_losing_drafts() {
+        let database_directory = temp_project_path("summary-model-migration");
+        let database_path = database_directory.join("legacy.sqlite");
+        let legacy_connection = Connection::open(&database_path).expect("legacy database opens");
+        legacy_connection
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE projects (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL UNIQUE,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE project_initialization_runs (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE project_initialization_summaries (
+                    id TEXT PRIMARY KEY,
+                    initialization_id TEXT NOT NULL UNIQUE REFERENCES project_initialization_runs(id) ON DELETE CASCADE,
+                    status TEXT NOT NULL,
+                    project_purpose TEXT NOT NULL,
+                    repository_map TEXT NOT NULL,
+                    repository_roles TEXT NOT NULL,
+                    build_test_matrix TEXT NOT NULL,
+                    fragile_areas TEXT NOT NULL,
+                    do_not_touch_rules TEXT NOT NULL,
+                    agent_working_rules TEXT NOT NULL,
+                    open_questions TEXT NOT NULL,
+                    fact_count INTEGER NOT NULL,
+                    markdown_finding_count INTEGER NOT NULL,
+                    guardrail_count INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    approved_at INTEGER
+                 );
+                 INSERT INTO projects VALUES ('project-1', 'Legacy', '/tmp/legacy', 1, 1);
+                 INSERT INTO project_initialization_runs VALUES ('init-1', 'project-1', 'summary', 1, 1);
+                 INSERT INTO project_initialization_summaries VALUES (
+                    'summary-1', 'init-1', 'draft', 'purpose', 'map', 'roles', 'tests',
+                    'fragile', 'do-not-touch', 'rules', 'questions', 2, 3, 4, 1, NULL
+                 );",
+            )
+            .expect("legacy schema created");
+        drop(legacy_connection);
+
+        let store = ProjectStore::open(&database_path).expect("store migrates");
+        let summary = store
+            .list_project_initialization_summary("init-1")
+            .expect("legacy summary listed")
+            .expect("legacy summary preserved");
+
+        assert_eq!(summary.id, "summary-1");
+        assert_eq!(summary.project_purpose, "purpose");
+        assert_eq!(summary.requested_model_profile_id, None);
+        assert!(summary.requested_model_parameters.is_empty());
+        assert_eq!(summary.knowledge_schema_version, 1);
+        assert_eq!(summary.generation_engine, "deterministic_v1");
+
+        drop(store);
+        fs::remove_dir_all(database_directory).expect("temporary database removed");
+    }
+
+    #[test]
+    fn rejects_invalid_project_initialization_input() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: temp_project_path("init-one"),
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path: temp_project_path("init-two"),
+            })
+            .expect("second project created");
+        let first_repository = store
+            .list_project_repositories(&first_project.id)
+            .expect("first repositories listed")
+            .remove(0);
+        let second_repository = store
+            .list_project_repositories(&second_project.id)
+            .expect("second repositories listed")
+            .remove(0);
+
+        let empty = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id.clone(),
+                repository_ids: vec![],
+            })
+            .expect_err("empty repository selection rejected");
+        assert!(matches!(empty, AppError::InvalidInput(_)));
+
+        let duplicate = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id.clone(),
+                repository_ids: vec![first_repository.id.clone(), first_repository.id],
+            })
+            .expect_err("duplicate repository selection rejected");
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
+
+        let wrong_project = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: first_project.id,
+                repository_ids: vec![second_repository.id],
+            })
+            .expect_err("repository from another project rejected");
+        assert!(matches!(wrong_project, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn creates_lists_and_records_transcript_events() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect("project created");
+
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: " acp ".to_string(),
+                source: " Codex ".to_string(),
+                title: Some(" Morning run ".to_string()),
+            })
+            .expect("transcript session created");
+
+        assert_eq!(session.project_id.as_deref(), Some(project.id.as_str()));
+        assert_eq!(session.runtime, "acp");
+        assert_eq!(session.source, "Codex");
+        assert_eq!(session.title, "Morning run");
+        assert_eq!(session.event_count, 0);
+
+        let inserted = store
+            .append_transcript_events(
+                &session.id,
+                vec![
+                    TranscriptEventInput {
+                        kind: " user_message ".to_string(),
+                        content: "hello".to_string(),
+                    },
+                    TranscriptEventInput {
+                        kind: "agent_message".to_string(),
+                        content: "Hi there".to_string(),
+                    },
+                ],
+            )
+            .expect("events appended");
+
+        assert_eq!(inserted.len(), 2);
+        assert_eq!(inserted[0].sequence, 0);
+        assert_eq!(inserted[0].kind, "user_message");
+        assert_eq!(inserted[0].content, "hello");
+        assert_eq!(inserted[1].sequence, 1);
+
+        let sessions = store
+            .list_transcript_sessions(Some(&project.id))
+            .expect("sessions list");
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, session.id);
+        assert_eq!(sessions[0].event_count, 2);
+
+        let events = store
+            .list_transcript_events(&session.id)
+            .expect("events list");
+        assert_eq!(events, inserted);
+    }
+
+    #[test]
+    fn rejects_invalid_transcript_input() {
+        let store = ProjectStore::in_memory().expect("store opens");
+
+        let missing_runtime = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: None,
+                runtime: " ".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect_err("missing runtime rejected");
+        assert!(matches!(missing_runtime, AppError::InvalidInput(_)));
+
+        let missing_project = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some("missing-project".to_string()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect_err("missing project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: None,
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript session created");
+
+        let empty_batch = store
+            .append_transcript_events(&session.id, Vec::new())
+            .expect_err("empty event batch rejected");
+        assert!(matches!(empty_batch, AppError::InvalidInput(_)));
+
+        let empty_kind = store
+            .append_transcript_events(
+                &session.id,
+                vec![TranscriptEventInput {
+                    kind: " ".to_string(),
+                    content: "content".to_string(),
+                }],
+            )
+            .expect_err("empty kind rejected");
+        assert!(matches!(empty_kind, AppError::InvalidInput(_)));
+
+        let empty_content = store
+            .append_transcript_events(
+                &session.id,
+                vec![TranscriptEventInput {
+                    kind: "agent_message".to_string(),
+                    content: " ".to_string(),
+                }],
+            )
+            .expect_err("empty content rejected");
+        assert!(matches!(empty_content, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn keeps_transcript_history_when_project_is_deleted() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect("project created");
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript session created");
+
+        store.delete_project(&project.id).expect("project deleted");
+
+        let sessions = store
+            .list_transcript_sessions(None)
+            .expect("transcript sessions listed");
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, session.id);
+        assert_eq!(sessions[0].project_id, None);
+    }
+
+    #[test]
+    fn renames_transcript_session_titles() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: None,
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: Some("Codex ACP".to_string()),
+            })
+            .expect("transcript session created");
+
+        let renamed = store
+            .rename_transcript_session(RenameTranscriptSessionRequest {
+                session_id: session.id.clone(),
+                title: "  Bug bash with Codex  ".to_string(),
+            })
+            .expect("transcript session renamed");
+        assert_eq!(renamed.title, "Bug bash with Codex");
+        assert_eq!(renamed.event_count, 0);
+
+        let listed = store.list_transcript_sessions(None).expect("sessions list");
+        assert_eq!(listed[0].title, "Bug bash with Codex");
+
+        let empty_title = store
+            .rename_transcript_session(RenameTranscriptSessionRequest {
+                session_id: session.id,
+                title: " ".to_string(),
+            })
+            .expect_err("empty title rejected");
+        assert!(matches!(empty_title, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn creates_lists_and_attaches_knowledge_items() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect("project created");
+        let session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript session created");
+
+        let global_item = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: None,
+                title: "  UI palette  ".to_string(),
+                body: "Use earth tones.".to_string(),
+                kind: " decision ".to_string(),
+                scope: " global ".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect("global knowledge created");
+        let project_item = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: Some(project.id.clone()),
+                title: "Project rule".to_string(),
+                body: "Prefer ACP for structured sessions.".to_string(),
+                kind: "constraint".to_string(),
+                scope: "project".to_string(),
+                source_transcript_session_id: Some(session.id.clone()),
+            })
+            .expect("project knowledge created");
+
+        assert_eq!(global_item.title, "UI palette");
+        assert_eq!(global_item.kind, "decision");
+        assert_eq!(global_item.scope, "global");
+        assert_eq!(
+            project_item.source_transcript_session_id,
+            Some(session.id.clone())
+        );
+
+        let items = store
+            .list_knowledge_items(Some(&project.id))
+            .expect("knowledge list");
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().any(|item| item.id == global_item.id));
+        assert!(items.iter().any(|item| item.id == project_item.id));
+
+        store
+            .attach_knowledge_to_transcript_session(&session.id, &global_item.id)
+            .expect("global knowledge attached");
+        let attached = store
+            .attach_knowledge_to_transcript_session(&session.id, &project_item.id)
+            .expect("project knowledge attached");
+        assert_eq!(attached.len(), 2);
+
+        let attached_again = store
+            .attach_knowledge_to_transcript_session(&session.id, &project_item.id)
+            .expect("duplicate attach ignored");
+        assert_eq!(attached_again.len(), 2);
+
+        let listed = store
+            .list_attached_knowledge(&session.id)
+            .expect("attached knowledge listed");
+        assert_eq!(listed, attached_again);
+    }
+
+    #[test]
+    fn rejects_invalid_knowledge_input_and_cross_project_attach() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_path = temp_project_path("first");
+        let second_path = temp_project_path("second");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "One".to_string(),
+                path: first_path,
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Two".to_string(),
+                path: second_path,
+            })
+            .expect("second project created");
+        let first_session = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(first_project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("first transcript session created");
+
+        let empty_title = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: None,
+                title: " ".to_string(),
+                body: "body".to_string(),
+                kind: "decision".to_string(),
+                scope: "global".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect_err("empty title rejected");
+        assert!(matches!(empty_title, AppError::InvalidInput(_)));
+
+        let missing_project = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: Some("missing-project".to_string()),
+                title: "Rule".to_string(),
+                body: "body".to_string(),
+                kind: "decision".to_string(),
+                scope: "project".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect_err("missing project rejected");
+        assert!(matches!(missing_project, AppError::InvalidInput(_)));
+
+        let second_project_item = store
+            .create_knowledge_item(CreateKnowledgeItemRequest {
+                project_id: Some(second_project.id),
+                title: "Other project".to_string(),
+                body: "Do not leak into another project.".to_string(),
+                kind: "constraint".to_string(),
+                scope: "project".to_string(),
+                source_transcript_session_id: None,
+            })
+            .expect("second project knowledge created");
+        let cross_project = store
+            .attach_knowledge_to_transcript_session(&first_session.id, &second_project_item.id)
+            .expect_err("cross-project attach rejected");
+        assert!(matches!(cross_project, AppError::InvalidInput(_)));
+    }
+
+    fn temp_project_path(label: &str) -> PathBuf {
+        let path = std::env::temp_dir()
+            .join("aiadne-storage-tests")
+            .join(format!("{label}-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&path).expect("temp project dir created");
+        path
+    }
+
+    fn git_available_for_tests() -> bool {
+        Command::new("git")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+
+    fn initialize_git_repository_for_tests(path: &Path) {
+        run_git_for_tests(path, &["init"]);
+        std::fs::write(path.join("README.md"), "# Test\n").expect("README written");
+        std::fs::create_dir_all(path.join("src")).expect("src dir created");
+        std::fs::write(path.join("src").join("lib.rs"), "pub fn demo() {}\n")
+            .expect("lib.rs written");
+        run_git_for_tests(path, &["add", "."]);
+        run_git_for_tests(
+            path,
+            &[
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "initial",
+            ],
+        );
+        std::fs::write(path.join("README.md"), "# Test\n\nUpdated.\n").expect("README updated");
+        run_git_for_tests(path, &["add", "README.md"]);
+        run_git_for_tests(
+            path,
+            &[
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "update readme",
+            ],
+        );
+    }
+
+    fn run_git_for_tests(path: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(path)
+            .args(args)
+            .output()
+            .expect("git command runs");
+        assert!(
+            output.status.success(),
+            "git command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}

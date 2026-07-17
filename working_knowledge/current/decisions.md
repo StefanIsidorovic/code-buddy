@@ -1,20 +1,21 @@
 # Decisions
 
 ## Confirmed
-- Reset direction: remove implemented feature code and keep only a buildable technology skeleton.
-- Stack baseline: keep Tauri v2, Rust, React, TypeScript, and Vite as the active scaffold.
-- Documentation deliverable: create Linear-ready tasks in the repository so they can be copied into Linear.
-- Scope control: do not implement PTY, adapters, persistence, keychain, AGENTS.md embedding, or session UI in this reset pass.
-- Commit ownership: user will review and commit the local changes.
-- AIA-002 implementation: use portable-pty and a fake echo CLI before real agent adapters.
-- AIA-002 streaming validation: expose a bounded backend output buffer that tests and later IPC can drain.
-- AIA-002 platform scope: validate fake CLI on Linux now; harden Windows behavior in a later cross-platform pass.
-- Codex smoke test: add a temporary start_codex_session path using codex --no-alt-screen --cd <cwd>, while keeping the full adapter abstraction deferred.
-- PTY rendering: introduce xterm.js early for the smoke-test panel because real Codex output is ANSI/TUI and is not readable in a raw pre block.
-- PTY panel scrolling: keep the desktop test page fixed to the viewport and let long output scroll only inside xterm.
-- PTY input: route keyboard data through xterm onData directly into the backend PTY; a separate HTML input form cannot support Codex TUI interactions reliably.
+- Product identity: display AIadne in the UI and Tauri window while retaining internal `code-buddy` names and `com.codebuddy.app` until a deliberate migration.
+- Runtime boundary: use structured ACP as the primary agent interaction and keep PTY as the compatibility fallback.
+- Workspace boundary: projects own repositories; the selected repository supplies runtime cwd.
+- Persistence: SQLite owns projects, repositories, initialization artefacts, transcripts, Knowledge Cards, summaries, and generated Knowledge Units.
+- Knowledge boundary: manual Knowledge Cards remain user-authored prompt attachments; approved summaries publish separate immutable, source-backed Knowledge Units.
+- Validation: unknown or generic synthesis source labels are rejected; one bounded provider correction may retry without remapping citations.
+- Selection: use deterministic mandatory/repository/path/lexical ranking, stable ordering, explicit reasons, and a configurable 6000-character default budget before considering embeddings.
+- Prompt boundary: selector output remains preview-only until the user can explicitly approve the exact generated context sent to ACP.
+- UI identity: use the local AIadne thread/maze mark, Geist Sans, Ariadne Atelier semantic colors, a light parchment workspace, and fixed dark command rail/terminal regions.
+- Accessibility: preserve semantic text identity, focus-visible states, explicit disabled colors, reduced-motion behavior, accessible state notices, and named icon controls.
+- Documentation: LOCAL_PROGRESS.md becomes tracked because the user explicitly requested committing the full reconciled project record.
 
 ## Deferred
-- App/package rename from code-buddy to AIadne: defer until explicitly requested.
-- Installing Zustand, Tailwind, or SQL plugin dependencies: defer until their milestone begins unless the user asks for a dependency-only setup commit.
-- Retrospective provenance repair for 74ca850: report and defer unless requested.
+- Automatic or session-sticky Knowledge Unit prompt injection: pending explicit UX and transcript-provenance design.
+- Continue-from-transcript context strategy: pending a bounded raw-turn versus summary decision.
+- Embeddings and semantic retrieval: pending measurement of deterministic selector quality.
+- Internal package, crate, application identifier, and storage migration: pending a dedicated compatibility plan.
+- Platform-specific AIadne icon pack, packaging, and release automation: pending post-MVP acceptance testing.
