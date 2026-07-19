@@ -2144,6 +2144,7 @@ describe("PTY test panel", () => {
       });
     });
     expect(await screen.findByText("fake acp received prompt")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Task assessment" })).not.toBeInTheDocument();
     expect(scrollToMock).toHaveBeenCalled();
     expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
   });
@@ -2324,6 +2325,10 @@ describe("PTY test panel", () => {
         originalPrompt: "first task prompt",
       },
     }));
+    expect(await screen.findByRole("heading", { name: "Task assessment" })).toBeInTheDocument();
+    expect(screen.getByText("quick")).toBeInTheDocument();
+    expect(screen.getByText("82%")).toBeInTheDocument();
+    expect(screen.getByText("bounded single-surface change")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Send ACP" })).not.toBeDisabled());
 
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
@@ -2427,6 +2432,7 @@ describe("PTY test panel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
     expect(await screen.findAllByText("fake · running · fake-acp-session"))
       .not.toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: "Task assessment" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("create_task", {
@@ -2436,6 +2442,51 @@ describe("PTY test panel", () => {
         originalPrompt: "Hello from AIadne",
       },
     }));
+  });
+
+  it("restores and labels a user-overridden Task assessment", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const overriddenTask = defaultTask({
+      initialComplexityProfile: "quick",
+      complexityProfile: "complex",
+      complexityReasons: ["Analysis found backend and schema changes."],
+      complexityConfidence: null,
+      complexitySource: "user",
+    });
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+      if (command === "list_project_tasks") {
+        return Promise.resolve([overriddenTask]);
+      }
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve(defaultAcpSession());
+      }
+      if (command === "create_transcript_session") {
+        return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
+      }
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+    expect(await screen.findByText("AIadne")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+
+    expect(await screen.findByRole("heading", { name: "Task assessment" })).toBeInTheDocument();
+    expect(screen.getByText("complex")).toBeInTheDocument();
+    expect(screen.getByText("User selected")).toBeInTheDocument();
+    expect(screen.getByText("Analysis found backend and schema changes.")).toBeInTheDocument();
+    expect(screen.getByText(/Initially assessed as/)).toHaveTextContent("quick");
   });
 
   it("does not send a project prompt without a persisted transcript", async () => {
@@ -3005,6 +3056,14 @@ function baseTask() {
     originalPrompt: "Hello from AIadne",
     status: "pending",
     currentPhase: "analysis",
+    initialComplexityProfile: "quick",
+    initialComplexityReasons: ["bounded single-surface change"],
+    initialComplexityConfidence: 82,
+    complexityProfile: "quick",
+    complexityReasons: ["bounded single-surface change"],
+    complexityConfidence: 82 as number | null,
+    complexitySource: "system",
+    complexityAssessmentVersion: "deterministic_v1",
     phases,
     createdAt: 1_785_000_001,
     updatedAt: 1_785_000_001,

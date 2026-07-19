@@ -317,6 +317,14 @@ type TaskInfo = {
   originalPrompt: string;
   status: string;
   currentPhase: TaskPhaseInfo["phase"];
+  initialComplexityProfile: "quick" | "standard" | "complex";
+  initialComplexityReasons: string[];
+  initialComplexityConfidence: number;
+  complexityProfile: "quick" | "standard" | "complex";
+  complexityReasons: string[];
+  complexityConfidence: number | null;
+  complexitySource: "system" | "user" | "analysis";
+  complexityAssessmentVersion: string;
   phases: TaskPhaseInfo[];
   createdAt: number;
   updatedAt: number;
@@ -479,6 +487,7 @@ function App() {
   const [taskContextPreviewError, setTaskContextPreviewError] = useState<string | null>(null);
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
+  const [tasksByTranscriptId, setTasksByTranscriptId] = useState<Record<string, TaskInfo>>({});
   const [openedTranscriptSession, setOpenedTranscriptSession] =
     useState<TranscriptSessionInfo | null>(null);
   const [openedTranscriptEvents, setOpenedTranscriptEvents] = useState<AcpSessionEvent[]>([]);
@@ -587,6 +596,7 @@ function App() {
     [projectRepositories, selectedRepositoryId],
   );
   const selectedHistorySessionId = openedTranscriptSession?.id ?? transcriptSession?.id ?? null;
+  const activeTask = transcriptSession ? tasksByTranscriptId[transcriptSession.id] ?? null : null;
   const selectedHistorySession = useMemo(
     () => transcriptSessions.find((session) => session.id === selectedHistorySessionId) ?? null,
     [selectedHistorySessionId, transcriptSessions],
@@ -1566,8 +1576,9 @@ function App() {
   async function refreshProjectTasks(projectId = selectedProjectId) {
     const requestId = taskLoadRequest.current + 1;
     taskLoadRequest.current = requestId;
+    tasksByTranscriptIdRef.current = {};
+    setTasksByTranscriptId({});
     if (!projectId) {
-      tasksByTranscriptIdRef.current = {};
       return;
     }
 
@@ -1581,6 +1592,7 @@ function App() {
       );
       if (taskLoadRequest.current === requestId) {
         tasksByTranscriptIdRef.current = indexedTasks;
+        setTasksByTranscriptId(indexedTasks);
       }
     } catch (err) {
       if (taskLoadRequest.current === requestId) {
@@ -2090,6 +2102,10 @@ function App() {
           ...tasksByTranscriptIdRef.current,
           [activeTranscriptId]: task,
         };
+        setTasksByTranscriptId((current) => ({
+          ...current,
+          [activeTranscriptId]: task,
+        }));
       }
       const userEvent: AcpSessionEvent = {
         kind: "user_message",
@@ -3109,6 +3125,61 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {activeTask ? (
+              <section className="active-task-card" aria-labelledby="active-task-title">
+                <div className="active-task-heading">
+                  <div>
+                    <p className="eyebrow">Active Task</p>
+                    <h4 id="active-task-title">Task assessment</h4>
+                  </div>
+                  <span
+                    className="task-complexity-badge"
+                    data-profile={activeTask.complexityProfile}
+                  >
+                    {activeTask.complexityProfile}
+                  </span>
+                </div>
+
+                <dl className="active-task-meta">
+                  <div>
+                    <dt>Phase</dt>
+                    <dd>{activeTask.currentPhase}</dd>
+                  </div>
+                  <div>
+                    <dt>Assessment</dt>
+                    <dd>{activeTask.complexitySource}</dd>
+                  </div>
+                  <div>
+                    <dt>Confidence</dt>
+                    <dd>
+                      {activeTask.complexityConfidence === null
+                        ? "User selected"
+                        : `${activeTask.complexityConfidence}%`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Version</dt>
+                    <dd>{activeTask.complexityAssessmentVersion}</dd>
+                  </div>
+                </dl>
+
+                <div className="active-task-reasons">
+                  <strong>Why this profile</strong>
+                  <ul>
+                    {activeTask.complexityReasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                {activeTask.initialComplexityProfile !== activeTask.complexityProfile ? (
+                  <p className="active-task-initial">
+                    Initially assessed as <strong>{activeTask.initialComplexityProfile}</strong>.
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
 
             {acpPromptResult ? (
               <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>

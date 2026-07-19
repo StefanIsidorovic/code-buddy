@@ -4001,6 +4001,102 @@ a:hover {
   margin-right: auto;
 }
 
+.active-task-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--color-surface-raised);
+}
+
+.active-task-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.active-task-heading .eyebrow,
+.active-task-heading h4,
+.active-task-initial,
+.active-task-reasons ul {
+  margin: 0;
+}
+
+.active-task-heading h4 {
+  color: var(--color-text-strong);
+  font-size: var(--type-body);
+}
+
+.task-complexity-badge {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  font-size: var(--type-label);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.task-complexity-badge[data-profile="quick"] {
+  border-color: var(--color-success);
+  color: var(--color-success-strong);
+  background: var(--color-success-soft);
+}
+
+.task-complexity-badge[data-profile="complex"] {
+  border-color: var(--color-warning);
+  color: var(--color-warning-strong);
+  background: var(--color-warning-soft);
+}
+
+.active-task-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.active-task-meta div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.active-task-meta dt {
+  color: var(--color-text-muted);
+  font-size: var(--type-label);
+}
+
+.active-task-meta dd {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: var(--type-ui);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.active-task-reasons {
+  display: grid;
+  gap: 5px;
+  color: var(--color-text);
+  font-size: var(--type-ui);
+}
+
+.active-task-reasons ul {
+  display: grid;
+  gap: 3px;
+  padding-left: 20px;
+}
+
+.active-task-initial {
+  color: var(--color-text-muted);
+  font-size: var(--type-label);
+}
+
 .context-preview-button {
   justify-self: start;
 }
@@ -4030,6 +4126,10 @@ a:hover {
   .acp-composer-actions .context-preview-button {
     width: 100%;
     margin-right: 0;
+  }
+
+  .active-task-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
