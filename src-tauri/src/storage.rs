@@ -254,6 +254,42 @@ pub struct TranscriptEventInfo {
     pub created_at: i64,
 }
 
+pub const TASK_PHASES: [&str; 4] = ["planning", "analysis", "execution", "review"];
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskRequest {
+    pub project_id: String,
+    pub transcript_session_id: String,
+    pub original_prompt: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPhaseInfo {
+    pub id: String,
+    pub task_id: String,
+    pub phase: String,
+    pub phase_index: i64,
+    pub status: String,
+    pub started_at: Option<i64>,
+    pub completed_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskInfo {
+    pub id: String,
+    pub project_id: String,
+    pub transcript_session_id: String,
+    pub original_prompt: String,
+    pub status: String,
+    pub current_phase: String,
+    pub phases: Vec<TaskPhaseInfo>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateKnowledgeItemRequest {
@@ -1018,6 +1054,117 @@ impl ProjectStore {
         Ok(session)
     }
 
+    pub fn create_task(&self, request: CreateTaskRequest) -> AppResult<TaskInfo> {
+        let project_id = request.project_id.trim();
+        if project_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task project id must not be empty".to_string(),
+            ));
+        }
+        let transcript_session_id = request.transcript_session_id.trim();
+        if transcript_session_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task transcript session id must not be empty".to_string(),
+            ));
+        }
+        let original_prompt = request.original_prompt.trim();
+        if original_prompt.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task original prompt must not be empty".to_string(),
+            ));
+        }
+
+        self.require_project(project_id)?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let transcript_project_id: Option<String> = transaction
+            .query_row(
+                "SELECT project_id FROM transcript_sessions WHERE id = ?1",
+                params![transcript_session_id],
+                |row| row.get(0),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => AppError::InvalidInput(format!(
+                    "transcript session not found: {transcript_session_id}"
+                )),
+                other => storage_error(other),
+            })?;
+        if transcript_project_id.as_deref() != Some(project_id) {
+            return Err(AppError::InvalidInput(
+                "task transcript session must belong to the selected project".to_string(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let task_id = Uuid::new_v4().to_string();
+        transaction
+            .execute(
+                "INSERT INTO tasks
+                 (id, project_id, transcript_session_id, original_prompt, status, current_phase, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, 'pending', 'planning', ?5, ?5)",
+                params![task_id, project_id, transcript_session_id, original_prompt, now],
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::SqliteFailure(ref failure, _)
+                    if failure.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    AppError::InvalidInput(
+                        "a task already exists for this transcript session".to_string(),
+                    )
+                }
+                other => storage_error(other),
+            })?;
+
+        for (phase_index, phase) in TASK_PHASES.iter().enumerate() {
+            transaction
+                .execute(
+                    "INSERT INTO task_phases
+                     (id, task_id, phase, phase_index, status, started_at, completed_at)
+                     VALUES (?1, ?2, ?3, ?4, 'pending', NULL, NULL)",
+                    params![
+                        Uuid::new_v4().to_string(),
+                        &task_id,
+                        phase,
+                        phase_index as i64
+                    ],
+                )
+                .map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+
+        self.task(&task_id)
+    }
+
+    pub fn list_project_tasks(&self, project_id: &str) -> AppResult<Vec<TaskInfo>> {
+        let project_id = project_id.trim();
+        if project_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task project id must not be empty".to_string(),
+            ));
+        }
+        self.require_project(project_id)?;
+
+        let task_ids = {
+            let connection = self.connection()?;
+            let mut statement = connection
+                .prepare(
+                    "SELECT id FROM tasks
+                     WHERE project_id = ?1
+                     ORDER BY updated_at DESC, created_at DESC, id ASC",
+                )
+                .map_err(storage_error)?;
+            let ids = statement
+                .query_map(params![project_id], |row| row.get::<_, String>(0))
+                .map_err(storage_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?;
+            ids
+        };
+
+        task_ids.iter().map(|task_id| self.task(task_id)).collect()
+    }
+
     pub fn append_transcript_events(
         &self,
         session_id: &str,
@@ -1479,6 +1626,35 @@ impl ProjectStore {
                 CREATE INDEX IF NOT EXISTS idx_transcript_events_session_sequence
                     ON transcript_events(session_id, sequence);
 
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    transcript_session_id TEXT NOT NULL UNIQUE REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    original_prompt TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_phase TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_tasks_project_updated
+                    ON tasks(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS task_phases (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    phase TEXT NOT NULL,
+                    phase_index INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    started_at INTEGER,
+                    completed_at INTEGER,
+                    UNIQUE(task_id, phase),
+                    UNIQUE(task_id, phase_index)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_phases_task_order
+                    ON task_phases(task_id, phase_index);
+
                 CREATE TABLE IF NOT EXISTS knowledge_items (
                     id TEXT PRIMARY KEY,
                     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -1580,6 +1756,58 @@ impl ProjectStore {
             )));
         }
         Ok(())
+    }
+
+    fn task(&self, task_id: &str) -> AppResult<TaskInfo> {
+        let connection = self.connection()?;
+        let mut task = connection
+            .query_row(
+                "SELECT id, project_id, transcript_session_id, original_prompt, status,
+                        current_phase, created_at, updated_at
+                 FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| {
+                    Ok(TaskInfo {
+                        id: row.get(0)?,
+                        project_id: row.get(1)?,
+                        transcript_session_id: row.get(2)?,
+                        original_prompt: row.get(3)?,
+                        status: row.get(4)?,
+                        current_phase: row.get(5)?,
+                        phases: Vec::new(),
+                        created_at: row.get(6)?,
+                        updated_at: row.get(7)?,
+                    })
+                },
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("task not found: {task_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, task_id, phase, phase_index, status, started_at, completed_at
+                 FROM task_phases WHERE task_id = ?1 ORDER BY phase_index ASC",
+            )
+            .map_err(storage_error)?;
+        task.phases = statement
+            .query_map(params![task_id], |row| {
+                Ok(TaskPhaseInfo {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    phase: row.get(2)?,
+                    phase_index: row.get(3)?,
+                    status: row.get(4)?,
+                    started_at: row.get(5)?,
+                    completed_at: row.get(6)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        Ok(task)
     }
 
     fn require_transcript_session(&self, session_id: &str) -> AppResult<()> {
@@ -4568,6 +4796,117 @@ mod tests {
             .list_transcript_events(&session.id)
             .expect("events list");
         assert_eq!(events, inserted);
+    }
+
+    #[test]
+    fn creates_tasks_with_canonical_phases_and_lists_them_by_project() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript created");
+
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "  Implement task knowledge  ".to_string(),
+            })
+            .expect("task created");
+
+        assert_eq!(task.project_id, project.id);
+        assert_eq!(task.transcript_session_id, transcript.id);
+        assert_eq!(task.original_prompt, "Implement task knowledge");
+        assert_eq!(task.status, "pending");
+        assert_eq!(task.current_phase, "planning");
+        assert_eq!(task.phases.len(), TASK_PHASES.len());
+        for (index, phase) in task.phases.iter().enumerate() {
+            assert_eq!(phase.task_id, task.id);
+            assert_eq!(phase.phase, TASK_PHASES[index]);
+            assert_eq!(phase.phase_index, index as i64);
+            assert_eq!(phase.status, "pending");
+            assert_eq!(phase.started_at, None);
+            assert_eq!(phase.completed_at, None);
+        }
+
+        let listed = store
+            .list_project_tasks(&task.project_id)
+            .expect("tasks listed");
+        assert_eq!(listed, vec![task]);
+    }
+
+    #[test]
+    fn rejects_invalid_or_duplicate_task_relationships() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let first_project = store
+            .create_project(CreateProjectRequest {
+                name: "First".to_string(),
+                path: std::env::current_dir().expect("current dir exists"),
+            })
+            .expect("first project created");
+        let second_project = store
+            .create_project(CreateProjectRequest {
+                name: "Second".to_string(),
+                path: std::env::temp_dir(),
+            })
+            .expect("second project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(first_project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript created");
+
+        for request in [
+            CreateTaskRequest {
+                project_id: "missing-project".to_string(),
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Prompt".to_string(),
+            },
+            CreateTaskRequest {
+                project_id: first_project.id.clone(),
+                transcript_session_id: "missing-transcript".to_string(),
+                original_prompt: "Prompt".to_string(),
+            },
+            CreateTaskRequest {
+                project_id: second_project.id,
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Prompt".to_string(),
+            },
+            CreateTaskRequest {
+                project_id: first_project.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: " ".to_string(),
+            },
+        ] {
+            let error = store
+                .create_task(request)
+                .expect_err("invalid task rejected");
+            assert!(matches!(error, AppError::InvalidInput(_)));
+        }
+
+        let request = CreateTaskRequest {
+            project_id: first_project.id,
+            transcript_session_id: transcript.id,
+            original_prompt: "Prompt".to_string(),
+        };
+        store.create_task(request.clone()).expect("task created");
+        let duplicate = store
+            .create_task(request)
+            .expect_err("duplicate transcript task rejected");
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
     }
 
     #[test]

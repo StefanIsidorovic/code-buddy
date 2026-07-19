@@ -11,13 +11,14 @@ use crate::{
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
-        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTranscriptSessionRequest,
-        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
-        ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
-        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
-        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
-        RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest,
-        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskRequest,
+        CreateTranscriptSessionRequest, GenerateProjectInitializationSummaryRequest,
+        KnowledgeItemInfo, KnowledgeUnitInfo, ProjectInfo, ProjectInitializationFactInfo,
+        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
+        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
+        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskInfo, TranscriptEventInfo,
+        TranscriptEventInput, TranscriptSessionInfo,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -247,6 +248,22 @@ pub fn create_transcript_session(
     request: CreateTranscriptSessionRequest,
 ) -> AppResult<TranscriptSessionInfo> {
     state.create_transcript_session(request)
+}
+
+#[tauri::command]
+pub fn create_task(
+    state: State<'_, ProjectStore>,
+    request: CreateTaskRequest,
+) -> AppResult<TaskInfo> {
+    state.create_task(request)
+}
+
+#[tauri::command]
+pub fn list_project_tasks(
+    state: State<'_, ProjectStore>,
+    project_id: String,
+) -> AppResult<Vec<TaskInfo>> {
+    state.list_project_tasks(&project_id)
 }
 
 #[tauri::command]
