@@ -7,6 +7,7 @@ pub mod models;
 pub mod session;
 pub mod storage;
 pub mod synthesis;
+pub mod task;
 
 use acp::AcpSessionManager;
 use session::SessionManager;
@@ -54,6 +55,7 @@ pub fn run() {
             commands::create_transcript_session,
             commands::create_task,
             commands::list_project_tasks,
+            commands::update_task_complexity,
             commands::append_transcript_events,
             commands::list_transcript_sessions,
             commands::list_transcript_events,

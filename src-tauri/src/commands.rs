@@ -18,7 +18,7 @@ use crate::{
         ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
         ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
         SaveProjectInitializationGuardrailsRequest, TaskInfo, TranscriptEventInfo,
-        TranscriptEventInput, TranscriptSessionInfo,
+        TranscriptEventInput, TranscriptSessionInfo, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -264,6 +264,14 @@ pub fn list_project_tasks(
     project_id: String,
 ) -> AppResult<Vec<TaskInfo>> {
     state.list_project_tasks(&project_id)
+}
+
+#[tauri::command]
+pub fn update_task_complexity(
+    state: State<'_, ProjectStore>,
+    request: UpdateTaskComplexityRequest,
+) -> AppResult<TaskInfo> {
+    state.update_task_complexity(request)
 }
 
 #[tauri::command]

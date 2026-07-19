@@ -4,6 +4,7 @@ use crate::models::{
     PROJECT_KNOWLEDGE_SCHEMA_VERSION,
 };
 use crate::synthesis::ProjectInitializationKnowledgeDraft;
+use crate::task::{assess_task_complexity, is_task_complexity_profile};
 use rusqlite::{params, types::Type, Connection};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -285,9 +286,40 @@ pub struct TaskInfo {
     pub original_prompt: String,
     pub status: String,
     pub current_phase: String,
+    pub initial_complexity_profile: String,
+    pub initial_complexity_reasons: Vec<String>,
+    pub initial_complexity_confidence: i64,
+    pub complexity_profile: String,
+    pub complexity_reasons: Vec<String>,
+    pub complexity_confidence: Option<i64>,
+    pub complexity_source: String,
+    pub complexity_assessment_version: String,
+    pub complexity_changes: Vec<TaskComplexityChangeInfo>,
     pub phases: Vec<TaskPhaseInfo>,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskComplexityChangeInfo {
+    pub id: String,
+    pub task_id: String,
+    pub sequence: i64,
+    pub profile: String,
+    pub reasons: Vec<String>,
+    pub confidence: Option<i64>,
+    pub source: String,
+    pub assessment_version: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTaskComplexityRequest {
+    pub task_id: String,
+    pub profile: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1073,6 +1105,9 @@ impl ProjectStore {
             ));
         }
 
+        let complexity = assess_task_complexity(&request.original_prompt);
+        let complexity_reasons_json = serde_json::to_string(&complexity.reasons)
+            .map_err(|error| AppError::Storage(error.to_string()))?;
         self.require_project(project_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(storage_error)?;
@@ -1099,14 +1134,23 @@ impl ProjectStore {
         transaction
             .execute(
                 "INSERT INTO tasks
-                 (id, project_id, transcript_session_id, original_prompt, status, current_phase, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, 'pending', 'analysis', ?5, ?5)",
+                 (id, project_id, transcript_session_id, original_prompt, status, current_phase,
+                  initial_complexity_profile, initial_complexity_reasons_json,
+                  initial_complexity_confidence, complexity_profile, complexity_reasons_json,
+                  complexity_confidence, complexity_source, complexity_assessment_version,
+                  created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, 'pending', 'analysis', ?5, ?6, ?7, ?5, ?6, ?7,
+                         'system', ?8, ?9, ?9)",
                 params![
                     task_id,
                     project_id,
                     transcript_session_id,
                     request.original_prompt,
-                    now
+                    &complexity.profile,
+                    &complexity_reasons_json,
+                    complexity.confidence,
+                    &complexity.version,
+                    now,
                 ],
             )
             .map_err(|error| match error {
@@ -1135,10 +1179,97 @@ impl ProjectStore {
                 )
                 .map_err(storage_error)?;
         }
+        insert_task_complexity_change(
+            &transaction,
+            TaskComplexityChangeInput {
+                task_id: &task_id,
+                sequence: 0,
+                profile: &complexity.profile,
+                reasons_json: &complexity_reasons_json,
+                confidence: Some(complexity.confidence),
+                source: "system",
+                assessment_version: &complexity.version,
+                created_at: now,
+            },
+        )?;
         transaction.commit().map_err(storage_error)?;
         drop(connection);
 
         self.task(&task_id)
+    }
+
+    pub fn update_task_complexity(
+        &self,
+        request: UpdateTaskComplexityRequest,
+    ) -> AppResult<TaskInfo> {
+        let task_id = request.task_id.trim();
+        if task_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task id must not be empty".to_string(),
+            ));
+        }
+        let profile = request.profile.trim().to_lowercase();
+        if !is_task_complexity_profile(&profile) {
+            return Err(AppError::InvalidInput(
+                "task complexity profile must be quick, standard, or complex".to_string(),
+            ));
+        }
+        let reason = request.reason.trim();
+        if reason.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task complexity override reason must not be empty".to_string(),
+            ));
+        }
+        let reasons_json = serde_json::to_string(&vec![reason])
+            .map_err(|error| AppError::Storage(error.to_string()))?;
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let assessment_version: String = transaction
+            .query_row(
+                "SELECT complexity_assessment_version FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("task not found: {task_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        let next_sequence: i64 = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(sequence), -1) + 1
+                 FROM task_complexity_changes WHERE task_id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        transaction
+            .execute(
+                "UPDATE tasks
+                 SET complexity_profile = ?1, complexity_reasons_json = ?2,
+                     complexity_confidence = NULL, complexity_source = 'user', updated_at = ?3
+                 WHERE id = ?4",
+                params![profile, reasons_json, now, task_id],
+            )
+            .map_err(storage_error)?;
+        insert_task_complexity_change(
+            &transaction,
+            TaskComplexityChangeInput {
+                task_id,
+                sequence: next_sequence,
+                profile: &profile,
+                reasons_json: &reasons_json,
+                confidence: None,
+                source: "user",
+                assessment_version: &assessment_version,
+                created_at: now,
+            },
+        )?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task(task_id)
     }
 
     pub fn list_project_tasks(&self, project_id: &str) -> AppResult<Vec<TaskInfo>> {
@@ -1638,6 +1769,14 @@ impl ProjectStore {
                     original_prompt TEXT NOT NULL,
                     status TEXT NOT NULL,
                     current_phase TEXT NOT NULL,
+                    initial_complexity_profile TEXT NOT NULL DEFAULT 'standard',
+                    initial_complexity_reasons_json TEXT NOT NULL DEFAULT '["legacy task without assessment"]',
+                    initial_complexity_confidence INTEGER NOT NULL DEFAULT 0,
+                    complexity_profile TEXT NOT NULL DEFAULT 'standard',
+                    complexity_reasons_json TEXT NOT NULL DEFAULT '["legacy task without assessment"]',
+                    complexity_confidence INTEGER,
+                    complexity_source TEXT NOT NULL DEFAULT 'system',
+                    complexity_assessment_version TEXT NOT NULL DEFAULT 'legacy_v0',
                     created_at INTEGER NOT NULL,
                     updated_at INTEGER NOT NULL
                 );
@@ -1659,6 +1798,22 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_task_phases_task_order
                     ON task_phases(task_id, phase_index);
+
+                CREATE TABLE IF NOT EXISTS task_complexity_changes (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    sequence INTEGER NOT NULL,
+                    profile TEXT NOT NULL CHECK(profile IN ('quick', 'standard', 'complex')),
+                    reasons_json TEXT NOT NULL,
+                    confidence INTEGER CHECK(confidence IS NULL OR (confidence >= 0 AND confidence <= 100)),
+                    source TEXT NOT NULL CHECK(source IN ('system', 'user', 'analysis')),
+                    assessment_version TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(task_id, sequence)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_complexity_changes_task_sequence
+                    ON task_complexity_changes(task_id, sequence);
 
                 CREATE TABLE IF NOT EXISTS knowledge_items (
                     id TEXT PRIMARY KEY,
@@ -1737,6 +1892,64 @@ impl ProjectStore {
             "generation_engine",
             "TEXT NOT NULL DEFAULT 'deterministic_v1'",
         )?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "initial_complexity_profile",
+            "TEXT NOT NULL DEFAULT 'standard'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "initial_complexity_reasons_json",
+            "TEXT NOT NULL DEFAULT '[\"legacy task without assessment\"]'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "initial_complexity_confidence",
+            "INTEGER NOT NULL DEFAULT 0",
+        )?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "complexity_profile",
+            "TEXT NOT NULL DEFAULT 'standard'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "complexity_reasons_json",
+            "TEXT NOT NULL DEFAULT '[\"legacy task without assessment\"]'",
+        )?;
+        ensure_table_column(&connection, "tasks", "complexity_confidence", "INTEGER")?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "complexity_source",
+            "TEXT NOT NULL DEFAULT 'system'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "tasks",
+            "complexity_assessment_version",
+            "TEXT NOT NULL DEFAULT 'legacy_v0'",
+        )?;
+        connection
+            .execute(
+                "INSERT INTO task_complexity_changes
+                 (id, task_id, sequence, profile, reasons_json, confidence, source,
+                  assessment_version, created_at)
+                 SELECT 'legacy-' || id, id, 0, complexity_profile, complexity_reasons_json,
+                        complexity_confidence, complexity_source, complexity_assessment_version,
+                        created_at
+                 FROM tasks
+                 WHERE NOT EXISTS (
+                    SELECT 1 FROM task_complexity_changes c WHERE c.task_id = tasks.id
+                 )",
+                [],
+            )
+            .map_err(storage_error)?;
         Ok(())
     }
 
@@ -1768,7 +1981,10 @@ impl ProjectStore {
         let mut task = connection
             .query_row(
                 "SELECT id, project_id, transcript_session_id, original_prompt, status,
-                        current_phase, created_at, updated_at
+                        current_phase, initial_complexity_profile,
+                        initial_complexity_reasons_json, initial_complexity_confidence,
+                        complexity_profile, complexity_reasons_json, complexity_confidence,
+                        complexity_source, complexity_assessment_version, created_at, updated_at
                  FROM tasks WHERE id = ?1",
                 params![task_id],
                 |row| {
@@ -1779,9 +1995,18 @@ impl ProjectStore {
                         original_prompt: row.get(3)?,
                         status: row.get(4)?,
                         current_phase: row.get(5)?,
+                        initial_complexity_profile: row.get(6)?,
+                        initial_complexity_reasons: json_string_list_from_row(row, 7)?,
+                        initial_complexity_confidence: row.get(8)?,
+                        complexity_profile: row.get(9)?,
+                        complexity_reasons: json_string_list_from_row(row, 10)?,
+                        complexity_confidence: row.get(11)?,
+                        complexity_source: row.get(12)?,
+                        complexity_assessment_version: row.get(13)?,
+                        complexity_changes: Vec::new(),
                         phases: Vec::new(),
-                        created_at: row.get(6)?,
-                        updated_at: row.get(7)?,
+                        created_at: row.get(14)?,
+                        updated_at: row.get(15)?,
                     })
                 },
             )
@@ -1807,6 +2032,30 @@ impl ProjectStore {
                     status: row.get(4)?,
                     started_at: row.get(5)?,
                     completed_at: row.get(6)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, task_id, sequence, profile, reasons_json, confidence, source,
+                        assessment_version, created_at
+                 FROM task_complexity_changes WHERE task_id = ?1 ORDER BY sequence ASC",
+            )
+            .map_err(storage_error)?;
+        task.complexity_changes = statement
+            .query_map(params![task_id], |row| {
+                Ok(TaskComplexityChangeInfo {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    sequence: row.get(2)?,
+                    profile: row.get(3)?,
+                    reasons: json_string_list_from_row(row, 4)?,
+                    confidence: row.get(5)?,
+                    source: row.get(6)?,
+                    assessment_version: row.get(7)?,
+                    created_at: row.get(8)?,
                 })
             })
             .map_err(storage_error)?
@@ -3521,6 +3770,53 @@ fn storage_error(err: rusqlite::Error) -> AppError {
     AppError::Storage(err.to_string())
 }
 
+fn json_string_list_from_row(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+) -> rusqlite::Result<Vec<String>> {
+    let json: String = row.get(index)?;
+    serde_json::from_str(&json).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(index, Type::Text, Box::new(error))
+    })
+}
+
+struct TaskComplexityChangeInput<'a> {
+    task_id: &'a str,
+    sequence: i64,
+    profile: &'a str,
+    reasons_json: &'a str,
+    confidence: Option<i64>,
+    source: &'a str,
+    assessment_version: &'a str,
+    created_at: i64,
+}
+
+fn insert_task_complexity_change(
+    connection: &Connection,
+    input: TaskComplexityChangeInput<'_>,
+) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO task_complexity_changes
+             (id, task_id, sequence, profile, reasons_json, confidence, source,
+              assessment_version, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                Uuid::new_v4().to_string(),
+                input.task_id,
+                input.sequence,
+                input.profile,
+                input.reasons_json,
+                input.confidence,
+                input.source,
+                input.assessment_version,
+                input.created_at,
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
+}
+
 fn ensure_table_column(
     connection: &Connection,
     table: &str,
@@ -4834,6 +5130,15 @@ mod tests {
         assert_eq!(task.original_prompt, "  Implement task knowledge  ");
         assert_eq!(task.status, "pending");
         assert_eq!(task.current_phase, "analysis");
+        assert_eq!(task.initial_complexity_profile, "standard");
+        assert_eq!(task.complexity_profile, "standard");
+        assert_eq!(task.complexity_source, "system");
+        assert_eq!(task.complexity_confidence, Some(55));
+        assert_eq!(task.complexity_assessment_version, "deterministic_v1");
+        assert_eq!(task.initial_complexity_reasons, task.complexity_reasons);
+        assert_eq!(task.complexity_changes.len(), 1);
+        assert_eq!(task.complexity_changes[0].sequence, 0);
+        assert_eq!(task.complexity_changes[0].source, "system");
         assert_eq!(task.phases.len(), TASK_PHASES.len());
         for (index, phase) in task.phases.iter().enumerate() {
             assert_eq!(phase.task_id, task.id);
@@ -4848,6 +5153,151 @@ mod tests {
             .list_project_tasks(&task.project_id)
             .expect("tasks listed");
         assert_eq!(listed, vec![task]);
+    }
+
+    #[test]
+    fn overrides_effective_task_complexity_without_rewriting_initial_assessment() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("task-complexity-override"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id,
+                original_prompt: "Dodaj dugme".to_string(),
+            })
+            .expect("task created");
+        assert_eq!(task.initial_complexity_profile, "quick");
+
+        let overridden = store
+            .update_task_complexity(UpdateTaskComplexityRequest {
+                task_id: task.id.clone(),
+                profile: " COMPLEX ".to_string(),
+                reason: " Analysis found backend and schema changes. ".to_string(),
+            })
+            .expect("complexity overridden");
+
+        assert_eq!(overridden.initial_complexity_profile, "quick");
+        assert_eq!(
+            overridden.initial_complexity_reasons,
+            task.initial_complexity_reasons
+        );
+        assert_eq!(overridden.initial_complexity_confidence, 82);
+        assert_eq!(overridden.complexity_profile, "complex");
+        assert_eq!(
+            overridden.complexity_reasons,
+            vec!["Analysis found backend and schema changes."]
+        );
+        assert_eq!(overridden.complexity_confidence, None);
+        assert_eq!(overridden.complexity_source, "user");
+        assert_eq!(overridden.complexity_assessment_version, "deterministic_v1");
+        assert_eq!(overridden.complexity_changes.len(), 2);
+        assert_eq!(overridden.complexity_changes[1].sequence, 1);
+        assert_eq!(overridden.complexity_changes[1].source, "user");
+
+        let overridden_again = store
+            .update_task_complexity(UpdateTaskComplexityRequest {
+                task_id: task.id.clone(),
+                profile: "standard".to_string(),
+                reason: "User chose the balanced workflow.".to_string(),
+            })
+            .expect("complexity overridden again");
+        assert_eq!(overridden_again.complexity_profile, "standard");
+        assert_eq!(overridden_again.complexity_changes.len(), 3);
+        assert_eq!(overridden_again.complexity_changes[2].sequence, 2);
+        assert_eq!(overridden_again.complexity_changes[2].profile, "standard");
+
+        for request in [
+            UpdateTaskComplexityRequest {
+                task_id: task.id.clone(),
+                profile: "tiny".to_string(),
+                reason: "Preference".to_string(),
+            },
+            UpdateTaskComplexityRequest {
+                task_id: task.id.clone(),
+                profile: "standard".to_string(),
+                reason: " ".to_string(),
+            },
+            UpdateTaskComplexityRequest {
+                task_id: "missing-task".to_string(),
+                profile: "standard".to_string(),
+                reason: "Preference".to_string(),
+            },
+        ] {
+            let error = store
+                .update_task_complexity(request)
+                .expect_err("invalid override rejected");
+            assert!(matches!(error, AppError::InvalidInput(_)));
+        }
+    }
+
+    #[test]
+    fn migrates_legacy_tasks_with_auditable_standard_defaults() {
+        let database_directory = temp_project_path("task-complexity-migration");
+        let database_path = database_directory.join("legacy.sqlite");
+        let legacy_connection = Connection::open(&database_path).expect("legacy database opens");
+        legacy_connection
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE projects (
+                    id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL UNIQUE,
+                    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE transcript_sessions (
+                    id TEXT PRIMARY KEY, project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+                    runtime TEXT NOT NULL, source TEXT NOT NULL, title TEXT NOT NULL,
+                    started_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE tasks (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    transcript_session_id TEXT NOT NULL UNIQUE REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    original_prompt TEXT NOT NULL, status TEXT NOT NULL, current_phase TEXT NOT NULL,
+                    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE task_phases (
+                    id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    phase TEXT NOT NULL, phase_index INTEGER NOT NULL, status TEXT NOT NULL,
+                    started_at INTEGER, completed_at INTEGER,
+                    UNIQUE(task_id, phase), UNIQUE(task_id, phase_index)
+                 );
+                 INSERT INTO projects VALUES ('project-1', 'Legacy', '/tmp/legacy-task', 1, 1);
+                 INSERT INTO transcript_sessions VALUES ('transcript-1', 'project-1', 'acp', 'Codex', 'Legacy', 1, 1);
+                 INSERT INTO tasks VALUES ('task-1', 'project-1', 'transcript-1', 'Legacy task', 'pending', 'analysis', 1, 1);",
+            )
+            .expect("legacy task schema created");
+        drop(legacy_connection);
+
+        let store = ProjectStore::open(&database_path).expect("store migrates");
+        let task = store
+            .list_project_tasks("project-1")
+            .expect("legacy tasks listed")
+            .remove(0);
+        assert_eq!(task.initial_complexity_profile, "standard");
+        assert_eq!(task.complexity_profile, "standard");
+        assert_eq!(
+            task.complexity_reasons,
+            vec!["legacy task without assessment"]
+        );
+        assert_eq!(task.complexity_confidence, None);
+        assert_eq!(task.complexity_assessment_version, "legacy_v0");
+        assert_eq!(task.complexity_changes.len(), 1);
+        assert_eq!(task.complexity_changes[0].assessment_version, "legacy_v0");
+
+        drop(store);
+        fs::remove_dir_all(database_directory).expect("temporary database removed");
     }
 
     #[test]
