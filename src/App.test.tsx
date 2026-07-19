@@ -95,6 +95,10 @@ beforeEach(() => {
       return Promise.resolve(defaultTranscriptSessions());
     }
 
+    if (command === "list_project_tasks") {
+      return Promise.resolve([]);
+    }
+
     if (command === "create_transcript_session") {
       return Promise.resolve(defaultTranscriptSession());
     }
@@ -2270,6 +2274,212 @@ describe("PTY test panel", () => {
     });
   });
 
+  it("creates one Task from the first project ACP prompt and reuses it for follow-ups", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+      if (command === "list_project_tasks") {
+        return Promise.resolve([]);
+      }
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve(defaultAcpSession());
+      }
+      if (command === "create_transcript_session") {
+        return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
+      }
+      if (command === "create_task") {
+        return Promise.resolve(defaultTask({ originalPrompt: "first task prompt" }));
+      }
+      if (command === "append_transcript_events" || command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+      if (command === "send_acp_prompt") {
+        return Promise.resolve({ sessionId: "acp-session-1", stopReason: "end_turn" });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+    expect(await screen.findByText("AIadne")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
+
+    fireEvent.change(screen.getByLabelText("ACP prompt"), {
+      target: { value: "first task prompt" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("create_task", {
+      request: {
+        projectId: "project-aiadne",
+        transcriptSessionId: "transcript-1",
+        originalPrompt: "first task prompt",
+      },
+    }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send ACP" })).not.toBeDisabled());
+
+    fireEvent.change(screen.getByLabelText("ACP prompt"), {
+      target: { value: "follow-up prompt" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+    await waitFor(() => {
+      expect(invokeMock.mock.calls.filter(([command]) => command === "send_acp_prompt"))
+        .toHaveLength(2);
+    });
+    expect(invokeMock.mock.calls.filter(([command]) => command === "create_task"))
+      .toHaveLength(1);
+    expect(invokeMock).toHaveBeenCalledWith("append_transcript_events", {
+      sessionId: "transcript-1",
+      events: [{ kind: "user_message", content: "first task prompt" }],
+    });
+  });
+
+  it("does not record or send a project prompt when Task creation fails", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+      if (command === "list_project_tasks") {
+        return Promise.resolve([]);
+      }
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve(defaultAcpSession());
+      }
+      if (command === "create_transcript_session") {
+        return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
+      }
+      if (command === "create_task") {
+        return Promise.reject(new Error("task persistence failed"));
+      }
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+    expect(await screen.findByText("AIadne")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
+    fireEvent.change(screen.getByLabelText("ACP prompt"), {
+      target: { value: "tracked prompt" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    expect(await screen.findByText("task persistence failed")).toBeInTheDocument();
+    expect(invokeMock.mock.calls.some(([command]) => command === "append_transcript_events"))
+      .toBe(false);
+    expect(invokeMock.mock.calls.some(([command]) => command === "send_acp_prompt"))
+      .toBe(false);
+  });
+
+  it("does not reuse a loaded Task for a newly created transcript", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+      if (command === "list_project_tasks") {
+        return Promise.resolve([defaultTask({ transcriptSessionId: "transcript-old" })]);
+      }
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve(defaultAcpSession());
+      }
+      if (command === "create_transcript_session") {
+        return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
+      }
+      if (command === "create_task") {
+        return Promise.resolve(defaultTask());
+      }
+      if (command === "append_transcript_events" || command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+      if (command === "send_acp_prompt") {
+        return Promise.resolve({ sessionId: "acp-session-1", stopReason: "end_turn" });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+    expect(await screen.findByText("AIadne")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("create_task", {
+      request: {
+        projectId: "project-aiadne",
+        transcriptSessionId: "transcript-1",
+        originalPrompt: "Hello from AIadne",
+      },
+    }));
+  });
+
+  it("does not send a project prompt without a persisted transcript", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([defaultProject()]);
+      }
+      if (command === "list_project_tasks") {
+        return Promise.resolve([]);
+      }
+      if (command === "list_agent_doctor_reports") {
+        return Promise.resolve(defaultDoctorReports());
+      }
+      if (command === "list_acp_registry_candidates") {
+        return Promise.resolve(defaultAcpRegistryCandidates());
+      }
+      if (command === "start_fake_acp_session") {
+        return Promise.resolve(defaultAcpSession());
+      }
+      if (command === "create_transcript_session") {
+        return Promise.resolve(null);
+      }
+      if (command === "drain_acp_events") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(<App />);
+    expect(await screen.findByText("AIadne")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+      .not.toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
+
+    expect(await screen.findByText("A project Task requires an active transcript session."))
+      .toBeInTheDocument();
+    expect(invokeMock.mock.calls.some(([command]) => command === "create_task"))
+      .toBe(false);
+    expect(invokeMock.mock.calls.some(([command]) => command === "send_acp_prompt"))
+      .toBe(false);
+  });
+
   it("keeps ACP stop available while a prompt is in flight", async () => {
     const invokeMock = vi.mocked(invoke);
     let resolvePrompt: ((result: unknown) => void) | undefined;
@@ -2748,13 +2958,56 @@ function defaultTranscriptSession(overrides: Partial<ReturnType<typeof baseTrans
 function baseTranscriptSession() {
   return {
     id: "transcript-1",
-    projectId: null,
+    projectId: null as string | null,
     runtime: "acp",
     source: "Codex",
     title: "Codex ACP",
     startedAt: 1_785_000_001,
     updatedAt: 1_785_000_001,
     eventCount: 0,
+  };
+}
+
+function defaultAcpSession() {
+  return {
+    id: "acp-session-1",
+    state: "running",
+    pid: 456,
+    protocolVersion: 1,
+    agentSessionId: "fake-acp-session",
+    agentName: "fake-acp",
+    agentVersion: "0.1.0",
+    exitCode: null,
+  };
+}
+
+function defaultTask(overrides: Partial<ReturnType<typeof baseTask>> = {}) {
+  return {
+    ...baseTask(),
+    ...overrides,
+  };
+}
+
+function baseTask() {
+  const phases = ["analysis", "planning", "execution", "review"].map((phase, index) => ({
+    id: `task-phase-${index + 1}`,
+    taskId: "task-1",
+    phase,
+    phaseIndex: index,
+    status: "pending",
+    startedAt: null,
+    completedAt: null,
+  }));
+  return {
+    id: "task-1",
+    projectId: "project-aiadne",
+    transcriptSessionId: "transcript-1",
+    originalPrompt: "Hello from AIadne",
+    status: "pending",
+    currentPhase: "analysis",
+    phases,
+    createdAt: 1_785_000_001,
+    updatedAt: 1_785_000_001,
   };
 }
 

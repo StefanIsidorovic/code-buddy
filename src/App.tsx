@@ -300,6 +300,28 @@ type TranscriptEventInfo = {
   createdAt: number;
 };
 
+type TaskPhaseInfo = {
+  id: string;
+  taskId: string;
+  phase: "analysis" | "planning" | "execution" | "review";
+  phaseIndex: number;
+  status: string;
+  startedAt: number | null;
+  completedAt: number | null;
+};
+
+type TaskInfo = {
+  id: string;
+  projectId: string;
+  transcriptSessionId: string;
+  originalPrompt: string;
+  status: string;
+  currentPhase: TaskPhaseInfo["phase"];
+  phases: TaskPhaseInfo[];
+  createdAt: number;
+  updatedAt: number;
+};
+
 type KnowledgeItemInfo = {
   id: string;
   projectId: string | null;
@@ -378,7 +400,9 @@ function App() {
   const fitAddon = useRef<FitAddon | null>(null);
   const sessionRef = useRef<SessionInfo | null>(null);
   const transcriptOpenRequest = useRef(0);
+  const taskLoadRequest = useRef(0);
   const transcriptSessionRef = useRef<TranscriptSessionInfo | null>(null);
+  const tasksByTranscriptIdRef = useRef<Record<string, TaskInfo>>({});
   const toastSequence = useRef(0);
   const toastTimers = useRef<number[]>([]);
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -643,6 +667,7 @@ function App() {
 
   useEffect(() => {
     void refreshTranscriptSessions(selectedProjectId);
+    void refreshProjectTasks(selectedProjectId);
     void refreshKnowledgeItems(selectedProjectId);
     void refreshProjectRepositories(selectedProjectId);
     void refreshProjectInitializations(selectedProjectId);
@@ -1538,6 +1563,32 @@ function App() {
     }
   }
 
+  async function refreshProjectTasks(projectId = selectedProjectId) {
+    const requestId = taskLoadRequest.current + 1;
+    taskLoadRequest.current = requestId;
+    if (!projectId) {
+      tasksByTranscriptIdRef.current = {};
+      return;
+    }
+
+    try {
+      const tasks =
+        (await invoke<TaskInfo[]>("list_project_tasks", {
+          projectId,
+        })) ?? [];
+      const indexedTasks = Object.fromEntries(
+        tasks.map((task) => [task.transcriptSessionId, task]),
+      );
+      if (taskLoadRequest.current === requestId) {
+        tasksByTranscriptIdRef.current = indexedTasks;
+      }
+    } catch (err) {
+      if (taskLoadRequest.current === requestId) {
+        setTranscriptError(errorText(err));
+      }
+    }
+  }
+
   async function refreshKnowledgeItems(projectId = selectedProjectId) {
     setKnowledgeLoading(true);
     setKnowledgeError(null);
@@ -2020,6 +2071,26 @@ function App() {
     try {
       showLiveAcpEvents();
       const activeTranscriptId = transcriptSessionRef.current?.id ?? transcriptSession?.id ?? null;
+      if (selectedProject && !activeTranscriptId) {
+        throw new Error("A project Task requires an active transcript session.");
+      }
+      if (
+        selectedProject &&
+        activeTranscriptId &&
+        !tasksByTranscriptIdRef.current[activeTranscriptId]
+      ) {
+        const task = await invoke<TaskInfo>("create_task", {
+          request: {
+            projectId: selectedProject.id,
+            transcriptSessionId: activeTranscriptId,
+            originalPrompt: acpPrompt,
+          },
+        });
+        tasksByTranscriptIdRef.current = {
+          ...tasksByTranscriptIdRef.current,
+          [activeTranscriptId]: task,
+        };
+      }
       const userEvent: AcpSessionEvent = {
         kind: "user_message",
         content: acpPrompt,

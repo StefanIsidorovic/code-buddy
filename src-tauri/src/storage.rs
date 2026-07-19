@@ -254,7 +254,7 @@ pub struct TranscriptEventInfo {
     pub created_at: i64,
 }
 
-pub const TASK_PHASES: [&str; 4] = ["planning", "analysis", "execution", "review"];
+pub const TASK_PHASES: [&str; 4] = ["analysis", "planning", "execution", "review"];
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1067,8 +1067,7 @@ impl ProjectStore {
                 "task transcript session id must not be empty".to_string(),
             ));
         }
-        let original_prompt = request.original_prompt.trim();
-        if original_prompt.is_empty() {
+        if request.original_prompt.trim().is_empty() {
             return Err(AppError::InvalidInput(
                 "task original prompt must not be empty".to_string(),
             ));
@@ -1101,8 +1100,14 @@ impl ProjectStore {
             .execute(
                 "INSERT INTO tasks
                  (id, project_id, transcript_session_id, original_prompt, status, current_phase, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, 'pending', 'planning', ?5, ?5)",
-                params![task_id, project_id, transcript_session_id, original_prompt, now],
+                 VALUES (?1, ?2, ?3, ?4, 'pending', 'analysis', ?5, ?5)",
+                params![
+                    task_id,
+                    project_id,
+                    transcript_session_id,
+                    request.original_prompt,
+                    now
+                ],
             )
             .map_err(|error| match error {
                 rusqlite::Error::SqliteFailure(ref failure, _)
@@ -4826,9 +4831,9 @@ mod tests {
 
         assert_eq!(task.project_id, project.id);
         assert_eq!(task.transcript_session_id, transcript.id);
-        assert_eq!(task.original_prompt, "Implement task knowledge");
+        assert_eq!(task.original_prompt, "  Implement task knowledge  ");
         assert_eq!(task.status, "pending");
-        assert_eq!(task.current_phase, "planning");
+        assert_eq!(task.current_phase, "analysis");
         assert_eq!(task.phases.len(), TASK_PHASES.len());
         for (index, phase) in task.phases.iter().enumerate() {
             assert_eq!(phase.task_id, task.id);
