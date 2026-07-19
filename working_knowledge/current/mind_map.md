@@ -14,6 +14,7 @@
 - mind_map/workspace-persistence.md: SQLite project/repository storage, ACP transcript persistence/replay/rename, manual Knowledge Cards, Workspace/Session History UI state, selected repository cwd launch wiring, and deferred persistence scope.
 - mind_map/model-catalog.md: provider-neutral model tiers/profiles, capability metadata, Summary selection provenance, schema versioning, UI flow, and deferred provider/runtime mappings.
 - mind_map/knowledge-synthesis.md: provider-neutral evidence flow, OpenAI Responses adapter, Summary validation, Knowledge Unit publication/preview, and the deterministic task-context selector boundary.
+- mind_map/task-lifecycle.md: Task/session boundary, persistent four-phase lifecycle, current command surface, and deferred task-knowledge orchestration.
 
 ## Update Rules
 - Update the relevant topic file whenever code changes alter that topic's data flow, ownership, constraints, or risks.

@@ -1,8 +1,8 @@
 # Status
 
 ## Session
-- session_id: codex-20260715T-knowledge-reconcile
-- date_utc: 2026-07-15
+- session_id: codex-20260719-task-foundation
+- date_utc: 2026-07-19
 - agent_model: codex
 
 ## Target Repositories
@@ -10,23 +10,25 @@
 
 ## Repository State
 - branch: new/start
-- head: 3d6bb79 step 16.1: rename visible Tauri product title
-- worktree: reconciled documentation ready to commit; no source-code changes.
-- relevant files: LOCAL_PROGRESS.md; working_knowledge/current/*.
+- head: a6181df step 18.2: create tasks from ACP prompts
+- worktree: source implementation committed; post-commit working knowledge updates present.
+- relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/App.tsx; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
-- request: reconcile active working knowledge and LOCAL_PROGRESS.md with repository truth, then commit all documentation changes.
-- phase: validation
-- active plan step: 17.1 complete; commit pending
+- request: commit the remaining Task lifecycle knowledge state, then begin the next step with adaptive quick, standard, and complex Task handling.
+- phase: review
+- active plan step: 18.2.1 complete; commit pending
 
 ## Risks And Constraints
-- Preserve valid architecture knowledge while removing stale task-specific state and duplicated history.
-- Keep generated Knowledge Units separate from manual Knowledge Cards.
-- The deterministic task-context selector is implemented as an auditable preview; selected units are not yet injected into ACP prompts.
-- Preserve the internal `code-buddy` package/crate and `com.codebuddy.app` identity until a separate migration is approved.
-- LOCAL_PROGRESS.md is intentionally added to version control by explicit user request; generated build/dependency directories remain ignored.
+- Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
+- Preserve the original user prompt separately from any context-enriched ACP payload.
+- A single ACP/transcript session represents one Task; later prompts continue it instead of creating duplicates.
+- Canonical knowledge-building order is analysis, planning, execution, review; intake is Task creation and learning is a review output.
+- `src/App.tsx` is already large, so backend domain foundations precede frontend orchestration.
 
 ## Last Verification
-- 2026-07-15: template/header checks, stale-claim searches, mind-map index consistency, and two adversarial documentation review cycles passed.
-- 2026-07-15: `npm run typecheck`, 33 frontend tests, production build, 80 Rust tests, clippy with warnings denied, and `git diff --check` passed; the existing >500 kB Vite chunk warning remains non-fatal.
-- 2026-07-15: HEAD 3d6bb79 has a valid provenance note under `refs/notes/provenance`.
+- 2026-07-19: repository, active knowledge, ACP prompt/transcript flow, SQLite schema, storage tests, and task-context selector inspected; no Task aggregate currently exists.
+- 2026-07-19: 82 Rust tests, Rust formatting, clippy with warnings denied, adversarial review cycle 1, and `git diff --check` pass for plan item 18.1.
+- 2026-07-19: commit 2cfde08 has a verified provenance note under `refs/notes/provenance` for plan item 18.1.
+- 2026-07-19: 37 frontend tests, 82 Rust tests, typecheck, Rust formatting, clippy with warnings denied, `git diff --check`, and adversarial review cycle 2 pass for plan item 18.2.
+- 2026-07-19: commit a6181df has a verified provenance note under `refs/notes/provenance` for plan item 18.2.

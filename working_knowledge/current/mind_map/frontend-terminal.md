@@ -129,7 +129,7 @@
 - Sidebar accordion default state is intentionally compact: tests should open sections before asserting body contents.
 
 ## Tests
-- A product-shell regression test asserts the AIadne workspace identity and primary surface headings; the frontend suite contains 33 tests.
+- A product-shell regression test asserts the AIadne workspace identity and primary surface headings; the frontend suite contains 37 tests.
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.

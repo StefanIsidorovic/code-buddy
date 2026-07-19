@@ -1,21 +1,15 @@
 # Decisions
 
 ## Confirmed
-- Product identity: display AIadne in the UI and Tauri window while retaining internal `code-buddy` names and `com.codebuddy.app` until a deliberate migration.
-- Runtime boundary: use structured ACP as the primary agent interaction and keep PTY as the compatibility fallback.
-- Workspace boundary: projects own repositories; the selected repository supplies runtime cwd.
-- Persistence: SQLite owns projects, repositories, initialization artefacts, transcripts, Knowledge Cards, summaries, and generated Knowledge Units.
-- Knowledge boundary: manual Knowledge Cards remain user-authored prompt attachments; approved summaries publish separate immutable, source-backed Knowledge Units.
-- Validation: unknown or generic synthesis source labels are rejected; one bounded provider correction may retry without remapping citations.
-- Selection: use deterministic mandatory/repository/path/lexical ranking, stable ordering, explicit reasons, and a configurable 6000-character default budget before considering embeddings.
-- Prompt boundary: selector output remains preview-only until the user can explicitly approve the exact generated context sent to ACP.
-- UI identity: use the local AIadne thread/maze mark, Geist Sans, Ariadne Atelier semantic colors, a light parchment workspace, and fixed dark command rail/terminal regions.
-- Accessibility: preserve semantic text identity, focus-visible states, explicit disabled colors, reduced-motion behavior, accessible state notices, and named icon controls.
-- Documentation: LOCAL_PROGRESS.md becomes tracked because the user explicitly requested committing the full reconciled project record.
+- Task boundary: represent the user assignment as a persistent aggregate distinct from ACP runtime and transcript history.
+- Session relationship: one ACP transcript session owns at most one Task, created from its first user prompt.
+- Phase model: every Task starts with ordered analysis, planning, execution, and review phases; original-prompt intake is Task creation and reusable learning is a review output.
+- Knowledge boundary: task knowledge remains separate from project Knowledge Units and manual Knowledge Cards, with explicit producing-phase provenance.
+- Prompt integrity: persist the original user prompt separately from any enriched payload sent to ACP.
+- Delivery order: establish and test the backend persistence contract before wiring prompt creation or phase orchestration into the large frontend coordinator.
 
 ## Deferred
-- Automatic or session-sticky Knowledge Unit prompt injection: pending explicit UX and transcript-provenance design.
-- Continue-from-transcript context strategy: pending a bounded raw-turn versus summary decision.
-- Embeddings and semantic retrieval: pending measurement of deterministic selector quality.
-- Internal package, crate, application identifier, and storage migration: pending a dedicated compatibility plan.
-- Platform-specific AIadne icon pack, packaging, and release automation: pending post-MVP acceptance testing.
+- Phase automation and approval gates: decide after the persistent lifecycle contract is implemented.
+- Task knowledge extraction/synthesis format: define with the phase execution contract.
+- Multi-session Task continuation: defer until the one-session Task workflow is validated.
+- Unified context selection across project, manual, and task knowledge: defer until task artifacts exist.

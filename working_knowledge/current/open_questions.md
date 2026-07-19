@@ -4,13 +4,12 @@
 - None.
 
 ## Non-Blocking
-- Should generated Knowledge Unit context be opt-in per prompt, sticky per ACP session, or both?
-- Should continue-from-transcript use selected raw turns, a generated summary, or a bounded combination?
-- Should manual Knowledge Cards later migrate into the Knowledge Unit schema or remain a separate user-authored layer?
-- When should the internal package/crate name and `com.codebuddy.app` identifier migrate from Code Buddy to AIadne?
+- Should each phase run automatically in sequence or require explicit user approval before the next phase?
+- Should task knowledge artifacts store only curated outputs or also bounded intermediate reasoning summaries?
+- May a future Task span multiple ACP sessions, or should continuation always create a new linked session?
 
 ## Resolved
-- Should embeddings precede deterministic selection?: No; the explainable baseline is implemented first.
-- Should generated units immediately replace manual prompt injection?: No; preview and explicit user control come first.
-- Should repository/path scope be inferred from prose?: No; only persisted evidence relationships may establish scope.
-- Should the selector rewrite Knowledge Unit content?: No; it selects and orders immutable units while preserving provenance.
+- Is a Task identical to a transcript?: No; Task owns lifecycle and task knowledge, while transcript owns ordered conversation events.
+- What creates the first Task?: The first user prompt in a new ACP/transcript session.
+- Are later prompts in that session new tasks?: No; they continue the existing Task.
+- What is the canonical phase order?: Analysis, planning, execution, review; intake is Task creation and reusable learning is captured by review.

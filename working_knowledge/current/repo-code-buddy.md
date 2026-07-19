@@ -20,8 +20,8 @@
 - `src-tauri/src/commands.rs`: frontend/backend command boundary.
 
 ## Tests
-- `src/App.test.tsx` contains 33 mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, PTY, and responsive product-shell contracts.
-- Rust has 80 unit/integration tests across PTY/ACP lifecycle, adapters, storage, synthesis, model catalog, and deterministic context selection.
+- `src/App.test.tsx` contains 37 mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, Task creation/reuse/failure isolation, PTY, and responsive product-shell contracts.
+- Rust has 82 unit/integration tests across PTY/ACP lifecycle, adapters, storage, synthesis, model catalog, deterministic context selection, and Task persistence.
 - Current validation commands: `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`.
 
 ## Current Findings
@@ -31,6 +31,8 @@
 - Summary approval atomically publishes deterministic, source-backed Knowledge Units; valid ATX headings are treated as structure, while uncited claims still block approval.
 - `select_project_task_context` deterministically prioritizes mandatory rules, repository/path scope, and lexical matches under an exact character budget; the frontend exposes an auditable preview.
 - Generated selector context is not yet sent to ACP. `Send ACP` continues to inject only explicitly attached manual Knowledge Cards and persists the original user prompt.
+- The first project-owned ACP prompt now creates one persistent Task before transcript/agent side effects; follow-ups reuse it by transcript id, and new Tasks start in ordered analysis, planning, execution, and review phases.
+- Project-less ACP remains a compatibility smoke path without Task persistence; project-owned prompts are blocked if transcript or Task persistence fails.
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
@@ -38,6 +40,7 @@
 
 ## Constraints
 - Preserve source markers and generated Knowledge Unit content/provenance exactly through selection and future prompt integration.
+- Keep Task lifecycle/knowledge separate from transcript events, project Knowledge Units, and manual Knowledge Cards.
 - Keep manual Knowledge Cards and generated Knowledge Units separate until an explicit migration decision.
 - Do not hold the SQLite lock during provider network calls; reject stale synthesis results when evidence changes.
 - Keep credentials in the Rust process and out of React/SQLite.

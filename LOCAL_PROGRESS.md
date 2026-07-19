@@ -80,6 +80,8 @@ Radno pravilo:
 - OpenAI Responses moze da generise Summary uz strict structured output i tacne evidence source labele.
 - Approved Summary se atomicki pretvara u male source-backed Knowledge Units; rucni Knowledge Cards ostaju odvojeni.
 - Deterministicki task-context selector bira relevantne Knowledge Units pod budzetom i prikazuje zasto je svaka jedinica ukljucena ili izostavljena.
+- Backend sada ima persistentni Task vezan za projekat i jednu ACP transcript sesiju, sa analysis, planning, execution i review fazama koje nastaju atomicki.
+- Prvi project-owned ACP prompt kreira Task pre transcript/agent side effect-a, a naredni promptovi u istoj sesiji koriste isti Task.
 - Selector je trenutno preview-only: `Send ACP` jos ne ubacuje generisane jedinice bez eksplicitne korisnicke kontrole.
 - Vidljivi proizvod, Tauri window i sidebar sada nose AIadne identitet, lokalni logo, Geist font i Ariadne Atelier boje.
 
@@ -194,9 +196,10 @@ Napomena: `npm run build` moze da prijavi warning da je xterm chunk veci od 500 
 ## Sta je sledece
 
 1. Rucno proci kompletan Tauri smoke test: AIadne prozor, workspace/repository, Project Initialize, pravi Codex ACP, transcript replay i restart aplikacije.
-2. Dodati eksplicitno user-approved ubacivanje preview-ovanih Knowledge Units u ACP prompt, uz cuvanje originalnog pitanja i tacnog context provenance-a.
-3. Dodati continue-from-transcript kao novu sesiju bez menjanja istorijskog razgovora.
-4. Razloziti veliki `App.tsx` pre dodavanja jos nekoliko stateful workflow-a.
+2. Dodati task knowledge koji nastaje kroz analysis, planning, execution i review, sa tacnim phase/source provenance-om.
+3. Dodati eksplicitno user-approved context assembly za ACP prompt.
+4. Dodati continue-from-transcript kao novu sesiju bez menjanja istorijskog razgovora.
+5. Razloziti veliki `App.tsx` pre dodavanja jos nekoliko stateful workflow-a.
 
 Prosto receno: app vec ume da upozna projekat, napravi proverljivo znanje, izabere relevantan context, pokrene agenta i sacuva razgovor. Sledeci veliki korak je da korisnik potvrdi taj context i stvarno ga posalje agentu.
 
@@ -206,6 +209,22 @@ Prosto receno: app vec ume da upozna projekat, napravi proverljivo znanje, izabe
 - Poznat non-fatal warning: glavni Vite/xterm JavaScript chunk je veci od 500 kB.
 
 ## Dnevnik koraka
+
+### 2026-07-19 — Task iz prvog ACP prompta
+
+- Sta smo hteli: da jedna project-owned ACP sesija prakticno postane jedan Task i da follow-up promptovi ne prave duplikate.
+- Sta smo promenili: faze su uredjene kao analysis, planning, execution i review; Task se kreira pre prvog prompt side effect-a, ucitava se po transcript ID-u i ponovo koristi u istoj sesiji.
+- Kako smo proverili: 37 frontend testova, 82 Rust testa, typecheck, fmt, clippy sa zabranjenim warning-ima, diff check i dva adversarial review ciklusa.
+- Sta jos nije pokriveno: faze jos nemaju tranzicije ni svoje immutable knowledge artefakte, a Task jos nije prikazan u UI-ju.
+- Sledeci korak: plan item 18.3, task knowledge i fazne tranzicije sa source provenance-om.
+
+### 2026-07-19 — Task lifecycle foundation
+
+- Sta smo hteli: uvesti Task kao persistentni korisnicki zadatak koji kasnije gradi sopstveno znanje kroz faze.
+- Sta smo promenili: dodati su Task i TaskPhase storage modeli, SQLite tabele, create/list komande i atomicko kreiranje analysis, planning, execution i review faza.
+- Kako smo proverili: 82 Rust testa, fmt, clippy sa zabranjenim warning-ima, diff check i adversarial review ciklus 1.
+- Sta jos nije pokriveno: frontend jos ne kreira Task iz prvog ACP prompta, a fazni knowledge i tranzicije tek slede.
+- Sledeci korak: plan item 18.2, povezivanje prvog ACP prompta sa Task-om bez menjanja originalnog transcript eventa.
 
 ### 2026-07-15 — Vidljivi Tauri naziv
 
