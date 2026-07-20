@@ -13,6 +13,7 @@
 - A deep-olive command rail anchors warm parchment Workspace, Project Initialization, and Runtime/Output surfaces; primary actions use moss, progress uses amber, and destructive/error states use terracotta.
 - Responsive behavior uses four work zones on wide displays, a sticky command rail with stacked work areas on compact desktops, a two-column sidebar grid on tablets, and a single flowing layout on mobile.
 - Project Initialization Summary now loads the backend model catalog and renders compact fast/mid/high/max plus profile selection controls with capability badges.
+- ACP Controls independently renders the active agent's advertised Coding model options; Summary profiles remain a separate synthesis concern.
 - Persisted Summary model selection is restored on reload; the preview/modal distinguish requested model provenance from the deterministic generator.
 - App.tsx is the current single-screen product coordinator and remains a decomposition risk as workflows grow.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
@@ -76,6 +77,7 @@
 - ACP Registry displays status, command preview, and install guidance without launching anything.
 - ACP Registry lets the user select a candidate.
 - Start Selected ACP launches the selected launchable candidate through start_acp_registry_session.
+- `session/new` supplies the live Coding model state; changing the selector invokes `set_acp_model`, which applies `session/set_config_option` only to that ACP session.
 - Candidate Select buttons are disabled while an ACP session is running.
 - Workspace Select/Delete buttons are disabled while PTY or ACP sessions are running.
 - ACP Test status includes the active source, such as fake or Codex, so fake sessions are distinguishable from selected registry launches.
@@ -129,7 +131,7 @@
 - Sidebar accordion default state is intentionally compact: tests should open sections before asserting body contents.
 
 ## Tests
-- A product-shell regression test asserts the AIadne workspace identity and primary surface headings; the frontend suite contains 37 tests.
+- A product-shell regression test asserts the AIadne workspace identity and primary surface headings; the frontend suite contains 38 tests.
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
 - Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
@@ -145,6 +147,7 @@
 - Doctor version checks are backend-owned; frontend should not shell out or infer PATH state.
 - ACP JSON-RPC events should be normalized by the backend; frontend should not parse raw ACP protocol messages.
 - ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP or Start Fake ACP may cause an ACP backend process launch.
+- Coding model changes must use agent-advertised values and remain disabled while a prompt operation is in flight; never rewrite global Codex config from this UI.
 - If ACP Test shows fake as the active source, stop that session before starting the selected registry candidate.
 - Real ACP send/start can take time; backend commands run off the UI thread to avoid the app window being marked not responding.
 - Knowledge Cards are manual and explicit for now; automatic suggestions, relevance search, conflict checks, and redaction are deferred.

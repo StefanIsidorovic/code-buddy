@@ -7,6 +7,9 @@
 - Knowledge boundary: task knowledge remains separate from project Knowledge Units and manual Knowledge Cards, with explicit producing-phase provenance.
 - Prompt integrity: persist the original user prompt separately from any enriched payload sent to ACP.
 - Delivery order: establish and test the backend persistence contract before wiring prompt creation or phase orchestration into the large frontend coordinator.
+- Complexity ownership: the Rust backend produces a deterministic initial quick/standard/complex assessment; the initial result remains immutable while an effective profile may be changed with explicit provenance.
+- Complexity control: ambiguous prompts default to standard, analysis may later propose reclassification, and the user retains final override control.
+- Model boundary: Summary uses the synthesis catalog, while coding models are discovered from and changed through the active ACP agent; a coding choice is session-scoped and never mutates global Codex configuration.
 
 ## Deferred
 - Phase automation and approval gates: decide after the persistent lifecycle contract is implemented.

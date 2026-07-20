@@ -82,6 +82,10 @@ Radno pravilo:
 - Deterministicki task-context selector bira relevantne Knowledge Units pod budzetom i prikazuje zasto je svaka jedinica ukljucena ili izostavljena.
 - Backend sada ima persistentni Task vezan za projekat i jednu ACP transcript sesiju, sa analysis, planning, execution i review fazama koje nastaju atomicki.
 - Prvi project-owned ACP prompt kreira Task pre transcript/agent side effect-a, a naredni promptovi u istoj sesiji koriste isti Task.
+- Svaki novi Task dobija explainable `quick`, `standard` ili `complex` predlog; initial rezultat ostaje sacuvan, a user override dobija razlog i append-only audit zapis.
+- ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
+- Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
+- Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.
 - Selector je trenutno preview-only: `Send ACP` jos ne ubacuje generisane jedinice bez eksplicitne korisnicke kontrole.
 - Vidljivi proizvod, Tauri window i sidebar sada nose AIadne identitet, lokalni logo, Geist font i Ariadne Atelier boje.
 
@@ -176,9 +180,11 @@ Test ACP Registry-ja:
 19. Klikni drugu history sesiju.
 20. Treba da ostane selektovana samo ta druga sesija i da se poruke prve ne vide.
 21. `Session History` sada treba da bude levo, ne u glavnom panelu.
-22. U `Saved Transcript` proveri da agentov odgovor nije iseckan u vise redova, nego da je prikazan kao jedan `Answer`.
-23. Dok agent odgovara u live `ACP Events`, output treba sam da skroluje na najnoviji deo.
-24. Za proveru history-ja napravi novi prompt posle ovog fix-a; stari transcript-i kojima chunkovi nikad nisu upisani ne mogu skroz da se poprave.
+22. Kada Codex ACP sesija radi, u `Coding model` izaberi neki drugi ponudjeni model.
+23. Izbor treba da ostane prikazan za aktivnu sesiju; zatim posalji prompt i proveri da vise nema greske za prethodni globalni `gpt-5.6-sol` izbor.
+24. U `Saved Transcript` proveri da agentov odgovor nije iseckan u vise redova, nego da je prikazan kao jedan `Answer`.
+25. Dok agent odgovara u live `ACP Events`, output treba sam da skroluje na najnoviji deo.
+26. Za proveru history-ja napravi novi prompt posle ovog fix-a; stari transcript-i kojima chunkovi nikad nisu upisani ne mogu skroz da se poprave.
 25. Vizuelno proveri da pastelni UI nema overlap i da kartice ostaju citljive.
 
 ## Komande za proveru
@@ -196,7 +202,7 @@ Napomena: `npm run build` moze da prijavi warning da je xterm chunk veci od 500 
 ## Sta je sledece
 
 1. Rucno proci kompletan Tauri smoke test: AIadne prozor, workspace/repository, Project Initialize, pravi Codex ACP, transcript replay i restart aplikacije.
-2. Dodati task knowledge koji nastaje kroz analysis, planning, execution i review, sa tacnim phase/source provenance-om.
+2. Dodati task knowledge koji nastaje kroz analysis, planning, execution i review, sa tacnim phase/source provenance-om i dubinom prema effective complexity profilu.
 3. Dodati eksplicitno user-approved context assembly za ACP prompt.
 4. Dodati continue-from-transcript kao novu sesiju bez menjanja istorijskog razgovora.
 5. Razloziti veliki `App.tsx` pre dodavanja jos nekoliko stateful workflow-a.
@@ -209,6 +215,22 @@ Prosto receno: app vec ume da upozna projekat, napravi proverljivo znanje, izabe
 - Poznat non-fatal warning: glavni Vite/xterm JavaScript chunk je veci od 500 kB.
 
 ## Dnevnik koraka
+
+### 2026-07-19 — Active Task assessment panel
+
+- Sta smo hteli: da quick/standard/complex procena moze rucno da se vidi i proveri u pravoj aplikaciji.
+- Sta smo promenili: ACP Controls sada prikazuje read-only Task assessment za live transcript; panel pokazuje effective profil, fazu, razloge, confidence/source, verziju i initial profil kada je promenjen.
+- Kako smo proverili: 38 frontend testova, 88 Rust testova, typecheck, production build, clippy, CSS token check, diff check i dva review ciklusa.
+- Sta jos nije pokriveno: UI jos nema user override kontrolu i fazni knowledge artefakti jos nisu implementirani.
+- Sledeci korak: rucni Tauri test panela, zatim plan item 18.4 za task knowledge i phase transitions.
+
+### 2026-07-19 — Adaptive Task complexity
+
+- Sta smo hteli: da isti Task lifecycle radi i za malo dugme i za celu novu vertikalu bez nepotrebno teske ili prelake obrade.
+- Sta smo promenili: Rust sada deterministicki predlaze quick, standard ili complex uz strukturisane razloge, confidence i verziju; initial/effective vrednosti se cuvaju odvojeno, a svaki user override ostaje u append-only istoriji.
+- Kako smo proverili: 88 Rust testova, legacy migration test, fmt, clippy sa zabranjenim warning-ima, diff check i tri adversarial review ciklusa.
+- Sta jos nije pokriveno: analysis jos ne potvrdjuje/reklasifikuje profil, a UI jos ne prikazuje predlog niti override kontrolu.
+- Sledeci korak: plan item 18.4, fazni task knowledge i analysis-driven complexity confirmation.
 
 ### 2026-07-19 — Task iz prvog ACP prompta
 

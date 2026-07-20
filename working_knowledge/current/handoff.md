@@ -1,12 +1,14 @@
 # Handoff
 
 ## Current State
-- Research confirms ACP prompts currently create transcript events but no Task domain object.
 - Plan 18 introduces Task persistence, first-prompt creation, phase knowledge, and staged UI in that order.
-- Plan items 18.1 and 18.2 are complete: Task persistence exists and the first project-owned ACP prompt creates one analysis-first Task that follow-ups reuse.
+- Plan items through 18.3 are complete: project-owned ACP prompts create persistent Tasks with analysis-first phases and an explainable initial quick/standard/complex assessment.
+- Initial and effective complexity are persisted separately; every system/user change is retained in append-only history.
+- ACP Controls now shows a responsive read-only Task assessment for the live transcript, including profile, phase, reasons, confidence/source, version, and differing initial profile.
+- ACP Controls now exposes the active agent's advertised Coding model independently of Summary synthesis selection; changes are validated and scoped to the live ACP session.
 
 ## Next Step
-- Implement plan item 18.3: persist immutable task knowledge artifacts and ordered phase transitions with source provenance.
+- Implement plan item 18.4: persist immutable task knowledge artifacts and ordered phase transitions, then let analysis propose auditable complexity confirmation or change.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.
@@ -16,6 +18,8 @@
 
 ## Watchouts
 - Keep phase transitions atomic with task-knowledge artifact publication and preserve exact source references.
+- Use the effective complexity profile to control depth and checkpoints, not to skip validation or provenance.
 - Enforce project ownership between a Task and its transcript session.
 - Keep canonical phase order deterministic and avoid free-form phase names at this layer.
 - Preserve unrelated user changes if the worktree changes during implementation.
+- Do not use AIadne's synthesis catalog as the ACP runtime model source; retain and validate the active agent's advertised options.
