@@ -413,6 +413,14 @@ function CloseIcon() {
   );
 }
 
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg aria-hidden="true" className="chevron-icon" viewBox="0 0 16 16">
+      <path d={expanded ? "M3.5 10.25 8 5.75l4.5 4.5" : "M3.5 5.75 8 10.25l4.5-4.5"} />
+    </svg>
+  );
+}
+
 function App() {
   const terminalElement = useRef<HTMLDivElement | null>(null);
   const acpEventsList = useRef<HTMLUListElement | null>(null);
@@ -526,6 +534,7 @@ function App() {
   const [acpPromptResult, setAcpPromptResult] = useState<AcpPromptResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [acpPromptBusy, setAcpPromptBusy] = useState(false);
+  const [acpControlsExpanded, setAcpControlsExpanded] = useState(true);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
@@ -3071,10 +3080,27 @@ function App() {
         ) : null}
 
         {runtimeMode === "acp" ? (
-          <section className="runtime-panel" aria-labelledby="acp-title">
-            <div className="doctor-heading">
-              <h3 id="acp-title">ACP Controls</h3>
-              <span>{acpStatusLabel}</span>
+          <section
+            className="runtime-panel acp-runtime-panel"
+            data-expanded={acpControlsExpanded}
+            aria-labelledby="acp-title"
+          >
+            <div className="doctor-heading acp-panel-heading">
+              <div>
+                <h3 id="acp-title">ACP Controls</h3>
+                <span>{acpStatusLabel}</span>
+              </div>
+              <button
+                aria-controls="acp-controls-content"
+                aria-expanded={acpControlsExpanded}
+                aria-label={acpControlsExpanded ? "Collapse ACP controls" : "Expand ACP controls"}
+                className="acp-collapse-toggle"
+                type="button"
+                onClick={() => setAcpControlsExpanded((expanded) => !expanded)}
+                title={acpControlsExpanded ? "Collapse controls" : "Expand controls"}
+              >
+                <ChevronIcon expanded={acpControlsExpanded} />
+              </button>
             </div>
 
             <div className="acp-session-toolbar" data-active={canUseAcpSession}>
@@ -3119,6 +3145,11 @@ function App() {
               ) : null}
             </div>
 
+            <div
+              className="acp-controls-content"
+              hidden={!acpControlsExpanded}
+              id="acp-controls-content"
+            >
             <div className="acp-coding-model">
               <label>
                 <span>Coding model</span>
@@ -3251,6 +3282,7 @@ function App() {
                 Waiting for agent response...
               </p>
             ) : null}
+            </div>
           </section>
         ) : null}
 

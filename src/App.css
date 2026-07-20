@@ -3954,6 +3954,68 @@ a:hover {
   gap: 8px;
 }
 
+.acp-panel-heading {
+  align-items: flex-start;
+}
+
+.acp-panel-heading > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.acp-panel-heading > div > span {
+  display: block;
+}
+
+.acp-collapse-toggle {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: inline-grid;
+  place-items: center;
+  border-color: rgb(178 151 132 / 0.55);
+  border-radius: 50%;
+  padding: 0;
+  color: var(--color-primary-strong);
+  background: rgb(255 253 248 / 0.78);
+  box-shadow: 0 5px 14px rgb(72 60 50 / 0.08);
+}
+
+.acp-collapse-toggle:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-surface-raised);
+  box-shadow: 0 7px 18px rgb(72 60 50 / 0.13);
+  transform: translateY(-1px);
+}
+
+.acp-collapse-toggle:focus-visible {
+  outline: 3px solid rgb(178 151 132 / 0.28);
+  outline-offset: 2px;
+}
+
+.chevron-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.acp-controls-content {
+  display: grid;
+}
+
+.acp-controls-content[hidden] {
+  display: none;
+}
+
+.acp-runtime-panel[data-expanded="false"] .acp-session-toolbar {
+  margin-bottom: 0;
+}
+
 .acp-session-toolbar {
   min-height: 42px;
   justify-content: space-between;

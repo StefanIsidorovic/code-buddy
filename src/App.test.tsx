@@ -2180,6 +2180,21 @@ describe("PTY test panel", () => {
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
       target: { value: "hello acp" },
     });
+    const collapseControls = screen.getByRole("button", { name: "Collapse ACP controls" });
+    expect(collapseControls).toHaveAttribute("aria-expanded", "true");
+    expect(collapseControls).toHaveAttribute("aria-controls", "acp-controls-content");
+
+    fireEvent.click(collapseControls);
+
+    expect(screen.getByRole("button", { name: "Expand ACP controls" }))
+      .toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("ACP prompt")).not.toBeVisible();
+    expect(screen.getByRole("button", { name: "Drain ACP" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Stop ACP" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand ACP controls" }));
+
+    expect(screen.getByLabelText("ACP prompt")).toHaveValue("hello acp");
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
 
     await waitFor(() => {
@@ -2385,6 +2400,12 @@ describe("PTY test panel", () => {
     expect(screen.getByText("82%")).toBeInTheDocument();
     expect(screen.getByText("bounded single-surface change")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Send ACP" })).not.toBeDisabled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse ACP controls" }));
+    expect(screen.getByText("Task assessment")).not.toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Task assessment" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Expand ACP controls" }));
+    expect(screen.getByRole("heading", { name: "Task assessment" })).toBeVisible();
 
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
       target: { value: "follow-up prompt" },
