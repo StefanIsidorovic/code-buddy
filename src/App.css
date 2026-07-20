@@ -3969,24 +3969,26 @@ a:hover {
 }
 
 .acp-collapse-toggle {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  flex: 0 0 42px;
   display: inline-grid;
   place-items: center;
-  border-color: rgb(178 151 132 / 0.55);
-  border-radius: 50%;
+  border: 0;
+  border-radius: 0;
   padding: 0;
-  color: var(--color-primary-strong);
-  background: rgb(255 253 248 / 0.78);
-  box-shadow: 0 5px 14px rgb(72 60 50 / 0.08);
+  color: var(--ink-strong);
+  background: transparent;
+  box-shadow: none;
 }
 
 .acp-collapse-toggle:hover:not(:disabled) {
-  border-color: var(--color-accent);
-  background: var(--color-surface-raised);
-  box-shadow: 0 7px 18px rgb(72 60 50 / 0.13);
-  transform: translateY(-1px);
+  border-color: transparent;
+  color: var(--color-accent-hover);
+  background: transparent;
+  box-shadow: none;
+  transform: scale(1.1);
 }
 
 .acp-collapse-toggle:focus-visible {
@@ -3995,11 +3997,11 @@ a:hover {
 }
 
 .chevron-icon {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1.7;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
