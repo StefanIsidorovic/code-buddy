@@ -3988,6 +3988,40 @@ a:hover {
   box-shadow: none;
 }
 
+.acp-coding-model {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--color-surface-raised);
+}
+
+.acp-coding-model label {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.acp-coding-model label > span:first-child {
+  color: var(--color-text-muted);
+  font-size: var(--type-label);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.acp-coding-model select {
+  width: 100%;
+}
+
+.acp-coding-model small,
+.acp-model-unavailable {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 .acp-composer {
   display: grid;
   gap: 10px;
@@ -4126,6 +4160,11 @@ a:hover {
   .acp-composer-actions .context-preview-button {
     width: 100%;
     margin-right: 0;
+  }
+
+  .acp-coding-model label {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .active-task-meta {

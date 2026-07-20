@@ -103,6 +103,18 @@ type AcpSessionInfo = {
   agentName: string | null;
   agentVersion: string | null;
   exitCode: number | null;
+  codingModel?: AcpModelState | null;
+};
+
+type AcpModelOption = {
+  value: string;
+  name: string;
+  description: string | null;
+};
+
+type AcpModelState = {
+  currentValue: string;
+  options: AcpModelOption[];
 };
 
 type AcpEventKind =
@@ -2073,6 +2085,22 @@ function App() {
     });
   }
 
+  async function changeAcpCodingModel(modelId: string) {
+    if (!acpSession || !acpSession.codingModel || modelId === acpSession.codingModel.currentValue) {
+      return;
+    }
+
+    await runAction(async () => {
+      const updated = await invoke<AcpSessionInfo>("set_acp_model", {
+        request: {
+          sessionId: acpSession.id,
+          modelId,
+        },
+      });
+      setAcpSession(updated);
+    });
+  }
+
   async function sendAcpPrompt() {
     if (!canUseAcpSession || !acpSession) {
       return;
@@ -3088,6 +3116,39 @@ function App() {
                     Stop ACP
                   </button>
                 </div>
+              ) : null}
+            </div>
+
+            <div className="acp-coding-model">
+              <label>
+                <span>Coding model</span>
+                {acpSession?.codingModel ? (
+                  <select
+                    aria-label="Coding model"
+                    value={acpSession.codingModel.currentValue}
+                    onChange={(event) => void changeAcpCodingModel(event.target.value)}
+                    disabled={busy || acpPromptBusy || !canUseAcpSession}
+                  >
+                    {acpSession.codingModel.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="acp-model-unavailable">
+                    {acpSession
+                      ? "This agent does not advertise model selection."
+                      : "Start an ACP session to load its available models."}
+                  </span>
+                )}
+              </label>
+              {acpSession?.codingModel ? (
+                <small>
+                  {acpSession.codingModel.options.find(
+                    (option) => option.value === acpSession.codingModel?.currentValue,
+                  )?.description ?? "Model used by this coding session."}
+                </small>
               ) : null}
             </div>
 

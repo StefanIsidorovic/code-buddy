@@ -75,6 +75,7 @@ pub fn run() {
             commands::start_fake_acp_session,
             commands::start_acp_registry_session,
             commands::send_acp_prompt,
+            commands::set_acp_model,
             commands::drain_acp_events,
             commands::stop_acp_session,
             commands::list_acp_sessions,

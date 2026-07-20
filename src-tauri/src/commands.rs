@@ -2,7 +2,7 @@ use crate::{
     acp::{
         list_acp_registry_candidates as build_acp_registry_candidates, AcpPromptResult,
         AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
-        StartAcpRegistrySessionRequest, StartFakeAcpSessionRequest,
+        SetAcpModelRequest, StartAcpRegistrySessionRequest, StartFakeAcpSessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
@@ -366,6 +366,15 @@ pub async fn send_acp_prompt(
 ) -> AppResult<AcpPromptResult> {
     let manager = Arc::clone(state.inner());
     run_acp_task(move || manager.send_prompt(&session_id, &prompt)).await
+}
+
+#[tauri::command]
+pub async fn set_acp_model(
+    state: State<'_, Arc<AcpSessionManager>>,
+    request: SetAcpModelRequest,
+) -> AppResult<AcpSessionInfo> {
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.set_model(request)).await
 }
 
 #[tauri::command]

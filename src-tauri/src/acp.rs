@@ -41,6 +41,28 @@ pub struct StartAcpRegistrySessionRequest {
     pub cwd: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetAcpModelRequest {
+    pub session_id: AcpSessionId,
+    pub model_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpModelOption {
+    pub value: String,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpModelState {
+    pub current_value: String,
+    pub options: Vec<AcpModelOption>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AcpSessionInfo {
@@ -53,6 +75,7 @@ pub struct AcpSessionInfo {
     pub agent_name: Option<String>,
     pub agent_version: Option<String>,
     pub exit_code: Option<u32>,
+    pub coding_model: Option<AcpModelState>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -364,6 +387,12 @@ impl AcpSessionManager {
         self.session(session_id)?.send_prompt(prompt)
     }
 
+    pub fn set_model(&self, request: SetAcpModelRequest) -> AppResult<AcpSessionInfo> {
+        let session = self.session(&request.session_id)?;
+        session.set_model(&request.model_id)?;
+        session.info()
+    }
+
     pub fn drain_events(&self, session_id: &str) -> AppResult<Vec<AcpSessionEvent>> {
         self.session(session_id)?.drain_events()
     }
@@ -425,6 +454,7 @@ struct AcpMetadata {
     agent_session_id: Option<String>,
     agent_name: Option<String>,
     agent_version: Option<String>,
+    coding_model: Option<AcpModelState>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -596,7 +626,61 @@ impl AcpSession {
             .ok_or_else(|| AppError::Acp("session/new response missing sessionId".to_string()))?
             .to_string();
 
-        self.metadata()?.agent_session_id = Some(agent_session_id);
+        let coding_model = parse_model_state(&result);
+        let mut metadata = self.metadata()?;
+        metadata.agent_session_id = Some(agent_session_id);
+        metadata.coding_model = coding_model;
+        Ok(())
+    }
+
+    fn set_model(&self, model_id: &str) -> AppResult<()> {
+        let model_id = model_id.trim();
+        if model_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "ACP model id must not be empty".to_string(),
+            ));
+        }
+        let _permit = self.acquire_prompt_permit()?;
+
+        let (agent_session_id, advertised) = {
+            let metadata = self.metadata()?;
+            let state = metadata.coding_model.as_ref().ok_or_else(|| {
+                AppError::InvalidInput(
+                    "active ACP agent does not advertise model selection".to_string(),
+                )
+            })?;
+            let advertised = state.options.iter().any(|option| option.value == model_id);
+            (
+                metadata
+                    .agent_session_id
+                    .clone()
+                    .ok_or_else(|| AppError::Acp("acp session is not initialized".to_string()))?,
+                advertised,
+            )
+        };
+        if !advertised {
+            return Err(AppError::InvalidInput(format!(
+                "ACP model is not advertised by the active agent: {model_id}"
+            )));
+        }
+
+        let result = self.send_request(
+            "session/set_config_option",
+            json!({
+                "sessionId": agent_session_id,
+                "configId": "model",
+                "value": model_id
+            }),
+        )?;
+        let updated = parse_model_state(&result).ok_or_else(|| {
+            AppError::Acp("model update response missing model configuration".to_string())
+        })?;
+        if updated.current_value != model_id {
+            return Err(AppError::Acp(format!(
+                "agent did not activate requested model: {model_id}"
+            )));
+        }
+        self.metadata()?.coding_model = Some(updated);
         Ok(())
     }
 
@@ -692,6 +776,7 @@ impl AcpSession {
             agent_name: metadata.agent_name.clone(),
             agent_version: metadata.agent_version.clone(),
             exit_code: runtime.exit_code,
+            coding_model: metadata.coding_model.clone(),
         })
     }
 
@@ -848,6 +933,37 @@ impl AcpSession {
             .lock()
             .map_err(|_| AppError::Acp("acp runtime state lock poisoned".to_string()))
     }
+}
+
+fn parse_model_state(result: &Value) -> Option<AcpModelState> {
+    let model = result
+        .get("configOptions")?
+        .as_array()?
+        .iter()
+        .find(|option| option.get("id").and_then(Value::as_str) == Some("model"))?;
+    let current_value = model.get("currentValue")?.as_str()?.to_string();
+    let options = model
+        .get("options")?
+        .as_array()?
+        .iter()
+        .filter_map(|option| {
+            Some(AcpModelOption {
+                value: option.get("value")?.as_str()?.to_string(),
+                name: option.get("name")?.as_str()?.to_string(),
+                description: option
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+            })
+        })
+        .collect::<Vec<_>>();
+    if options.is_empty() || !options.iter().any(|option| option.value == current_value) {
+        return None;
+    }
+    Some(AcpModelState {
+        current_value,
+        options,
+    })
 }
 
 impl Drop for AcpSession {
@@ -1066,7 +1182,10 @@ fn fake_acp_script() -> &'static str {
       printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":false},"agentInfo":{"name":"fake-acp","title":"Fake ACP Agent","version":"0.1.0"},"authMethods":[]}}\n' "$id"
       ;;
     *'"method":"session/new"'*)
-      printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"fake-acp-session"}}\n' "$id"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"fake-acp-session","configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"fake-code-fast","options":[{"value":"fake-code-fast","name":"Fake Code Fast","description":"Fast test model"},{"value":"fake-code-deep","name":"Fake Code Deep","description":"Deep test model"}]}]}}\n' "$id"
+      ;;
+    *'"method":"session/set_config_option"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"fake-code-deep","options":[{"value":"fake-code-fast","name":"Fake Code Fast","description":"Fast test model"},{"value":"fake-code-deep","name":"Fake Code Deep","description":"Deep test model"}]}]}}\n' "$id"
       ;;
     *'"method":"session/prompt"'*)
       printf '{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"fake-acp-session","update":{"sessionUpdate":"agent_message_chunk","messageId":"msg_fake","content":{"type":"text","text":"fake acp received prompt"}}}}\n'
@@ -1344,6 +1463,96 @@ mod tests {
             Some("fake-acp-session")
         );
         assert_eq!(session.agent_name.as_deref(), Some("fake-acp"));
+        assert_eq!(
+            session
+                .coding_model
+                .as_ref()
+                .map(|model| model.current_value.as_str()),
+            Some("fake-code-fast")
+        );
+        assert_eq!(session.coding_model.as_ref().unwrap().options.len(), 2);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn changes_to_an_advertised_coding_model() {
+        let manager = AcpSessionManager::default();
+        let session = manager
+            .start_fake_session(StartFakeAcpSessionRequest { cwd: None })
+            .expect("acp session starts");
+
+        let updated = manager
+            .set_model(SetAcpModelRequest {
+                session_id: session.id,
+                model_id: "fake-code-deep".to_string(),
+            })
+            .expect("advertised model changes");
+
+        assert_eq!(
+            updated.coding_model.map(|model| model.current_value),
+            Some("fake-code-deep".to_string())
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn rejects_unadvertised_coding_model_before_dispatch() {
+        let manager = AcpSessionManager::default();
+        let session = manager
+            .start_fake_session(StartFakeAcpSessionRequest { cwd: None })
+            .expect("acp session starts");
+
+        let error = manager
+            .set_model(SetAcpModelRequest {
+                session_id: session.id,
+                model_id: "invented-model".to_string(),
+            })
+            .expect_err("unadvertised model rejected");
+
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert!(error.to_string().contains("not advertised"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn rejects_model_change_while_prompt_operation_is_in_flight() {
+        let session = AcpSession::spawn_fake(std::env::current_dir().expect("current dir exists"))
+            .expect("acp session starts");
+        let _permit = session
+            .acquire_prompt_permit()
+            .expect("prompt permit acquired");
+
+        let error = session
+            .set_model("fake-code-deep")
+            .expect_err("concurrent model change rejected");
+
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert!(error.to_string().contains("already in progress"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn rejects_model_change_when_agent_has_no_model_option() {
+        let manager = AcpSessionManager::default();
+        let session = Arc::new(
+            AcpSession::spawn_malformed_fake(std::env::current_dir().expect("current dir exists"))
+                .expect("acp session starts"),
+        );
+        let session_id = session.id.clone();
+        manager
+            .sessions()
+            .expect("session registry locks")
+            .insert(session_id.clone(), session);
+
+        let error = manager
+            .set_model(SetAcpModelRequest {
+                session_id,
+                model_id: "fake-code-fast".to_string(),
+            })
+            .expect_err("unsupported model selection rejected");
+
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert!(error.to_string().contains("does not advertise"));
     }
 
     #[test]

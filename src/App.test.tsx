@@ -1805,6 +1805,46 @@ describe("PTY test panel", () => {
           agentName: "codex-acp",
           agentVersion: "1.1.0",
           exitCode: null,
+          codingModel: {
+            currentValue: "gpt-5.6",
+            options: [
+              {
+                value: "gpt-5.6",
+                name: "GPT-5.6",
+                description: "Default coding model",
+              },
+              {
+                value: "gpt-5.6-mini",
+                name: "GPT-5.6 Mini",
+                description: "Faster coding model",
+              },
+            ],
+          },
+        });
+      }
+
+      if (command === "set_acp_model") {
+        return Promise.resolve({
+          id: "acp-session-2",
+          state: "running",
+          pid: 789,
+          cwd: "/home/katarina/projects/AIadne",
+          protocolVersion: 1,
+          agentSessionId: "codex-acp-session",
+          agentName: "codex-acp",
+          agentVersion: "1.1.0",
+          exitCode: null,
+          codingModel: {
+            currentValue: "gpt-5.6-mini",
+            options: [
+              { value: "gpt-5.6", name: "GPT-5.6", description: "Default coding model" },
+              {
+                value: "gpt-5.6-mini",
+                name: "GPT-5.6 Mini",
+                description: "Faster coding model",
+              },
+            ],
+          },
         });
       }
 
@@ -1837,6 +1877,20 @@ describe("PTY test panel", () => {
     expect(screen.queryByLabelText("ACP session start actions")).not.toBeInTheDocument();
     expect(screen.getByLabelText("ACP active session actions"))
       .toContainElement(screen.getByRole("button", { name: "Stop ACP" }));
+    const codingModel = screen.getByRole("combobox", { name: "Coding model" });
+    expect(codingModel).toHaveValue("gpt-5.6");
+
+    fireEvent.change(codingModel, { target: { value: "gpt-5.6-mini" } });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("set_acp_model", {
+        request: {
+          sessionId: "acp-session-2",
+          modelId: "gpt-5.6-mini",
+        },
+      });
+    });
+    expect(screen.getByRole("combobox", { name: "Coding model" })).toHaveValue("gpt-5.6-mini");
   });
 
   it("starts a non-default launchable ACP registry candidate", async () => {
@@ -1897,6 +1951,7 @@ describe("PTY test panel", () => {
     });
     expect(await screen.findAllByText("Gemini CLI · running · gemini-acp-session"))
       .not.toHaveLength(0);
+    expect(screen.getByText("This agent does not advertise model selection.")).toBeInTheDocument();
   });
 
   it("locks ACP candidate selection while a session is running", async () => {
