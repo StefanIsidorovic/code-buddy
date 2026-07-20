@@ -2188,13 +2188,12 @@ describe("PTY test panel", () => {
 
     expect(screen.getByRole("button", { name: "Expand ACP controls" }))
       .toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("ACP prompt")).not.toBeVisible();
+    expect(screen.getByLabelText("ACP prompt")).toBeVisible();
+    expect(screen.getByLabelText("ACP prompt")).toHaveValue("hello acp");
+    expect(screen.getByRole("button", { name: "Send ACP" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Drain ACP" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Stop ACP" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand ACP controls" }));
-
-    expect(screen.getByLabelText("ACP prompt")).toHaveValue("hello acp");
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
 
     await waitFor(() => {
@@ -2216,7 +2215,10 @@ describe("PTY test panel", () => {
     expect(await screen.findByText("fake acp received prompt")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Task assessment" })).not.toBeInTheDocument();
     expect(scrollToMock).toHaveBeenCalled();
-    expect(await screen.findByText("Stop reason: end_turn")).toBeInTheDocument();
+    expect(await screen.findByText("Stop reason: end_turn")).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand ACP controls" }));
+    expect(screen.getByText("Stop reason: end_turn")).toBeVisible();
   });
 
   it("creates knowledge cards and injects attached context into ACP prompts", async () => {

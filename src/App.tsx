@@ -3145,6 +3145,41 @@ function App() {
               ) : null}
             </div>
 
+            <div className="acp-composer">
+              <label className="prompt-field">
+                <span>Prompt</span>
+                <textarea
+                  aria-label="ACP prompt"
+                  onChange={(event) => setAcpPrompt(event.target.value)}
+                  rows={3}
+                  value={acpPrompt}
+                />
+              </label>
+
+              <div className="acp-composer-actions" aria-label="ACP prompt actions">
+                <button
+                  type="button"
+                  className="context-preview-button"
+                  onClick={() => void previewTaskContext()}
+                  disabled={
+                    taskContextPreviewLoading ||
+                    !acpPrompt.trim() ||
+                    projectInitializationSummary?.status !== "approved"
+                  }
+                >
+                  Preview Context
+                </button>
+                <button
+                  className="primary-action"
+                  type="button"
+                  onClick={() => void sendAcpPrompt()}
+                  disabled={busy || acpPromptBusy || !canUseAcpSession}
+                >
+                  Send ACP
+                </button>
+              </div>
+            </div>
+
             <div
               className="acp-controls-content"
               hidden={!acpControlsExpanded}
@@ -3181,41 +3216,6 @@ function App() {
                   )?.description ?? "Model used by this coding session."}
                 </small>
               ) : null}
-            </div>
-
-            <div className="acp-composer">
-              <label className="prompt-field">
-                <span>Prompt</span>
-                <textarea
-                  aria-label="ACP prompt"
-                  onChange={(event) => setAcpPrompt(event.target.value)}
-                  rows={3}
-                  value={acpPrompt}
-                />
-              </label>
-
-              <div className="acp-composer-actions" aria-label="ACP prompt actions">
-                <button
-                  type="button"
-                  className="context-preview-button"
-                  onClick={() => void previewTaskContext()}
-                  disabled={
-                    taskContextPreviewLoading ||
-                    !acpPrompt.trim() ||
-                    projectInitializationSummary?.status !== "approved"
-                  }
-                >
-                  Preview Context
-                </button>
-                <button
-                  className="primary-action"
-                  type="button"
-                  onClick={() => void sendAcpPrompt()}
-                  disabled={busy || acpPromptBusy || !canUseAcpSession}
-                >
-                  Send ACP
-                </button>
-              </div>
             </div>
 
             {activeTask ? (
