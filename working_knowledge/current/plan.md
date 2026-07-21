@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.8. Extract Agent Doctor and synthesis catalog orchestration
+- objective: move agent readiness discovery and synthesis model catalog/selection state out of App while keeping ACP coding models separate.
+- status: complete
+- files: src/App.tsx; src/features/agents/useAgentEnvironment.ts; src/features/agents/useAgentEnvironment.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Doctor load/error/refresh; Codex readiness; catalog validation/fallback; tier/profile selection; Summary model provenance restoration.
+- expected changes: add a stale-safe gateway-backed environment hook; App composes its values into the agent sidebar, PTY runtime and Initialization Summary workflow.
+- acceptance criteria: exact commands, Doctor error surface, selectable-profile fallback order, tier behavior and Summary synchronization remain unchanged; ACP model selection is untouched.
+- required tests: Doctor/catalog load; Doctor error recovery; invalid catalog notification; tier selection and Summary restoration; existing 163 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 strengthened the Summary test to prove a real profile/tier transition, and cycle 2 verified request identity, Summary/catalog race ordering, fallback policy, ACP separation, regression and scope.
+- commit: this commit
+
 ### 21.7. Extract PTY process orchestration
 - objective: move PTY session/output/start/resize/drain/stop and terminal coordination out of App while composing the existing xterm lifecycle hook.
 - status: complete

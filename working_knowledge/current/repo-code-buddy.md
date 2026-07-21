@@ -42,7 +42,7 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is now 656 lines; Agent Doctor/model catalog, project-delete coordination and root composition cleanup remain.
+- `src/App.tsx` is now 558 lines; cross-domain project-delete coordination and final root composition cleanup remain before code splitting.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
@@ -75,6 +75,7 @@
 - `src/features/transcripts/useTranscriptWorkspace.ts` owns stale-safe transcript/Task loading, create/replay/rename/live state, event persistence and synchronous semantic session/Task access for ACP.
 - `src/features/runtime/useAcpRuntime.ts` owns ACP registry selection, session/model/prompt lifecycle, transcript/Task event coordination, polling and graceful shutdown before project deletion.
 - `src/features/runtime/usePtyRuntime.ts` owns PTY process state/start/resize/drain/stop and composes the xterm lifecycle hook; App supplies only mode, cwd and Doctor readiness.
+- `src/features/agents/useAgentEnvironment.ts` owns stale-safe Agent Doctor discovery, synthesis catalog validation/fallback, tier/profile selection and Summary provenance restoration; ACP coding-model state remains session-owned.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

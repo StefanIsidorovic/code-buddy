@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 1c224f2 step 21.6: extract ACP runtime hook
-- worktree: plan item 21.7 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/runtime/usePtyRuntime.ts; src/features/runtime/usePtyRuntime.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: ee87b15 step 21.7: extract PTY runtime hook
+- worktree: plan item 21.8 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/features/agents/useAgentEnvironment.ts; src/features/agents/useAgentEnvironment.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 21.7 complete
+- active plan step: 21.8 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -82,3 +82,4 @@
 - 2026-07-21: frontend audit, 157 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.5; transcript/Task-index orchestration is isolated and `App.tsx` is 255 lines smaller at 963 lines.
 - 2026-07-21: frontend audit, 160 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.6; ACP runtime orchestration is isolated and `App.tsx` is 194 lines smaller at 769 lines.
 - 2026-07-21: frontend audit, 163 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.7; PTY process/terminal orchestration is isolated and `App.tsx` is 113 lines smaller at 656 lines.
+- 2026-07-21: frontend audit, 167 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.8; Agent Doctor/synthesis catalog orchestration is isolated and `App.tsx` is 98 lines smaller at 558 lines.

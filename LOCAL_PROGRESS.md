@@ -710,3 +710,9 @@ YYYY-MM-DD
 - PTY session/output/start/resize/drain/stop i terminal koordinacija izdvojeni su u `usePtyRuntime`, koji komponuje postojeci `usePtyTerminal`.
 - App prosledjuje samo runtime mode, workspace cwd i Codex Doctor readiness; procesni payload-i i polling ostaju isti.
 - `App.tsx` je pao sa 769 na 656 linija; audit, typecheck, 163 testa i build prolaze.
+
+### 2026-07-21 - Agent environment hook
+
+- Agent Doctor discovery/error/refresh i synthesis model catalog/tier/profile izbor izdvojeni su u `useAgentEnvironment`.
+- Summary provenance vraca prethodni synthesis izbor, stale refresh odgovori se ignorisu, a ACP coding model ostaje odvojena session odluka.
+- `App.tsx` je pao sa 656 na 558 linija; audit, typecheck, 167 testova i build prolaze.

@@ -29,6 +29,7 @@ import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel"
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
+import { useAgentEnvironment } from "./features/agents/useAgentEnvironment";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -40,30 +41,17 @@ import {
 } from "./lib/presentation";
 import { invokeCommand as invoke } from "./lib/tauriGateway";
 import type {
-  AgentDoctorReport,
-  ModelCatalogInfo,
-  ModelTier,
   ProjectInfo,
   ProjectInitializationFactInfo,
   RuntimeMode,
 } from "./types/domain";
 import "./App.css";
 
-const defaultSynthesisModelProfileId = "openai-gpt-5.6-terra-medium";
-
 export { StateNotice, boundToastMessages };
 
 function App() {
   const acpEventsList = useRef<HTMLUListElement | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
-  const [doctorError, setDoctorError] = useState<string | null>(null);
-  const [doctorLoading, setDoctorLoading] = useState(false);
-  const [modelCatalog, setModelCatalog] = useState<ModelCatalogInfo | null>(null);
-  const [synthesisTier, setSynthesisTier] = useState<ModelTier>("mid");
-  const [synthesisModelProfileId, setSynthesisModelProfileId] = useState(
-    defaultSynthesisModelProfileId,
-  );
   const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
   const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
@@ -93,8 +81,12 @@ function App() {
     changeFilter: setHistoryFilter, changeRenameTitle: setHistoryRenameTitle,
     getActiveSessionId, getTask: getTranscriptTask, upsertTask: upsertTranscriptTask } =
     useTranscriptWorkspace({ projectId: selectedProjectId, onShowAcp: () => setRuntimeMode("acp") });
-  const codexReport = doctorReports.find((report) => report.adapter.id === "codex") ?? null;
-  const canStartCodex = codexReport?.status === "installed";
+  const { doctorReports, doctorError, doctorLoading, canStartCodex,
+    catalog: modelCatalog, tier: synthesisTier, profileId: synthesisModelProfileId,
+    selectedProfile: selectedSynthesisModelProfile, refreshDoctor: refreshAgentDoctor,
+    changeTier: selectSynthesisTier, changeProfile: setSynthesisModelProfileId } =
+    useAgentEnvironment({ summary: initializationEvidence.summary,
+      notifyError: (message) => pushToast("error", message) });
   const { session, output, usable: canUseSession, statusLabel,
     terminalElement, terminalSize, focusTerminal, start: startSession,
     resize: resizeSession, stop: stopSession, drain: drainOutput } = usePtyRuntime({
@@ -109,11 +101,6 @@ function App() {
   const projectInitializationKnowledgeUnits = initializationEvidence.units;
   const knowledgeUnitsLoading = initializationEvidence.unitsLoading;
   const knowledgeUnitsError = initializationEvidence.unitsError;
-  const selectedSynthesisModelProfile = useMemo(
-    () =>
-      modelCatalog?.profiles.find((profile) => profile.id === synthesisModelProfileId) ?? null,
-    [modelCatalog, synthesisModelProfileId],
-  );
   const { dialogOpen: initializeDialogOpen, repositoryIds: initializeRepositoryIds,
     loading: initializeLoading, error: initializeError, detailsView: initializeDetailsView,
     interviewOpen: interviewDialogOpen, interviewError, scope: interviewScope,
@@ -204,33 +191,6 @@ function App() {
     });
   }, [displayAcpEvents, runtimeMode]);
 
-  useEffect(() => {
-    void refreshAgentDoctor();
-    void refreshModelCatalog();
-  }, []);
-
-  useEffect(() => {
-    if (
-      projectInitializationSummary?.requestedModelProfileId &&
-      projectInitializationSummary.requestedModelTier
-    ) {
-      setSynthesisModelProfileId(projectInitializationSummary.requestedModelProfileId);
-      setSynthesisTier(projectInitializationSummary.requestedModelTier);
-    } else if (!projectInitializationSummary) {
-      setSynthesisModelProfileId(defaultSynthesisModelProfileId);
-      setSynthesisTier("mid");
-    }
-  }, [
-    projectInitializationSummary?.requestedModelProfileId,
-    projectInitializationSummary?.requestedModelTier,
-  ]);
-
-  useEffect(() => {
-    if (selectedSynthesisModelProfile) {
-      setSynthesisTier(selectedSynthesisModelProfile.tier);
-    }
-  }, [selectedSynthesisModelProfile]);
-
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -284,64 +244,6 @@ function App() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function refreshAgentDoctor() {
-    setDoctorLoading(true);
-    setDoctorError(null);
-    try {
-      const reports = await invoke<AgentDoctorReport[]>("list_agent_doctor_reports");
-      setDoctorReports(reports);
-    } catch (err) {
-      setDoctorError(errorText(err));
-    } finally {
-      setDoctorLoading(false);
-    }
-  }
-
-  async function refreshModelCatalog() {
-    try {
-      const catalog = await invoke<ModelCatalogInfo>("list_model_catalog");
-      if (
-        !catalog ||
-        !Array.isArray(catalog.providers) ||
-        !Array.isArray(catalog.profiles)
-      ) {
-        throw new Error("Invalid model catalog response.");
-      }
-      setModelCatalog(catalog);
-      setSynthesisModelProfileId((current) => {
-        const selected = catalog.profiles.find(
-          (profile) => profile.id === current && profile.status === "selectable",
-        );
-        const fallback =
-          catalog.profiles.find(
-            (profile) =>
-              profile.id === defaultSynthesisModelProfileId && profile.status === "selectable",
-          ) ??
-          catalog.profiles.find((profile) => profile.status === "selectable") ??
-          catalog.profiles.find((profile) => profile.id === defaultSynthesisModelProfileId) ??
-          catalog.profiles[0];
-        return (selected ?? fallback)?.id ?? "";
-      });
-    } catch (err) {
-      pushToast("error", errorText(err));
-    }
-  }
-
-  function selectSynthesisTier(tier: ModelTier) {
-    setSynthesisTier(tier);
-    const currentProfile = modelCatalog?.profiles.find(
-      (profile) => profile.id === synthesisModelProfileId,
-    );
-    if (currentProfile?.tier === tier && currentProfile.status === "selectable") {
-      return;
-    }
-
-    const tierProfiles = modelCatalog?.profiles.filter((profile) => profile.tier === tier) ?? [];
-    const nextProfile =
-      tierProfiles.find((profile) => profile.status === "selectable") ?? tierProfiles[0];
-    setSynthesisModelProfileId(nextProfile?.id ?? "");
   }
 
   return (
