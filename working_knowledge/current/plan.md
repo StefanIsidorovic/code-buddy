@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.15. Extract Terminal PTY and Agent Doctor sidebar presentation
+- objective: move PTY fallback mode switching and Agent Doctor report rendering out of the frontend coordinator while preserving App-owned discovery, runtime mode, and active-session policy.
+- status: complete
+- files: src/App.tsx; src/features/agents/TerminalFallbackPanel.tsx; src/features/agents/TerminalFallbackPanel.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Terminal PTY details/summary; Doctor refresh/error; PTY/ACP toggle; adapter status/executable/detail/transports; capability/status helpers.
+- expected changes: add a typed state-free and Tauri-free agents panel; move pure Doctor/capability formatting to presentation helpers; pass mode, reports, loading/error, session lock and callbacks from App.
+- acceptance criteria: default-collapsed DOM, active/fallback summary, toggle copy, session lock, refresh lock, error and all Doctor metadata remain unchanged; App retains discovery invoke, mode state and session policy.
+- required tests: collapsed mode summaries/toggle; refresh/toggle callbacks; report installed/missing/error details and transports; loading/session locks and error; helper mappings; existing 111 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 confirmed Start Codex/Fake PTY runtime actions remain outside the sidebar feature and distinct Doctor/session locks, and cycle 2 found no remaining mode summary, toggle, report status/detail/transport, error, loading, accessibility, runtime-boundary, discovery/policy ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.14. Extract ACP Registry sidebar presentation
 - objective: move ACP candidate discovery results, selection controls, and selected-command summary out of the frontend coordinator while preserving App-owned discovery, selection, session policy, and errors.
 - status: complete

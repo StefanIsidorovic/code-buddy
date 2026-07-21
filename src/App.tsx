@@ -24,6 +24,7 @@ import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
+import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -47,8 +48,6 @@ import type {
   AcpSessionEvent,
   AcpSessionInfo,
   AgentDoctorReport,
-  AgentDoctorStatus,
-  CapabilityStatus,
   InitializeDetailsView,
   InterviewScope,
   KnowledgeItemInfo,
@@ -1887,57 +1886,10 @@ function App() {
             items={knowledgeItems} loading={knowledgeLoading} onAdd={openKnowledgeDialog}
             onToggle={(item, attached) => void toggleKnowledgeAttachment(item, attached)} />
 
-          <details className="agent-accordion sidebar-agent sidebar-fallback">
-            <summary>
-              <span>Terminal PTY</span>
-              <strong>{runtimeMode === "pty" ? "active" : "fallback"}</strong>
-            </summary>
-
-            <div className="accordion-body">
-              <div className="doctor-heading">
-                <h3 id="sidebar-doctor-title">Agent Doctor</h3>
-                <button
-                  type="button"
-                  onClick={() => void refreshAgentDoctor()}
-                  disabled={doctorLoading}
-                >
-                  Refresh
-                </button>
-              </div>
-
-              {doctorError ? (
-                <p className="error-message" role="alert">
-                  {doctorError}
-                </p>
-              ) : null}
-
-              <div className="fallback-actions">
-                <button
-                  type="button"
-                  onClick={() => setRuntimeMode(runtimeMode === "pty" ? "acp" : "pty")}
-                  disabled={canUseSession}
-                >
-                  {runtimeMode === "pty" ? "Use ACP" : "Open PTY"}
-                </button>
-              </div>
-
-              <ul className="doctor-list" aria-label="Agent CLI status">
-                {doctorReports.map((report) => (
-                  <li className="doctor-item" data-status={report.status} key={report.adapter.id}>
-                    <div>
-                      <strong>{report.adapter.displayName}</strong>
-                      <span>{report.adapter.executable}</span>
-                    </div>
-                    <div>
-                      <span className="doctor-status">{doctorStatusLabel(report.status)}</span>
-                      <span>{doctorDetail(report)}</span>
-                      <span>{transportDetail(report.adapter.transports)}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </details>
+          <TerminalFallbackPanel error={doctorError} loading={doctorLoading} reports={doctorReports}
+            runtimeMode={runtimeMode} sessionLocked={canUseSession}
+            onRefresh={() => void refreshAgentDoctor()}
+            onToggleMode={() => setRuntimeMode(runtimeMode === "pty" ? "acp" : "pty")} />
         </div>
 
         <dl className="runtime-info-card sidebar-runtime-info" aria-label="Runtime info">
@@ -2629,46 +2581,6 @@ function App() {
       <NotificationViewport />
     </main>
   );
-}
-
-function doctorStatusLabel(status: AgentDoctorStatus) {
-  if (status === "installed") {
-    return "Installed";
-  }
-
-  if (status === "missing") {
-    return "Missing";
-  }
-
-  return "Error";
-}
-
-function doctorDetail(report: AgentDoctorReport) {
-  if (report.status === "installed") {
-    return report.version ?? report.path ?? "Ready";
-  }
-
-  if (report.status === "missing") {
-    return report.installHint;
-  }
-
-  return report.error ?? report.installHint;
-}
-
-function transportDetail(transports: AgentDoctorReport["adapter"]["transports"]) {
-  return `PTY: ${capabilityLabel(transports.pty)} · ACP: ${capabilityLabel(transports.acpStdio)}`;
-}
-
-function capabilityLabel(status: CapabilityStatus) {
-  if (status === "supported") {
-    return "Supported";
-  }
-
-  if (status === "unsupported") {
-    return "Unsupported";
-  }
-
-  return "Unknown";
 }
 
 function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {

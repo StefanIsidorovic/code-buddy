@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.4.14 implementation and knowledge updates ready for commit.
+- worktree: plan item 19.4.15 implementation and knowledge updates ready for commit.
 - relevant files: src/App.tsx; src/features/knowledge/KnowledgeCardDialog.tsx; src/features/knowledge/KnowledgeCardDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.4.14 complete
+- active plan step: 19.4.15 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -68,3 +68,4 @@
 - 2026-07-21: 101 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.12; Knowledge Cards sidebar is state-free presentation and `App.tsx` is 55 lines smaller.
 - 2026-07-21: 106 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.13; Session History sidebar is state-free transcript presentation and `App.tsx` is 104 lines smaller.
 - 2026-07-21: 111 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.14; ACP Registry sidebar is state-free agent presentation and `App.tsx` is 84 lines smaller.
+- 2026-07-21: 116 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.15; Terminal PTY/Agent Doctor sidebar is state-free agent presentation and `App.tsx` is 88 lines smaller.

@@ -83,6 +83,29 @@ export function acpCandidateStatusLabel(status: string) {
   return "Missing binary";
 }
 
+export function capabilityLabel(status: string) {
+  if (status === "supported") return "Supported";
+  if (status === "unsupported") return "Unsupported";
+  return "Unknown";
+}
+
+export function doctorStatusLabel(status: string) {
+  if (status === "installed") return "Installed";
+  if (status === "missing") return "Missing";
+  return "Error";
+}
+
+export function doctorDetail(report: { status: string; version: string | null; path: string | null;
+  error: string | null; installHint: string }) {
+  if (report.status === "installed") return report.version ?? report.path ?? "Ready";
+  if (report.status === "missing") return report.installHint;
+  return report.error ?? report.installHint;
+}
+
+export function transportDetail(transports: { pty: string; acpStdio: string }) {
+  return `PTY: ${capabilityLabel(transports.pty)} · ACP: ${capabilityLabel(transports.acpStdio)}`;
+}
+
 export function acpEventLabel(kind: AcpEventKind) {
   return ({ agent_message: "Agent", user_message: "User", tool_call: "Tool", plan: "Plan",
     notice: "Notice", usage: "Usage", error: "Error" } as const)[kind];

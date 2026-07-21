@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  acpCandidateStatusLabel, coalesceAcpEvents, errorText, filterTranscriptSessions, folderNameFromPath,
+  acpCandidateStatusLabel, capabilityLabel, coalesceAcpEvents, doctorDetail, doctorStatusLabel,
+  errorText, filterTranscriptSessions, folderNameFromPath,
   formatMarkdownCategory, formatPromptWithKnowledge, formatTimestamp, guardrailKindClassName, guardrailKindLabel,
   markdownCategoryClassName,
-  transcriptEventToAcpEvent, uniqueIds,
+  transcriptEventToAcpEvent, transportDetail, uniqueIds,
 } from "./presentation";
 
 describe("presentation helpers", () => {
@@ -70,5 +71,15 @@ describe("presentation helpers", () => {
   it("labels every ACP registry candidate state", () => {
     expect(["ready", "installable", "missing_runner", "missing_binary"].map(acpCandidateStatusLabel))
       .toEqual(["Ready", "Installable", "Missing runner", "Missing binary"]);
+  });
+
+  it("formats Doctor status, detail, and transport capabilities", () => {
+    expect(["installed", "missing", "error"].map(doctorStatusLabel))
+      .toEqual(["Installed", "Missing", "Error"]);
+    expect(capabilityLabel("unsupported")).toBe("Unsupported");
+    expect(doctorDetail({ status: "installed", version: null, path: "/bin/tool",
+      error: null, installHint: "install" })).toBe("/bin/tool");
+    expect(transportDetail({ pty: "supported", acpStdio: "unknown" }))
+      .toBe("PTY: Supported · ACP: Unknown");
   });
 });
