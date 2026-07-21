@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.17. Extract the Project Initialization lane
+- objective: move the Initialization lane shell, phase rail, Preflight, Facts, Markdown, and Interview evidence presentation out of the frontend coordinator and compose the extracted Summary card.
+- status: complete
+- files: src/App.tsx; src/features/initialization/ProjectInitializationPanel.tsx; src/features/initialization/ProjectInitializationPanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: lane heading/hero/status/start prerequisite; phase progression; Preflight scope; Facts metrics/preview/actions; Markdown preview/actions; Interview guardrail preview/action; Summary card composition.
+- expected changes: add a typed state-free and Tauri-free initialization panel; move status/phase presentation derivation into the feature; accept source-backed preview data and callbacks; keep all async commands, modal state, model selection, persistence and errors in App.
+- acceptance criteria: workspace/repository prerequisites, phase states/count grammar, preview caps/content, button locks, source metadata and action payloads remain unchanged; Summary card behavior remains independently covered; App loses the dominant Initialization JSX block.
+- required tests: no-workspace/no-repository/ready prerequisites; phase/preflight states; Facts populated/empty/actions; Markdown populated/empty/actions; Interview populated/empty/action; Summary composition callbacks; existing 122 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 replaced an ambiguous duplicate-text test query and removed stale App-owned preview derivation, and cycle 2 found no remaining phase-state, prerequisite, action-lock, source-metadata, accessibility, Tauri-boundary, workflow-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.16. Extract Project Initialization Summary phase card
 - objective: move synthesis tier/profile selection, capability presentation, Summary generation/review actions, and compact provenance preview out of the frontend coordinator.
 - status: complete

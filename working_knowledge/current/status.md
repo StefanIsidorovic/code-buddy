@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.4.16 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/knowledge/KnowledgeCardDialog.tsx; src/features/knowledge/KnowledgeCardDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: e1e1299 step 19.4.16: extract initialization summary card
+- worktree: plan item 19.4.17 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/features/initialization/ProjectInitializationPanel.tsx; src/features/initialization/ProjectInitializationPanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.4.16 complete
+- active plan step: 19.4.17 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -70,3 +70,4 @@
 - 2026-07-21: 111 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.14; ACP Registry sidebar is state-free agent presentation and `App.tsx` is 84 lines smaller.
 - 2026-07-21: 116 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.15; Terminal PTY/Agent Doctor sidebar is state-free agent presentation and `App.tsx` is 88 lines smaller.
 - 2026-07-21: 122 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.16; Initialization Summary phase card is state-free presentation and `App.tsx` is 172 lines smaller.
+- 2026-07-21: 127 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.17; the complete Project Initialization lane is state-free presentation and `App.tsx` is 318 lines smaller at 2,204 lines.

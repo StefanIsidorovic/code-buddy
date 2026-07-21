@@ -10,7 +10,7 @@ import { NotificationViewport } from "./features/notifications/NotificationViewp
 import { ProjectInitializeDialog } from "./features/initialization/ProjectInitializeDialog";
 import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGuardrailsDialog";
 import { InitializationDetailsDialog } from "./features/initialization/InitializationDetailsDialog";
-import { InitializationSummaryCard } from "./features/initialization/InitializationSummaryCard";
+import { ProjectInitializationPanel } from "./features/initialization/ProjectInitializationPanel";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
@@ -36,10 +36,6 @@ import {
   errorText,
   folderNameFromPath,
   formatPromptWithKnowledge,
-  formatMarkdownCategory,
-  guardrailKindClassName,
-  guardrailKindLabel,
-  markdownCategoryClassName,
   transcriptEventToAcpEvent,
   uniqueIds,
 } from "./lib/presentation";
@@ -234,10 +230,6 @@ function App() {
       modelCatalog?.profiles.find((profile) => profile.id === synthesisModelProfileId) ?? null,
     [modelCatalog, synthesisModelProfileId],
   );
-  const projectInitializationPhases = useMemo(
-    () => projectInitializationPhaseItems(projectInitialization?.status ?? null),
-    [projectInitialization?.status],
-  );
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -254,10 +246,6 @@ function App() {
   const projectInitializationMarkdownPreview = useMemo(
     () => projectInitializationMarkdownFindings.slice(0, 3),
     [projectInitializationMarkdownFindings],
-  );
-  const projectInitializationGuardrailPreview = useMemo(
-    () => projectInitializationGuardrails.slice(0, 3),
-    [projectInitializationGuardrails],
   );
   const selectedRepository = useMemo(
     () =>
@@ -1913,293 +1901,21 @@ function App() {
         </div>
       </section>
 
-      <section className="initialize-lane" aria-labelledby="project-initialize-lane-title">
-        <div className="section-heading">
-          <p className="eyebrow">Project knowledge</p>
-          <h2 id="project-initialize-lane-title">Project Initialization</h2>
-          <p className="section-description">
-            Turn repository evidence and working rules into reviewable agent context.
-          </p>
-        </div>
-
-        <div className="project-initialize-section">
-          <div className="project-initialize-hero">
-            <div className="project-initialize-copy">
-              <span className="section-kicker">Evidence workflow</span>
-              <h3 id="project-initialize-title">Build agent-ready context</h3>
-              <p>
-                Choose repository scope, collect evidence, add guardrails, and approve the result.
-              </p>
-            </div>
-            <span className="initialize-run-status">
-              {projectInitialization
-                ? `${projectInitializationStatusLabel(projectInitialization.status)} · ${projectInitialization.repositoryCount} ${projectInitialization.repositoryCount === 1 ? "repository" : "repositories"}`
-                : selectedProject
-                  ? "Ready to start"
-                  : "Select workspace"}
-            </span>
-            <button
-              className="primary-action"
-              type="button"
-              onClick={openProjectInitializeDialog}
-              disabled={!selectedProject || projectRepositories.length === 0 || initializeLoading}
-            >
-              Initialize Project
-            </button>
-          </div>
-          <ol className="initialize-progress-list" aria-label="Project initialization phases">
-            {projectInitializationPhases.map((phase) => (
-              <li data-state={phase.state} key={phase.id}>
-                <span>{phase.index}</span>
-                <strong>{phase.label}</strong>
-              </li>
-            ))}
-          </ol>
-          {projectInitialization ? (
-            <>
-              <section
-                className="initialize-preflight-summary"
-                data-state={projectInitializationPhases[0]?.state}
-                aria-labelledby="initialize-preflight-title"
-              >
-                <span className="initialize-phase-index">01</span>
-                <div>
-                  <span>Phase 1</span>
-                  <h4 id="initialize-preflight-title">Preflight scope</h4>
-                  <p>
-                    {projectInitialization.repositoryCount}{" "}
-                    {projectInitialization.repositoryCount === 1 ? "repository" : "repositories"}{" "}
-                    selected for this initialization run.
-                  </p>
-                </div>
-                <strong>
-                  {projectInitializationPhases[0]?.state === "complete" ? "complete" : "scope saved"}
-                </strong>
-              </section>
-              <div className="initialize-results">
-                <section className="initialize-result-card" aria-labelledby="initialize-facts-title">
-                <div className="initialize-card-topline">
-                  <span className="initialize-phase-index">02</span>
-                  <div>
-                    <span>Phase 2</span>
-                    <h4 id="initialize-facts-title">Facts</h4>
-                  </div>
-                  <strong data-state={projectInitializationFacts.length > 0 ? "success" : "pending"}>
-                    {projectInitializationFacts.length > 0
-                      ? `${projectInitializationFacts.length} collected`
-                      : "not collected"}
-                  </strong>
-                </div>
-                <div className="initialize-card-actions">
-                  <button
-                    className="primary-action"
-                    type="button"
-                    onClick={() => void collectProjectInitializationFacts()}
-                    disabled={initializeLoading}
-                  >
-                    Collect Facts
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInitializeDetailsView("facts")}
-                    disabled={projectInitializationFacts.length === 0}
-                  >
-                    View Facts
-                  </button>
-                </div>
-                {projectInitializationFactPreviewGroups.length > 0 ? (
-                  <>
-                    <div className="initialize-metric-grid" aria-label="Facts summary">
-                      <div>
-                        <span>Repositories</span>
-                        <strong>{projectInitializationFactGroups.length}</strong>
-                      </div>
-                      <div>
-                        <span>Facts</span>
-                        <strong>{projectInitializationFacts.length}</strong>
-                      </div>
-                    </div>
-                    <ul className="fact-preview-list" aria-label="Project initialization facts">
-                      {projectInitializationFactPreviewGroups.map((group) => (
-                        <li key={group.repositoryId}>
-                          <div className="fact-repository-heading">
-                            <strong>{group.repositoryName}</strong>
-                            <small>
-                              {group.facts.length}/{group.totalFacts} shown
-                            </small>
-                          </div>
-                          <div className="fact-preview-grid">
-                            {group.facts.map((fact) => (
-                              <div key={fact.id}>
-                                <span>
-                                  {fact.label}: {fact.value}
-                                </span>
-                                <small>{fact.source}</small>
-                              </div>
-                            ))}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  <StateNotice
-                    kind="prerequisite"
-                    title="Facts are ready to collect"
-                    description="Run deterministic repository inspection to populate this phase."
-                  />
-                )}
-                </section>
-              <section
-                className="initialize-result-card"
-                aria-labelledby="initialize-markdown-title"
-              >
-                <div className="initialize-card-topline">
-                  <span className="initialize-phase-index">03</span>
-                  <div>
-                    <span>Phase 3</span>
-                    <h4 id="initialize-markdown-title">Markdown</h4>
-                  </div>
-                  <strong
-                    data-state={projectInitializationMarkdownFindings.length > 0 ? "success" : "pending"}
-                  >
-                    {projectInitializationMarkdownFindings.length > 0
-                      ? `${projectInitializationMarkdownFindings.length} findings`
-                      : "not analyzed"}
-                  </strong>
-                </div>
-                <div className="initialize-card-actions">
-                  <button
-                    className="primary-action"
-                    type="button"
-                    onClick={() => void analyzeProjectInitializationMarkdown()}
-                    disabled={initializeLoading}
-                  >
-                    Analyze Markdown
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInitializeDetailsView("markdown")}
-                    disabled={projectInitializationMarkdownFindings.length === 0}
-                  >
-                    View Findings
-                  </button>
-                </div>
-                {projectInitializationMarkdownPreview.length > 0 ? (
-                  <ul
-                    className="markdown-preview-list"
-                    aria-label="Project initialization markdown findings"
-                  >
-                    {projectInitializationMarkdownPreview.map((finding) => (
-                      <li key={finding.id}>
-                        <div className="markdown-finding-heading">
-                          <span className={markdownCategoryClassName(finding.category)}>
-                            {formatMarkdownCategory(finding.category)}
-                          </span>
-                          <strong>{finding.title}</strong>
-                        </div>
-                        <div className="markdown-finding-meta">
-                          <span>{finding.repositoryName}</span>
-                          <small>
-                            {finding.filePath} · {finding.source}
-                          </small>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <StateNotice
-                    kind="prerequisite"
-                    title="Markdown is ready to analyze"
-                    description="Scan repository documentation to surface sourced project findings."
-                  />
-                )}
-              </section>
-              <section
-                className="initialize-result-card"
-                aria-labelledby="initialize-interview-title"
-              >
-                <div className="initialize-card-topline">
-                  <span className="initialize-phase-index">04</span>
-                  <div>
-                    <span>Phase 4</span>
-                    <h4 id="initialize-interview-title">Interview</h4>
-                  </div>
-                  <strong
-                    data-state={projectInitializationGuardrails.length > 0 ? "success" : "pending"}
-                  >
-                    {projectInitializationGuardrails.length > 0
-                      ? `${projectInitializationGuardrails.length} guardrails`
-                      : "not started"}
-                  </strong>
-                </div>
-                <div className="initialize-card-actions initialize-card-actions-single">
-                  <button
-                    className="primary-action"
-                    type="button"
-                    onClick={openInterviewDialog}
-                    disabled={initializeLoading}
-                  >
-                    Open Interview
-                  </button>
-                </div>
-                {projectInitializationGuardrailPreview.length > 0 ? (
-                  <ul
-                    className="guardrail-preview-list"
-                    aria-label="Project initialization guardrails"
-                  >
-                    {projectInitializationGuardrailPreview.map((guardrail) => (
-                      <li key={guardrail.id}>
-                        <div className="guardrail-heading">
-                          <span className={guardrailKindClassName(guardrail.kind)}>
-                            {guardrailKindLabel(guardrail.kind)}
-                          </span>
-                          <strong>
-                            {guardrail.repositoryName ?? "Project-wide"}
-                          </strong>
-                        </div>
-                        {guardrail.pathPattern ? <code>{guardrail.pathPattern}</code> : null}
-                        <p>{guardrail.content}</p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <StateNotice
-                    kind="prerequisite"
-                    title="No guardrails captured"
-                    description="Add fragile areas, do-not-touch paths, and review rules in the Interview."
-                  />
-                )}
-              </section>
-              <InitializationSummaryCard catalog={modelCatalog} loading={initializeLoading}
-                profileId={synthesisModelProfileId} selectedProfile={selectedSynthesisModelProfile}
-                summary={projectInitializationSummary} tier={synthesisTier}
-                onChangeProfile={setSynthesisModelProfileId} onChangeTier={selectSynthesisTier}
-                onGenerate={() => void generateProjectInitializationSummary()}
-                onView={() => setInitializeDetailsView("summary")} />
-              </div>
-            </>
-          ) : (
-            <StateNotice
-              kind="prerequisite"
-              title={
-                !selectedProject
-                  ? "Choose a workspace to begin"
-                  : projectRepositories.length === 0
-                    ? "Add a repository before initialization"
-                    : "Ready to initialize project knowledge"
-              }
-              description={
-                !selectedProject
-                  ? "Select or create a workspace from the navigation before starting this workflow."
-                  : projectRepositories.length === 0
-                    ? "Open repository management and add at least one repository to define the evidence scope."
-                    : "Start Initialize to choose repository scope and create the Preflight record."
-              }
-            />
-          )}
-        </div>
-      </section>
+      <ProjectInitializationPanel factGroupsCount={projectInitializationFactGroups.length}
+        factPreviews={projectInitializationFactPreviewGroups} facts={projectInitializationFacts}
+        guardrails={projectInitializationGuardrails} initialization={projectInitialization}
+        loading={initializeLoading} markdownFindings={projectInitializationMarkdownFindings}
+        markdownPreviews={projectInitializationMarkdownPreview} project={selectedProject}
+        repositoryCount={projectRepositories.length} onAnalyzeMarkdown={() => void analyzeProjectInitializationMarkdown()}
+        onCollectFacts={() => void collectProjectInitializationFacts()} onInitialize={openProjectInitializeDialog}
+        onOpenInterview={openInterviewDialog} onViewFacts={() => setInitializeDetailsView("facts")}
+        onViewMarkdown={() => setInitializeDetailsView("markdown")} summaryProps={{
+          catalog: modelCatalog, loading: initializeLoading, profileId: synthesisModelProfileId,
+          selectedProfile: selectedSynthesisModelProfile, summary: projectInitializationSummary,
+          tier: synthesisTier, onChangeProfile: setSynthesisModelProfileId,
+          onChangeTier: selectSynthesisTier, onGenerate: () => void generateProjectInitializationSummary(),
+          onView: () => setInitializeDetailsView("summary"),
+        }} />
 
       <section className="runtime-lane" aria-label="Runtime lane">
         {runtimeMode === "pty" ? (
@@ -2439,40 +2155,6 @@ function selectedProjectCwd(
   }
 
   return project ? { cwd: project.path } : {};
-}
-
-const projectInitializationPhaseDefinitions = [
-  { id: "preflight", label: "Preflight" },
-  { id: "facts", label: "Facts" },
-  { id: "markdown", label: "Markdown" },
-  { id: "interview", label: "Interview" },
-  { id: "summary", label: "Summary" },
-];
-
-function projectInitializationStatusLabel(status: string) {
-  return status
-    .split("_")
-    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
-    .join(" ");
-}
-
-function projectInitializationPhaseItems(status: string | null) {
-  const activeIndex = projectInitializationPhaseDefinitions.findIndex((phase) => phase.id === status);
-
-  return projectInitializationPhaseDefinitions.map((phase, index) => {
-    let state = "upcoming";
-    if (activeIndex >= 0 && index < activeIndex) {
-      state = "complete";
-    } else if (activeIndex >= 0 && index === activeIndex) {
-      state = "current";
-    }
-
-    return {
-      ...phase,
-      index: String(index + 1).padStart(2, "0"),
-      state,
-    };
-  });
 }
 
 function groupInitializationFacts(facts: ProjectInitializationFactInfo[]) {

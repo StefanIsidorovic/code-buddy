@@ -647,3 +647,8 @@ YYYY-MM-DD
 - Vazna granica: preview jos ne menja `Send ACP`; agent i dalje automatski dobija samo rucno zakacene Knowledge Cards.
 - Provera: 80 Rust testova, 30 frontend testova, fmt, clippy, typecheck, build i diff check prolaze.
 - Sledece: rucno probati vise realnih taskova i proveriti quality razloga/izbora pre opt-in prompt injection-a ili embeddings-a.
+### 2026-07-21 - Project Initialization lane extraction
+
+- Izdvojena je kompletna Initialization traka (phase rail, Preflight, Facts, Markdown, Interview i Summary kompozicija) u state-free feature komponentu.
+- `App.tsx` je smanjen sa 2.522 na 2.204 linije; async Tauri workflow, modali i persistence ostaju u koordinatoru.
+- Provera: 127 frontend testova, typecheck, production build, Tauri boundary i diff check prolaze; slede PTY runtime kontrole.
