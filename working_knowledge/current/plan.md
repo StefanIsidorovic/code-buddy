@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.14. Extract ACP Registry sidebar presentation
+- objective: move ACP candidate discovery results, selection controls, and selected-command summary out of the frontend coordinator while preserving App-owned discovery, selection, session policy, and errors.
+- status: complete
+- files: src/App.tsx; src/features/agents/AcpRegistryPanel.tsx; src/features/agents/AcpRegistryPanel.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP Agents details/summary; refresh/error; candidate status/metadata/command/install hint; selected state/action locks; selected candidate summary; status labels.
+- expected changes: add a typed state-free and Tauri-free agents panel; move pure candidate status labeling to presentation helpers; pass candidates, selected ID, loading/error and selection/session-lock callbacks from App.
+- acceptance criteria: default-collapsed DOM, candidate metadata, command formatting, all statuses, selected summary, aria selection, and busy/session locks remain unchanged; App retains discovery invoke and state policy.
+- required tests: collapsed/empty summary; statuses/metadata; select callback/selected summary; busy/session/loading locks and error; helper mappings; existing 106 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 confirmed distinct refresh versus selection lock sources and command quoting, and cycle 2 found no remaining status, metadata, selected-summary, aria-selection, loading, session policy, accessibility, runtime-boundary, discovery ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.13. Extract Session History sidebar presentation
 - objective: move transcript filtering, capped history rendering, and controlled rename presentation out of the frontend coordinator while preserving App-owned loading, stale-response guards, persistence, selection, and errors.
 - status: complete

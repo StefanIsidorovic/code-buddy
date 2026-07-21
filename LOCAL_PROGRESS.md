@@ -27,6 +27,7 @@ Radno pravilo:
 - New Knowledge Card modal je izdvojen; App i dalje poseduje scope, create/persistence, list update, auto-attach, transcript linkage, reset i loading/error lifecycle.
 - Knowledge Cards sidebar je izdvojen; App i dalje poseduje refresh, attachment state/persistence, transcript linkage, dialog/error policy i mutacije.
 - Session History sidebar je izdvojen; feature radi filter i three-row cap, dok App poseduje open/rename persistence, stale-response guardove, selection, loading i greske.
+- ACP Registry sidebar je izdvojen; App i dalje poseduje discovery, selected ID, loading/greske i session selection policy.
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 

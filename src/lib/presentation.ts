@@ -76,6 +76,13 @@ export function formatCommand(command: string[]) {
   return command.map((part) => (part.includes(" ") ? JSON.stringify(part) : part)).join(" ");
 }
 
+export function acpCandidateStatusLabel(status: string) {
+  if (status === "ready") return "Ready";
+  if (status === "installable") return "Installable";
+  if (status === "missing_runner") return "Missing runner";
+  return "Missing binary";
+}
+
 export function acpEventLabel(kind: AcpEventKind) {
   return ({ agent_message: "Agent", user_message: "User", tool_call: "Tool", plan: "Plan",
     notice: "Notice", usage: "Usage", error: "Error" } as const)[kind];

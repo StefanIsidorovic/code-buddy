@@ -23,6 +23,7 @@ import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPrevie
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
+import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -32,7 +33,6 @@ import {
   coalesceTranscriptEvents,
   errorText,
   folderNameFromPath,
-  formatCommand,
   formatPromptWithKnowledge,
   formatMarkdownCategory,
   guardrailKindClassName,
@@ -44,7 +44,6 @@ import {
 import type {
   AcpPromptResult,
   AcpRegistryCandidate,
-  AcpRegistryCandidateStatus,
   AcpSessionEvent,
   AcpSessionInfo,
   AgentDoctorReport,
@@ -1869,77 +1868,10 @@ function App() {
         />
 
         <div className="sidebar-scroll">
-          <details className="agent-accordion sidebar-agent">
-            <summary>
-              <span>ACP Agents</span>
-              <strong>{selectedAcpCandidate ? selectedAcpCandidate.name : "none selected"}</strong>
-            </summary>
-
-            <div className="accordion-body">
-              <div className="doctor-heading">
-                <h3 id="sidebar-acp-registry-title">ACP Registry</h3>
-                <button
-                  type="button"
-                  onClick={() => void refreshAcpRegistryCandidates()}
-                  disabled={acpRegistryLoading}
-                >
-                  Refresh
-                </button>
-              </div>
-
-              {acpRegistryError ? (
-                <p className="error-message" role="alert">
-                  {acpRegistryError}
-                </p>
-              ) : null}
-
-              <ul className="registry-list" aria-label="ACP registry candidates">
-                {acpRegistryCandidates.map((candidate) => (
-                  <li
-                    className="registry-item"
-                    data-selected={candidate.id === selectedAcpCandidate?.id}
-                    data-status={candidate.status}
-                    key={candidate.id}
-                  >
-                    <div>
-                      <strong>{candidate.name}</strong>
-                      <span>{candidate.description}</span>
-                    </div>
-                    <div>
-                      <span className="doctor-status">{acpCandidateStatusLabel(candidate.status)}</span>
-                      <span>{candidate.version} · {candidate.distribution}</span>
-                      <code>{formatCommand(candidate.command)}</code>
-                      <span>{candidate.installHint}</span>
-                      <button
-                        aria-label={`Select ${candidate.name} ACP candidate`}
-                        aria-pressed={candidate.id === selectedAcpCandidate?.id}
-                        disabled={busy || canUseAcpSession}
-                        type="button"
-                        onClick={() => setSelectedAcpCandidateId(candidate.id)}
-                      >
-                        {candidate.id === selectedAcpCandidate?.id ? "Selected" : "Select"}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              {selectedAcpCandidate ? (
-                <dl className="selected-candidate" aria-label="Selected ACP candidate">
-                  <div>
-                    <dt>Selected ACP</dt>
-                    <dd>{selectedAcpCandidate.name}</dd>
-                  </div>
-                  <div>
-                    <dt>Command</dt>
-                    <dd>
-                      <code>{formatCommand(selectedAcpCandidate.command)}</code>
-                    </dd>
-                  </div>
-                </dl>
-              ) : null}
-            </div>
-          </details>
+          <AcpRegistryPanel busy={busy} candidates={acpRegistryCandidates} error={acpRegistryError}
+            loading={acpRegistryLoading} selectedCandidateId={selectedAcpCandidateId}
+            sessionLocked={canUseAcpSession} onRefresh={() => void refreshAcpRegistryCandidates()}
+            onSelect={setSelectedAcpCandidateId} />
 
           <SessionHistoryPanel activeSessionTitle={transcriptSession?.title ?? null}
             error={transcriptError} filter={historyFilter} loading={transcriptLoading}
@@ -2737,22 +2669,6 @@ function capabilityLabel(status: CapabilityStatus) {
   }
 
   return "Unknown";
-}
-
-function acpCandidateStatusLabel(status: AcpRegistryCandidateStatus) {
-  if (status === "ready") {
-    return "Ready";
-  }
-
-  if (status === "installable") {
-    return "Installable";
-  }
-
-  if (status === "missing_runner") {
-    return "Missing runner";
-  }
-
-  return "Missing binary";
 }
 
 function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
