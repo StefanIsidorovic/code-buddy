@@ -11,7 +11,7 @@ import { useProjectInitializationWorkflow } from "./features/initialization/useP
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
-import { usePtyTerminal, type TerminalSize } from "./features/runtime/usePtyTerminal";
+import { usePtyRuntime } from "./features/runtime/usePtyRuntime";
 import { useAcpRuntime } from "./features/runtime/useAcpRuntime";
 import {
   WorkspaceContextSelector,
@@ -45,9 +45,7 @@ import type {
   ModelTier,
   ProjectInfo,
   ProjectInitializationFactInfo,
-  ProjectRepositoryInfo,
   RuntimeMode,
-  SessionInfo,
 } from "./types/domain";
 import "./App.css";
 
@@ -57,9 +55,6 @@ export { StateNotice, boundToastMessages };
 
 function App() {
   const acpEventsList = useRef<HTMLUListElement | null>(null);
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
-  const [output, setOutput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
   const [doctorError, setDoctorError] = useState<string | null>(null);
@@ -98,15 +93,14 @@ function App() {
     changeFilter: setHistoryFilter, changeRenameTitle: setHistoryRenameTitle,
     getActiveSessionId, getTask: getTranscriptTask, upsertTask: upsertTranscriptTask } =
     useTranscriptWorkspace({ projectId: selectedProjectId, onShowAcp: () => setRuntimeMode("acp") });
-  const { elementRef: terminalElement, size: terminalSize, fit: fitTerminal,
-    focus: focusTerminal, reset: resetTerminal, write: writeTerminal } = usePtyTerminal({
-      mode: runtimeMode, output, session, onError: setError,
-      onResizeSession: (sessionId, size) => { void resizeSessionTo(sessionId, size); },
-    });
-
-  const canUseSession = session?.state === "running";
   const codexReport = doctorReports.find((report) => report.adapter.id === "codex") ?? null;
   const canStartCodex = codexReport?.status === "installed";
+  const { session, output, usable: canUseSession, statusLabel,
+    terminalElement, terminalSize, focusTerminal, start: startSession,
+    resize: resizeSession, stop: stopSession, drain: drainOutput } = usePtyRuntime({
+      mode: runtimeMode, cwd: selectedRepository?.path ?? selectedProject?.path,
+      canStartCodex, runAction, reportError: setError,
+    });
   const projectInitialization = initializationEvidence.initialization;
   const projectInitializationFacts = initializationEvidence.facts;
   const projectInitializationMarkdownFindings = initializationEvidence.markdown;
@@ -200,14 +194,6 @@ function App() {
   );
   const showAcpWaiting = acpPromptBusy && !openedTranscriptSession;
   const activeRuntimeCwd = runtimeMode === "acp" ? acpSession?.cwd : session?.cwd;
-  const statusLabel = useMemo(() => {
-    if (!session) {
-      return "not started";
-    }
-
-    return `${sessionKind ?? "session"} · ${session.state} · ${session.cols}x${session.rows}`;
-  }, [session, sessionKind]);
-
   useEffect(() => {
     if (runtimeMode !== "acp" || displayAcpEvents.length === 0) {
       return;
@@ -244,18 +230,6 @@ function App() {
       setSynthesisTier(selectedSynthesisModelProfile.tier);
     }
   }, [selectedSynthesisModelProfile]);
-
-  useEffect(() => {
-    if (!canUseSession || !session) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      void drainOutput(session.id);
-    }, 400);
-
-    return () => window.clearInterval(timer);
-  }, [canUseSession, session?.id]);
 
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
@@ -309,69 +283,6 @@ function App() {
       setProjectDeleteError(errorText(err));
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function startSession(kind: "fake" | "codex") {
-    if (kind === "codex" && !canStartCodex) {
-      setError("Codex CLI is not ready. Check Agent Doctor.");
-      return;
-    }
-
-    await runAction(async () => {
-      const command = kind === "fake" ? "start_fake_session" : "start_codex_session";
-      const size = fitTerminal();
-      const nextSession = await invoke<SessionInfo>(command, {
-        request: {
-          cols: size.cols,
-          rows: size.rows,
-          ...selectedProjectCwd(selectedProject, selectedRepository),
-        },
-      });
-      setActiveSession(nextSession);
-      setSessionKind(kind);
-      setOutput("");
-      resetTerminal();
-      focusTerminal();
-      await drainOutput(nextSession.id);
-    });
-  }
-
-  async function resizeSession() {
-    if (!canUseSession || !session) {
-      return;
-    }
-
-    await runAction(async () => {
-      const size = fitTerminal();
-      await resizeSessionTo(session.id, size);
-    });
-  }
-
-  async function stopSession(force: boolean) {
-    if (!session) {
-      return;
-    }
-
-    await runAction(async () => {
-      const nextSession = await invoke<SessionInfo>("stop_session", {
-        sessionId: session.id,
-        force,
-      });
-      setActiveSession(nextSession);
-      await drainOutput(session.id);
-    });
-  }
-
-  async function drainOutput(sessionId = session?.id) {
-    if (!sessionId) {
-      return;
-    }
-
-    const chunk = await invoke<string>("drain_session_output", { sessionId });
-    if (chunk.length > 0) {
-      setOutput((current) => `${current}${chunk}`);
-      writeTerminal(chunk);
     }
   }
 
@@ -431,19 +342,6 @@ function App() {
     const nextProfile =
       tierProfiles.find((profile) => profile.status === "selectable") ?? tierProfiles[0];
     setSynthesisModelProfileId(nextProfile?.id ?? "");
-  }
-
-  async function resizeSessionTo(sessionId: string, size: TerminalSize) {
-    const nextSession = await invoke<SessionInfo>("resize_session", {
-      sessionId,
-      cols: size.cols,
-      rows: size.rows,
-    });
-    setActiveSession(nextSession);
-  }
-
-  function setActiveSession(nextSession: SessionInfo) {
-    setSession(nextSession);
   }
 
   return (
@@ -727,17 +625,6 @@ function App() {
       <NotificationViewport />
     </main>
   );
-}
-
-function selectedProjectCwd(
-  project: ProjectInfo | null,
-  repository: ProjectRepositoryInfo | null,
-) {
-  if (repository) {
-    return { cwd: repository.path };
-  }
-
-  return project ? { cwd: project.path } : {};
 }
 
 function groupInitializationFacts(facts: ProjectInitializationFactInfo[]) {

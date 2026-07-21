@@ -704,3 +704,9 @@ YYYY-MM-DD
 - ACP registry, session start/stop, coding model, prompt/Task/transcript koordinacija, event polling i delete cleanup izdvojeni su u `useAcpRuntime`.
 - App sada samo spaja ACP runtime sa izabranim workspace-om, Knowledge prilozima i transcript API-jem.
 - `App.tsx` je pao sa 963 na 769 linija; audit, typecheck, 160 testova i build prolaze.
+
+### 2026-07-21 - PTY process runtime hook
+
+- PTY session/output/start/resize/drain/stop i terminal koordinacija izdvojeni su u `usePtyRuntime`, koji komponuje postojeci `usePtyTerminal`.
+- App prosledjuje samo runtime mode, workspace cwd i Codex Doctor readiness; procesni payload-i i polling ostaju isti.
+- `App.tsx` je pao sa 769 na 656 linija; audit, typecheck, 163 testa i build prolaze.

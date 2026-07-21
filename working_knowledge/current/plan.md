@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.7. Extract PTY process orchestration
+- objective: move PTY session/output/start/resize/drain/stop and terminal coordination out of App while composing the existing xterm lifecycle hook.
+- status: complete
+- files: src/App.tsx; src/features/runtime/usePtyRuntime.ts; src/features/runtime/usePtyRuntime.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: fake/Codex start; cwd and fitted dimensions; output polling; resize; graceful/forced stop; terminal reset/focus/write; Codex readiness guard.
+- expected changes: add a gateway-backed PTY runtime hook that owns process state and composes `usePtyTerminal`; App only passes runtime mode, cwd and Agent Doctor readiness.
+- acceptance criteria: exact command payloads, terminal operations, 400 ms polling, output accumulation, status labels and Codex guard remain unchanged.
+- required tests: start/output/terminal effects; unavailable Codex guard; resize/stop payloads; existing 160 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 verified polling closures, terminal callback ownership, process payloads and state transitions, and cycle 2 found no remaining lifecycle, error, resize, output, gateway, regression, or scope issue.
+- commit: this commit
+
 ### 21.6. Extract ACP runtime orchestration
 - objective: move ACP registry, session, model, prompt, polling and project-delete cleanup out of App behind a semantic runtime hook.
 - status: complete
