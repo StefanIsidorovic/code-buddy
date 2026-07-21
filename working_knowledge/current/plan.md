@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.8. Run one Task phase under explicit gates
+- objective: let the user invoke exactly one current Task phase without automatic evidence creation, completion, or phase advancement.
+- status: complete
+- files: src/features/tasks/taskPhaseExecution.ts; src/features/tasks/TaskPhasePanel.tsx; src/features/runtime/useAcpRuntime.ts; src/App.tsx; src/App.css; related tests and current knowledge.
+- affected units: canonical phase instruction policy; Task presentation; ACP prompt concurrency; transcript persistence; Task/session ownership.
+- expected changes: show the exact phase-scoped instruction; enable Run only for an in-progress phase and usable ACP session; persist the instruction as a transcript event and send one ACP prompt.
+- acceptance criteria: each phase has a bounded responsibility; original Task prompt is included but unchanged; rapid duplicate prompts remain locked; Task mismatch blocks dispatch; no artifact, completion, or transition is manufactured.
+- required tests: all four phase instructions; exact visible instruction/callback; unavailable ACP lock; exact ACP payload/transcript event; Task ownership rejection; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added exact Task identity validation at the runtime boundary, and cycle 2 confirmed phase/evidence gates, accessibility, concurrency, file sizes, dependency direction, and explicit remaining receipt debt.
+- commit: this commit
+
 ### 22.7. Present receipt history and resolve stale pending dispatches safely
 - objective: make every reviewed-context dispatch inspectable and provide an explicit, conservative recovery path for genuinely stale `pending` receipts.
 - status: complete

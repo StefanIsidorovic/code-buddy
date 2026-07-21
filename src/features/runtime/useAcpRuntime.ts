@@ -164,6 +164,34 @@ export function useAcpRuntime({
       setPromptBusy(false);
     }
   }
+  async function sendPhasePrompt(taskId: string, instruction: string) {
+    if (!usable || !session || promptInFlight.current || !instruction.trim()) return false;
+    promptInFlight.current = true;
+    setPromptBusy(true);
+    reportError(null);
+    try {
+      transcript.showLive();
+      const transcriptId = transcript.getActiveId();
+      if (!transcriptId || transcript.getTask(transcriptId)?.id !== taskId) {
+        throw new Error("A controlled phase run requires the active Task transcript.");
+      }
+      const userEvent: AcpSessionEvent = { kind: "user_message", content: instruction };
+      setEvents((current) => [...current, userEvent]);
+      await transcript.record(transcriptId, [userEvent]);
+      setPromptResult(await invokeCommand<AcpPromptResult>("send_acp_prompt", {
+        sessionId: session.id,
+        prompt: instruction,
+      }));
+      await drain(session.id, transcriptId);
+      return true;
+    } catch (reason) {
+      reportError(errorText(reason));
+      return false;
+    } finally {
+      promptInFlight.current = false;
+      setPromptBusy(false);
+    }
+  }
   async function drain(sessionId = session?.id, transcriptId = transcript.getActiveId()) {
     if (!sessionId) return;
     const next = await invokeCommand<AcpSessionEvent[]>("drain_acp_events", { sessionId });
@@ -202,7 +230,7 @@ export function useAcpRuntime({
   return {
     candidates, registryError, registryLoading, selectedCandidateId, session, events, prompt,
     promptResult, promptBusy, expanded, usable, canStartSelected, statusLabel, refreshRegistry,
-    startSelected, changeModel, sendPrompt, drain, stop, stopAllForDelete,
+    startSelected, changeModel, sendPrompt, sendPhasePrompt, drain, stop, stopAllForDelete,
     selectCandidate: setSelectedCandidateId,
     changePrompt: onPromptChange,
     toggleExpanded: () => setExpanded((value) => !value),

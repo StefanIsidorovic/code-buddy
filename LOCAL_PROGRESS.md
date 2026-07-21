@@ -770,3 +770,9 @@ YYYY-MM-DD
 - Task workspace sada prikazuje ordered receipt istoriju sa tacnim sacuvanim prompt/context tekstom, izvorima i ACP ishodom.
 - Samo `pending` receipt moze rucno da postane `failed`, uz obavezan razlog; backend odbija promenu dok je vezana ACP sesija aktivna i nikad ne dozvoljava lazni `sent`.
 - Frontend audit, 187 frontend testova, 96 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje composition root sa 547 linija.
+
+### 2026-07-22 - Controlled Single-Phase Run
+
+- Svaka canonical Task faza ima vidljiv, deterministicki agent instruction i samo `in_progress` faza moze eksplicitno da posalje jedan ACP prompt.
+- Runtime proverava exact Task/transcript identitet i koristi postojeci single-prompt lock; Run ne pravi evidence, ne zavrsava fazu i ne prelazi automatski dalje.
+- Frontend audit, 195 frontend testova, 96 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 550 linija.

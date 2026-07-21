@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- An in-progress Task phase now exposes its exact canonical agent instruction and can send one controlled ACP prompt after exact Task/transcript ownership validation.
+- Phase execution never creates evidence, completes the phase, or starts the next one; those remain explicit backend-enforced gates.
 - Task Dispatch History now shows ordered receipts with exact stored prompt/context, source count, ACP outcome, stop reason and error.
 - A genuinely stale `pending` receipt can be manually resolved only to `failed`, with a mandatory bounded reason and only after its associated ACP session is no longer running; finalized outcomes remain immutable.
 - Explicit context sends now create an ordered Task receipt before ACP dispatch and finalize it as `sent` or `failed`; interrupted attempts remain `pending` for later recovery.
@@ -17,7 +19,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Design and implement the first controlled single-phase execution action, retaining explicit evidence and completion gates before broader automation.
+- Persist a dedicated phase-run intent/outcome receipt, then use it to support safe retry and evidence capture without weakening manual completion gates.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

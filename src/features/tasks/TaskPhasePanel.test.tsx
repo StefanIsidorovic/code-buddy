@@ -17,8 +17,9 @@ const artifact: TaskPhaseArtifactInfo = { id: "a1", taskId: "t1", phase: "analys
   kind: "summary", content: "Analysis evidence", sourceTranscriptEventIds: ["e1"], createdAt: 1 };
 function props(overrides = {}) { return { task, artifacts: [], currentPhase: phases[0], sourceEvents: [event],
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
+  canRunAgent: true, agentRunning: false,
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
-  onStart: vi.fn(), onComplete: vi.fn(), ...overrides }; }
+  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), ...overrides }; }
 
 describe("TaskPhasePanel", () => {
   it("renders phase state and forwards evidence form changes", () => {
@@ -42,5 +43,17 @@ describe("TaskPhasePanel", () => {
       error: "Gate failed" }); render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByRole("button", { name: "Start analysis" }));
     expect(value.onStart).toHaveBeenCalledOnce(); expect(screen.getByRole("alert")).toHaveTextContent("Gate failed");
+  });
+  it("shows the exact bounded instruction and runs only an in-progress phase", () => {
+    const value = props(); render(<TaskPhasePanel {...value} />);
+    fireEvent.click(screen.getByText("Exact agent instruction"));
+    expect(screen.getByText(/Run only the analysis phase/)).toHaveTextContent(task.originalPrompt);
+    fireEvent.click(screen.getByRole("button", { name: "Run analysis phase" }));
+    expect(value.onRunAgent).toHaveBeenCalledWith(expect.stringContaining("Do not complete the phase"));
+  });
+  it("locks agent execution without a usable ACP session", () => {
+    render(<TaskPhasePanel {...props({ canRunAgent: false })} />);
+    expect(screen.getByRole("button", { name: "Run analysis phase" })).toBeDisabled();
+    expect(screen.getByText("Start an ACP session to run this phase.")).toBeInTheDocument();
   });
 });

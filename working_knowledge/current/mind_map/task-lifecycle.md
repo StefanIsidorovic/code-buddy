@@ -24,6 +24,7 @@
 - Tauri exposes create/list Task phase artifacts. Each append-only artifact has per-phase sequence, kind/content, and normalized links to one or more transcript events from that Task's session; listed provenance follows transcript event order.
 - `transition_task_phase` enforces explicit start/complete actions in analysis, planning, execution, review order. Only the current in-progress phase accepts artifacts, and completion is blocked without at least one artifact.
 - The ACP workspace renders a separate Task Phase panel. Its hook loads artifacts, selects persisted live transcript event IDs, sends exact create/transition payloads, and ignores async results after Task identity changes.
+- An in-progress phase exposes a deterministic, visible Run instruction. Runtime verifies the exact Task bound to the active transcript and sends one prompt; output does not alter the persisted phase state.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.
 - Task/transcript persistence failures block project-owned ACP sending, while project-less ACP remains a compatibility smoke path.
 

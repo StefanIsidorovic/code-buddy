@@ -146,7 +146,8 @@ function App() {
     promptBusy: acpPromptBusy, expanded: acpControlsExpanded, usable: canUseAcpSession,
     canStartSelected: canStartSelectedAcpCandidate, statusLabel: acpStatusLabel,
     refreshRegistry: refreshAcpRegistryCandidates, startSelected: startSelectedAcpSession,
-    changeModel: changeAcpCodingModel, sendPrompt: sendAcpPrompt, drain: drainAcpEvents,
+    changeModel: changeAcpCodingModel, sendPrompt: sendAcpPrompt, sendPhasePrompt: sendAcpPhasePrompt,
+    drain: drainAcpEvents,
     stop: stopAcpSession, stopAllForDelete: stopRunningAcpSessionsForProjectDelete,
     selectCandidate: setSelectedAcpCandidateId, changePrompt: setAcpPromptFromRuntime,
     toggleExpanded: toggleAcpControlsExpanded } = useAcpRuntime({
@@ -366,10 +367,12 @@ function App() {
           {activeTask ? <TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
             currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents}
             selectedSourceIds={taskPhase.sourceIds} kind={taskPhase.kind} content={taskPhase.content}
-            error={taskPhase.error} loading={taskPhase.loading} onChangeKind={taskPhase.changeKind}
+            error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
+            agentRunning={acpPromptBusy} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onCreateArtifact={() => void taskPhase.createArtifact()}
-            onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()} /> : null}
+            onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
+            onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)} /> : null}
           {activeTask ? <TaskDispatchHistoryPanel receipts={taskDispatch.receipts}
             loading={taskDispatch.loading} error={taskDispatch.error}
             resolutionReceiptId={taskDispatch.resolutionReceiptId}

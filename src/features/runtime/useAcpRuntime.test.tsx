@@ -180,6 +180,45 @@ describe("useAcpRuntime", () => {
     unmount();
   });
 
+  it("runs one controlled phase instruction without changing the prompt draft", async () => {
+    invoke.mockImplementation((command) => {
+      if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
+      if (command === "start_acp_registry_session") return Promise.resolve(session);
+      if (command === "send_acp_prompt") return Promise.resolve({ sessionId: "acp1", stopReason: "end_turn" });
+      return Promise.resolve([]);
+    });
+    const { result, transcript, unmount } = setup("p1", task);
+    await waitFor(() => expect(result.current.canStartSelected).toBe(true));
+    await act(() => result.current.startSelected());
+    await act(() => result.current.sendPhasePrompt("task1", "Run only analysis"));
+    expect(invoke).toHaveBeenCalledWith("send_acp_prompt", {
+      sessionId: "acp1", prompt: "Run only analysis",
+    });
+    expect(transcript.record).toHaveBeenCalledWith("t1", [
+      { kind: "user_message", content: "Run only analysis" },
+    ]);
+    expect(result.current.prompt).toBe("Explain this change");
+    unmount();
+  });
+
+  it("rejects a controlled phase instruction for a different active Task", async () => {
+    invoke.mockImplementation((command) => {
+      if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
+      if (command === "start_acp_registry_session") return Promise.resolve(session);
+      return Promise.resolve([]);
+    });
+    const { result, transcript, reportError, unmount } = setup("p1", task);
+    await waitFor(() => expect(result.current.canStartSelected).toBe(true));
+    await act(() => result.current.startSelected());
+    let sent = true;
+    await act(async () => { sent = await result.current.sendPhasePrompt("other-task", "Run analysis"); });
+    expect(sent).toBe(false);
+    expect(invoke.mock.calls.filter(([command]) => command === "send_acp_prompt")).toHaveLength(0);
+    expect(transcript.record).not.toHaveBeenCalledWith("t1", expect.anything());
+    expect(reportError).toHaveBeenCalledWith("A controlled phase run requires the active Task transcript.");
+    unmount();
+  });
+
   it("rejects a second prompt while the first prompt is still in flight", async () => {
     let resolvePrompt: (value: { sessionId: string; stopReason: string }) => void = () => undefined;
     const pending = new Promise<{ sessionId: string; stopReason: string }>((resolve) => { resolvePrompt = resolve; });

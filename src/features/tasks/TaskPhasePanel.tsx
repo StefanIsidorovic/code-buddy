@@ -1,16 +1,20 @@
 import type { TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo, TranscriptEventInfo } from "../../types/domain";
+import { buildTaskPhaseExecutionPrompt } from "./taskPhaseExecution";
 
 interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPhase: TaskPhaseInfo | null;
   sourceEvents: TranscriptEventInfo[]; selectedSourceIds: string[]; kind: string; content: string;
   error: string | null; loading: boolean; onChangeKind: (value: string) => void;
+  canRunAgent: boolean; agentRunning: boolean;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
-  onCreateArtifact: () => void; onStart: () => void; onComplete: () => void }
+  onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
+  onRunAgent: (instruction: string) => void }
 
 export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
-  kind, content, error, loading, onChangeKind, onChangeContent, onToggleSource,
-  onCreateArtifact, onStart, onComplete }: Props) {
+  kind, content, error, loading, canRunAgent, agentRunning, onChangeKind, onChangeContent,
+  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAgent }: Props) {
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
   const inProgress = currentPhase?.status === "in_progress";
+  const agentInstruction = buildTaskPhaseExecutionPrompt(task);
   return <section className="task-phase-panel" aria-labelledby="task-phase-title">
     <div className="doctor-heading"><div><h3 id="task-phase-title">Task phases</h3>
       <span>{task.status} · current: {task.currentPhase}</span></div></div>
@@ -20,6 +24,12 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
     {currentPhase?.status === "pending" ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
     {inProgress ? <div className="task-artifact-editor">
+      <div className="task-phase-run"><details><summary>Exact agent instruction</summary>
+        <pre>{agentInstruction}</pre></details>
+        <button className="primary-action" type="button" disabled={!canRunAgent || agentRunning || loading}
+          onClick={() => onRunAgent(agentInstruction)}>{agentRunning ? "Running phase…" : `Run ${task.currentPhase} phase`}</button>
+        {!canRunAgent ? <small>Start an ACP session to run this phase.</small> : null}
+        <small>This sends one prompt only. Evidence and phase completion remain manual.</small></div>
       <label>Artifact kind<input value={kind} onChange={(event) => onChangeKind(event.target.value)} /></label>
       <label>Phase evidence<textarea rows={3} value={content}
         onChange={(event) => onChangeContent(event.target.value)} /></label>

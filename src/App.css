@@ -4655,3 +4655,6 @@ summary:focus-visible {
   .task-dispatch-list > li > div:first-child { flex-direction: column; }
   .task-dispatch-resolution > div { flex-direction: column-reverse; }
 }
+.task-phase-run { display: grid; gap: .45rem; padding: .75rem; border: 1px solid var(--border); border-radius: .65rem; }
+.task-phase-run pre { margin: .5rem 0 0; max-height: 14rem; overflow: auto; white-space: pre-wrap; }
+.task-phase-run small { color: var(--muted); }
