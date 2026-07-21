@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Extract Session History sidebar presentation next, keeping filtering derivation, transcript loading/opening/rename persistence, stale-response guards, and errors in App.
+- Extract Agent Doctor and ACP Registry sidebar presentation next, then inventory remaining large JSX regions before introducing the typed Tauri gateway.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

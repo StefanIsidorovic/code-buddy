@@ -22,6 +22,7 @@ import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
 import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
+import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -30,7 +31,6 @@ import {
   coalesceAcpEvents,
   coalesceTranscriptEvents,
   errorText,
-  filterTranscriptSessions,
   folderNameFromPath,
   formatCommand,
   formatPromptWithKnowledge,
@@ -38,7 +38,6 @@ import {
   guardrailKindClassName,
   guardrailKindLabel,
   markdownCategoryClassName,
-  shortId,
   transcriptEventToAcpEvent,
   uniqueIds,
 } from "./lib/presentation";
@@ -284,14 +283,6 @@ function App() {
   const selectedHistorySession = useMemo(
     () => transcriptSessions.find((session) => session.id === selectedHistorySessionId) ?? null,
     [selectedHistorySessionId, transcriptSessions],
-  );
-  const filteredTranscriptSessions = useMemo(
-    () => filterTranscriptSessions(transcriptSessions, historyFilter),
-    [historyFilter, transcriptSessions],
-  );
-  const visibleTranscriptSessions = useMemo(
-    () => filteredTranscriptSessions.slice(0, 3),
-    [filteredTranscriptSessions],
   );
   const attachedKnowledgeItems = useMemo(
     () => knowledgeItems.filter((item) => attachedKnowledgeIds.includes(item.id)),
@@ -1950,100 +1941,14 @@ function App() {
             </div>
           </details>
 
-          <details className="agent-accordion sidebar-history">
-            <summary>
-              <span>Session History</span>
-              <strong>
-                {filteredTranscriptSessions.length}/{transcriptSessions.length} saved
-              </strong>
-            </summary>
-
-            <div className="accordion-body">
-              <div className="doctor-heading">
-                <h3 id="history-title">Session History</h3>
-                <span>{transcriptSession ? transcriptSession.title : "none active"}</span>
-                <button
-                  type="button"
-                  onClick={() => void refreshTranscriptSessions()}
-                  disabled={transcriptLoading}
-                >
-                  Refresh
-                </button>
-              </div>
-
-              <label className="history-filter">
-                <span>Filter</span>
-                <input
-                  aria-label="Filter session history"
-                  onChange={(event) => setHistoryFilter(event.target.value)}
-                  placeholder="Search title, agent, id..."
-                  value={historyFilter}
-                />
-              </label>
-
-              <div className="history-rename" aria-label="Rename selected session">
-                <label>
-                  <span>Selected name</span>
-                  <input
-                    aria-label="Selected session name"
-                    disabled={!selectedHistorySession}
-                    onChange={(event) => setHistoryRenameTitle(event.target.value)}
-                    value={historyRenameTitle}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void renameSelectedTranscriptSession()}
-                  disabled={
-                    transcriptLoading ||
-                    !selectedHistorySession ||
-                    !historyRenameTitle.trim() ||
-                    historyRenameTitle.trim() === selectedHistorySession.title
-                  }
-                >
-                  Rename
-                </button>
-              </div>
-
-              {transcriptError ? (
-                <p className="error-message" role="alert">
-                  {transcriptError}
-                </p>
-              ) : null}
-
-              <ul className="history-list" aria-label="Session history">
-                {transcriptSessions.length === 0 ? (
-                  <li>No saved sessions yet.</li>
-                ) : filteredTranscriptSessions.length === 0 ? (
-                  <li>No sessions match this filter.</li>
-                ) : (
-                  visibleTranscriptSessions.map((historySession) => (
-                    <li
-                      data-selected={historySession.id === selectedHistorySessionId}
-                      key={historySession.id}
-                    >
-                      <button
-                        type="button"
-                        aria-label={`Open ${historySession.title} transcript`}
-                        aria-pressed={historySession.id === selectedHistorySessionId}
-                        onClick={() => void openTranscriptSession(historySession)}
-                        disabled={transcriptLoading}
-                      >
-                        <strong>{historySession.title}</strong>
-                        <span>
-                          {historySession.source} · {historySession.runtime} ·{" "}
-                          {historySession.eventCount} events
-                        </span>
-                        <small>
-                          {formatTimestamp(historySession.updatedAt)} · {shortId(historySession.id)}
-                        </small>
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
-            </div>
-          </details>
+          <SessionHistoryPanel activeSessionTitle={transcriptSession?.title ?? null}
+            error={transcriptError} filter={historyFilter} loading={transcriptLoading}
+            renameTitle={historyRenameTitle} selectedSessionId={selectedHistorySessionId}
+            sessions={transcriptSessions} onChangeFilter={setHistoryFilter}
+            onChangeRenameTitle={setHistoryRenameTitle}
+            onOpen={(session) => void openTranscriptSession(session)}
+            onRefresh={() => void refreshTranscriptSessions()}
+            onRename={() => void renameSelectedTranscriptSession()} />
 
           <KnowledgeCardsPanel attachedCount={attachedKnowledgeItems.length}
             attachedIds={attachedKnowledgeIds} error={knowledgeDialogOpen ? null : knowledgeError}
@@ -2949,15 +2854,6 @@ function guardrailToInput(
     pathPattern: guardrail.pathPattern,
     content: guardrail.content,
   };
-}
-
-function formatTimestamp(timestamp: number) {
-  return new Date(timestamp * 1_000).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function readTerminalSize(activeTerminal: Terminal | null) {

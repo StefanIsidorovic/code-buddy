@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   coalesceAcpEvents, errorText, filterTranscriptSessions, folderNameFromPath,
-  formatMarkdownCategory, formatPromptWithKnowledge, guardrailKindClassName, guardrailKindLabel,
+  formatMarkdownCategory, formatPromptWithKnowledge, formatTimestamp, guardrailKindClassName, guardrailKindLabel,
   markdownCategoryClassName,
   transcriptEventToAcpEvent, uniqueIds,
 } from "./presentation";
@@ -61,5 +61,9 @@ describe("presentation helpers", () => {
     expect(markdownCategoryClassName("Build RULE!")).toBe(
       "markdown-category markdown-category-build-rule-",
     );
+  });
+
+  it("formats persisted Unix timestamps for compact history metadata", () => {
+    expect(formatTimestamp(1_700_000_000)).toMatch(/\d/);
   });
 });

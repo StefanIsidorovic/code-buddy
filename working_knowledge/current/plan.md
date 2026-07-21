@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.13. Extract Session History sidebar presentation
+- objective: move transcript filtering, capped history rendering, and controlled rename presentation out of the frontend coordinator while preserving App-owned loading, stale-response guards, persistence, selection, and errors.
+- status: complete
+- files: src/App.tsx; src/features/transcripts/SessionHistoryPanel.tsx; src/features/transcripts/SessionHistoryPanel.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: history details/summary; filter and three-row cap; active label; refresh; selected rename field/action; error/empty/no-match states; transcript row metadata/open callback; timestamp formatting.
+- expected changes: add a typed state-free and Tauri-free transcript panel; move pure filter/visible derivation and timestamp formatting to presentation scope; pass sessions, selected/active IDs, controlled values, state, and callbacks from App.
+- acceptance criteria: default-collapsed details boundary remains; summary reports filtered/total; only three matching rows render; rename requires a selected session, non-blank changed title, and idle state; row selection/open payloads and metadata remain exact; App retains request guards and all mutations.
+- required tests: collapsed summary/filter counts; empty/no-match/error; three-row cap and row metadata; open/filter callbacks; rename validation/callbacks; loading locks; timestamp helper; existing 101 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 confirmed the filter/three-row derivation and preserved active-vs-opened label semantics, and cycle 2 found no remaining count, empty/no-match, rename validation, row metadata, callback, loading, accessibility, runtime-boundary, stale-response/persistence ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.12. Extract Knowledge Cards sidebar presentation
 - objective: move the manual Knowledge Cards accordion out of the frontend coordinator while preserving App-owned loading, persistence, attachment, transcript linkage, errors, and dialog state.
 - status: complete

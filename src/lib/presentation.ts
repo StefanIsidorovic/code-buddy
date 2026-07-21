@@ -26,6 +26,12 @@ export function shortId(id: string) {
   return id.slice(0, 8);
 }
 
+export function formatTimestamp(timestamp: number) {
+  return new Date(timestamp * 1_000).toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
 export function filterTranscriptSessions<T extends TranscriptSession>(sessions: T[], filter: string) {
   const query = filter.trim().toLowerCase();
   if (!query) return sessions;
