@@ -8,6 +8,7 @@ import aiadneMark from "./assets/aiadne-mark.svg";
 import { StateNotice } from "./components/ui/StateNotice";
 import { CloseIcon } from "./components/ui/icons";
 import { NotificationViewport } from "./features/notifications/NotificationViewport";
+import { ProjectInitializeDialog } from "./features/initialization/ProjectInitializeDialog";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
@@ -2769,94 +2770,15 @@ function App() {
       ) : null}
 
       {initializeDialogOpen ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeProjectInitializeDialog();
-            }
-          }}
-        >
-          <section
-            aria-labelledby="project-initialize-dialog-title"
-            aria-modal="true"
-            className="knowledge-modal project-initialize-modal"
-            role="dialog"
-          >
-            <div className="modal-heading">
-              <div>
-                <p className="eyebrow">Project</p>
-                <h2 id="project-initialize-dialog-title">Project Initialize</h2>
-              </div>
-              <button
-                aria-label="Close project initialize dialog"
-                className="icon-button"
-                type="button"
-                onClick={closeProjectInitializeDialog}
-                disabled={initializeLoading}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            {initializeError ? (
-              <p className="error-message" role="alert">
-                {initializeError}
-              </p>
-            ) : null}
-
-            <div className="initialize-section">
-              <h3>Repositories</h3>
-              <ul className="initialize-repository-list" aria-label="Repositories to initialize">
-                {projectRepositories.map((repository) => (
-                  <li key={repository.id}>
-                    <label>
-                      <input
-                        aria-label={`Include ${repository.name} repository`}
-                        checked={initializeRepositoryIds.includes(repository.id)}
-                        type="checkbox"
-                        onChange={(event) =>
-                          toggleInitializeRepository(repository.id, event.currentTarget.checked)
-                        }
-                      />
-                      <span>
-                        <strong>{repository.name}</strong>
-                        <small>{repository.path}</small>
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="initialize-section">
-              <h3>Phases</h3>
-              <ol className="initialize-phase-list">
-                <li>Facts</li>
-                <li>Markdown analysis</li>
-                <li>Interview</li>
-                <li>Knowledge summary</li>
-              </ol>
-            </div>
-
-            <div className="modal-actions">
-              <button
-                type="button"
-                onClick={closeProjectInitializeDialog}
-                disabled={initializeLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void createProjectInitialization()}
-                disabled={initializeLoading || initializeRepositoryIds.length === 0}
-              >
-                Start Initialize
-              </button>
-            </div>
-          </section>
-        </div>
+        <ProjectInitializeDialog
+          error={initializeError}
+          loading={initializeLoading}
+          repositories={projectRepositories}
+          selectedRepositoryIds={initializeRepositoryIds}
+          onClose={closeProjectInitializeDialog}
+          onStart={() => void createProjectInitialization()}
+          onToggleRepository={toggleInitializeRepository}
+        />
       ) : null}
 
       {initializeDetailsView ? (

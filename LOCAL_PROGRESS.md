@@ -19,6 +19,7 @@ Radno pravilo:
 - Workspace/repository context summary i picker kontrole su izdvojene uz ocuvanu responsive DOM granicu; selection i modali ostaju u App-u.
 - Repository management dialog je izdvojen; App i dalje poseduje controlled draftove, selection i async create/delete/refresh operacije.
 - Workspace management dialog je izdvojen; App i dalje poseduje controlled draftove, native folder picker, selection/persistence, async operacije i potvrdu brisanja projekta.
+- Pocetni Project Initialize modal je izdvojen; App i dalje poseduje repository scope, kreiranje/persistenciju initialization run-a, greske i sve kasnije faze.
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 

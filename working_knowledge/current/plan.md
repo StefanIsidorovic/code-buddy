@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.6. Extract Project Initialize scope dialog presentation
+- objective: move the initial repository-scope and phase-preview modal out of the frontend coordinator while preserving App-owned initialization orchestration.
+- status: complete
+- files: src/App.tsx; src/features/initialization/ProjectInitializeDialog.tsx; src/features/initialization/ProjectInitializeDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Project Initialize modal/backdrop; repository scope checkboxes; phase preview; error state; start/cancel/close actions.
+- expected changes: add a typed state-free and Tauri-free initialization feature component; pass repositories, selected IDs, loading/error state, and callbacks from App; keep initialization creation, state reset, errors, persistence, and downstream phase loading in App.
+- acceptance criteria: dialog semantics and copy remain unchanged; checkbox toggles preserve repository ID and checked value; loading locks Close/Cancel/Start but does not change existing checkbox/backdrop behavior; Start requires at least one selected repository; App retains all async workflow ownership.
+- required tests: repository/phase rendering and toggle forwarding; selected scope and Start callback; empty-scope and loading locks; error, close, and backdrop behavior; existing 70 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added the missing selected-repository removal edge case, and cycle 2 found no remaining modal, scope-toggle, loading, validation, error, accessibility, runtime-boundary, workflow-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.5. Extract workspace management dialog presentation
 - objective: move the Choose Workspace modal out of the frontend coordinator while preserving App-owned project persistence, folder selection, deletion confirmation, and session policy.
 - status: complete

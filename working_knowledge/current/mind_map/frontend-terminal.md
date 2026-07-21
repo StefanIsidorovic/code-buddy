@@ -26,6 +26,7 @@
 - Workspace context summary and picker controls are state-free workspace feature exports; their split preserves the mobile summary outside collapsible navigation while App owns selection and dialogs.
 - Repository management dialog is state-free workspace presentation; session locks protect select/delete while repository creation preserves its prior independent availability.
 - Workspace management dialog is state-free workspace presentation; App retains persistence, native folder picking, async operations, selection closing, and the project-deletion confirmation handoff.
+- Project Initialize scope dialog is state-free initialization presentation; App retains repository-scope state, initialization creation, persistence, errors, and downstream phase orchestration.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

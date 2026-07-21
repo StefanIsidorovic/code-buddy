@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.4.5 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/workspace/WorkspaceDialog.tsx; src/features/workspace/WorkspaceDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- worktree: plan item 19.4.6 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/features/initialization/ProjectInitializeDialog.tsx; src/features/initialization/ProjectInitializeDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.4.5 complete
+- active plan step: 19.4.6 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -59,3 +59,4 @@
 - 2026-07-21: 62 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.3; workspace context summary/pickers are state-free feature presentation and `App.tsx` is 42 lines smaller.
 - 2026-07-21: 66 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.4; repository management dialog is state-free feature presentation and `App.tsx` is 108 lines smaller.
 - 2026-07-21: 70 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.5; workspace management dialog is state-free feature presentation and `App.tsx` is 100 lines smaller.
+- 2026-07-21: 74 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.6; Project Initialize scope dialog is state-free feature presentation and `App.tsx` is 78 lines smaller.
