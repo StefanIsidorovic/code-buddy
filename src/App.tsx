@@ -1,7 +1,4 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import aiadneMark from "./assets/aiadne-mark.svg";
 import { StateNotice } from "./components/ui/StateNotice";
@@ -13,6 +10,7 @@ import { ProjectInitializationPanel } from "./features/initialization/ProjectIni
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
+import { usePtyTerminal, type TerminalSize } from "./features/runtime/usePtyTerminal";
 import {
   WorkspaceContextSelector,
   WorkspaceContextSummary,
@@ -70,28 +68,18 @@ import type {
 } from "./types/domain";
 import "./App.css";
 
-const initialSize = {
-  cols: 80,
-  rows: 24,
-};
-
 const defaultSynthesisModelProfileId = "openai-gpt-5.6-terra-medium";
 
 export { StateNotice, boundToastMessages };
 
 function App() {
-  const terminalElement = useRef<HTMLDivElement | null>(null);
   const acpEventsList = useRef<HTMLUListElement | null>(null);
-  const terminal = useRef<Terminal | null>(null);
-  const fitAddon = useRef<FitAddon | null>(null);
-  const sessionRef = useRef<SessionInfo | null>(null);
   const transcriptOpenRequest = useRef(0);
   const taskLoadRequest = useRef(0);
   const transcriptSessionRef = useRef<TranscriptSessionInfo | null>(null);
   const tasksByTranscriptIdRef = useRef<Record<string, TaskInfo>>({});
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
-  const [terminalSize, setTerminalSize] = useState(initialSize);
   const [output, setOutput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [doctorReports, setDoctorReports] = useState<AgentDoctorReport[]>([]);
@@ -194,6 +182,11 @@ function App() {
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
   const pushToast = useNotificationStore((state) => state.push);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const { elementRef: terminalElement, size: terminalSize, fit: fitTerminal,
+    focus: focusTerminal, reset: resetTerminal, write: writeTerminal } = usePtyTerminal({
+      mode: runtimeMode, output, session, onError: setError,
+      onResizeSession: (sessionId, size) => { void resizeSessionTo(sessionId, size); },
+    });
 
   const canUseSession = session?.state === "running";
   const canUseAcpSession = acpSession?.state === "running";
@@ -290,10 +283,6 @@ function App() {
   }, [session, sessionKind]);
 
   useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
-
-  useEffect(() => {
     transcriptSessionRef.current = transcriptSession;
   }, [transcriptSession]);
 
@@ -362,79 +351,6 @@ function App() {
       setInterviewDialogOpen(false);
     }
   }, [projectInitialization]);
-
-  useEffect(() => {
-    if (runtimeMode !== "pty") {
-      return;
-    }
-
-    if (!terminalElement.current) {
-      return;
-    }
-
-    const nextTerminal = new Terminal({
-      cursorBlink: true,
-      convertEol: true,
-      fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
-      fontSize: 13,
-      scrollback: 1_000,
-      theme: {
-        background: "#111c18",
-        foreground: "#d7ede3",
-        cursor: "#d7ede3",
-        selectionBackground: "#31584d",
-      },
-    });
-    const nextFitAddon = new FitAddon();
-
-    nextTerminal.loadAddon(nextFitAddon);
-    nextTerminal.open(terminalElement.current);
-    nextFitAddon.fit();
-    setTerminalSize(readTerminalSize(nextTerminal));
-    if (output.length > 0) {
-      nextTerminal.write(output);
-    } else {
-      nextTerminal.writeln("No session yet.");
-    }
-
-    terminal.current = nextTerminal;
-    fitAddon.current = nextFitAddon;
-
-    const inputDisposable = nextTerminal.onData((text) => {
-      const activeSession = sessionRef.current;
-      if (!activeSession || activeSession.state !== "running") {
-        return;
-      }
-
-      void invoke("write_session_input", {
-        sessionId: activeSession.id,
-        text,
-      }).catch((err) => setError(errorText(err)));
-    });
-
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddon.current?.fit();
-      const nextSize = readTerminalSize(nextTerminal);
-      setTerminalSize(nextSize);
-
-      const activeSession = sessionRef.current;
-      if (
-        activeSession?.state === "running" &&
-        (activeSession.cols !== nextSize.cols || activeSession.rows !== nextSize.rows)
-      ) {
-        void resizeSessionTo(activeSession.id, nextSize);
-      }
-    });
-    resizeObserver.observe(terminalElement.current);
-
-    return () => {
-      inputDisposable.dispose();
-      resizeObserver.disconnect();
-      nextTerminal.dispose();
-      terminal.current = null;
-      fitAddon.current = null;
-    };
-  }, [runtimeMode]);
 
   useEffect(() => {
     if (!canUseSession || !session) {
@@ -1534,8 +1450,8 @@ function App() {
       setActiveSession(nextSession);
       setSessionKind(kind);
       setOutput("");
-      terminal.current?.reset();
-      terminal.current?.focus();
+      resetTerminal();
+      focusTerminal();
       await drainOutput(nextSession.id);
     });
   }
@@ -1574,7 +1490,7 @@ function App() {
     const chunk = await invoke<string>("drain_session_output", { sessionId });
     if (chunk.length > 0) {
       setOutput((current) => `${current}${chunk}`);
-      terminal.current?.write(chunk);
+      writeTerminal(chunk);
     }
   }
 
@@ -1786,14 +1702,7 @@ function App() {
     });
   }
 
-  function fitTerminal() {
-    fitAddon.current?.fit();
-    const size = readTerminalSize(terminal.current);
-    setTerminalSize(size);
-    return size;
-  }
-
-  async function resizeSessionTo(sessionId: string, size: typeof initialSize) {
+  async function resizeSessionTo(sessionId: string, size: TerminalSize) {
     const nextSession = await invoke<SessionInfo>("resize_session", {
       sessionId,
       cols: size.cols,
@@ -1803,7 +1712,6 @@ function App() {
   }
 
   function setActiveSession(nextSession: SessionInfo) {
-    sessionRef.current = nextSession;
     setSession(nextSession);
   }
 
@@ -1971,7 +1879,7 @@ function App() {
           runtimeMode={runtimeMode}
           showWaiting={showAcpWaiting}
           terminalElementRef={terminalElement}
-          onFocusTerminal={() => terminal.current?.focus()}
+          onFocusTerminal={focusTerminal}
           onShowLiveEvents={showLiveAcpEvents}
         />
       </section>
@@ -2148,13 +2056,6 @@ function guardrailToInput(
     kind: guardrail.kind,
     pathPattern: guardrail.pathPattern,
     content: guardrail.content,
-  };
-}
-
-function readTerminalSize(activeTerminal: Terminal | null) {
-  return {
-    cols: Math.max(1, activeTerminal?.cols ?? initialSize.cols),
-    rows: Math.max(1, activeTerminal?.rows ?? initialSize.rows),
   };
 }
 

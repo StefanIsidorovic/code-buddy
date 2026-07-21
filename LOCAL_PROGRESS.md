@@ -662,3 +662,8 @@ YYYY-MM-DD
 - Svih 44 dozvoljenih backend komandi sada prolazi kroz jedan eksplicitan frontend gateway; `App.tsx` vise ne uvozi Tauri core direktno.
 - Gateway cuva tacan oblik poziva, payload, rezultat i gresku, pa naredni feature hook-ovi zavise od nase granice umesto framework API-ja.
 - Provera: 134 frontend testa, typecheck, production build, direct-import boundary i diff check prolaze.
+### 2026-07-21 - PTY terminal lifecycle hook
+
+- Kreiranje i cleanup xterm/FitAddon instance, input forwarding, ResizeObserver i imperative fit/focus/reset/write operacije izdvojeni su u `usePtyTerminal`.
+- Hook koristi aktuelne ref vrednosti, pa promena sesije ili callback-a ne remountuje terminal; `App.tsx` je pao na 2.062 linije.
+- Provera: 136 frontend testova, typecheck, production build, xterm boundary i diff check prolaze.

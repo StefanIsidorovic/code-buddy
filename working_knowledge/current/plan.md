@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.6. Extract PTY terminal lifecycle orchestration
+- objective: move xterm construction/disposal, input forwarding, resize observation, dimension state and imperative terminal operations out of App.
+- status: complete
+- files: src/App.tsx; src/features/runtime/usePtyTerminal.ts; src/features/runtime/usePtyTerminal.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Terminal/FitAddon refs; PTY-mode mount effect; session input; ResizeObserver; fit/reset/focus/write operations; terminal-size state.
+- expected changes: add a focused runtime hook backed by current-value refs; preserve one terminal instance per PTY-mode mount; keep PTY process start/stop/drain commands in App.
+- acceptance criteria: keyboard input only reaches running sessions; resize only persists changed running dimensions; initial output/empty text, cleanup and imperative operations remain unchanged; no xterm imports remain in App.
+- required tests: mount/initial output; keyboard gating/forwarding/error; resize gating/forwarding; imperative operations; cleanup; existing 134 frontend tests; typecheck; build; boundary and diff checks.
+- review status: passed after 2 cycles; cycle 1 preserved minimum terminal dimensions and current-value callback/session refs, and cycle 2 found no remaining mount, input-gating, resize, cleanup, imperative-operation, xterm-boundary, process-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.5. Introduce the typed Tauri command gateway
 - objective: remove direct Tauri command imports from the application coordinator and establish one auditable frontend/backend invocation boundary.
 - status: complete

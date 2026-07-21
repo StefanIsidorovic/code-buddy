@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Extract xterm/PTY lifecycle orchestration into a dedicated hook next, then split workspace/initialization and ACP workflow state from the thin root composition.
+- Split workspace/initialization workflow state into a feature hook next, then isolate ACP/transcript orchestration and leave App as root composition.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.
