@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Feature orchestration is extracted; finish project-delete/root composition cleanup next, then code-split heavy dialogs/runtime dependencies.
+- Feature orchestration and project-delete cleanup are extracted; App is a 519-line composition root with no gateway calls. Code-split heavy dialogs/runtime dependencies next.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

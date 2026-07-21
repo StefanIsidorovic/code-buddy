@@ -21,6 +21,7 @@ import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
 import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
 import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
 import { useProjectCatalog } from "./features/workspace/useProjectCatalog";
+import { useProjectDeletion } from "./features/workspace/useProjectDeletion";
 import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
@@ -39,9 +40,7 @@ import {
   coalesceTranscriptEvents,
   errorText,
 } from "./lib/presentation";
-import { invokeCommand as invoke } from "./lib/tauriGateway";
 import type {
-  ProjectInfo,
   ProjectInitializationFactInfo,
   RuntimeMode,
 } from "./types/domain";
@@ -52,8 +51,6 @@ export { StateNotice, boundToastMessages };
 function App() {
   const acpEventsList = useRef<HTMLUListElement | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
-  const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
   const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
   const [busy, setBusy] = useState(false);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
@@ -155,6 +152,13 @@ function App() {
         upsertTask: upsertTranscriptTask, record: recordTranscriptEvents },
       runAction, reportError: setError,
     });
+  const { candidate: projectDeleteCandidate, error: projectDeleteError,
+    open: openProjectDeleteDialog, close: closeProjectDeleteDialog,
+    confirm: confirmDeleteProject } = useProjectDeletion({
+      busy, onBusyChange: setBusy, stopAcpSessions: stopRunningAcpSessionsForProjectDelete,
+      removeFromCatalog: removeProject, removeEvidence: initializationEvidence.removeProject,
+      notifySuccess: (message) => pushToast("success", message),
+    });
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -198,49 +202,6 @@ function App() {
       await action();
     } catch (err) {
       setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function openProjectDeleteDialog(project: ProjectInfo) {
-    setProjectDeleteCandidate(project);
-    setProjectDeleteError(null);
-  }
-
-  function closeProjectDeleteDialog() {
-    if (busy) {
-      return;
-    }
-    setProjectDeleteCandidate(null);
-    setProjectDeleteError(null);
-  }
-
-  async function confirmDeleteProject() {
-    if (!projectDeleteCandidate) {
-      return;
-    }
-
-    const projectId = projectDeleteCandidate.id;
-    const projectName = projectDeleteCandidate.name;
-    setBusy(true);
-    setProjectDeleteError(null);
-    try {
-      const stoppedAcpSessionCount = await stopRunningAcpSessionsForProjectDelete();
-      await invoke("delete_project", { projectId });
-      removeProject(projectId);
-      initializationEvidence.removeProject(projectId);
-      setProjectDeleteCandidate(null);
-      pushToast(
-        "success",
-        stoppedAcpSessionCount > 0
-          ? `${projectName} deleted. Stopped ${stoppedAcpSessionCount} ACP session${
-              stoppedAcpSessionCount === 1 ? "" : "s"
-            }.`
-          : `${projectName} deleted.`,
-      );
-    } catch (err) {
-      setProjectDeleteError(errorText(err));
     } finally {
       setBusy(false);
     }

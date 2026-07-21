@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.9. Extract project deletion coordination
+- objective: remove the final backend workflow from App by isolating cross-domain project deletion behind semantic callbacks.
+- status: complete
+- files: src/App.tsx; src/features/workspace/useProjectDeletion.ts; src/features/workspace/useProjectDeletion.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: confirmation candidate/error; global busy lock; ACP shutdown; backend deletion; catalog/evidence cleanup; success notification.
+- expected changes: add a workspace deletion hook that coordinates injected ACP/catalog/evidence boundaries and owns dialog workflow state; remove App's last gateway command.
+- acceptance criteria: ACP sessions stop before deletion; local cleanup happens only after backend success; errors retain the candidate; close respects busy; singular/plural toast copy remains unchanged.
+- required tests: successful ordered cleanup/count message; shutdown failure atomicity; busy close guard; existing 167 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 replaced an unstable rejected-gateway harness case with a deterministic pre-delete shutdown failure that proves atomicity, and cycle 2 verified ordering, locks, cleanup policy, error retention, notification copy, regression and scope.
+- commit: this commit
+
 ### 21.8. Extract Agent Doctor and synthesis catalog orchestration
 - objective: move agent readiness discovery and synthesis model catalog/selection state out of App while keeping ACP coding models separate.
 - status: complete

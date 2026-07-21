@@ -716,3 +716,9 @@ YYYY-MM-DD
 - Agent Doctor discovery/error/refresh i synthesis model catalog/tier/profile izbor izdvojeni su u `useAgentEnvironment`.
 - Summary provenance vraca prethodni synthesis izbor, stale refresh odgovori se ignorisu, a ACP coding model ostaje odvojena session odluka.
 - `App.tsx` je pao sa 656 na 558 linija; audit, typecheck, 167 testova i build prolaze.
+
+### 2026-07-21 - Project deletion hook
+
+- Project delete candidate/error, ACP-first shutdown, backend delete, catalog/evidence cleanup i success toast izdvojeni su u `useProjectDeletion`.
+- Cleanup je atomski sa frontend strane: ako ACP shutdown ili backend delete ne uspe, lokalni domeni se ne uklanjaju i potvrda ostaje otvorena.
+- `App.tsx` je 519-linijski composition root bez backend poziva; audit, typecheck, 170 testova i build prolaze.
