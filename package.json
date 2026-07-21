@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "frontend:audit": "bash .agents/skills/aiadne-modern-frontend/scripts/audit_frontend.sh",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",

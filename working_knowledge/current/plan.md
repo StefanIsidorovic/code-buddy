@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 20. Add enforceable modern frontend skill
+- objective: make AIadne's React/TypeScript architecture, state ownership, infrastructure boundaries, tests and validation requirements automatically available and enforceable for future frontend work.
+- status: complete
+- files: .agents/skills/aiadne-modern-frontend/*; AGENTS.md; package.json; src/features/notifications/NotificationViewport.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: agent skill discovery; frontend architecture guidance; deterministic audit; notification viewport coverage; npm quality gate.
+- expected changes: add one project-local implicitly triggered skill, architecture reference, executable audit and permanent AGENTS requirement; close the existing untested notification component gap found by the audit.
+- acceptance criteria: skill triggers for all frontend changes/reviews; audit enforces App/feature size, Tauri/xterm boundaries, unsafe TypeScript escapes and colocated component tests; validation commands are explicit and runnable.
+- required tests: skill quick validation; audit; typecheck; 138 frontend tests; focused warning-free notification tests; production build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 corrected shell quoting/path allowlists and added missing NotificationViewport behavior/accessibility coverage, and cycle 2 removed React act cleanup noise and found no remaining trigger, architecture, audit, test, validation, or scope issue.
+- commit: this commit
+
 ### 19.6. Extract PTY terminal lifecycle orchestration
 - objective: move xterm construction/disposal, input forwarding, resize observation, dimension state and imperative terminal operations out of App.
 - status: complete

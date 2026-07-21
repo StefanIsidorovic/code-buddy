@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIadne Modern Frontend"
+  short_description: "Enforce modern React and TypeScript architecture"
+  default_prompt: "Use $aiadne-modern-frontend to implement or review this AIadne frontend change safely."

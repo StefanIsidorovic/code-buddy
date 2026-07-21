@@ -10,6 +10,7 @@
 
 ## Next Step
 - Split workspace/initialization workflow state into a feature hook next, then isolate ACP/transcript orchestration and leave App as root composition.
+- Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

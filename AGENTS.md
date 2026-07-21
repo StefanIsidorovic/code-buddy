@@ -11,6 +11,10 @@ knowledge up to date.
 
 This file is the primary source of agent instructions for the repository.
 
+## Frontend Skill Requirement
+
+For every change or review touching `src/**/*.ts`, `src/**/*.tsx`, frontend tests, or frontend build configuration, the agent must read and apply `.agents/skills/aiadne-modern-frontend/SKILL.md`. Before completion, run `npm run frontend:audit` in addition to the skill's typecheck, test, and build requirements.
+
 ---
 
 ## Workspace Layout

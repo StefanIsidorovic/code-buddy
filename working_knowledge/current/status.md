@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 871b51b step 19.5: add typed Tauri gateway
-- worktree: plan item 19.6 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/runtime/usePtyTerminal.ts; src/features/runtime/usePtyTerminal.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 852c113 step 19.6: extract PTY terminal hook
+- worktree: plan item 20 implementation and knowledge updates ready for commit.
+- relevant files: .agents/skills/aiadne-modern-frontend/*; AGENTS.md; package.json; src/features/notifications/NotificationViewport.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.6 complete
+- active plan step: 20 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -74,3 +74,4 @@
 - 2026-07-21: 131 frontend tests, typecheck, production build, Tauri/xterm-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.18; PTY controls are state-free runtime presentation and `App.tsx` is 43 lines smaller at 2,161 lines.
 - 2026-07-21: 134 frontend tests, typecheck, production build, direct-Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.5; all App backend commands now cross the explicit typed gateway.
 - 2026-07-21: 136 frontend tests, typecheck, production build, xterm lifecycle boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.6; terminal lifecycle/input/resize operations are isolated and `App.tsx` is 99 lines smaller at 2,062 lines.
+- 2026-07-21: project-local frontend skill validation, deterministic frontend audit, 138 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 20; future frontend changes are governed by permanent architecture and quality gates.

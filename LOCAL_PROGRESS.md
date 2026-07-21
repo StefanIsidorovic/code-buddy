@@ -667,3 +667,9 @@ YYYY-MM-DD
 - Kreiranje i cleanup xterm/FitAddon instance, input forwarding, ResizeObserver i imperative fit/focus/reset/write operacije izdvojeni su u `usePtyTerminal`.
 - Hook koristi aktuelne ref vrednosti, pa promena sesije ili callback-a ne remountuje terminal; `App.tsx` je pao na 2.062 linije.
 - Provera: 136 frontend testova, typecheck, production build, xterm boundary i diff check prolaze.
+### 2026-07-21 - Modern frontend skill i audit
+
+- Dodat je projektni `aiadne-modern-frontend` skill koji se obavezno koristi za svaki React/TypeScript frontend rad i review.
+- Audit blokira rast `App.tsx` preko 2.200 linija, feature module preko 250, direktne Tauri/xterm importe, `any`/`@ts-ignore` i feature komponente bez colocated testa.
+- Audit je pronasao stvarnu rupu: `NotificationViewport` je dobio behavior/accessibility i cleanup testove.
+- Provera: skill validator, frontend audit, typecheck, 138 testova i production build prolaze.

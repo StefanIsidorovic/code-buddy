@@ -67,6 +67,7 @@
 - PTY runtime controls now live in `src/features/runtime/PtyRuntimePanel.tsx`; the feature owns action-lock presentation while App retains xterm integration and process lifecycle.
 - `src/lib/tauriGateway.ts` is the sole core Tauri invoke boundary for the frontend; its explicit command union makes backend surface changes auditable while preserving exact call shapes.
 - `src/features/runtime/usePtyTerminal.ts` owns xterm/FitAddon construction, keyboard forwarding, resize observation, cleanup and imperative terminal operations; App retains PTY process commands.
+- `.agents/skills/aiadne-modern-frontend/` defines the mandatory frontend workflow and architecture reference; `npm run frontend:audit` enforces size, infrastructure-import, unsafe-TypeScript and colocated-test boundaries.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints
