@@ -678,3 +678,8 @@ YYYY-MM-DD
 - Project/repository state, derivacija, forme, dijalozi, folder picker i CRUD izdvojeni su u `useProjectCatalog`; cross-domain brisanje ostaje privremeni App coordinator.
 - Repository refresh koristi request identity, pa stari odgovor ne moze pregaziti noviji izbor projekta.
 - `App.tsx` je pao sa 2.062 na 1.882 linije; audit, typecheck, 142 testa i build prolaze.
+### 2026-07-21 - Initialization evidence hook
+
+- Initialization identity i Facts/Markdown/Guardrails/Summary/Knowledge Unit cache i refresh logika izdvojeni su u `useInitializationEvidence`.
+- Project i evidence request identity sprecavaju stare async odgovore; Summary approval ima poseban Knowledge Unit refresh.
+- `App.tsx` je pao sa 1.882 na 1.636 linija; audit, typecheck, 145 testova i build prolaze.

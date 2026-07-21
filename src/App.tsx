@@ -6,6 +6,7 @@ import { ProjectInitializeDialog } from "./features/initialization/ProjectInitia
 import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGuardrailsDialog";
 import { InitializationDetailsDialog } from "./features/initialization/InitializationDetailsDialog";
 import { ProjectInitializationPanel } from "./features/initialization/ProjectInitializationPanel";
+import { useInitializationEvidence } from "./features/initialization/useInitializationEvidence";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
@@ -46,7 +47,6 @@ import type {
   InitializeDetailsView,
   InterviewScope,
   KnowledgeItemInfo,
-  KnowledgeUnitInfo,
   ModelCatalogInfo,
   ModelTier,
   ProjectInfo,
@@ -108,28 +108,6 @@ function App() {
   const [interviewDraftGuardrails, setInterviewDraftGuardrails] = useState<
     ProjectInitializationGuardrailInput[]
   >([]);
-  const [projectInitializationsByProjectId, setProjectInitializationsByProjectId] = useState<
-    Record<string, ProjectInitializationInfo>
-  >({});
-  const [initializationFactsByInitializationId, setInitializationFactsByInitializationId] =
-    useState<Record<string, ProjectInitializationFactInfo[]>>({});
-  const [
-    initializationMarkdownFindingsByInitializationId,
-    setInitializationMarkdownFindingsByInitializationId,
-  ] = useState<Record<string, ProjectInitializationMarkdownFindingInfo[]>>({});
-  const [
-    initializationGuardrailsByInitializationId,
-    setInitializationGuardrailsByInitializationId,
-  ] = useState<Record<string, ProjectInitializationGuardrailInfo[]>>({});
-  const [
-    initializationSummariesByInitializationId,
-    setInitializationSummariesByInitializationId,
-  ] = useState<Record<string, ProjectInitializationSummaryInfo | null>>({});
-  const [knowledgeUnitsByInitializationId, setKnowledgeUnitsByInitializationId] = useState<
-    Record<string, KnowledgeUnitInfo[]>
-  >({});
-  const [knowledgeUnitsLoading, setKnowledgeUnitsLoading] = useState(false);
-  const [knowledgeUnitsError, setKnowledgeUnitsError] = useState<string | null>(null);
   const [taskContextPreview, setTaskContextPreview] =
     useState<TaskContextSelectionInfo | null>(null);
   const [taskContextPreviewOpen, setTaskContextPreviewOpen] = useState(false);
@@ -178,6 +156,8 @@ function App() {
     createRepository: createProjectRepository, deleteRepository: deleteProjectRepository,
     refreshRepositories: refreshProjectRepositories, selectRepository, removeProject } =
     useProjectCatalog({ onBusyChange: setBusy, notify: pushToast });
+  const initializationEvidence = useInitializationEvidence({ projectId: selectedProjectId,
+    notifyError: (message) => pushToast("error", message) });
   const { elementRef: terminalElement, size: terminalSize, fit: fitTerminal,
     focus: focusTerminal, reset: resetTerminal, write: writeTerminal } = usePtyTerminal({
       mode: runtimeMode, output, session, onError: setError,
@@ -193,24 +173,14 @@ function App() {
       acpRegistryCandidates.find((candidate) => candidate.id === selectedAcpCandidateId) ?? null,
     [acpRegistryCandidates, selectedAcpCandidateId],
   );
-  const projectInitialization = selectedProjectId
-    ? projectInitializationsByProjectId[selectedProjectId] ?? null
-    : null;
-  const projectInitializationFacts = projectInitialization
-    ? initializationFactsByInitializationId[projectInitialization.id] ?? []
-    : [];
-  const projectInitializationMarkdownFindings = projectInitialization
-    ? initializationMarkdownFindingsByInitializationId[projectInitialization.id] ?? []
-    : [];
-  const projectInitializationGuardrails = projectInitialization
-    ? initializationGuardrailsByInitializationId[projectInitialization.id] ?? []
-    : [];
-  const projectInitializationSummary = projectInitialization
-    ? initializationSummariesByInitializationId[projectInitialization.id] ?? null
-    : null;
-  const projectInitializationKnowledgeUnits = projectInitialization
-    ? knowledgeUnitsByInitializationId[projectInitialization.id] ?? []
-    : [];
+  const projectInitialization = initializationEvidence.initialization;
+  const projectInitializationFacts = initializationEvidence.facts;
+  const projectInitializationMarkdownFindings = initializationEvidence.markdown;
+  const projectInitializationGuardrails = initializationEvidence.guardrails;
+  const projectInitializationSummary = initializationEvidence.summary;
+  const projectInitializationKnowledgeUnits = initializationEvidence.units;
+  const knowledgeUnitsLoading = initializationEvidence.unitsLoading;
+  const knowledgeUnitsError = initializationEvidence.unitsError;
   const selectedSynthesisModelProfile = useMemo(
     () =>
       modelCatalog?.profiles.find((profile) => profile.id === synthesisModelProfileId) ?? null,
@@ -297,16 +267,7 @@ function App() {
     void refreshTranscriptSessions(selectedProjectId);
     void refreshProjectTasks(selectedProjectId);
     void refreshKnowledgeItems(selectedProjectId);
-    void refreshProjectInitializations(selectedProjectId);
   }, [selectedProjectId]);
-
-  useEffect(() => {
-    void refreshProjectInitializationFacts(projectInitialization?.id ?? null);
-    void refreshProjectInitializationMarkdownFindings(projectInitialization?.id ?? null);
-    void refreshProjectInitializationGuardrails(projectInitialization?.id ?? null);
-    void refreshProjectInitializationSummary(projectInitialization?.id ?? null);
-    void refreshProjectInitializationKnowledgeUnits(projectInitialization?.id ?? null);
-  }, [projectInitialization?.id]);
 
   useEffect(() => {
     if (
@@ -399,11 +360,7 @@ function App() {
       const stoppedAcpSessionCount = await stopRunningAcpSessionsForProjectDelete();
       await invoke("delete_project", { projectId });
       removeProject(projectId);
-      setProjectInitializationsByProjectId((current) => {
-        const next = { ...current };
-        delete next[projectId];
-        return next;
-      });
+      initializationEvidence.removeProject(projectId);
       setProjectDeleteCandidate(null);
       pushToast(
         "success",
@@ -489,58 +446,12 @@ function App() {
           },
         },
       );
-      setProjectInitializationsByProjectId((current) => ({
-        ...current,
-        [initialization.projectId]: initialization,
-      }));
+      initializationEvidence.setInitialization(initialization);
       setInitializeDialogOpen(false);
     } catch (err) {
       setInitializeError(errorText(err));
     } finally {
       setInitializeLoading(false);
-    }
-  }
-
-  async function refreshProjectInitializations(projectId = selectedProjectId) {
-    if (!projectId) {
-      return;
-    }
-
-    try {
-      const initializations =
-        (await invoke<ProjectInitializationInfo[]>("list_project_initializations", {
-          projectId,
-        })) ?? [];
-      setProjectInitializationsByProjectId((current) => {
-        const next = { ...current };
-        if (initializations[0]) {
-          next[projectId] = initializations[0];
-        } else {
-          delete next[projectId];
-        }
-        return next;
-      });
-    } catch (err) {
-      pushToast("error", errorText(err));
-    }
-  }
-
-  async function refreshProjectInitializationFacts(initializationId: string | null) {
-    if (!initializationId) {
-      return;
-    }
-
-    try {
-      const facts =
-        (await invoke<ProjectInitializationFactInfo[]>("list_project_initialization_facts", {
-          initializationId,
-        })) ?? [];
-      setInitializationFactsByInitializationId((current) => ({
-        ...current,
-        [initializationId]: facts,
-      }));
-    } catch (err) {
-      pushToast("error", errorText(err));
     }
   }
 
@@ -558,51 +469,13 @@ function App() {
           initializationId: projectInitialization.id,
         },
       );
-      setInitializationFactsByInitializationId((current) => ({
-        ...current,
-        [projectInitialization.id]: facts,
-      }));
-      setProjectInitializationsByProjectId((current) => {
-        const existing = current[projectInitialization.projectId];
-        if (!existing || existing.id !== projectInitialization.id) {
-          return current;
-        }
-
-        return {
-          ...current,
-          [projectInitialization.projectId]: {
-            ...existing,
-            status: "facts",
-          },
-        };
-      });
+      initializationEvidence.setFacts(projectInitialization.id, facts);
+      initializationEvidence.advanceStatus(projectInitialization, "facts");
       pushToast("success", `Facts collected for ${projectInitialization.repositoryCount} repositories.`);
     } catch (err) {
       pushToast("error", errorText(err));
     } finally {
       setInitializeLoading(false);
-    }
-  }
-
-  async function refreshProjectInitializationMarkdownFindings(initializationId: string | null) {
-    if (!initializationId) {
-      return;
-    }
-
-    try {
-      const findings =
-        (await invoke<ProjectInitializationMarkdownFindingInfo[]>(
-          "list_project_initialization_markdown_findings",
-          {
-            initializationId,
-          },
-        )) ?? [];
-      setInitializationMarkdownFindingsByInitializationId((current) => ({
-        ...current,
-        [initializationId]: findings,
-      }));
-    } catch (err) {
-      pushToast("error", errorText(err));
     }
   }
 
@@ -620,24 +493,8 @@ function App() {
           initializationId: projectInitialization.id,
         },
       );
-      setInitializationMarkdownFindingsByInitializationId((current) => ({
-        ...current,
-        [projectInitialization.id]: findings,
-      }));
-      setProjectInitializationsByProjectId((current) => {
-        const existing = current[projectInitialization.projectId];
-        if (!existing || existing.id !== projectInitialization.id) {
-          return current;
-        }
-
-        return {
-          ...current,
-          [projectInitialization.projectId]: {
-            ...existing,
-            status: "markdown",
-          },
-        };
-      });
+      initializationEvidence.setMarkdown(projectInitialization.id, findings);
+      initializationEvidence.advanceStatus(projectInitialization, "markdown");
       pushToast(
         "success",
         `Markdown analyzed with ${findings.length} findings.`,
@@ -646,28 +503,6 @@ function App() {
       pushToast("error", errorText(err));
     } finally {
       setInitializeLoading(false);
-    }
-  }
-
-  async function refreshProjectInitializationGuardrails(initializationId: string | null) {
-    if (!initializationId) {
-      return;
-    }
-
-    try {
-      const guardrails =
-        (await invoke<ProjectInitializationGuardrailInfo[]>(
-          "list_project_initialization_guardrails",
-          {
-            initializationId,
-          },
-        )) ?? [];
-      setInitializationGuardrailsByInitializationId((current) => ({
-        ...current,
-        [initializationId]: guardrails,
-      }));
-    } catch (err) {
-      pushToast("error", errorText(err));
     }
   }
 
@@ -751,52 +586,14 @@ function App() {
           },
         },
       );
-      setInitializationGuardrailsByInitializationId((current) => ({
-        ...current,
-        [projectInitialization.id]: guardrails,
-      }));
-      setProjectInitializationsByProjectId((current) => {
-        const existing = current[projectInitialization.projectId];
-        if (!existing || existing.id !== projectInitialization.id) {
-          return current;
-        }
-
-        return {
-          ...current,
-          [projectInitialization.projectId]: {
-            ...existing,
-            status: "interview",
-          },
-        };
-      });
+      initializationEvidence.setGuardrails(projectInitialization.id, guardrails);
+      initializationEvidence.advanceStatus(projectInitialization, "interview");
       setInterviewDialogOpen(false);
       pushToast("success", `Interview saved with ${guardrails.length} guardrails.`);
     } catch (err) {
       setInterviewError(errorText(err));
     } finally {
       setInitializeLoading(false);
-    }
-  }
-
-  async function refreshProjectInitializationSummary(initializationId: string | null) {
-    if (!initializationId) {
-      return;
-    }
-
-    try {
-      const summary =
-        (await invoke<ProjectInitializationSummaryInfo | null>(
-          "list_project_initialization_summary",
-          {
-            initializationId,
-          },
-        )) ?? null;
-      setInitializationSummariesByInitializationId((current) => ({
-        ...current,
-        [initializationId]: summary,
-      }));
-    } catch (err) {
-      pushToast("error", errorText(err));
     }
   }
 
@@ -821,53 +618,13 @@ function App() {
           },
         },
       );
-      setInitializationSummariesByInitializationId((current) => ({
-        ...current,
-        [projectInitialization.id]: summary,
-      }));
-      setProjectInitializationsByProjectId((current) => {
-        const existing = current[projectInitialization.projectId];
-        if (!existing || existing.id !== projectInitialization.id) {
-          return current;
-        }
-
-        return {
-          ...current,
-          [projectInitialization.projectId]: {
-            ...existing,
-            status: "summary",
-          },
-        };
-      });
+      initializationEvidence.setSummary(projectInitialization.id, summary);
+      initializationEvidence.advanceStatus(projectInitialization, "summary");
       pushToast("success", "Summary draft generated.");
     } catch (err) {
       pushToast("error", errorText(err));
     } finally {
       setInitializeLoading(false);
-    }
-  }
-
-  async function refreshProjectInitializationKnowledgeUnits(initializationId: string | null) {
-    if (!initializationId) {
-      setKnowledgeUnitsError(null);
-      return;
-    }
-
-    setKnowledgeUnitsLoading(true);
-    setKnowledgeUnitsError(null);
-    try {
-      const units =
-        (await invoke<KnowledgeUnitInfo[]>("list_project_initialization_knowledge_units", {
-          initializationId,
-        })) ?? [];
-      setKnowledgeUnitsByInitializationId((current) => ({
-        ...current,
-        [initializationId]: units,
-      }));
-    } catch (err) {
-      setKnowledgeUnitsError(errorText(err));
-    } finally {
-      setKnowledgeUnitsLoading(false);
     }
   }
 
@@ -885,11 +642,8 @@ function App() {
           summaryId: projectInitializationSummary.id,
         },
       );
-      setInitializationSummariesByInitializationId((current) => ({
-        ...current,
-        [summary.initializationId]: summary,
-      }));
-      await refreshProjectInitializationKnowledgeUnits(summary.initializationId);
+      initializationEvidence.setSummary(summary.initializationId, summary);
+      await initializationEvidence.refreshUnits(summary.initializationId);
       pushToast("success", "Summary approved as active project profile.");
     } catch (err) {
       pushToast("error", errorText(err));

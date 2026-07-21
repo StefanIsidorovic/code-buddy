@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.2. Extract initialization evidence orchestration
+- objective: move project initialization identity and persisted Facts/Markdown/Guardrails/Summary/Knowledge Unit caches and refreshes out of App.
+- status: complete
+- files: src/App.tsx; src/features/initialization/useInitializationEvidence.ts; src/features/initialization/useInitializationEvidence.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: latest project initialization loading; five evidence reads; active evidence derivation; status transitions; evidence/summary updates; Knowledge Unit refresh; project deletion cleanup.
+- expected changes: add a gateway-backed evidence hook with project/evidence request identity; expose semantic update actions to the still-App-owned workflow; remove cache maps and refresh functions from App.
+- acceptance criteria: active project/initialization evidence and all command payloads remain unchanged; partial evidence failures stay isolated; stale project/evidence responses cannot overwrite current state; Summary approval refresh remains Knowledge Unit-specific.
+- required tests: initial/evidence load; stale project response; semantic evidence/status updates; existing 142 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 separated Knowledge Unit-only refresh from full evidence refresh and added request identity, and cycle 2 found no remaining cache ownership, stale-response, partial-failure, status, payload, deletion, gateway, regression, or scope issue.
+- commit: this commit
+
 ### 21.1. Extract project catalog orchestration
 - objective: move project/repository selection, dialogs, forms, CRUD, folder picking and stale-safe repository loading out of App while retaining cross-domain project deletion coordination in the root temporarily.
 - status: complete
