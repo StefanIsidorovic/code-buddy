@@ -23,6 +23,7 @@ import { useProjectCatalog } from "./features/workspace/useProjectCatalog";
 import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
+import { useKnowledgeWorkspace } from "./features/knowledge/useKnowledgeWorkspace";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
@@ -36,7 +37,6 @@ import {
   errorText,
   formatPromptWithKnowledge,
   transcriptEventToAcpEvent,
-  uniqueIds,
 } from "./lib/presentation";
 import { invokeCommand as invoke } from "./lib/tauriGateway";
 import type {
@@ -45,7 +45,6 @@ import type {
   AcpSessionEvent,
   AcpSessionInfo,
   AgentDoctorReport,
-  KnowledgeItemInfo,
   ModelCatalogInfo,
   ModelTier,
   ProjectInfo,
@@ -53,7 +52,6 @@ import type {
   ProjectRepositoryInfo,
   RuntimeMode,
   SessionInfo,
-  TaskContextSelectionInfo,
   TaskInfo,
   TranscriptEventInfo,
   TranscriptSessionInfo,
@@ -84,11 +82,6 @@ function App() {
   );
   const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
-  const [taskContextPreview, setTaskContextPreview] =
-    useState<TaskContextSelectionInfo | null>(null);
-  const [taskContextPreviewOpen, setTaskContextPreviewOpen] = useState(false);
-  const [taskContextPreviewLoading, setTaskContextPreviewLoading] = useState(false);
-  const [taskContextPreviewError, setTaskContextPreviewError] = useState<string | null>(null);
   const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
   const [tasksByTranscriptId, setTasksByTranscriptId] = useState<Record<string, TaskInfo>>({});
@@ -99,14 +92,6 @@ function App() {
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("");
   const [historyRenameTitle, setHistoryRenameTitle] = useState("");
-  const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItemInfo[]>([]);
-  const [attachedKnowledgeIds, setAttachedKnowledgeIds] = useState<string[]>([]);
-  const [knowledgeTitle, setKnowledgeTitle] = useState("");
-  const [knowledgeBody, setKnowledgeBody] = useState("");
-  const [knowledgeKind, setKnowledgeKind] = useState("decision");
-  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
-  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
-  const [knowledgeDialogOpen, setKnowledgeDialogOpen] = useState(false);
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
   const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
@@ -183,6 +168,22 @@ function App() {
       guardrails: projectInitializationGuardrails, summary: projectInitializationSummary,
       modelProfile: selectedSynthesisModelProfile, evidence: initializationEvidence, notify: pushToast,
     });
+  const { items: knowledgeItems, attachedIds: attachedKnowledgeIds,
+    attachedItems: attachedKnowledgeItems, title: knowledgeTitle, body: knowledgeBody,
+    kind: knowledgeKind, error: knowledgeError, loading: knowledgeLoading,
+    dialogOpen: knowledgeDialogOpen, preview: taskContextPreview,
+    previewOpen: taskContextPreviewOpen, previewLoading: taskContextPreviewLoading,
+    previewError: taskContextPreviewError,
+    create: createKnowledgeItem, toggle: toggleKnowledgeAttachment,
+    attachSelected: attachSelectedKnowledgeToTranscript, previewContext: previewTaskContext,
+    openDialog: openKnowledgeDialog, closeDialog: closeKnowledgeDialog,
+    changeTitle: setKnowledgeTitle, changeBody: setKnowledgeBody, changeKind: setKnowledgeKind,
+    closePreview: closeTaskContextPreview } = useKnowledgeWorkspace({
+      projectId: selectedProjectId,
+      activeTranscriptId: openedTranscriptSession?.id ?? transcriptSession?.id ?? null,
+      initialization: projectInitialization, summary: projectInitializationSummary,
+      prompt: acpPrompt, repositoryId: selectedRepository?.id ?? null,
+    });
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -205,10 +206,6 @@ function App() {
   const selectedHistorySession = useMemo(
     () => transcriptSessions.find((session) => session.id === selectedHistorySessionId) ?? null,
     [selectedHistorySessionId, transcriptSessions],
-  );
-  const attachedKnowledgeItems = useMemo(
-    () => knowledgeItems.filter((item) => attachedKnowledgeIds.includes(item.id)),
-    [attachedKnowledgeIds, knowledgeItems],
   );
   const displayAcpEvents = useMemo(
     () =>
@@ -263,7 +260,6 @@ function App() {
   useEffect(() => {
     void refreshTranscriptSessions(selectedProjectId);
     void refreshProjectTasks(selectedProjectId);
-    void refreshKnowledgeItems(selectedProjectId);
   }, [selectedProjectId]);
 
   useEffect(() => {
@@ -388,34 +384,6 @@ function App() {
     return runningAcpSessions.length;
   }
 
-  async function previewTaskContext() {
-    if (!projectInitialization || projectInitializationSummary?.status !== "approved") {
-      setTaskContextPreviewError("Approve a Summary before previewing task context.");
-      setTaskContextPreviewOpen(true);
-      return;
-    }
-    setTaskContextPreviewOpen(true);
-    setTaskContextPreviewLoading(true);
-    setTaskContextPreviewError(null);
-    try {
-      const preview = await invoke<TaskContextSelectionInfo>("select_project_task_context", {
-        request: {
-          initializationId: projectInitialization.id,
-          task: acpPrompt,
-          repositoryId: selectedRepository?.id ?? null,
-          paths: [],
-          characterBudget: 6000,
-        },
-      });
-      setTaskContextPreview(preview);
-    } catch (err) {
-      setTaskContextPreview(null);
-      setTaskContextPreviewError(errorText(err));
-    } finally {
-      setTaskContextPreviewLoading(false);
-    }
-  }
-
   async function refreshTranscriptSessions(projectId = selectedProjectId) {
     setTranscriptLoading(true);
     setTranscriptError(null);
@@ -464,117 +432,6 @@ function App() {
       if (taskLoadRequest.current === requestId) {
         setTranscriptError(errorText(err));
       }
-    }
-  }
-
-  async function refreshKnowledgeItems(projectId = selectedProjectId) {
-    setKnowledgeLoading(true);
-    setKnowledgeError(null);
-    try {
-      const result =
-        (await invoke<KnowledgeItemInfo[]>("list_knowledge_items", {
-          projectId: projectId ?? null,
-        })) ?? [];
-      const items = Array.isArray(result) ? result : [];
-      setKnowledgeItems(items);
-      setAttachedKnowledgeIds((current) =>
-        current.filter((id) => items.some((item) => item.id === id)),
-      );
-    } catch (err) {
-      setKnowledgeError(errorText(err));
-    } finally {
-      setKnowledgeLoading(false);
-    }
-  }
-
-  async function createKnowledgeItem() {
-    setKnowledgeLoading(true);
-    setKnowledgeError(null);
-    try {
-      const item = await invoke<KnowledgeItemInfo>("create_knowledge_item", {
-        request: {
-          projectId: selectedProject?.id ?? null,
-          title: knowledgeTitle,
-          body: knowledgeBody,
-          kind: knowledgeKind,
-          scope: selectedProject ? "project" : "global",
-          sourceTranscriptSessionId:
-            openedTranscriptSession?.id ?? transcriptSessionRef.current?.id ?? null,
-        },
-      });
-      setKnowledgeItems((current) => [item, ...current.filter((candidate) => candidate.id !== item.id)]);
-      setAttachedKnowledgeIds((current) => uniqueIds([...current, item.id]));
-      setKnowledgeTitle("");
-      setKnowledgeBody("");
-      setKnowledgeKind("decision");
-      setKnowledgeDialogOpen(false);
-      await attachKnowledgeToActiveTranscript(item.id);
-    } catch (err) {
-      setKnowledgeError(errorText(err));
-    } finally {
-      setKnowledgeLoading(false);
-    }
-  }
-
-  function closeKnowledgeDialog() {
-    if (knowledgeLoading) {
-      return;
-    }
-    setKnowledgeDialogOpen(false);
-    setKnowledgeError(null);
-    setKnowledgeTitle("");
-    setKnowledgeBody("");
-    setKnowledgeKind("decision");
-  }
-
-  function openKnowledgeDialog() {
-    setKnowledgeError(null);
-    setKnowledgeDialogOpen(true);
-  }
-
-  async function toggleKnowledgeAttachment(item: KnowledgeItemInfo, attached: boolean) {
-    setKnowledgeError(null);
-    setAttachedKnowledgeIds((current) =>
-      attached ? uniqueIds([...current, item.id]) : current.filter((id) => id !== item.id),
-    );
-
-    if (!attached) {
-      return;
-    }
-
-    await attachKnowledgeToActiveTranscript(item.id);
-  }
-
-  async function attachKnowledgeToActiveTranscript(knowledgeItemId: string) {
-    const activeTranscriptId = transcriptSessionRef.current?.id ?? transcriptSession?.id ?? null;
-    if (!activeTranscriptId) {
-      return;
-    }
-
-    try {
-      await invoke<KnowledgeItemInfo[]>("attach_knowledge_to_transcript_session", {
-        sessionId: activeTranscriptId,
-        knowledgeItemId,
-      });
-    } catch (err) {
-      setKnowledgeError(errorText(err));
-    }
-  }
-
-  async function attachSelectedKnowledgeToTranscript(sessionId: string) {
-    if (attachedKnowledgeIds.length === 0) {
-      return;
-    }
-
-    try {
-      for (const knowledgeItemId of attachedKnowledgeIds) {
-        await invoke<KnowledgeItemInfo[]>("attach_knowledge_to_transcript_session", {
-          sessionId,
-          knowledgeItemId,
-        });
-      }
-    } catch (err) {
-      setKnowledgeError(errorText(err));
     }
   }
 
@@ -1302,7 +1159,7 @@ function App() {
 
       {taskContextPreviewOpen ? (
         <TaskContextPreviewDialog error={taskContextPreviewError} loading={taskContextPreviewLoading}
-          preview={taskContextPreview} onClose={() => setTaskContextPreviewOpen(false)} />
+          preview={taskContextPreview} onClose={closeTaskContextPreview} />
       ) : null}
 
       {knowledgeDialogOpen ? (

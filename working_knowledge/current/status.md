@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 15cff83 step 21.2: extract initialization evidence hook
-- worktree: plan item 21.3 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/initialization/useProjectInitializationWorkflow.ts; src/features/initialization/useProjectInitializationWorkflow.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 4d13d05 step 21.3: extract initialization workflow hook
+- worktree: plan item 21.4 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/features/knowledge/useKnowledgeWorkspace.ts; src/features/knowledge/useKnowledgeWorkspace.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 21.3 complete
+- active plan step: 21.4 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -78,3 +78,4 @@
 - 2026-07-21: frontend audit, 142 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.1; project catalog orchestration is isolated with stale-response protection and `App.tsx` is 180 lines smaller at 1,882 lines.
 - 2026-07-21: frontend audit, 145 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.2; initialization evidence/cache orchestration is isolated with stale-response protection and `App.tsx` is 246 lines smaller at 1,636 lines.
 - 2026-07-21: frontend audit, 149 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.3; Project Initialization forms/actions are isolated and `App.tsx` is 275 lines smaller at 1,361 lines.
+- 2026-07-21: frontend audit, 153 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.4; Knowledge Cards/attachments/context preview are isolated and `App.tsx` is 143 lines smaller at 1,218 lines.

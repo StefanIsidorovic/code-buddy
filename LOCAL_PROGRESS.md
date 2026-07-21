@@ -688,3 +688,8 @@ YYYY-MM-DD
 - Start scope, Facts/Markdown akcije, Interview forma/validacija/save i Summary generate/approve izdvojeni su u `useProjectInitializationWorkflow`.
 - Workflow komunicira sa evidence hook-om samo kroz semanticke akcije; `App` vise nema initialization forme ni backend workflow.
 - `App.tsx` je pao sa 1.636 na 1.361 liniju; audit, typecheck, 149 testova i build prolaze.
+### 2026-07-21 - Knowledge workspace hook
+
+- Knowledge Card load/forma/create, attachments i task-context preview izdvojeni su u `useKnowledgeWorkspace`.
+- Hook cuva active transcript source, project/global scope, stale project-load identity i tacan selector budget/payload.
+- `App.tsx` je pao sa 1.361 na 1.218 linija; audit, typecheck, 153 testa i build prolaze.

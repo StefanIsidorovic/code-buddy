@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.4. Extract Knowledge workspace orchestration
+- objective: move Knowledge Card loading/form/creation, transcript attachments and task-context preview out of App.
+- status: complete
+- files: src/App.tsx; src/features/knowledge/useKnowledgeWorkspace.ts; src/features/knowledge/useKnowledgeWorkspace.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: project-scoped card refresh; attached IDs/items; New Card form; create/attach/toggle; attach-selected-on-transcript-create; approved-Summary context preview.
+- expected changes: add a gateway-backed knowledge hook with stale project-load identity and semantic actions; preserve active transcript/source scope and selector payload; remove knowledge/preview state and functions from App.
+- acceptance criteria: card scope/source, attachment behavior, form reset/locks, errors and exact preview budget/payload remain unchanged; stale project loads cannot overwrite current cards; App retains only composition calls.
+- required tests: load/attach; create/reset/source transcript; preview prerequisite; exact preview payload/result; existing 149 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 verified active transcript precedence and stale project-load identity, and cycle 2 found no remaining ownership, form, attachment, scope, preview, loading, error, gateway, regression, or scope issue.
+- commit: this commit
+
 ### 21.3. Extract Project Initialization workflow orchestration
 - objective: move initialization start scope, Facts/Markdown actions, Interview draft/validation/save, Summary generation/approval and modal state out of App.
 - status: complete
