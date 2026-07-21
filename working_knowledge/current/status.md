@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.1 implementation and knowledge updates ready for commit.
-- relevant files: docs/product-roadmap.md; src/App.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- worktree: plan item 19.2 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/components/ui/*; src/features/notifications/*; package.json; package-lock.json; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.1 complete
+- active plan step: 19.2 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -51,3 +51,4 @@
 - 2026-07-21: the first full frontend verification exposed one transient Markdown findings timing failure; the isolated test and immediate full rerun passed.
 - 2026-07-21: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial documentation review pass for plan item 18.3.3.3; the existing Vite chunk-size warning remains non-fatal.
 - 2026-07-21: 44 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 19.1; `App.tsx` is 188 lines smaller and the existing Vite chunk-size warning remains non-fatal.
+- 2026-07-21: 48 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 19.2; shared UI primitives and the global notification lifecycle are outside `App.tsx`.

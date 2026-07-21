@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Implement plan item 19.2 by extracting backend DTO contracts and reusable UI primitives, then carve out the first stateful feature component before deciding its narrow Zustand ownership boundary.
+- Implement plan item 19.3 by extracting backend DTO contracts, then carve out the first workflow component with a narrow typed boundary and no duplicated state ownership.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

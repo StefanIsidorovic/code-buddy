@@ -20,10 +20,11 @@ The differentiator is not a larger feature count. It is a trustworthy loop in wh
 ### 19. Frontend Modular Foundation
 
 - 19.1: extract shared presentation utilities from `App.tsx` with direct unit coverage and establish the product roadmap.
-- 19.2: extract backend DTO contracts and reusable UI primitives, then split workspace, initialization, knowledge, session-history, ACP runtime, and PTY fallback into feature components.
-- 19.3: introduce small Zustand stores for active workspace/task/session and global notifications; keep local UI drafts local.
-- 19.4: move feature orchestration into hooks/services and route all backend calls through a typed Tauri gateway.
-- 19.5: add route-level/lazy feature boundaries and enforce size/import constraints to prevent another monolith.
+- 19.2: extract reusable UI primitives and global notifications through the first narrowly owned Zustand store.
+- 19.3: extract backend DTO contracts, then split workspace, initialization, knowledge, session-history, ACP runtime, and PTY fallback into feature components.
+- 19.4: introduce small Zustand stores for active workspace/task/session; keep local UI drafts local.
+- 19.5: move feature orchestration into hooks/services and route all backend calls through a typed Tauri gateway.
+- 19.6: add route-level/lazy feature boundaries and enforce size/import constraints to prevent another monolith.
 
 ### 20. Evidence-Aware Task Workflow
 

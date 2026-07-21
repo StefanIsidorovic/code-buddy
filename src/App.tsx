@@ -5,6 +5,13 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import aiadneMark from "./assets/aiadne-mark.svg";
+import { StateNotice } from "./components/ui/StateNotice";
+import { ChevronIcon, CloseIcon } from "./components/ui/icons";
+import { NotificationViewport } from "./features/notifications/NotificationViewport";
+import {
+  boundToastMessages,
+  useNotificationStore,
+} from "./features/notifications/notificationStore";
 import {
   acpEventLabel,
   coalesceAcpEvents,
@@ -359,17 +366,6 @@ type KnowledgeItemInfo = {
 };
 
 type RuntimeMode = "pty" | "acp";
-type ToastKind = "success" | "error";
-
-type ToastMessage = {
-  id: string;
-  kind: ToastKind;
-  text: string;
-};
-
-const toastDismissMs = 4_000;
-const maxVisibleToasts = 3;
-
 const initialSize = {
   cols: 80,
   rows: 24,
@@ -378,52 +374,7 @@ const initialSize = {
 const modelTiers: ModelTier[] = ["fast", "mid", "high", "max"];
 const defaultSynthesisModelProfileId = "openai-gpt-5.6-terra-medium";
 
-type StateNoticeKind = "prerequisite" | "loading" | "empty" | "success" | "error";
-
-export function StateNotice({
-  as = "div",
-  description,
-  kind,
-  title,
-}: {
-  as?: "div" | "li";
-  description: string;
-  kind: StateNoticeKind;
-  title: string;
-}) {
-  const Element = as;
-  const role = kind === "error" ? "alert" : kind === "loading" || kind === "success" ? "status" : undefined;
-
-  return (
-    <Element className="state-notice" data-kind={kind} role={role}>
-      <span className="state-notice-indicator" aria-hidden="true" />
-      <div>
-        <strong>{title}</strong>
-        <p>{description}</p>
-      </div>
-    </Element>
-  );
-}
-
-export function boundToastMessages(messages: ToastMessage[]) {
-  return messages.slice(-maxVisibleToasts);
-}
-
-function CloseIcon() {
-  return (
-    <svg aria-hidden="true" className="close-icon" viewBox="0 0 16 16">
-      <path d="M4 4l8 8M12 4l-8 8" />
-    </svg>
-  );
-}
-
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg aria-hidden="true" className="chevron-icon" viewBox="0 0 16 16">
-      <path d={expanded ? "M3.5 10.25 8 5.75l4.5 4.5" : "M3.5 5.75 8 10.25l4.5-4.5"} />
-    </svg>
-  );
-}
+export { StateNotice, boundToastMessages };
 
 function App() {
   const terminalElement = useRef<HTMLDivElement | null>(null);
@@ -435,8 +386,6 @@ function App() {
   const taskLoadRequest = useRef(0);
   const transcriptSessionRef = useRef<TranscriptSessionInfo | null>(null);
   const tasksByTranscriptIdRef = useRef<Record<string, TaskInfo>>({});
-  const toastSequence = useRef(0);
-  const toastTimers = useRef<number[]>([]);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
   const [terminalSize, setTerminalSize] = useState(initialSize);
@@ -540,7 +489,7 @@ function App() {
   const [acpPromptBusy, setAcpPromptBusy] = useState(false);
   const [acpControlsExpanded, setAcpControlsExpanded] = useState(true);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = useNotificationStore((state) => state.push);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
 
   const canUseSession = session?.state === "running";
@@ -667,13 +616,6 @@ function App() {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
-
-  useEffect(
-    () => () => {
-      toastTimers.current.forEach((timerId) => window.clearTimeout(timerId));
-    },
-    [],
-  );
 
   useEffect(() => {
     transcriptSessionRef.current = transcriptSession;
@@ -852,18 +794,6 @@ function App() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function pushToast(kind: ToastKind, text: string) {
-    const id = `toast-${Date.now()}-${toastSequence.current}`;
-    toastSequence.current += 1;
-    setToasts((current) => boundToastMessages([...current, { id, kind, text }]));
-    const timerId = window.setTimeout(() => dismissToast(id), toastDismissMs);
-    toastTimers.current.push(timerId);
-  }
-
-  function dismissToast(id: string) {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
   }
 
   async function refreshProjects() {
@@ -4400,26 +4330,7 @@ function App() {
         </div>
       ) : null}
 
-      <div className="toast-stack" aria-label="Notifications" aria-live="polite">
-        {toasts.map((toast) => (
-          <div
-            className="toast-message"
-            data-kind={toast.kind}
-            key={toast.id}
-            role={toast.kind === "error" ? "alert" : "status"}
-          >
-            <span>{toast.text}</span>
-            <button
-              aria-label={`Dismiss notification: ${toast.text}`}
-              className="toast-close"
-              type="button"
-              onClick={() => dismissToast(toast.id)}
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ))}
-      </div>
+      <NotificationViewport />
     </main>
   );
 }

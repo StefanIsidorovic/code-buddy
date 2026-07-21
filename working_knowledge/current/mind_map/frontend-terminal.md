@@ -19,6 +19,7 @@
 - Persisted Summary model selection is restored on reload; the preview/modal distinguish requested model provenance from the deterministic generator.
 - App.tsx is the current single-screen product coordinator and remains a decomposition risk as workflows grow.
 - Shared pure presentation logic has moved to `src/lib/presentation.ts`; subsequent slices must move contracts, UI primitives, feature components, and orchestration rather than growing another coordinator.
+- Global notifications are the first narrow Zustand slice: the feature store owns queue bounds, IDs, timers, dismissal, and reset while `NotificationViewport` owns accessible rendering.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

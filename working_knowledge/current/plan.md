@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.2. Extract shared UI primitives and global notifications
+- objective: remove the first cross-feature state and reusable UI primitives from `App.tsx` through a narrowly owned Zustand store and component boundary.
+- status: complete
+- files: package.json; package-lock.json; src/App.tsx; src/App.test.tsx; src/components/ui/StateNotice.tsx; src/components/ui/icons.tsx; src/features/notifications/notificationStore.ts; src/features/notifications/notificationStore.test.ts; src/features/notifications/NotificationViewport.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: StateNotice; CloseIcon and ChevronIcon; bounded notification queue; dismissal timers; notification viewport; App workflow notification calls.
+- expected changes: preserve StateNotice exports for compatibility; move cross-feature notifications to a small Zustand store with deterministic IDs and timer cleanup; keep notifications capped at three; render them through a feature component; remove timer refs and notification JSX from App.
+- acceptance criteria: success/error roles and accessible dismissal labels remain unchanged; only the three newest notifications render; manual and automatic dismissal work; unmount/reset clears timers and state; App no longer owns notification state or reusable primitive implementations.
+- required tests: store add/bounds/manual-dismiss/reset and fake-timer auto-dismiss tests; existing StateNotice/toast integration tests; full frontend suite; typecheck; production build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 found and removed an evicted-message timer retention window, and cycle 2 found no remaining queue, timer, reset, accessibility, state-isolation, dependency, regression, or scope issue.
+- commit: this commit
+
 ### 19.1. Establish the first modular frontend seam
 - objective: create a stable, directly tested presentation boundary and record the architecture/product roadmap before decomposing stateful features.
 - status: complete

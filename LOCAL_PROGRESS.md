@@ -11,6 +11,7 @@ Koristi ga da brzo vidis, ljudski i prosto:
 Radno pravilo:
 
 - Frontend decomposition je pocela izdvojenim, direktno testiranim presentation modulom; roadmap dalje vodi kroz feature komponente, uske Zustand store-ove i typed Tauri gateway.
+- Shared UI primitive i globalne notifications su izdvojene; Zustand trenutno poseduje samo bounded notification lifecycle, ne lokalne forme ili workflow draft state.
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 
