@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.2. Remove Fake ACP from the product surface
+- objective: remove the test-only Fake ACP launch path from the user-facing frontend and public Tauri command surface while retaining deterministic internal Rust ACP fixtures.
+- status: complete
+- files: src/App.tsx; src/App.test.tsx; src/features/runtime/AcpRuntimePanel.tsx; src/features/runtime/AcpRuntimePanel.test.tsx; src-tauri/src/commands.rs; src-tauri/src/lib.rs; README.md; LOCAL_PROGRESS.md; working_knowledge/current/*.
+- affected units: ACP start actions; AcpRuntimePanel props; fake frontend launch/transcript workflow; Tauri command registration; selected-registry ACP integration tests; active runtime documentation.
+- expected changes: expose only Start Selected ACP in the product; route frontend ACP tests through the selected Codex registry candidate; remove the unused public fake command; keep manager-level fake subprocess helpers and Rust protocol tests internal.
+- acceptance criteria: no Fake ACP control or public Tauri command remains; selected ACP launch, prompt, Task, transcript, knowledge, model, collapse, and output tests retain coverage; internal deterministic Rust ACP tests still pass; Fake PTY remains unchanged.
+- required tests: direct runtime panel inactive state; full frontend suite; Rust ACP/unit suite; typecheck; production build; Rust formatting/clippy; forbidden UI/command string checks; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 moved frontend coverage to the selected-registry path and fixed readiness/React act synchronization, and cycle 2 found no remaining product exposure, public-command reachability, test-coverage, PTY regression, protocol-fixture, documentation, or scope issue.
+- commit: this commit
+
 ### 19.4.1. Extract session output and transcript presentation
 - objective: move PTY output and live/saved ACP event rendering out of `App.tsx` behind a typed presentation boundary while App retains refs and event ownership.
 - status: complete

@@ -282,7 +282,7 @@ describe("PTY test panel", () => {
     expect(screen.getByLabelText("Runtime info")).toHaveTextContent("Repository");
     expect(screen.queryByRole("button", { name: "Structured ACP" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start Fake" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start Fake ACP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeInTheDocument();
     expect(screen.getByLabelText("ACP session start actions"))
       .toContainElement(screen.getByRole("button", { name: "Start Selected ACP" }));
@@ -1777,7 +1777,7 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Select Kimi CLI ACP candidate" }))
       .toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Start Selected ACP" })).toBeDisabled();
-    expect(invokeMock).not.toHaveBeenCalledWith("start_fake_acp_session", expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith("start_acp_registry_session", expect.anything());
   });
 
   it("starts the selected ACP registry candidate", async () => {
@@ -1862,7 +1862,7 @@ describe("PTY test panel", () => {
     render(<App />);
 
     await screen.findByLabelText("Selected ACP candidate");
-    fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
+    await startSelectedAcp();
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("start_acp_registry_session", {
@@ -1940,7 +1940,7 @@ describe("PTY test panel", () => {
 
     await screen.findByLabelText("Selected ACP candidate");
     fireEvent.click(screen.getByRole("button", { name: "Select Gemini CLI ACP candidate" }));
-    fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
+    await startSelectedAcp();
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("start_acp_registry_session", {
@@ -1996,7 +1996,7 @@ describe("PTY test panel", () => {
     render(<App />);
 
     await screen.findByLabelText("Selected ACP candidate");
-    fireEvent.click(screen.getByRole("button", { name: "Start Selected ACP" }));
+    await startSelectedAcp();
 
     expect(await screen.findAllByText("Codex · running · locked-acp-session"))
       .not.toHaveLength(0);
@@ -2092,7 +2092,7 @@ describe("PTY test panel", () => {
     expect(screen.getByRole("button", { name: "Start Codex" })).toBeDisabled();
   });
 
-  it("starts fake ACP and renders structured events", async () => {
+  it("starts selected ACP and renders structured events", async () => {
     const invokeMock = vi.mocked(invoke);
     let promptSent = false;
     let eventDrained = false;
@@ -2109,7 +2109,7 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
 
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve({
           id: "acp-session-1",
           state: "running",
@@ -2165,15 +2165,15 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
     expect(invokeMock).toHaveBeenCalledWith("create_transcript_session", {
       request: {
         projectId: null,
         runtime: "acp",
-        source: "fake",
-        title: "Fake ACP",
+        source: "Codex",
+        title: "Codex ACP",
       },
     });
 
@@ -2244,7 +2244,7 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
 
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve({
           id: "acp-session-1",
           state: "running",
@@ -2293,8 +2293,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
 
     fireEvent.click(screen.getAllByText("Knowledge Cards")[0]);
@@ -2362,7 +2362,7 @@ describe("PTY test panel", () => {
       if (command === "list_acp_registry_candidates") {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
       if (command === "create_transcript_session") {
@@ -2382,8 +2382,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
     expect(await screen.findByText("AIadne")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
 
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
@@ -2440,7 +2440,7 @@ describe("PTY test panel", () => {
       if (command === "list_acp_registry_candidates") {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
       if (command === "create_transcript_session") {
@@ -2457,8 +2457,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
     expect(await screen.findByText("AIadne")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
     fireEvent.change(screen.getByLabelText("ACP prompt"), {
       target: { value: "tracked prompt" },
@@ -2487,7 +2487,7 @@ describe("PTY test panel", () => {
       if (command === "list_acp_registry_candidates") {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
       if (command === "create_transcript_session") {
@@ -2507,8 +2507,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
     expect(await screen.findByText("AIadne")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
     expect(screen.queryByRole("heading", { name: "Task assessment" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
@@ -2544,7 +2544,7 @@ describe("PTY test panel", () => {
       if (command === "list_acp_registry_candidates") {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
       if (command === "create_transcript_session") {
@@ -2558,7 +2558,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
     expect(await screen.findByText("AIadne")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
+    await startSelectedAcp();
 
     expect(await screen.findByRole("heading", { name: "Task assessment" })).toBeInTheDocument();
     expect(screen.getByText("complex")).toBeInTheDocument();
@@ -2582,7 +2582,7 @@ describe("PTY test panel", () => {
       if (command === "list_acp_registry_candidates") {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
       if (command === "create_transcript_session") {
@@ -2596,8 +2596,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
     expect(await screen.findByText("AIadne")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
 
@@ -2625,7 +2625,7 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
 
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve({
           id: "acp-session-1",
           state: "running",
@@ -2657,8 +2657,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
@@ -2702,7 +2702,7 @@ describe("PTY test panel", () => {
         return Promise.resolve(defaultAcpRegistryCandidates());
       }
 
-      if (command === "start_fake_acp_session") {
+      if (command === "start_acp_registry_session") {
         return Promise.resolve({
           id: "acp-session-1",
           state: "running",
@@ -2742,8 +2742,8 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start Fake ACP" }));
-    expect(await screen.findAllByText("fake · running · fake-acp-session"))
+    await startSelectedAcp();
+    expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Send ACP" }));
@@ -2760,6 +2760,14 @@ describe("PTY test panel", () => {
     });
   });
 });
+
+async function startSelectedAcp() {
+  const button = screen.getByRole("button", { name: "Start Selected ACP" });
+  await waitFor(() => expect(button).toBeEnabled());
+  await act(async () => {
+    fireEvent.click(button);
+  });
+}
 
 async function openPtyFallback() {
   fireEvent.click(screen.getByText("Terminal PTY"));

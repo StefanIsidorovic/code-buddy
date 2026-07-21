@@ -10,7 +10,7 @@ function props(overrides: Partial<AcpRuntimePanelProps> = {}): AcpRuntimePanelPr
     prompt: "Keep this prompt", promptBusy: false, promptResult: null, session: null,
     showWaiting: false, statusLabel: "not started", onChangeModel: vi.fn(),
     onChangePrompt: vi.fn(), onDrain: vi.fn(), onPreviewContext: vi.fn(),
-    onSendPrompt: vi.fn(), onStartFake: vi.fn(), onStartSelected: vi.fn(),
+    onSendPrompt: vi.fn(), onStartSelected: vi.fn(),
     onStop: vi.fn(), onToggleExpanded: vi.fn(), ...overrides,
   };
 }

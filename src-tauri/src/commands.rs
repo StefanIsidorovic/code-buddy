@@ -2,7 +2,7 @@ use crate::{
     acp::{
         list_acp_registry_candidates as build_acp_registry_candidates, AcpPromptResult,
         AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
-        SetAcpModelRequest, StartAcpRegistrySessionRequest, StartFakeAcpSessionRequest,
+        SetAcpModelRequest, StartAcpRegistrySessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
@@ -338,15 +338,6 @@ pub fn list_attached_knowledge(
     session_id: String,
 ) -> AppResult<Vec<KnowledgeItemInfo>> {
     state.list_attached_knowledge(&session_id)
-}
-
-#[tauri::command]
-pub async fn start_fake_acp_session(
-    state: State<'_, Arc<AcpSessionManager>>,
-    request: StartFakeAcpSessionRequest,
-) -> AppResult<AcpSessionInfo> {
-    let manager = Arc::clone(state.inner());
-    run_acp_task(move || manager.start_fake_session(request)).await
 }
 
 #[tauri::command]

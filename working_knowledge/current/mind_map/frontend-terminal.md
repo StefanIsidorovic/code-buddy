@@ -46,7 +46,7 @@
 - The panel exposes an Agent Doctor list for Codex, Claude Code, and Kimi CLI readiness.
 - The panel exposes an ACP Registry list for ACP-compatible adapter candidates.
 - ACP Agents, Session History, Knowledge Cards, and Terminal PTY all start collapsed to keep the sidebar compact.
-- The panel exposes a temporary ACP Test area for fake ACP stdio validation.
+- The ACP panel launches only the selected registry candidate; fake ACP is internal Rust test infrastructure.
 - ACP events render as structured list items below the xterm terminal.
 - The old HTML line input was removed because Codex TUI needs direct terminal keyboard data.
 
@@ -77,7 +77,7 @@
 - Renaming the selected Session History row invokes rename_transcript_session and updates the active/opened transcript state.
 - Opening another Session History row clears old replay events immediately and ignores stale previous responses.
 - View Live ACP clears the saved transcript view and returns output to live ACP events.
-- Start Fake, Start Codex, Start Fake ACP, and Start Selected ACP include selected project cwd when present.
+- Start Fake PTY, Start Codex PTY, and Start Selected ACP include selected project cwd when present.
 - Agent Doctor invokes list_agent_doctor_reports on mount and Refresh.
 - Agent Doctor displays adapter transport metadata for PTY and ACP stdio support.
 - ACP Registry invokes list_acp_registry_candidates on mount and Refresh.
@@ -98,7 +98,7 @@
 - Output is drained on an interval and written into xterm with terminal.write.
 - ResizeObserver fits xterm and sends resize_session if cols/rows changed.
 - Output state is retained only as an accessibility fallback for tests/screen readers.
-- Start Fake ACP invokes start_fake_acp_session.
+- Start Selected ACP invokes start_acp_registry_session for the chosen candidate.
 - Send ACP invokes send_acp_prompt and then drain_acp_events.
 - Knowledge Cards invokes list_knowledge_items for the selected project plus global cards.
 - The Knowledge Cards `+` button opens a popup form; Create Card invokes create_knowledge_item and auto-attaches the created card locally.
@@ -140,7 +140,7 @@
 ## Tests
 - A product-shell regression test asserts the AIadne workspace identity and primary surface headings; the frontend suite contains 38 tests.
 - Frontend tests mock Tauri invoke, xterm Terminal, FitAddon, and ResizeObserver.
-- Tests cover rendering Start Fake/Start Codex/Start Fake ACP controls, doctor installed/missing/error display, transport metadata display, missing Codex blocking, forwarding xterm keyboard data to write_session_input, and rendering fake ACP events.
+- Tests cover Start Fake/Start Codex PTY controls, selected ACP launch, doctor states, transport metadata, missing Codex blocking, xterm input forwarding, and structured ACP events.
 - Tests also cover ACP Registry rendering, command preview, missing binary status, candidate selection, selected candidate launch invoke, non-default launchable candidate launch, and locked selection while running.
 - Tests also cover Workspace rendering, project creation/selection, native folder picker population, Project delete confirmation and ACP stop-before-delete behavior, Workspace toast auto-dismiss/manual dismiss, Project Initialize repository selection/project-scoped status/Facts collection/Markdown analysis/Interview guardrail save/Summary generate-approve, Facts/Markdown detail modals, default-collapsed sidebar sections, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card popup creation and prompt injection, ACP waiting state display, and ACP waiting-state release after a prompt result.
 
@@ -153,7 +153,7 @@
 - ResizeObserver can call fit/resize often; throttle/debounce may be needed later.
 - Doctor version checks are backend-owned; frontend should not shell out or infer PATH state.
 - ACP JSON-RPC events should be normalized by the backend; frontend should not parse raw ACP protocol messages.
-- ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP or Start Fake ACP may cause an ACP backend process launch.
+- ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP may launch an ACP backend process from the product UI.
 - Coding model changes must use agent-advertised values and remain disabled while a prompt operation is in flight; never rewrite global Codex config from this UI.
 - Collapsed ACP mode must keep Prompt/Preview/Send and Drain/Stop reachable; hidden model/Task/result details must leave the accessibility tree until expanded.
 - If ACP Test shows fake as the active source, stop that session before starting the selected registry candidate.

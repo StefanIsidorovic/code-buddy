@@ -18,7 +18,7 @@ Kept:
 - xterm-backed PTY fallback panel in the Tauri UI
 - adapter registry metadata for Codex, Claude Code, and Kimi
 - agent doctor readiness checks
-- fake ACP stdio runtime and ACP test panel
+- deterministic internal fake ACP stdio fixtures for protocol tests
 - ACP registry discovery for compatible adapter candidates
 - SQLite-backed project list with multiple repository folders per project
 - project-level Initialize runs with user-selected repository participation
@@ -157,7 +157,7 @@ Manual smoke test:
 - Check `ACP Registry` to see ACP-compatible candidates before launching real ACP adapters.
 - Use `Select` in `ACP Registry`, then click `Start Selected ACP` to try a launchable ACP candidate.
 - npx-backed ACP candidates may download their package on first launch.
-- Click `Start Fake ACP`, send a prompt, and confirm structured ACP events appear.
+- Use `Start Selected ACP` to launch the selected compatible agent and confirm structured ACP events appear.
 - Type directly inside the terminal panel; keyboard data is sent through xterm
   to the PTY instead of through a separate HTML input field.
 - If Codex does not start, run `codex --version` in the same terminal used for

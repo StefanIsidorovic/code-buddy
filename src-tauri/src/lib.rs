@@ -72,7 +72,6 @@ pub fn run() {
             commands::drain_session_output,
             commands::list_sessions,
             commands::list_agent_doctor_reports,
-            commands::start_fake_acp_session,
             commands::start_acp_registry_session,
             commands::send_acp_prompt,
             commands::set_acp_model,

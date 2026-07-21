@@ -10,6 +10,7 @@ Koristi ga da brzo vidis, ljudski i prosto:
 
 Radno pravilo:
 
+- Fake ACP vise nije korisnicka opcija ni javna Tauri komanda; ostaje samo interni Rust protocol fixture, a frontend testovi koriste Start Selected ACP.
 - Frontend decomposition je pocela izdvojenim, direktno testiranim presentation modulom; roadmap dalje vodi kroz feature komponente, uske Zustand store-ove i typed Tauri gateway.
 - Shared UI primitive i globalne notifications su izdvojene; Zustand trenutno poseduje samo bounded notification lifecycle, ne lokalne forme ili workflow draft state.
 - Svi frontend DTO/domain ugovori su izdvojeni iz App.tsx u dependency-free src/types/domain.ts sa compile-time contract testovima.
@@ -157,12 +158,12 @@ Test Codex sesije:
 codex --version
 ```
 
-Test fake ACP sesije:
+Test selected ACP sesije:
 
-1. Klikni `Start Fake ACP`.
+1. Izaberi launchable ACP Registry kandidata i klikni `Start Selected ACP`.
 2. U `ACP prompt` upisi nesto.
 3. Klikni `Send ACP`.
-4. U `ACP Events` treba da vidis `fake acp received prompt`.
+4. U `ACP Events` treba da vidis strukturirani odgovor izabranog agenta.
 5. Klikni `Stop ACP` kad zavrsis.
 
 Test ACP Registry-ja:

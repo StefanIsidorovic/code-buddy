@@ -1674,25 +1674,6 @@ function App() {
     }
   }
 
-  async function startFakeAcpSession() {
-    await runAction(async () => {
-      const nextSession = await invoke<AcpSessionInfo>("start_fake_acp_session", {
-        request: {
-          ...selectedProjectCwd(selectedProject, selectedRepository),
-        },
-      });
-      setAcpSession(nextSession);
-      setAcpSessionSource("fake");
-      setAcpEvents([]);
-      setAcpPromptResult(null);
-      const transcript = await createTranscriptSession("acp", "fake", "Fake ACP");
-      if (transcript) {
-        await attachSelectedKnowledgeToTranscript(transcript.id);
-      }
-      await drainAcpEvents(nextSession.id, transcript?.id ?? null);
-    });
-  }
-
   async function startSelectedAcpSession() {
     if (!selectedAcpCandidate || !isLaunchableAcpCandidate(selectedAcpCandidate)) {
       setError(selectedAcpCandidate?.installHint ?? "Select an ACP candidate first.");
@@ -2731,7 +2712,6 @@ function App() {
             onDrain={() => void drainAcpEvents()}
             onPreviewContext={() => void previewTaskContext()}
             onSendPrompt={() => void sendAcpPrompt()}
-            onStartFake={() => void startFakeAcpSession()}
             onStartSelected={() => void startSelectedAcpSession()}
             onStop={() => void stopAcpSession(false)}
             onToggleExpanded={() => setAcpControlsExpanded((expanded) => !expanded)}

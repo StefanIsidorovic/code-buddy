@@ -8,14 +8,14 @@ export type AcpRuntimePanelProps = {
   session: AcpSessionInfo | null; showWaiting: boolean; statusLabel: string;
   onChangeModel: (modelId: string) => void; onChangePrompt: (prompt: string) => void;
   onDrain: () => void; onPreviewContext: () => void; onSendPrompt: () => void;
-  onStartFake: () => void; onStartSelected: () => void; onStop: () => void;
+  onStartSelected: () => void; onStop: () => void;
   onToggleExpanded: () => void;
 };
 
 export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
   const { activeTask, busy, canPreviewContext, canStartSelectedCandidate, canUseSession,
     expanded, prompt, promptBusy, promptResult, session, showWaiting, statusLabel,
-    onChangeModel, onChangePrompt, onDrain, onPreviewContext, onSendPrompt, onStartFake,
+    onChangeModel, onChangePrompt, onDrain, onPreviewContext, onSendPrompt,
     onStartSelected, onStop, onToggleExpanded } = props;
   const codingModel = session?.codingModel;
   const modelDescription = codingModel?.options.find(
@@ -39,7 +39,6 @@ export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
           <div className="acp-start-actions" aria-label="ACP session start actions">
             <button className="primary-action" type="button" onClick={onStartSelected}
               disabled={busy || !canStartSelectedCandidate}>Start Selected ACP</button>
-            <button type="button" onClick={onStartFake} disabled={busy || canUseSession}>Start Fake ACP</button>
           </div>
         ) : (
           <p className="acp-session-status"><span aria-hidden="true" />Active session · {statusLabel}</p>

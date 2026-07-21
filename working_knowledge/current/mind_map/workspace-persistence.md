@@ -107,7 +107,7 @@
 
 ## Launch Wiring
 - start_fake_session and start_codex_session include cwd from the selected repository when one is selected.
-- start_fake_acp_session and start_acp_registry_session include cwd from the selected repository when one is selected.
+- start_acp_registry_session includes cwd from the selected repository when one is selected; internal fake ACP manager tests retain their own cwd request coverage.
 - Without a selected repository, launch requests fall back to the selected project's legacy path.
 - Without a selected project, launch requests omit cwd and keep the old behavior.
 - PTY and ACP session info include resolved cwd, and the sidebar shows it as `Active Folder`.
