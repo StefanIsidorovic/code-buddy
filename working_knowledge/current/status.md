@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.4 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/runtime/AcpRuntimePanel.tsx; src/features/runtime/AcpRuntimePanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- worktree: plan item 19.4.1 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/features/runtime/SessionOutputPanel.tsx; src/features/runtime/SessionOutputPanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.4 complete
+- active plan step: 19.4.1 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -54,3 +54,4 @@
 - 2026-07-21: 48 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 19.2; shared UI primitives and the global notification lifecycle are outside `App.tsx`.
 - 2026-07-21: 51 frontend tests, typecheck, production build, domain dependency checks, `git diff --check`, and two adversarial review cycles pass for plan item 19.3; `App.tsx` is 306 lines smaller with one domain contract source of truth.
 - 2026-07-21: 55 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4; ACP Controls is a state-free typed feature component and `App.tsx` is 175 lines smaller.
+- 2026-07-21: 59 frontend tests, typecheck, production build, Tauri/xterm-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.1; Session Output is a typed feature component and `App.tsx` is 74 lines smaller.

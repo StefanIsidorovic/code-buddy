@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.1. Extract session output and transcript presentation
+- objective: move PTY output and live/saved ACP event rendering out of `App.tsx` behind a typed presentation boundary while App retains refs and event ownership.
+- status: complete
+- files: src/App.tsx; src/features/runtime/SessionOutputPanel.tsx; src/features/runtime/SessionOutputPanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Session Output shell; PTY terminal mount/focus surface; ACP event list; empty and pending states; saved transcript heading/metadata; View Live callback.
+- expected changes: accept runtime mode, derived events, saved transcript metadata, waiting state, terminal/output refs, focus callback, and live-view callback as props; keep event coalescing, polling, scroll effects, xterm lifecycle, and transcript state in App.
+- acceptance criteria: PTY mount/focus behavior, screen-reader fallback, event labels/content, saved transcript metadata, empty notices, waiting row, and View Live action remain unchanged; feature imports no Tauri/xterm runtime; App loses at least 70 lines.
+- required tests: direct PTY render/focus test; empty live ACP state; saved transcript labels/metadata/View Live callback; pending row; existing 55 frontend tests; typecheck; production build; boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 corrected the initial JSX insertion target and calibrated the net-line threshold, and cycle 2 found no remaining ref ownership, xterm lifecycle, event labeling, empty/pending state, accessibility, runtime-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.4. Extract the ACP runtime controls feature
 - objective: move ACP session controls, prompt composer, coding-model selector, and active Task assessment out of `App.tsx` behind one typed presentation boundary.
 - status: complete

@@ -9,12 +9,12 @@ import { StateNotice } from "./components/ui/StateNotice";
 import { CloseIcon } from "./components/ui/icons";
 import { NotificationViewport } from "./features/notifications/NotificationViewport";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
+import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
   boundToastMessages,
   useNotificationStore,
 } from "./features/notifications/notificationStore";
 import {
-  acpEventLabel,
   coalesceAcpEvents,
   coalesceTranscriptEvents,
   errorText,
@@ -23,7 +23,6 @@ import {
   formatCommand,
   formatPromptWithKnowledge,
   shortId,
-  transcriptEventLabel,
   transcriptEventToAcpEvent,
   uniqueIds,
 } from "./lib/presentation";
@@ -2745,90 +2744,17 @@ function App() {
           </p>
         ) : null}
 
-        <section className="output-panel" aria-labelledby="output-title">
-        <div className="section-heading">
-          <p className="eyebrow">Output</p>
-          <h2 id="output-title">Session Output</h2>
-        </div>
-        <div className="output-body">
-          {runtimeMode === "pty" ? (
-            <section className="terminal-output" aria-labelledby="terminal-output-title">
-              <h3 id="terminal-output-title">PTY Stream</h3>
-              <div
-                className="terminal-frame"
-                aria-label="Interactive PTY terminal"
-                onClick={() => terminal.current?.focus()}
-                ref={terminalElement}
-              />
-              <span className="sr-only">{output || "No output yet."}</span>
-            </section>
-          ) : null}
-
-          {runtimeMode === "acp" ? (
-            <section className="acp-events-panel" aria-labelledby="acp-events-title">
-              <div className="output-heading">
-                <div>
-                  <h3 id="acp-events-title">
-                    {openedTranscriptSession ? "Saved Transcript" : "ACP Events"}
-                  </h3>
-                  {openedTranscriptSession ? (
-                    <p>
-                      {openedTranscriptSession.title} ·{" "}
-                      {openedTranscriptSession.eventCount} events ·{" "}
-                      {shortId(openedTranscriptSession.id)}
-                    </p>
-                  ) : null}
-                </div>
-                {openedTranscriptSession ? (
-                  <button type="button" onClick={showLiveAcpEvents}>
-                    View Live ACP
-                  </button>
-                ) : null}
-              </div>
-              <ul aria-label="ACP events" ref={acpEventsList}>
-                {displayAcpEvents.length === 0 && !showAcpWaiting ? (
-                  <StateNotice
-                    as="li"
-                    kind="empty"
-                    title={openedTranscriptSession
-                      ? "No saved events in this transcript yet."
-                      : "No ACP events yet."}
-                    description={openedTranscriptSession
-                      ? "This saved session does not contain any recorded transcript events."
-                      : "Start an ACP session and send a prompt to see structured events here."}
-                  />
-                ) : (
-                  <>
-                    {displayAcpEvents.map((event, index) => (
-                    <li data-kind={event.kind} key={`${event.kind}-${index}`}>
-                      <strong>
-                        {openedTranscriptSession
-                          ? transcriptEventLabel(event.kind)
-                          : acpEventLabel(event.kind)}
-                      </strong>
-                      <span>{event.content}</span>
-                    </li>
-                    ))}
-                    {showAcpWaiting ? (
-                      <li data-kind="pending" aria-live="polite">
-                        <strong>Waiting</strong>
-                        <span className="waiting-message">
-                          <span className="waiting-dots" aria-hidden="true">
-                            <i />
-                            <i />
-                            <i />
-                          </span>
-                          Agent is preparing a response
-                        </span>
-                      </li>
-                    ) : null}
-                  </>
-                )}
-              </ul>
-            </section>
-          ) : null}
-        </div>
-      </section>
+        <SessionOutputPanel
+          events={displayAcpEvents}
+          eventsListRef={acpEventsList}
+          openedTranscript={openedTranscriptSession}
+          output={output}
+          runtimeMode={runtimeMode}
+          showWaiting={showAcpWaiting}
+          terminalElementRef={terminalElement}
+          onFocusTerminal={() => terminal.current?.focus()}
+          onShowLiveEvents={showLiveAcpEvents}
+        />
       </section>
 
       {repositoryDialogOpen ? (

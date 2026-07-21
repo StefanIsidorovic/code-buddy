@@ -22,6 +22,7 @@
 - Global notifications are the first narrow Zustand slice: the feature store owns queue bounds, IDs, timers, dismissal, and reset while `NotificationViewport` owns accessible rendering.
 - Backend-facing frontend DTOs and domain unions live in dependency-free `src/types/domain.ts`; feature modules should import contracts from there rather than redeclaring response shapes.
 - ACP runtime controls are a state-free feature component: App owns sessions, Tasks, persistence, and commands while the panel owns accessible controls, model/Task presentation, and compact layout.
+- Session Output is a separate state-free feature: App owns xterm and ACP event lifecycles while the panel renders PTY mount/fallback, live/saved transcript rows, empty states, and pending feedback.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

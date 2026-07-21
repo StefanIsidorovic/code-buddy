@@ -14,6 +14,7 @@ Radno pravilo:
 - Shared UI primitive i globalne notifications su izdvojene; Zustand trenutno poseduje samo bounded notification lifecycle, ne lokalne forme ili workflow draft state.
 - Svi frontend DTO/domain ugovori su izdvojeni iz App.tsx u dependency-free src/types/domain.ts sa compile-time contract testovima.
 - ACP Controls je izdvojen u state-free typed feature komponentu; orchestration i Tauri pozivi ostaju u App dok ne dobiju poseban hook/gateway sloj.
+- Session Output i live/saved ACP transcript prikaz su izdvojeni bez premestanja xterm, polling, scroll ili transcript lifecycle ownership-a iz App-a.
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 
