@@ -1,6 +1,6 @@
 use crate::{
     errors::{AppError, AppResult},
-    storage::KnowledgeUnitInfo,
+    storage::{KnowledgeItemInfo, KnowledgeUnitInfo, TaskPhaseArtifactInfo},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -38,6 +38,175 @@ pub struct TaskContextSelectionInfo {
     pub rendered_context: String,
     pub included: Vec<TaskContextSelectionEntryInfo>,
     pub excluded: Vec<TaskContextSelectionEntryInfo>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedTaskContextSelectionRequest {
+    pub project_id: String,
+    pub initialization_id: String,
+    pub task: String,
+    pub repository_id: Option<String>,
+    #[serde(default)]
+    pub paths: Vec<String>,
+    pub character_budget: Option<usize>,
+    pub transcript_session_id: Option<String>,
+    pub task_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedTaskContextSourceInfo {
+    pub id: String,
+    pub source_type: String,
+    pub kind: String,
+    pub title: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedTaskContextSelectionEntryInfo {
+    pub source: UnifiedTaskContextSourceInfo,
+    pub score: i64,
+    pub reason: String,
+    pub character_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedTaskContextSelectionInfo {
+    pub initialization_id: String,
+    pub character_budget: usize,
+    pub used_characters: usize,
+    pub remaining_characters: usize,
+    pub rendered_context: String,
+    pub included: Vec<UnifiedTaskContextSelectionEntryInfo>,
+    pub excluded: Vec<UnifiedTaskContextSelectionEntryInfo>,
+}
+
+pub fn select_unified_task_context(
+    request: UnifiedTaskContextSelectionRequest,
+    units: Vec<KnowledgeUnitInfo>,
+    cards: Vec<KnowledgeItemInfo>,
+    artifacts: Vec<TaskPhaseArtifactInfo>,
+) -> AppResult<UnifiedTaskContextSelectionInfo> {
+    let base = select_task_context(
+        TaskContextSelectionRequest {
+            initialization_id: request.initialization_id,
+            task: request.task,
+            repository_id: request.repository_id,
+            paths: request.paths,
+            character_budget: request.character_budget,
+        },
+        units,
+    )?;
+    let mut candidates = base
+        .included
+        .into_iter()
+        .map(|entry| unified_entry(unit_source(entry.unit), entry.score, &entry.reason))
+        .collect::<Vec<_>>();
+    let mut excluded = Vec::new();
+    for entry in base.excluded {
+        if entry.reason == "budget_exceeded" {
+            candidates.push(unified_entry(
+                unit_source(entry.unit),
+                entry.score,
+                "ranked_project_knowledge",
+            ));
+        } else {
+            excluded.push(unified_entry(
+                unit_source(entry.unit),
+                entry.score,
+                &entry.reason,
+            ));
+        }
+    }
+    candidates.extend(cards.into_iter().map(|card| {
+        unified_entry(
+            UnifiedTaskContextSourceInfo {
+                id: card.id,
+                source_type: "knowledge_card".into(),
+                kind: card.kind,
+                title: card.title,
+                content: card.body,
+            },
+            2_000,
+            "explicit_attachment",
+        )
+    }));
+    candidates.extend(artifacts.into_iter().enumerate().map(|(index, artifact)| {
+        unified_entry(
+            UnifiedTaskContextSourceInfo {
+                id: artifact.id,
+                source_type: "task_artifact".into(),
+                kind: artifact.kind,
+                title: format!("{} phase", artifact.phase),
+                content: artifact.content,
+            },
+            1_500 - i64::try_from(index).unwrap_or(i64::MAX),
+            "task_phase_artifact",
+        )
+    }));
+    candidates.sort_by(|left, right| {
+        right
+            .score
+            .cmp(&left.score)
+            .then_with(|| left.source.source_type.cmp(&right.source.source_type))
+            .then_with(|| left.source.id.cmp(&right.source.id))
+    });
+    let mut included = Vec::new();
+    let mut rendered = Vec::new();
+    let mut used = 0;
+    for mut entry in candidates {
+        let block = format!(
+            "- [{} / {} / {}] {}",
+            entry.source.source_type, entry.source.kind, entry.source.title, entry.source.content
+        );
+        let size = block.chars().count() + usize::from(!rendered.is_empty());
+        entry.character_count = size;
+        if used + size > base.character_budget {
+            entry.reason = "budget_exceeded".into();
+            excluded.push(entry);
+        } else {
+            used += size;
+            rendered.push(block);
+            included.push(entry);
+        }
+    }
+    excluded.sort_by(|left, right| left.source.id.cmp(&right.source.id));
+    Ok(UnifiedTaskContextSelectionInfo {
+        initialization_id: base.initialization_id,
+        character_budget: base.character_budget,
+        used_characters: used,
+        remaining_characters: base.character_budget - used,
+        rendered_context: rendered.join("\n"),
+        included,
+        excluded,
+    })
+}
+
+fn unit_source(unit: KnowledgeUnitInfo) -> UnifiedTaskContextSourceInfo {
+    UnifiedTaskContextSourceInfo {
+        id: unit.id,
+        source_type: "project_knowledge".into(),
+        kind: unit.kind,
+        title: unit.topic,
+        content: unit.content,
+    }
+}
+
+fn unified_entry(
+    source: UnifiedTaskContextSourceInfo,
+    score: i64,
+    reason: &str,
+) -> UnifiedTaskContextSelectionEntryInfo {
+    UnifiedTaskContextSelectionEntryInfo {
+        source,
+        score,
+        reason: reason.into(),
+        character_count: 0,
+    }
 }
 
 pub fn select_task_context(
@@ -319,5 +488,61 @@ mod tests {
         .expect("selection succeeds");
         assert!(result.included.is_empty());
         assert_eq!(result.excluded[0].reason, "not_relevant");
+    }
+
+    #[test]
+    fn unifies_explicit_cards_artifacts_and_ranked_project_knowledge_under_one_budget() {
+        let card = KnowledgeItemInfo {
+            id: "card".into(),
+            project_id: Some("project-1".into()),
+            title: "Manual rule".into(),
+            body: "Keep the public API stable".into(),
+            kind: "decision".into(),
+            scope: "project".into(),
+            source_transcript_session_id: None,
+            created_at: 1,
+            updated_at: 1,
+        };
+        let artifact = TaskPhaseArtifactInfo {
+            id: "artifact".into(),
+            task_id: "task-1".into(),
+            phase: "analysis".into(),
+            sequence: 0,
+            kind: "finding".into(),
+            content: "The parser owns validation".into(),
+            source_transcript_event_ids: vec!["event".into()],
+            created_at: 1,
+        };
+        let request = UnifiedTaskContextSelectionRequest {
+            project_id: "project-1".into(),
+            initialization_id: "init-1".into(),
+            task: "update parser".into(),
+            repository_id: None,
+            paths: vec![],
+            character_budget: Some(1_000),
+            transcript_session_id: Some("session".into()),
+            task_id: Some("task-1".into()),
+        };
+        let result = select_unified_task_context(
+            request,
+            vec![unit("unit", "purpose", "parser module")],
+            vec![card],
+            vec![artifact],
+        )
+        .expect("unified selection succeeds");
+
+        assert_eq!(
+            result
+                .included
+                .iter()
+                .map(|entry| entry.source.source_type.as_str())
+                .collect::<Vec<_>>(),
+            vec!["knowledge_card", "task_artifact", "project_knowledge"]
+        );
+        assert_eq!(
+            result.used_characters + result.remaining_characters,
+            result.character_budget
+        );
+        assert!(result.rendered_context.contains("Manual rule"));
     }
 }

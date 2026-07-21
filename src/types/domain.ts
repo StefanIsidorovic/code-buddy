@@ -273,6 +273,31 @@ export type TaskContextSelectionInfo = {
   excluded: TaskContextSelectionEntryInfo[];
 };
 
+export type UnifiedTaskContextSourceInfo = {
+  id: string;
+  sourceType: "project_knowledge" | "knowledge_card" | "task_artifact";
+  kind: string;
+  title: string;
+  content: string;
+};
+
+export type UnifiedTaskContextSelectionEntryInfo = {
+  source: UnifiedTaskContextSourceInfo;
+  score: number;
+  reason: string;
+  characterCount: number;
+};
+
+export type UnifiedTaskContextSelectionInfo = {
+  initializationId: string;
+  characterBudget: number;
+  usedCharacters: number;
+  remainingCharacters: number;
+  renderedContext: string;
+  included: UnifiedTaskContextSelectionEntryInfo[];
+  excluded: UnifiedTaskContextSelectionEntryInfo[];
+};
+
 export type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;

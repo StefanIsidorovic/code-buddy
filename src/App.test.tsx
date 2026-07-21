@@ -1103,7 +1103,7 @@ describe("PTY test panel", () => {
         return Promise.resolve(approvedSummary);
       }
 
-      if (command === "select_project_task_context") {
+      if (command === "select_unified_project_task_context") {
         return Promise.resolve(defaultTaskContextSelection());
       }
 
@@ -1205,13 +1205,16 @@ describe("PTY test panel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Preview Context" }));
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("select_project_task_context", {
+      expect(invokeMock).toHaveBeenCalledWith("select_unified_project_task_context", {
         request: {
           initializationId: "init-1",
           task: "Update project controls",
           repositoryId: "repo-aiadne",
           paths: [],
           characterBudget: 6000,
+          projectId: "project-aiadne",
+          transcriptSessionId: null,
+          taskId: null,
         },
       });
     });
@@ -3068,7 +3071,8 @@ function defaultTaskContextSelection() {
     renderedContext: "- [purpose / project_purpose] Project controls CLI agents",
     included: [
       {
-        unit: includedUnit,
+        source: { id: includedUnit.id, sourceType: "project_knowledge", kind: includedUnit.kind,
+          title: includedUnit.topic, content: includedUnit.content },
         score: 1000,
         reason: "mandatory_kind",
         characterCount: 120,
@@ -3076,7 +3080,8 @@ function defaultTaskContextSelection() {
     ],
     excluded: [
       {
-        unit: excludedUnit,
+        source: { id: excludedUnit.id, sourceType: "project_knowledge", kind: excludedUnit.kind,
+          title: excludedUnit.topic, content: excludedUnit.content },
         score: 0,
         reason: "uncertain_status",
         characterCount: 0,

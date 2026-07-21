@@ -51,6 +51,7 @@ pub fn run() {
             commands::list_project_initialization_summary,
             commands::list_project_initialization_knowledge_units,
             commands::select_project_task_context,
+            commands::select_unified_project_task_context,
             commands::approve_project_initialization_summary,
             commands::create_transcript_session,
             commands::create_task,

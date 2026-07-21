@@ -39,6 +39,7 @@ export type TauriCommand =
   | "resize_session"
   | "save_project_initialization_guardrails"
   | "select_project_task_context"
+  | "select_unified_project_task_context"
   | "send_acp_prompt"
   | "set_acp_model"
   | "start_acp_registry_session"

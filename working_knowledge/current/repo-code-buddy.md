@@ -6,6 +6,8 @@
 - branch: new/start
 
 ## Architecture
+- Unified Task Context preserves the legacy project-only selector while adding an authoritative three-source preview across project knowledge, attached cards, and same-transcript Task artifacts.
+- The unified preview is source-aware, strict-budgeted, stale-safe, and read-only; it is not yet connected to ACP prompt injection.
 - Tauri 2 desktop application with a React 19/TypeScript/Vite frontend and Rust backend.
 - `src/App.tsx` coordinates the single-screen workspace, initialization, runtime, history, and dialog workflows; `src/App.css` owns the visual system.
 - Rust modules separate PTY sessions, ACP transport, agent adapters, SQLite storage, model catalog, synthesis providers, Knowledge Unit selection, commands, and errors.

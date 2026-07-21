@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.4. Preview unified Task context
+- objective: make the exact bounded context assembled from project Knowledge Units, attached Knowledge Cards, and Task phase artifacts visible before any opt-in agent injection.
+- status: complete
+- files: src-tauri/src/knowledge.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/knowledge/*; src/App.tsx; related tests and current knowledge.
+- affected units: deterministic context ranking/rendering; project/transcript/Task ownership validation; typed Tauri contract; stale-safe preview orchestration; source-aware preview presentation.
+- expected changes: preserve the legacy project-only selector; add a unified selector with explicit source type/reason and one strict character budget; show exact rendered context without sending it to ACP.
+- acceptance criteria: explicit cards precede canonical Task artifacts and relevant project knowledge; uncertain/unrelated units remain excluded; every result exposes source and reason; cross-project/cross-transcript IDs fail; stale responses cannot cross workspace boundaries.
+- required tests: three-source ordering/budget; ownership boundaries; exact gateway payload; source-aware dialog; stale response; frontend/Rust suites; typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 bound Task artifacts to the selected transcript and preserved canonical artifact order, and cycle 2 added preview request identity to prevent cross-workspace stale results.
+- commit: this commit
+
 ### 22.3. Add the user-facing Task phase workflow
 - objective: make persisted artifacts and explicit phase gates inspectable and manually operable in the ACP workspace before agent automation.
 - status: complete

@@ -6,7 +6,11 @@ use crate::{
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
-    knowledge::{select_task_context, TaskContextSelectionInfo, TaskContextSelectionRequest},
+    knowledge::{
+        select_task_context, select_unified_task_context, TaskContextSelectionInfo,
+        TaskContextSelectionRequest, UnifiedTaskContextSelectionInfo,
+        UnifiedTaskContextSelectionRequest,
+    },
     models::ModelCatalogInfo,
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
@@ -233,6 +237,74 @@ pub fn select_project_task_context(
 ) -> AppResult<TaskContextSelectionInfo> {
     let units = state.list_project_initialization_knowledge_units(&request.initialization_id)?;
     select_task_context(request, units)
+}
+
+#[tauri::command]
+pub fn select_unified_project_task_context(
+    state: State<'_, ProjectStore>,
+    request: UnifiedTaskContextSelectionRequest,
+) -> AppResult<UnifiedTaskContextSelectionInfo> {
+    let project_id = request.project_id.trim();
+    if project_id.is_empty() {
+        return Err(AppError::InvalidInput(
+            "unified task context requires a project".into(),
+        ));
+    }
+    let units = state.list_project_initialization_knowledge_units(&request.initialization_id)?;
+    let initialization_matches = state
+        .list_project_initializations(project_id)?
+        .iter()
+        .any(|initialization| initialization.id == request.initialization_id);
+    if !initialization_matches {
+        return Err(AppError::InvalidInput(
+            "initialization does not belong to the selected project".into(),
+        ));
+    }
+    if units.iter().any(|unit| unit.project_id != project_id) {
+        return Err(AppError::InvalidInput(
+            "initialization does not belong to the selected project".into(),
+        ));
+    }
+    let cards = match request.transcript_session_id.as_deref() {
+        Some(session_id) => {
+            let session_matches = state
+                .list_transcript_sessions(Some(project_id))?
+                .iter()
+                .any(|session| session.id == session_id);
+            if !session_matches {
+                return Err(AppError::InvalidInput(
+                    "transcript does not belong to the selected project".into(),
+                ));
+            }
+            state.list_attached_knowledge(session_id)?
+        }
+        None => Vec::new(),
+    };
+    let artifacts = match request.task_id.as_deref() {
+        Some(task_id) => {
+            let selected_task = state
+                .list_project_tasks(project_id)?
+                .into_iter()
+                .find(|task| task.id == task_id);
+            let Some(selected_task) = selected_task else {
+                return Err(AppError::InvalidInput(
+                    "task does not belong to the selected project".into(),
+                ));
+            };
+            if request
+                .transcript_session_id
+                .as_deref()
+                .is_some_and(|session_id| selected_task.transcript_session_id != session_id)
+            {
+                return Err(AppError::InvalidInput(
+                    "task does not belong to the selected transcript".into(),
+                ));
+            }
+            state.list_task_phase_artifacts(task_id)?
+        }
+        None => Vec::new(),
+    };
+    select_unified_task_context(request, units, cards, artifacts)
 }
 
 #[tauri::command]

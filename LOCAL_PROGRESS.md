@@ -746,3 +746,9 @@ YYYY-MM-DD
 - ACP workspace sada prikazuje cetiri Task faze, njihove statuse i artefakte, uz rucne Start/Add evidence/Complete akcije.
 - Evidence bira samo persisted live transcript event ID-jeve; hook ignorise stare async rezultate posle promene Task-a.
 - App ostaje composition root; 93 Rust testa, 177 frontend testova, fmt, clippy, audit, typecheck i build prolaze.
+
+### 2026-07-21 - Unified Task Context Preview
+
+- Preview sada spaja odobrene Project Knowledge Units, transcript-attached Knowledge Cards i artefakte aktivnog Task-a pod jednim strogim character budget-om.
+- Svaka stavka prikazuje source type i razlog izbora; backend proverava project/initialization/transcript/Task vlasnistvo, a stale frontend odgovor se odbacuje.
+- Nema automatskog slanja ACP agentu; 94 Rust testa, 178 frontend testova, fmt, clippy, typecheck i production build prolaze.

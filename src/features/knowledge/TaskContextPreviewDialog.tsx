@@ -1,11 +1,11 @@
 import { StateNotice } from "../../components/ui/StateNotice";
 import { CloseIcon } from "../../components/ui/icons";
-import type { TaskContextSelectionInfo } from "../../types/domain";
+import type { UnifiedTaskContextSelectionInfo } from "../../types/domain";
 
 export type TaskContextPreviewDialogProps = {
   error: string | null;
   loading: boolean;
-  preview: TaskContextSelectionInfo | null;
+  preview: UnifiedTaskContextSelectionInfo | null;
   onClose: () => void;
 };
 
@@ -33,18 +33,20 @@ export function TaskContextPreviewDialog({ error, loading, preview, onClose }:
           </dl>
           <section aria-label="Included task context"><h3>Included · {preview.included.length}</h3>
             {preview.included.length > 0 ? <ol className="task-context-entry-list">
-              {preview.included.map((entry) => <li key={entry.unit.id}><div>
-                <strong>{entry.unit.kind.replace(/_/g, " ")}</strong>
+              {preview.included.map((entry) => <li key={`${entry.source.sourceType}-${entry.source.id}`}><div>
+                <strong>{entry.source.kind.replace(/_/g, " ")}</strong>
                 <span>{entry.reason.replace(/_/g, " ")} · score {entry.score}</span>
-              </div><p>{entry.unit.content}</p></li>)}
+              </div><small>{entry.source.sourceType.replace(/_/g, " ")} · {entry.source.title}</small>
+                <p>{entry.source.content}</p></li>)}
             </ol> : <StateNotice kind="empty" title="No units matched this task"
               description="Try a more specific task or review the approved Knowledge Units." />}
           </section>
           <section aria-label="Excluded task context"><h3>Excluded · {preview.excluded.length}</h3>
             <ul className="task-context-entry-list excluded">{preview.excluded.map((entry) =>
-              <li key={entry.unit.id}><div><strong>{entry.unit.kind.replace(/_/g, " ")}</strong>
+              <li key={`${entry.source.sourceType}-${entry.source.id}`}><div><strong>{entry.source.kind.replace(/_/g, " ")}</strong>
                 <span>{entry.reason.replace(/_/g, " ")}</span></div>
-                <p>{entry.unit.content}</p></li>)}</ul>
+                <small>{entry.source.sourceType.replace(/_/g, " ")} · {entry.source.title}</small>
+                <p>{entry.source.content}</p></li>)}</ul>
           </section>
           <label className="field"><span>Exact rendered context</span>
             <textarea readOnly value={preview.renderedContext} rows={8} /></label>

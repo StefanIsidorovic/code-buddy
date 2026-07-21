@@ -1,15 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { KnowledgeUnitInfo, TaskContextSelectionInfo } from "../../types/domain";
+import type { UnifiedTaskContextSelectionInfo } from "../../types/domain";
 import { TaskContextPreviewDialog, type TaskContextPreviewDialogProps } from "./TaskContextPreviewDialog";
 
-const unit: KnowledgeUnitInfo = { id: "u1", projectId: "p1", initializationId: "i1",
-  derivedFromSummaryId: "s1", kind: "agent_rule", topic: "testing", content: "Run tests",
-  scope: "project", status: "active", confidence: 90, schemaVersion: 1, sources: [], createdAt: 1 };
-const preview: TaskContextSelectionInfo = { initializationId: "i1", characterBudget: 6000,
+const source = { id: "u1", sourceType: "project_knowledge" as const, kind: "agent_rule",
+  title: "testing", content: "Run tests" };
+const preview: UnifiedTaskContextSelectionInfo = { initializationId: "i1", characterBudget: 6000,
   usedCharacters: 120, remainingCharacters: 5880, renderedContext: "- Run tests",
-  included: [{ unit, score: 130, reason: "mandatory_rule", characterCount: 120 }],
-  excluded: [{ unit: { ...unit, id: "u2", kind: "project_fact", content: "Rust" }, score: 0,
+  included: [{ source, score: 130, reason: "mandatory_rule", characterCount: 120 }],
+  excluded: [{ source: { ...source, id: "u2", kind: "project_fact", content: "Rust" }, score: 0,
     reason: "not_relevant", characterCount: 40 }] };
 function props(overrides: Partial<TaskContextPreviewDialogProps> = {}): TaskContextPreviewDialogProps {
   return { error: null, loading: false, preview: null, onClose: vi.fn(), ...overrides };

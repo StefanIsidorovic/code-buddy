@@ -136,7 +136,7 @@ function App() {
       projectId: selectedProjectId,
       activeTranscriptId: openedTranscriptSession?.id ?? transcriptSession?.id ?? null,
       initialization: projectInitialization, summary: projectInitializationSummary,
-      prompt: acpPrompt, repositoryId: selectedRepository?.id ?? null,
+      prompt: acpPrompt, repositoryId: selectedRepository?.id ?? null, taskId: activeTask?.id ?? null,
     });
   const { candidates: acpRegistryCandidates, registryError: acpRegistryError,
     registryLoading: acpRegistryLoading, selectedCandidateId: selectedAcpCandidateId,

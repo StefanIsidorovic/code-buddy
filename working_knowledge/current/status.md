@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: b65ca36 step 22.2: enforce task phase gates
-- worktree: plan item 22.3 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/App.css; src/features/tasks/*; src/features/transcripts/useTranscriptWorkspace.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 5b993d4 step 22.3: add Task phase workflow UI
+- worktree: plan item 22.4 implementation and knowledge updates ready for commit.
+- relevant files: src-tauri/src/knowledge.rs; src-tauri/src/commands.rs; src/features/knowledge/*; src/types/domain.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.3 complete
+- active plan step: 22.4 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -88,3 +88,4 @@
 - 2026-07-21: 93 Rust tests, 171 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.1; immutable Task phase artifacts now retain same-transcript event provenance in canonical event order.
 - 2026-07-21: 93 Rust tests, 171 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.2; explicit start/complete transitions enforce canonical evidence-gated Task progression.
 - 2026-07-21: 93 Rust tests, 177 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.3; Task phases/artifacts are manually operable with persisted event provenance and stale-safe frontend orchestration.
+- 2026-07-21: 94 Rust tests, 178 frontend tests, Rust fmt/clippy with warnings denied, typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.4; the preview unifies three source classes under one strict budget without ACP injection.

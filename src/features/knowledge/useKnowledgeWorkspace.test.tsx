@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeItemInfo, ProjectInitializationInfo, ProjectInitializationSummaryInfo,
-  TaskContextSelectionInfo } from "../../types/domain";
+  UnifiedTaskContextSelectionInfo } from "../../types/domain";
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
@@ -12,10 +12,10 @@ const item: KnowledgeItemInfo = { id: "k1", projectId: "p1", title: "Rule", body
 const initialization: ProjectInitializationInfo = { id: "i1", projectId: "p1", status: "summary",
   repositoryCount: 1, createdAt: 1, updatedAt: 1 };
 const summary = { id: "sum1", initializationId: "i1", status: "approved" } as ProjectInitializationSummaryInfo;
-const preview: TaskContextSelectionInfo = { initializationId: "i1", characterBudget: 6000,
+const preview: UnifiedTaskContextSelectionInfo = { initializationId: "i1", characterBudget: 6000,
   usedCharacters: 10, remainingCharacters: 5990, renderedContext: "context", included: [], excluded: [] };
 const options = { projectId: "p1", activeTranscriptId: "t1", initialization, summary,
-  prompt: "Fix tests", repositoryId: "r1" };
+  prompt: "Fix tests", repositoryId: "r1", taskId: "task1" };
 
 describe("useKnowledgeWorkspace", () => {
   beforeEach(() => invoke.mockReset());
@@ -47,10 +47,24 @@ describe("useKnowledgeWorkspace", () => {
   });
 
   it("previews task context with exact scope and budget", async () => {
-    invoke.mockImplementation((command) => command === "select_project_task_context" ? Promise.resolve(preview) : Promise.resolve([]));
+    invoke.mockImplementation((command) => command === "select_unified_project_task_context" ? Promise.resolve(preview) : Promise.resolve([]));
     const { result } = renderHook(() => useKnowledgeWorkspace(options)); await act(() => result.current.previewContext());
-    expect(invoke).toHaveBeenCalledWith("select_project_task_context", { request: { initializationId: "i1",
-      task: "Fix tests", repositoryId: "r1", paths: [], characterBudget: 6000 } });
+    expect(invoke).toHaveBeenCalledWith("select_unified_project_task_context", { request: { initializationId: "i1",
+      task: "Fix tests", repositoryId: "r1", paths: [], characterBudget: 6000, projectId: "p1",
+      transcriptSessionId: "t1", taskId: "task1" } });
     expect(result.current.preview).toEqual(preview);
+  });
+
+  it("ignores a context preview that resolves after the workspace changes", async () => {
+    let resolvePreview: (value: UnifiedTaskContextSelectionInfo) => void = () => undefined;
+    const pending = new Promise<UnifiedTaskContextSelectionInfo>((resolve) => { resolvePreview = resolve; });
+    invoke.mockImplementation((command) => command === "select_unified_project_task_context" ? pending : Promise.resolve([]));
+    const { result, rerender } = renderHook(({ value }) => useKnowledgeWorkspace(value),
+      { initialProps: { value: options } });
+    act(() => { void result.current.previewContext(); });
+    rerender({ value: { ...options, projectId: "p2", taskId: "task2" } });
+    await act(async () => { resolvePreview(preview); await pending; });
+    expect(result.current.preview).toBeNull();
+    expect(result.current.previewOpen).toBe(false);
   });
 });

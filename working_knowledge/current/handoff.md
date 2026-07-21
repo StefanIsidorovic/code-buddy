@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Task Context Preview now unifies approved project Knowledge Units, transcript-attached Knowledge Cards, and active Task phase artifacts with visible source/reason and a strict character budget.
+- The selector validates project, initialization, transcript, and Task ownership; preview responses are discarded after workspace identity changes.
 - Plan 18 introduces Task persistence, first-prompt creation, phase knowledge, and staged UI in that order.
 - Plan items through 18.3 are complete: project-owned ACP prompts create persistent Tasks with analysis-first phases and an explainable initial quick/standard/complex assessment.
 - Initial and effective complexity are persisted separately; every system/user change is retained in append-only history.
@@ -9,7 +11,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Task phases, provenance-backed artifacts and explicit gates are now manually operable in the ACP workspace. Manually smoke-test the lifecycle, then integrate task artifacts into the visible context preview before opt-in agent automation.
+- Manually smoke-test unified preview with a real Task artifact and attached card, then design an explicit opt-in action that sends the frozen rendered preview without mutating the original prompt.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

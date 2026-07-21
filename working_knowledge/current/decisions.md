@@ -12,8 +12,9 @@
 - Model boundary: Summary uses the synthesis catalog, while coding models are discovered from and changed through the active ACP agent; a coding choice is session-scoped and never mutates global Codex configuration.
 - Phase artifact boundary: persist immutable per-phase content separately from transcript history, with normalized links to one or more real transcript events from the Task's own session.
 - Phase gate policy: every canonical phase requires explicit `start` and evidence-backed `complete`; completion advances to the next pending phase but never starts it automatically.
+- Unified context boundary: preview project knowledge, explicitly attached cards, and current-Task artifacts through one deterministic budgeted result; source type and inclusion reason remain visible, and preview never implies ACP injection.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
 - Multi-session Task continuation: defer until the one-session Task workflow is validated.
-- Unified context selection across project, manual, and task knowledge: defer until task artifacts exist.
+- Context freezing/injection: defer until the unified preview is manually validated; sending must remain an explicit opt-in action and preserve the original prompt separately.
