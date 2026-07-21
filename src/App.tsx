@@ -20,6 +20,7 @@ import {
 import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
 import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
 import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
+import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -2832,104 +2833,8 @@ function App() {
       ) : null}
 
       {taskContextPreviewOpen ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !taskContextPreviewLoading) {
-              setTaskContextPreviewOpen(false);
-            }
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="task-context-preview-title"
-            className="knowledge-modal task-context-preview-modal"
-          >
-            <div className="modal-heading">
-              <div>
-                <span>Knowledge selector</span>
-                <h2 id="task-context-preview-title">Task Context Preview</h2>
-              </div>
-              <button
-                type="button"
-                aria-label="Close task context preview"
-                className="icon-button"
-                onClick={() => setTaskContextPreviewOpen(false)}
-                disabled={taskContextPreviewLoading}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            {taskContextPreviewLoading ? (
-              <StateNotice
-                kind="loading"
-                title="Selecting minimal task context…"
-                description="Ranking approved units against the current task and character budget."
-              />
-            ) : taskContextPreviewError ? (
-              <StateNotice
-                kind="error"
-                title="Task context could not be selected"
-                description={taskContextPreviewError}
-              />
-            ) : taskContextPreview ? (
-              <div className="task-context-preview-body">
-                <dl className="task-context-budget" aria-label="Task context budget">
-                  <div><dt>Budget</dt><dd>{taskContextPreview.characterBudget}</dd></div>
-                  <div><dt>Used</dt><dd>{taskContextPreview.usedCharacters}</dd></div>
-                  <div><dt>Remaining</dt><dd>{taskContextPreview.remainingCharacters}</dd></div>
-                </dl>
-                <section aria-label="Included task context">
-                  <h3>Included · {taskContextPreview.included.length}</h3>
-                  {taskContextPreview.included.length > 0 ? (
-                    <ol className="task-context-entry-list">
-                      {taskContextPreview.included.map((entry) => (
-                        <li key={entry.unit.id}>
-                          <div>
-                            <strong>{entry.unit.kind.replace(/_/g, " ")}</strong>
-                            <span>{entry.reason.replace(/_/g, " ")} · score {entry.score}</span>
-                          </div>
-                          <p>{entry.unit.content}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <StateNotice
-                      kind="empty"
-                      title="No units matched this task"
-                      description="Try a more specific task or review the approved Knowledge Units."
-                    />
-                  )}
-                </section>
-                <section aria-label="Excluded task context">
-                  <h3>Excluded · {taskContextPreview.excluded.length}</h3>
-                  <ul className="task-context-entry-list excluded">
-                    {taskContextPreview.excluded.map((entry) => (
-                      <li key={entry.unit.id}>
-                        <div>
-                          <strong>{entry.unit.kind.replace(/_/g, " ")}</strong>
-                          <span>{entry.reason.replace(/_/g, " ")}</span>
-                        </div>
-                        <p>{entry.unit.content}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <label className="field">
-                  <span>Exact rendered context</span>
-                  <textarea readOnly value={taskContextPreview.renderedContext} rows={8} />
-                </label>
-              </div>
-            ) : (
-              <StateNotice
-                kind="empty"
-                title="No preview available"
-                description="Run the selector again to build an auditable task-context preview."
-              />
-            )}
-          </section>
-        </div>
+        <TaskContextPreviewDialog error={taskContextPreviewError} loading={taskContextPreviewLoading}
+          preview={taskContextPreview} onClose={() => setTaskContextPreviewOpen(false)} />
       ) : null}
 
       {knowledgeDialogOpen ? (

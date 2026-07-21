@@ -30,6 +30,7 @@
 - Interview Guardrails dialog is state-free initialization presentation; App retains draft validation/mutation, persistence, reset, loading, and errors.
 - Initialization Details dialog is state-free presentation for Facts, Markdown, Summary provenance, approval state, and published Knowledge Units; App retains selected view and async workflows.
 - Project Delete confirmation is state-free workspace presentation; App retains the busy close guard and all destructive ACP shutdown, persistence, cleanup, error, and notification behavior.
+- Task Context Preview is state-free knowledge presentation; App retains selector invocation, prompt, visibility, and async result/error lifecycle.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

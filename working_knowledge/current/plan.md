@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.10. Extract Task Context Preview presentation
+- objective: move the auditable Knowledge Unit selector preview modal out of the frontend coordinator while preserving App-owned selector invocation, prompt, visibility, and async lifecycle.
+- status: complete
+- files: src/App.tsx; src/features/knowledge/TaskContextPreviewDialog.tsx; src/features/knowledge/TaskContextPreviewDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: preview modal/backdrop; loading/error/no-preview notices; character budget; included/excluded selector entries; exact rendered context; close action.
+- expected changes: add a typed state-free and Tauri-free knowledge feature component; pass loading/error/result and close callback from App; keep selector command, task prompt, open/result/error state, and lifecycle in App.
+- acceptance criteria: state precedence remains loading, error, result, then empty; budget and counts are exact; included score/reason and excluded reason formatting remain unchanged; exact context stays read-only; Close and backdrop remain blocked while loading.
+- required tests: loading and close locks; error and no-preview states; populated budget/included/excluded/context; no-included match notice; close/backdrop callbacks; existing 89 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 found no source issue and confirmed state precedence plus loading-safe dismissal directly, and cycle 2 found no remaining budget, count, included/excluded formatting, read-only context, accessibility, runtime-boundary, workflow-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.9. Extract Project Delete confirmation presentation
 - objective: move the destructive project-deletion confirmation modal out of the frontend coordinator while preserving App-owned ACP shutdown, persistence, cleanup, and errors.
 - status: complete
