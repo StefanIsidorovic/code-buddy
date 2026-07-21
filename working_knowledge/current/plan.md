@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.5. Send frozen Task context explicitly
+- objective: let the user send the exact context they reviewed while preserving the original Task prompt and transcript message unchanged.
+- status: complete
+- files: src/features/knowledge/TaskContextPreviewDialog.tsx; src/features/runtime/useAcpRuntime.ts; src/lib/presentation.ts; src/App.tsx; colocated/integration tests; current knowledge.
+- affected units: preview confirmation UI; ACP wire-prompt formatting; original-prompt persistence; prompt concurrency guard; App feature composition.
+- expected changes: add an explicit send action to the preview; enrich only the ACP wire payload; retain ordinary Send ACP compatibility; close preview only after successful dispatch.
+- acceptance criteria: no automatic context injection; unavailable/empty/busy states cannot send; original transcript/Task prompt remains unchanged; selected context is not duplicated with attached cards; rapid double-submit produces one ACP request; failure remains retryable.
+- required tests: formatter boundary; dialog send/lock/empty states; runtime wire versus transcript payload; double-submit; full frontend/Rust gates; audit; typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added a synchronous in-flight guard and verified unified context does not duplicate legacy attached-card formatting, and cycle 2 made the persistence/send boundary explicit in dialog copy.
+- commit: this commit
+
 ### 22.4. Preview unified Task context
 - objective: make the exact bounded context assembled from project Knowledge Units, attached Knowledge Cards, and Task phase artifacts visible before any opt-in agent injection.
 - status: complete

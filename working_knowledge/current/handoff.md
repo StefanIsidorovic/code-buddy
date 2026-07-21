@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Unified Task Context Preview now has an explicit send action; the exact rendered context enriches only the ACP wire prompt, while Task `originalPrompt` and transcript user events retain the user's plain prompt.
+- Prompt dispatch has a synchronous in-flight guard, and the dialog stays open on failed dispatch for an explicit retry.
 - Task Context Preview now unifies approved project Knowledge Units, transcript-attached Knowledge Cards, and active Task phase artifacts with visible source/reason and a strict character budget.
 - The selector validates project, initialization, transcript, and Task ownership; preview responses are discarded after workspace identity changes.
 - Plan 18 introduces Task persistence, first-prompt creation, phase knowledge, and staged UI in that order.
@@ -11,7 +13,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Manually smoke-test unified preview with a real Task artifact and attached card, then design an explicit opt-in action that sends the frozen rendered preview without mutating the original prompt.
+- Manually smoke-test preview-and-send with a real Task artifact and attached card, then persist an auditable context-selection/send receipt before adding automatic phase execution.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

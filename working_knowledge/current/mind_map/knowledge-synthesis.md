@@ -16,6 +16,7 @@
   - current Task phase artifacts in canonical order
   - one strict character budget with source/reason audit trail
   - read-only boundary; no automatic ACP injection
+  - explicit send freezes the rendered preview and keeps the persisted user prompt unchanged
 - `ProjectStore::prepare_project_initialization_synthesis` validates the model profile and loads selected repositories, Facts, Markdown findings, and Interview guardrails into owned context.
 - The SQLite mutex is released before provider I/O.
 - `SynthesisProviderRegistry` resolves the selected profile provider and owns provider availability used by the catalog UI.

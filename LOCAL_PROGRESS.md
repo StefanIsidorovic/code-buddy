@@ -752,3 +752,9 @@ YYYY-MM-DD
 - Preview sada spaja odobrene Project Knowledge Units, transcript-attached Knowledge Cards i artefakte aktivnog Task-a pod jednim strogim character budget-om.
 - Svaka stavka prikazuje source type i razlog izbora; backend proverava project/initialization/transcript/Task vlasnistvo, a stale frontend odgovor se odbacuje.
 - Nema automatskog slanja ACP agentu; 94 Rust testa, 178 frontend testova, fmt, clippy, typecheck i production build prolaze.
+
+### 2026-07-21 - Explicit Task Context Send
+
+- Preview ima eksplicitno `Send with this context`; ACP wire payload dobija tacno pregledani context, dok Task originalPrompt i transcript user event ostaju originalni.
+- Prazan context, nedostupan ACP, slanje u toku i brzi dupli klik ne mogu proizvesti dodatni zahtev; neuspeh ostavlja dialog otvoren za retry.
+- Frontend skill audit, 183 frontend testa, 94 Rust testa, typecheck, build, fmt i clippy prolaze.

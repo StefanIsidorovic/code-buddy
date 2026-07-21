@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   acpCandidateStatusLabel, capabilityLabel, coalesceAcpEvents, doctorDetail, doctorStatusLabel,
   errorText, filterTranscriptSessions, folderNameFromPath,
-  formatMarkdownCategory, formatModelTier, formatPromptWithKnowledge, formatTimestamp,
+  formatMarkdownCategory, formatModelTier, formatPromptWithKnowledge, formatPromptWithTaskContext,
+  formatTimestamp,
   guardrailKindClassName, guardrailKindLabel, modelCapabilityBadges,
   markdownCategoryClassName,
   transcriptEventToAcpEvent, transportDetail, uniqueIds,
@@ -17,6 +18,13 @@ describe("presentation helpers", () => {
     expect(formatPromptWithKnowledge([
       { title: "Rule", body: "Run tests", kind: "guardrail", scope: "project" },
     ], "Fix the bug")).toContain("Rule (guardrail, project)\nRun tests\n\nUser prompt:\nFix the bug");
+  });
+
+  it("renders an explicitly selected task context without changing the user prompt", () => {
+    expect(formatPromptWithTaskContext("- [task_artifact] Evidence", "Fix the bug")).toBe(
+      "Selected task context:\n- [task_artifact] Evidence\n\nUser prompt:\nFix the bug",
+    );
+    expect(formatPromptWithTaskContext("   ", "Fix the bug")).toBe("Fix the bug");
   });
 
   it("filters sessions across human fields and short ids", () => {

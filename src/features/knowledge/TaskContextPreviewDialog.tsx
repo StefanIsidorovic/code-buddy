@@ -5,24 +5,27 @@ import type { UnifiedTaskContextSelectionInfo } from "../../types/domain";
 export type TaskContextPreviewDialogProps = {
   error: string | null;
   loading: boolean;
+  sending: boolean;
+  canSend: boolean;
   preview: UnifiedTaskContextSelectionInfo | null;
   onClose: () => void;
+  onSend: () => void;
 };
 
-export function TaskContextPreviewDialog({ error, loading, preview, onClose }:
+export function TaskContextPreviewDialog({ error, loading, sending, canSend, preview, onClose, onSend }:
   TaskContextPreviewDialogProps) {
   return <div className="modal-backdrop" onMouseDown={(event) => {
-    if (event.target === event.currentTarget && !loading) onClose();
+    if (event.target === event.currentTarget && !loading && !sending) onClose();
   }}>
     <section role="dialog" aria-modal="true" aria-labelledby="task-context-preview-title"
       className="knowledge-modal task-context-preview-modal">
       <div className="modal-heading"><div><span>Knowledge selector</span>
         <h2 id="task-context-preview-title">Task Context Preview</h2></div>
         <button type="button" aria-label="Close task context preview" className="icon-button"
-          onClick={onClose} disabled={loading}><CloseIcon /></button>
+          onClick={onClose} disabled={loading || sending}><CloseIcon /></button>
       </div>
       {loading ? <StateNotice kind="loading" title="Selecting minimal task context…"
-        description="Ranking approved units against the current task and character budget." />
+        description="Ranking project knowledge, attached cards, and Task artifacts against one character budget." />
         : error ? <StateNotice kind="error" title="Task context could not be selected"
           description={error} />
         : preview ? <div className="task-context-preview-body">
@@ -50,6 +53,15 @@ export function TaskContextPreviewDialog({ error, loading, preview, onClose }:
           </section>
           <label className="field"><span>Exact rendered context</span>
             <textarea readOnly value={preview.renderedContext} rows={8} /></label>
+          <p className="field-hint">Your original prompt stays unchanged. This exact context is sent only
+            when you choose the action below.</p>
+          <div className="modal-actions">
+            <button type="button" className="secondary-button" onClick={onClose} disabled={sending}>Cancel</button>
+            <button type="button" onClick={onSend}
+              disabled={!canSend || sending || preview.renderedContext.trim().length === 0}>
+              {sending ? "Sending context…" : "Send with this context"}
+            </button>
+          </div>
         </div>
         : <StateNotice kind="empty" title="No preview available"
           description="Run the selector again to build an auditable task-context preview." />}

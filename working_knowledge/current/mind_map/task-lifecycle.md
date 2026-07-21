@@ -9,6 +9,7 @@
 ## Boundary
 - Phase artifacts enter Unified Task Context only for the Task bound to the selected transcript.
 - Preview preserves canonical artifact order and is invalidated on project, initialization, transcript, or Task changes.
+- Explicit context send does not rewrite Task `originalPrompt` or transcript user events; enrichment exists only on the ACP wire.
 - A Task is the persistent user assignment; a transcript is its ordered conversation history and ACP is its runtime transport.
 - One project-owned transcript session may own at most one Task.
 - The immutable original prompt is stored on the Task separately from any future context-enriched ACP payload.

@@ -487,7 +487,10 @@ function App() {
 
       {taskContextPreviewOpen ? (
         <TaskContextPreviewDialog error={taskContextPreviewError} loading={taskContextPreviewLoading}
-          preview={taskContextPreview} onClose={closeTaskContextPreview} />
+          sending={acpPromptBusy} canSend={canUseAcpSession} preview={taskContextPreview}
+          onClose={closeTaskContextPreview} onSend={() => { void (async () => {
+            if (taskContextPreview && await sendAcpPrompt(taskContextPreview.renderedContext)) closeTaskContextPreview();
+          })(); }} />
       ) : null}
 
       {knowledgeDialogOpen ? (

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { errorText, formatPromptWithKnowledge } from "../../lib/presentation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { errorText, formatPromptWithKnowledge, formatPromptWithTaskContext } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
 import type {
   AcpPromptResult,
@@ -50,6 +50,7 @@ export function useAcpRuntime({
   const [events, setEvents] = useState<AcpSessionEvent[]>([]);
   const [promptResult, setPromptResult] = useState<AcpPromptResult | null>(null);
   const [promptBusy, setPromptBusy] = useState(false);
+  const promptInFlight = useRef(false);
   const [expanded, setExpanded] = useState(true);
   const selectedCandidate = useMemo(
     () => candidates.find(({ id }) => id === selectedCandidateId) ?? null,
@@ -115,8 +116,9 @@ export function useAcpRuntime({
       );
     });
   }
-  async function sendPrompt() {
-    if (!usable || !session) return;
+  async function sendPrompt(selectedTaskContext?: string) {
+    if (!usable || !session || promptInFlight.current) return false;
+    promptInFlight.current = true;
     setPromptBusy(true);
     reportError(null);
     try {
@@ -136,14 +138,19 @@ export function useAcpRuntime({
       setPromptResult(
         await invokeCommand<AcpPromptResult>("send_acp_prompt", {
           sessionId: session.id,
-          prompt: formatPromptWithKnowledge(attachedKnowledge, prompt),
+          prompt: selectedTaskContext === undefined
+            ? formatPromptWithKnowledge(attachedKnowledge, prompt)
+            : formatPromptWithTaskContext(selectedTaskContext, prompt),
         }),
       );
       setPromptBusy(false);
       await drain(session.id, transcriptId);
+      return true;
     } catch (reason) {
       reportError(errorText(reason));
+      return false;
     } finally {
+      promptInFlight.current = false;
       setPromptBusy(false);
     }
   }

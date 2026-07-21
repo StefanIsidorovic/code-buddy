@@ -142,6 +142,51 @@ describe("useAcpRuntime", () => {
     unmount();
   });
 
+  it("sends selected context only on the ACP wire while recording the original user prompt", async () => {
+    invoke.mockImplementation((command) => {
+      if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
+      if (command === "start_acp_registry_session") return Promise.resolve(session);
+      if (command === "send_acp_prompt") return Promise.resolve({ sessionId: "acp1", stopReason: "end_turn" });
+      return Promise.resolve([]);
+    });
+    const { result, transcript, unmount } = setup();
+    await waitFor(() => expect(result.current.canStartSelected).toBe(true));
+    await act(() => result.current.startSelected());
+    let sent = false;
+    await act(async () => { sent = await result.current.sendPrompt("- [task_artifact] Verified evidence"); });
+    expect(sent).toBe(true);
+    expect(invoke).toHaveBeenCalledWith("send_acp_prompt", { sessionId: "acp1",
+      prompt: "Selected task context:\n- [task_artifact] Verified evidence\n\nUser prompt:\nExplain this change" });
+    expect(transcript.record).toHaveBeenCalledWith("t1", [
+      { kind: "user_message", content: "Explain this change" },
+    ]);
+    unmount();
+  });
+
+  it("rejects a second prompt while the first prompt is still in flight", async () => {
+    let resolvePrompt: (value: { sessionId: string; stopReason: string }) => void = () => undefined;
+    const pending = new Promise<{ sessionId: string; stopReason: string }>((resolve) => { resolvePrompt = resolve; });
+    invoke.mockImplementation((command) => {
+      if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
+      if (command === "start_acp_registry_session") return Promise.resolve(session);
+      if (command === "send_acp_prompt") return pending;
+      return Promise.resolve([]);
+    });
+    const { result, unmount } = setup();
+    await waitFor(() => expect(result.current.canStartSelected).toBe(true));
+    await act(() => result.current.startSelected());
+    let first: Promise<boolean>; let second = true;
+    await act(async () => {
+      first = result.current.sendPrompt("context");
+      second = await result.current.sendPrompt("context");
+      resolvePrompt({ sessionId: "acp1", stopReason: "end_turn" });
+      await first;
+    });
+    expect(second).toBe(false);
+    expect(invoke.mock.calls.filter(([command]) => command === "send_acp_prompt")).toHaveLength(1);
+    unmount();
+  });
+
   it("stops every running ACP session before project deletion", async () => {
     const other = { ...session, id: "acp2" };
     invoke.mockImplementation((command) =>
