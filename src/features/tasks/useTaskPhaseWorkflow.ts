@@ -20,6 +20,10 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask }: Options
       .finally(() => { if (request === requestId.current) setLoading(false); }); }, [task?.id]);
   function toggleSource(id: string, selected: boolean) { setSourceIds((current) => selected
     ? current.includes(id) ? current : [...current, id] : current.filter((value) => value !== id)); }
+  function draftLatestAgentResponseEvidence() { const latest = sourceEvents.filter((event) =>
+    event.kind === "agent_message" || event.kind === "agent_thought")
+    .reduce<TranscriptEventInfo | null>((current, event) => !current || event.sequence > current.sequence ? event : current, null);
+    if (latest) { setContent(latest.content); setSourceIds([latest.id]); } }
   async function transition(action: "start" | "complete") { if (!task) return; setLoading(true); setError(null);
     try { const value = await invokeCommand<TaskInfo>("transition_task_phase", { request: { taskId: task.id, action } });
       if (taskIdRef.current === task.id) upsertTask(value); }
@@ -33,6 +37,6 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask }: Options
     catch (reason) { if (taskIdRef.current === task.id) setError(errorText(reason)); }
     finally { if (taskIdRef.current === task.id) setLoading(false); } }
   return { artifacts, kind, content, sourceIds, sourceEvents, error, loading, currentPhase,
-    changeKind: setKind, changeContent: setContent, toggleSource, createArtifact,
+    changeKind: setKind, changeContent: setContent, toggleSource, draftLatestAgentResponseEvidence, createArtifact,
     start: () => transition("start"), complete: () => transition("complete") };
 }

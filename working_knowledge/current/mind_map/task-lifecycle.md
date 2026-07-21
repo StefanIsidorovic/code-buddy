@@ -27,6 +27,7 @@
 - An in-progress phase exposes a deterministic, visible Run instruction. Runtime verifies the exact Task bound to the active transcript and sends one prompt; output does not alter the persisted phase state.
 - Each Run creates an ordered durable receipt only after backend validation confirms the exact current in-progress phase; its ACP outcome finalizes once without advancing the Task.
 - Phase Run History exposes those exact attempts; manual recovery can only mark a stale pending run failed after its ACP session is no longer running.
+- Evidence drafting may copy the latest persisted agent message/thought and its exact event ID into the editable artifact form; no artifact or completion is automatic.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.
 - Task/transcript persistence failures block project-owned ACP sending, while project-less ACP remains a compatibility smoke path.
 

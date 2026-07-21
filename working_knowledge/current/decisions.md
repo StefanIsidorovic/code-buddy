@@ -19,9 +19,10 @@
 - Controlled phase execution: a Run action sends one visible canonical phase instruction only for the exact active Task; ACP output does not create evidence, complete the phase, or advance the state machine automatically.
 - Phase-run audit boundary: persist an ordered `pending` receipt only for the current in-progress phase before ACP dispatch, then finalize once as `sent`/`failed`; interrupted uncertainty remains `pending`.
 - Phase-run recovery: manual recovery may only mark pending as failed with a bounded reason after the associated ACP session stops; finalized outcomes cannot be rewritten.
+- Evidence draft boundary: the explicit draft action copies only the highest-sequence persisted agent message/thought and selects its real event ID; persistence and phase completion remain separate user actions.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
 - Multi-session Task continuation: defer until the one-session Task workflow is validated.
 - Automatic reconciliation of pending receipts: defer until external ACP delivery evidence exists; never infer `sent` from age or session shutdown alone.
-- Phase evidence capture from ACP output: history is now visible, but turning selected persisted output into an artifact remains explicit future work.
+- Structured evidence curation: raw agent output can now seed a draft, but automated summarization/validation of evidence remains deferred.

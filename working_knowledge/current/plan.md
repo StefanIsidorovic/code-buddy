@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.11. Draft phase evidence from persisted ACP output
+- objective: reduce manual evidence copying while preserving explicit review, provenance, persistence, and completion gates.
+- status: complete
+- files: src/features/tasks/useTaskPhaseWorkflow.ts; src/features/tasks/TaskPhasePanel.tsx; src/App.tsx; related tests and current knowledge.
+- affected units: persisted transcript provenance selection; editable artifact draft; Task panel presentation; App composition.
+- expected changes: explicitly draft evidence content from the highest-sequence persisted agent message/thought and select only that event ID as provenance.
+- acceptance criteria: user/notice events are excluded; unordered input still selects the greatest sequence; draft remains editable and unpersisted; Add evidence and Complete remain separate explicit backend gates.
+- required tests: latest persisted selection and draft content; visible/forwarded action; unavailable-response lock; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 replaced array-order selection with canonical event sequence and upgraded the action from provenance-only to an editable evidence draft, and cycle 2 verified event-kind filtering and unchanged persistence/completion gates.
+- commit: this commit
+
 ### 22.10. Present phase-run history and recover stale pending runs
 - objective: make controlled phase-run attempts inspectable and provide a conservative recovery path for genuinely stale pending runs.
 - status: complete

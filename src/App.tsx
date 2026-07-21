@@ -373,6 +373,7 @@ function App() {
             error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
             agentRunning={acpPromptBusy} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
+            onDraftLatestAgentResponseEvidence={taskPhase.draftLatestAgentResponseEvidence}
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)

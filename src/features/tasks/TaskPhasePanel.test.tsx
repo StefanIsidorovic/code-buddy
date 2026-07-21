@@ -19,7 +19,7 @@ function props(overrides = {}) { return { task, artifacts: [], currentPhase: pha
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
   canRunAgent: true, agentRunning: false,
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
-  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), ...overrides }; }
+  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), onDraftLatestAgentResponseEvidence: vi.fn(), ...overrides }; }
 
 describe("TaskPhasePanel", () => {
   it("renders phase state and forwards evidence form changes", () => {
@@ -55,5 +55,10 @@ describe("TaskPhasePanel", () => {
     render(<TaskPhasePanel {...props({ canRunAgent: false })} />);
     expect(screen.getByRole("button", { name: "Run analysis phase" })).toBeDisabled();
     expect(screen.getByText("Start an ACP session to run this phase.")).toBeInTheDocument();
+  });
+  it("offers explicit latest persisted agent-response provenance selection", () => {
+    const value = props(); render(<TaskPhasePanel {...value} />);
+    fireEvent.click(screen.getByRole("button", { name: "Draft evidence from latest agent response" }));
+    expect(value.onDraftLatestAgentResponseEvidence).toHaveBeenCalledOnce();
   });
 });

@@ -51,4 +51,13 @@ describe("useTaskPhaseWorkflow", () => {
     await act(async () => { resolveTransition(task); await transition; });
     expect(upsertTask).not.toHaveBeenCalled();
   });
+  it("selects only the latest persisted agent response as provenance", async () => {
+    invoke.mockResolvedValue([]); const latest = { ...source, id: "e3", sequence: 2, kind: "agent_thought", content: "Final review" };
+    const user = { ...source, id: "e2", sequence: 1, kind: "user_message" };
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [latest, user, source], upsertTask: vi.fn() }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.draftLatestAgentResponseEvidence());
+    expect(result.current.sourceIds).toEqual(["e3"]);
+    expect(result.current.content).toBe("Final review");
+  });
 });

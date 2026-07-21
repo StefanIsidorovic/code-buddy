@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 6cde9d9 step 22.9: persist phase run receipts
-- worktree: plan item 22.10 implementation and knowledge updates ready for commit.
+- head: 5a05202 step 22.10: add phase run history
+- worktree: plan item 22.11 implementation and knowledge updates ready for commit.
 - relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.10 complete
+- active plan step: 22.11 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -95,3 +95,4 @@
 - 2026-07-22: 96 Rust tests, 195 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.8; one visible phase-scoped instruction can run against the exact active Task without advancing its evidence gates.
 - 2026-07-22: 97 Rust tests, 195 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.9; every controlled phase run now has a durable ordered intent/outcome receipt.
 - 2026-07-22: 97 Rust tests, 199 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.10; phase-run history and active-session-guarded pending recovery are user-visible.
+- 2026-07-22: 97 Rust tests, 201 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.11; the latest persisted ACP response can become an editable evidence draft with exact event provenance.

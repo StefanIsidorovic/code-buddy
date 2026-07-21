@@ -788,3 +788,9 @@ YYYY-MM-DD
 - Task workspace prikazuje ordered phase-run receipt-e sa exact instrukcijom, fazom, vremenom i ACP ishodom; history se osvezava posle svakog pokusaja.
 - Samo pending run moze rucno postati failed uz razlog i tek kada ACP session vise nije running; finalized ishod je nepromenljiv.
 - Frontend audit, 199 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 559 linija.
+
+### 2026-07-22 - Persisted ACP Evidence Draft
+
+- Current phase moze eksplicitno da popuni editabilni evidence draft iz latest persisted agent message/thought event-a i izabere samo njegov realni ID kao provenance.
+- Izbor koristi najveci transcript sequence, ne array redosled; Add evidence i Complete phase ostaju odvojeni backend gate-ovi.
+- Frontend audit, 201 frontend test, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 560 linija.

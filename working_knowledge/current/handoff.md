@@ -1,6 +1,7 @@
 # Handoff
 
 ## Current State
+- The current phase can draft editable evidence from the latest persisted agent response with exact transcript-event provenance; saving and completion remain explicit.
 - Phase Run History now exposes ordered exact instructions/outcomes and can conservatively resolve stale pending runs only after their ACP session stops.
 - Controlled phase runs now persist an ordered `pending` receipt before ACP and finalize it once as `sent` or `failed`, retaining exact instruction, phase, session and outcome.
 - An in-progress Task phase now exposes its exact canonical agent instruction and can send one controlled ACP prompt after exact Task/transcript ownership validation.
@@ -21,7 +22,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Add explicit evidence capture from selected persisted ACP output into the current phase artifact, without automatic completion.
+- Add phase-aware evidence validation/curation and a guided review checkpoint before considering multi-phase automation.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run
