@@ -21,6 +21,7 @@
 - Phase-run recovery: manual recovery may only mark pending as failed with a bounded reason after the associated ACP session stops; finalized outcomes cannot be rewritten.
 - Evidence draft boundary: the explicit draft action copies only the highest-sequence persisted agent message/thought and selects its real event ID; persistence and phase completion remain separate user actions.
 - Review checkpoint boundary: persisted artifacts remain the backend completion gate; the phase-aware acknowledgment is a transient UI safeguard reset by Task, evidence, or transition changes and must not be represented as a durable audit approval.
+- Runtime layout boundary: the runtime lane is a dynamic vertical flex stack because ACP and PTY have different optional child counts; Task Phase remains primary while audit histories live under a native collapsed Task activity disclosure.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

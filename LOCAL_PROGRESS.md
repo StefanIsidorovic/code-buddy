@@ -800,3 +800,9 @@ YYYY-MM-DD
 - Current phase prikazuje tri transparentna review kriterijuma i Complete ostaje zakljucan dok korisnik ne potvrdi pregled persisted artifact-a.
 - Acknowledgment je namerno transient UI safeguard i resetuje se pri Task promeni, novom artifact-u ili transition-u; backend artifact gate ostaje autoritativan.
 - Frontend audit, 203 frontend testa, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 561 liniju.
+
+### 2026-07-22 - Runtime Task Workflow UI Repair
+
+- Screenshot-confirmed overlay je izazvao zastareli runtime grid sa dva reda; runtime lane je sada dinamicki vertikalni flex layout za ACP i PTY.
+- Task Phase ostaje primaran, receipt istorije su pod native collapsed Task activity disclosure-om, a ACP ID/akcije se lome na 760px bez horizontalnog clipping-a.
+- Frontend audit, 204 frontend testa, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 563 linije.

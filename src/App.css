@@ -246,8 +246,8 @@ textarea:focus {
   min-width: 0;
   min-height: 0;
   margin: 18px 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   overflow: hidden;
 }
@@ -438,6 +438,7 @@ dd {
 
 .runtime-lane .output-panel {
   min-height: 0;
+  flex: 1 1 24rem;
 }
 
 .acp-panel {
@@ -4025,6 +4026,7 @@ a:hover {
 }
 
 .acp-session-status {
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -4032,6 +4034,7 @@ a:hover {
   color: var(--color-success-strong);
   font-size: var(--type-ui);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .acp-session-status span {
@@ -4199,7 +4202,7 @@ a:hover {
   justify-self: start;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 760px) {
   .acp-session-toolbar,
   .acp-composer-actions {
     align-items: stretch;
@@ -4605,6 +4608,15 @@ summary:focus-visible {
   background: var(--surface-raised);
 }
 
+.task-workflow-region { min-width: 0; display: grid; gap: 0.75rem; }
+.task-workflow-history { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.8rem;
+  background: var(--surface-raised); }
+.task-workflow-history > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.85rem 1rem; cursor: pointer; font-weight: 650; }
+.task-workflow-history > summary small { color: var(--muted); font-weight: 500; overflow-wrap: anywhere; }
+.task-workflow-history > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;
+  padding: 0 0.75rem 0.75rem; }
+
 .task-dispatch-panel {
   display: grid;
   gap: 0.8rem;
@@ -4651,6 +4663,8 @@ summary:focus-visible {
 .task-artifact-list ul { display: grid; gap: 0.45rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
 
 @media (max-width: 760px) {
+  .task-workflow-history > summary { align-items: flex-start; flex-direction: column; }
+  .task-workflow-history > div { grid-template-columns: 1fr; }
   .task-phase-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .task-dispatch-list > li > div:first-child { flex-direction: column; }
   .task-dispatch-resolution > div { flex-direction: column-reverse; }

@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 1e3df7e step 22.11: draft phase evidence
-- worktree: plan item 22.12 implementation and knowledge updates ready for commit.
+- head: 9abe553 step 22.12: review phase evidence
+- worktree: plan item 22.13 UI layout repair and knowledge updates ready for commit.
 - relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.12 complete
+- active plan step: 22.13 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -97,3 +97,4 @@
 - 2026-07-22: 97 Rust tests, 199 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.10; phase-run history and active-session-guarded pending recovery are user-visible.
 - 2026-07-22: 97 Rust tests, 201 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.11; the latest persisted ACP response can become an editable evidence draft with exact event provenance.
 - 2026-07-22: 97 Rust tests, 203 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.12; phase completion now requires an explicit transient review acknowledgment against visible phase-specific criteria.
+- 2026-07-22: 97 Rust tests, 204 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.13; the screenshot-confirmed Task Phase collapse is fixed with a mode-safe flex layout and compact activity disclosure.

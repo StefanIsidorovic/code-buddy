@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- The screenshot-confirmed runtime overlap is fixed: dynamic controls/workflow/errors size naturally, Output grows, and phase/context histories are grouped under collapsed Task activity.
+- ACP session status/actions switch to a narrow layout at 760px and long session IDs wrap instead of clipping actions.
 - Phase completion UI now shows deterministic phase-specific review criteria and requires an explicit acknowledgment that resets when Task/evidence/phase state changes.
 - The current phase can draft editable evidence from the latest persisted agent response with exact transcript-event provenance; saving and completion remain explicit.
 - Phase Run History now exposes ordered exact instructions/outcomes and can conservatively resolve stale pending runs only after their ACP session stops.

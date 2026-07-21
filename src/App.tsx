@@ -30,6 +30,7 @@ import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel"
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
 import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
+import { TaskWorkflowRegion } from "./features/tasks/TaskWorkflowRegion";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
@@ -367,7 +368,7 @@ function App() {
             onStop={() => void stopAcpSession(false)}
             onToggleExpanded={toggleAcpControlsExpanded}
           />
-          {activeTask ? <TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
+          {activeTask ? <TaskWorkflowRegion phase={<TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
             currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents}
             selectedSourceIds={taskPhase.sourceIds} kind={taskPhase.kind} content={taskPhase.content}
             error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
@@ -378,20 +379,21 @@ function App() {
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)
-              .then(() => void taskPhaseRuns.refresh())} /> : null}
-          {activeTask ? <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts} loading={taskPhaseRuns.loading}
+              .then(() => void taskPhaseRuns.refresh())} />}
+            phaseRunHistory={<TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts} loading={taskPhaseRuns.loading}
             error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}
             onOpenResolution={taskPhaseRuns.openResolution} onChangeResolutionReason={taskPhaseRuns.changeResolutionReason}
-            onCancelResolution={taskPhaseRuns.cancelResolution} onResolve={() => void taskPhaseRuns.resolve()} /> : null}
-          {activeTask ? <TaskDispatchHistoryPanel receipts={taskDispatch.receipts}
+            onCancelResolution={taskPhaseRuns.cancelResolution} onResolve={() => void taskPhaseRuns.resolve()} />}
+            contextDispatchHistory={<TaskDispatchHistoryPanel receipts={taskDispatch.receipts}
             loading={taskDispatch.loading} error={taskDispatch.error}
             resolutionReceiptId={taskDispatch.resolutionReceiptId}
             resolutionReason={taskDispatch.resolutionReason}
             onRefresh={() => void taskDispatch.refresh()} onOpenResolution={taskDispatch.openResolution}
             onChangeResolutionReason={taskDispatch.changeResolutionReason}
             onCancelResolution={taskDispatch.cancelResolution}
-            onResolve={() => void taskDispatch.resolve()} /> : null}</>
+            onResolve={() => void taskDispatch.resolve()} />}
+            phaseRunCount={taskPhaseRuns.receipts.length} contextDispatchCount={taskDispatch.receipts.length} /> : null}</>
         ) : null}
 
         {error ? (

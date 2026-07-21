@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.13. Repair the runtime workflow layout and compact activity UI
+- objective: fix the screenshot-confirmed Task Phase collapse/overlay and reduce empty receipt-history space without hiding access to audit data.
+- status: complete
+- files: src/App.css; src/App.tsx; src/features/tasks/TaskWorkflowRegion.tsx; related test and current knowledge.
+- affected units: dynamic ACP/PTY runtime layout; Task workflow hierarchy; native activity disclosure; narrow-window ACP toolbar.
+- expected changes: replace the stale two-row runtime grid with a resilient vertical flex layout; keep Task Phase visible; group histories under collapsed Task activity; wrap long session IDs/actions at 760px.
+- acceptance criteria: Task actions cannot collapse into a zero-height row; PTY and ACP child counts both work; Output consumes remaining space; histories remain keyboard-accessible; narrow toolbars do not force horizontal clipping.
+- required tests: semantic workflow region/disclosure/counts; App/Task regressions; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 identified the obsolete two-row grid as the root cause and grouped Task activity, and cycle 2 replaced a mode-fragile three-row fix with dynamic flex layout and raised the ACP responsive breakpoint to match the reported viewport.
+- commit: this commit
+
 ### 22.12. Add a phase-aware evidence review checkpoint
 - objective: prevent accidental UI completion immediately after artifact creation by requiring explicit review against transparent phase-specific criteria.
 - status: complete
