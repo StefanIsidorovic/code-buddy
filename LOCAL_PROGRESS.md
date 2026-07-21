@@ -698,3 +698,9 @@ YYYY-MM-DD
 - Transcript list/current/saved replay/rename/event persistence i Task indeks izdvojeni su u `useTranscriptWorkspace`.
 - ACP koristi semanticke session/Task accessor akcije; project i replay request identity sprecavaju stale overwrite.
 - `App.tsx` je pao sa 1.218 na 963 linije; audit, typecheck, 157 testova i build prolaze.
+
+### 2026-07-21 - ACP runtime hook
+
+- ACP registry, session start/stop, coding model, prompt/Task/transcript koordinacija, event polling i delete cleanup izdvojeni su u `useAcpRuntime`.
+- App sada samo spaja ACP runtime sa izabranim workspace-om, Knowledge prilozima i transcript API-jem.
+- `App.tsx` je pao sa 963 na 769 linija; audit, typecheck, 160 testova i build prolaze.

@@ -1,0 +1,164 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  AcpRegistryCandidate,
+  AcpSessionInfo,
+  TranscriptSessionInfo,
+} from "../../types/domain";
+
+const invoke = vi.hoisted(() => vi.fn());
+vi.mock("@tauri-apps/api/core", () => ({ invoke }));
+import { useAcpRuntime } from "./useAcpRuntime";
+
+const candidate: AcpRegistryCandidate = {
+  id: "codex-acp",
+  name: "Codex",
+  version: "1.0.0",
+  description: "Codex ACP agent",
+  distribution: "binary",
+  status: "ready",
+  command: ["codex", "acp"],
+  runnerPath: "/usr/bin/codex",
+  installHint: "",
+  sourceUrl: "https://example.test/codex",
+};
+const session: AcpSessionInfo = {
+  id: "acp1",
+  state: "running",
+  pid: 42,
+  cwd: "/repo",
+  protocolVersion: 1,
+  agentSessionId: "agent1",
+  agentName: "Codex",
+  agentVersion: "1.0.0",
+  exitCode: null,
+  codingModel: {
+    currentValue: "model-a",
+    options: [
+      { value: "model-a", name: "Model A", description: null },
+      { value: "model-b", name: "Model B", description: null },
+    ],
+  },
+};
+const transcriptSession: TranscriptSessionInfo = {
+  id: "t1",
+  projectId: "p1",
+  runtime: "acp",
+  source: "Codex",
+  title: "Codex ACP",
+  startedAt: 1,
+  updatedAt: 1,
+  eventCount: 0,
+};
+
+function setup() {
+  const transcript = {
+    create: vi.fn().mockResolvedValue(transcriptSession),
+    attachKnowledge: vi.fn().mockResolvedValue(undefined),
+    showLive: vi.fn(),
+    getActiveId: vi.fn(() => "t1"),
+    getTask: vi.fn(() => null),
+    upsertTask: vi.fn(),
+    record: vi.fn().mockResolvedValue(undefined),
+  };
+  const runAction = vi.fn(async (action: () => Promise<void>) => action());
+  const reportError = vi.fn();
+  return {
+    transcript,
+    runAction,
+    reportError,
+    ...renderHook(() =>
+      useAcpRuntime({
+        projectId: null,
+        cwd: "/repo",
+        prompt: "Explain this change",
+        onPromptChange: vi.fn(),
+        attachedKnowledge: [],
+        transcript,
+        runAction,
+        reportError,
+      }),
+    ),
+  };
+}
+
+describe("useAcpRuntime", () => {
+  beforeEach(() => invoke.mockReset());
+
+  it("loads the registry, selects its first candidate, and starts a transcript-backed session", async () => {
+    invoke.mockImplementation((command) =>
+      command === "list_acp_registry_candidates"
+        ? Promise.resolve([candidate])
+        : command === "start_acp_registry_session"
+          ? Promise.resolve(session)
+          : Promise.resolve([]),
+    );
+    const { result, transcript, unmount } = setup();
+    await waitFor(() => expect(result.current.selectedCandidateId).toBe(candidate.id));
+    await act(() => result.current.startSelected());
+    expect(invoke).toHaveBeenCalledWith("start_acp_registry_session", {
+      request: { candidateId: candidate.id, cwd: "/repo" },
+    });
+    expect(transcript.create).toHaveBeenCalledWith("acp", "Codex", "Codex ACP");
+    expect(transcript.attachKnowledge).toHaveBeenCalledWith("t1");
+    expect(result.current.session?.id).toBe("acp1");
+    unmount();
+  });
+
+  it("changes the active coding model and sends a recorded prompt", async () => {
+    invoke.mockImplementation((command) => {
+      if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
+      if (command === "start_acp_registry_session") return Promise.resolve(session);
+      if (command === "set_acp_model") {
+        return Promise.resolve({
+          ...session,
+          codingModel: {
+            currentValue: "model-b",
+            options: [
+              { value: "model-a", name: "Model A", description: null },
+              { value: "model-b", name: "Model B", description: null },
+            ],
+          },
+        });
+      }
+      if (command === "send_acp_prompt") return Promise.resolve({ sessionId: "acp1", stopReason: "end_turn" });
+      return Promise.resolve([]);
+    });
+    const { result, transcript, unmount } = setup();
+    await waitFor(() => expect(result.current.canStartSelected).toBe(true));
+    await act(() => result.current.startSelected());
+    await act(() => result.current.changeModel("model-b"));
+    await act(() => result.current.sendPrompt());
+    expect(invoke).toHaveBeenCalledWith("set_acp_model", {
+      request: { sessionId: "acp1", modelId: "model-b" },
+    });
+    expect(invoke).toHaveBeenCalledWith("send_acp_prompt", {
+      sessionId: "acp1",
+      prompt: "Explain this change",
+    });
+    expect(transcript.record).toHaveBeenCalledWith("t1", [
+      { kind: "user_message", content: "Explain this change" },
+    ]);
+    unmount();
+  });
+
+  it("stops every running ACP session before project deletion", async () => {
+    const other = { ...session, id: "acp2" };
+    invoke.mockImplementation((command) =>
+      command === "list_acp_registry_candidates"
+        ? Promise.resolve([candidate])
+        : command === "list_acp_sessions"
+          ? Promise.resolve([session, other, { ...session, id: "done", state: "exited" }])
+          : Promise.resolve({ ...session, state: "exited" }),
+    );
+    const { result } = setup();
+    await waitFor(() => expect(result.current.selectedCandidateId).toBe(candidate.id));
+    let stopped = 0;
+    await act(async () => {
+      stopped = await result.current.stopAllForDelete();
+    });
+    expect(stopped).toBe(2);
+    expect(invoke).toHaveBeenCalledWith("stop_acp_session", { sessionId: "acp1", force: false });
+    expect(invoke).toHaveBeenCalledWith("stop_acp_session", { sessionId: "acp2", force: false });
+  });
+});

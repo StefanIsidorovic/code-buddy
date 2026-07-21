@@ -12,6 +12,7 @@ import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import { usePtyTerminal, type TerminalSize } from "./features/runtime/usePtyTerminal";
+import { useAcpRuntime } from "./features/runtime/useAcpRuntime";
 import {
   WorkspaceContextSelector,
   WorkspaceContextSummary,
@@ -36,14 +37,9 @@ import {
   coalesceAcpEvents,
   coalesceTranscriptEvents,
   errorText,
-  formatPromptWithKnowledge,
 } from "./lib/presentation";
 import { invokeCommand as invoke } from "./lib/tauriGateway";
 import type {
-  AcpPromptResult,
-  AcpRegistryCandidate,
-  AcpSessionEvent,
-  AcpSessionInfo,
   AgentDoctorReport,
   ModelCatalogInfo,
   ModelTier,
@@ -52,7 +48,6 @@ import type {
   ProjectRepositoryInfo,
   RuntimeMode,
   SessionInfo,
-  TaskInfo,
 } from "./types/domain";
 import "./App.css";
 
@@ -76,18 +71,8 @@ function App() {
   );
   const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
-  const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
-  const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
-  const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
-  const [selectedAcpCandidateId, setSelectedAcpCandidateId] = useState<string | null>(null);
-  const [acpSession, setAcpSession] = useState<AcpSessionInfo | null>(null);
-  const [acpSessionSource, setAcpSessionSource] = useState<string | null>(null);
-  const [acpEvents, setAcpEvents] = useState<AcpSessionEvent[]>([]);
   const [acpPrompt, setAcpPrompt] = useState("Hello from AIadne");
-  const [acpPromptResult, setAcpPromptResult] = useState<AcpPromptResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [acpPromptBusy, setAcpPromptBusy] = useState(false);
-  const [acpControlsExpanded, setAcpControlsExpanded] = useState(true);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
   const pushToast = useNotificationStore((state) => state.push);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
@@ -120,14 +105,8 @@ function App() {
     });
 
   const canUseSession = session?.state === "running";
-  const canUseAcpSession = acpSession?.state === "running";
   const codexReport = doctorReports.find((report) => report.adapter.id === "codex") ?? null;
   const canStartCodex = codexReport?.status === "installed";
-  const selectedAcpCandidate = useMemo(
-    () =>
-      acpRegistryCandidates.find((candidate) => candidate.id === selectedAcpCandidateId) ?? null,
-    [acpRegistryCandidates, selectedAcpCandidateId],
-  );
   const projectInitialization = initializationEvidence.initialization;
   const projectInitializationFacts = initializationEvidence.facts;
   const projectInitializationMarkdownFindings = initializationEvidence.markdown;
@@ -178,6 +157,23 @@ function App() {
       initialization: projectInitialization, summary: projectInitializationSummary,
       prompt: acpPrompt, repositoryId: selectedRepository?.id ?? null,
     });
+  const { candidates: acpRegistryCandidates, registryError: acpRegistryError,
+    registryLoading: acpRegistryLoading, selectedCandidateId: selectedAcpCandidateId,
+    session: acpSession, events: acpEvents, promptResult: acpPromptResult,
+    promptBusy: acpPromptBusy, expanded: acpControlsExpanded, usable: canUseAcpSession,
+    canStartSelected: canStartSelectedAcpCandidate, statusLabel: acpStatusLabel,
+    refreshRegistry: refreshAcpRegistryCandidates, startSelected: startSelectedAcpSession,
+    changeModel: changeAcpCodingModel, sendPrompt: sendAcpPrompt, drain: drainAcpEvents,
+    stop: stopAcpSession, stopAllForDelete: stopRunningAcpSessionsForProjectDelete,
+    selectCandidate: setSelectedAcpCandidateId, changePrompt: setAcpPromptFromRuntime,
+    toggleExpanded: toggleAcpControlsExpanded } = useAcpRuntime({
+      projectId: selectedProjectId, cwd: selectedRepository?.path ?? selectedProject?.path,
+      prompt: acpPrompt, onPromptChange: setAcpPrompt, attachedKnowledge: attachedKnowledgeItems,
+      transcript: { create: createTranscriptSession, attachKnowledge: attachSelectedKnowledgeToTranscript,
+        showLive: showLiveAcpEvents, getActiveId: getActiveSessionId, getTask: getTranscriptTask,
+        upsertTask: upsertTranscriptTask, record: recordTranscriptEvents },
+      runAction, reportError: setError,
+    });
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -203,15 +199,6 @@ function App() {
     [acpEvents, openedTranscriptEvents, openedTranscriptSession],
   );
   const showAcpWaiting = acpPromptBusy && !openedTranscriptSession;
-  const canStartSelectedAcpCandidate =
-    !!selectedAcpCandidate &&
-    isLaunchableAcpCandidate(selectedAcpCandidate) &&
-    !canUseAcpSession;
-  const acpStatusLabel = acpSession
-    ? `${acpSessionSource ?? acpSession.agentName ?? "acp"} · ${acpSession.state} · ${
-        acpSession.agentSessionId ?? "no agent session"
-      }`
-    : "not started";
   const activeRuntimeCwd = runtimeMode === "acp" ? acpSession?.cwd : session?.cwd;
   const statusLabel = useMemo(() => {
     if (!session) {
@@ -233,7 +220,6 @@ function App() {
 
   useEffect(() => {
     void refreshAgentDoctor();
-    void refreshAcpRegistryCandidates();
     void refreshModelCatalog();
   }, []);
 
@@ -270,18 +256,6 @@ function App() {
 
     return () => window.clearInterval(timer);
   }, [canUseSession, session?.id]);
-
-  useEffect(() => {
-    if (!canUseAcpSession || !acpSession) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      void drainAcpEvents(acpSession.id);
-    }, 400);
-
-    return () => window.clearInterval(timer);
-  }, [acpSession?.id, canUseAcpSession, transcriptSession?.id]);
 
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
@@ -336,27 +310,6 @@ function App() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function stopRunningAcpSessionsForProjectDelete() {
-    const acpSessions = (await invoke<AcpSessionInfo[]>("list_acp_sessions")) ?? [];
-    const runningAcpSessions = acpSessions.filter((candidate) => candidate.state === "running");
-    for (const runningSession of runningAcpSessions) {
-      await invoke<AcpSessionInfo>("stop_acp_session", {
-        sessionId: runningSession.id,
-        force: false,
-      });
-    }
-
-    if (runningAcpSessions.length > 0) {
-      setAcpSession(null);
-      setAcpSessionSource(null);
-      setAcpEvents([]);
-      setAcpPromptBusy(false);
-      setAcpPromptResult(null);
-    }
-
-    return runningAcpSessions.length;
   }
 
   async function startSession(kind: "fake" | "codex") {
@@ -478,149 +431,6 @@ function App() {
     const nextProfile =
       tierProfiles.find((profile) => profile.status === "selectable") ?? tierProfiles[0];
     setSynthesisModelProfileId(nextProfile?.id ?? "");
-  }
-
-  async function refreshAcpRegistryCandidates() {
-    setAcpRegistryLoading(true);
-    setAcpRegistryError(null);
-    try {
-      const candidates = await invoke<AcpRegistryCandidate[]>("list_acp_registry_candidates");
-      setAcpRegistryCandidates(candidates);
-      setSelectedAcpCandidateId((current) => {
-        if (current && candidates.some((candidate) => candidate.id === current)) {
-          return current;
-        }
-
-        return candidates[0]?.id ?? null;
-      });
-    } catch (err) {
-      setAcpRegistryError(errorText(err));
-    } finally {
-      setAcpRegistryLoading(false);
-    }
-  }
-
-  async function startSelectedAcpSession() {
-    if (!selectedAcpCandidate || !isLaunchableAcpCandidate(selectedAcpCandidate)) {
-      setError(selectedAcpCandidate?.installHint ?? "Select an ACP candidate first.");
-      return;
-    }
-
-    await runAction(async () => {
-      const nextSession = await invoke<AcpSessionInfo>("start_acp_registry_session", {
-        request: {
-          candidateId: selectedAcpCandidate.id,
-          ...selectedProjectCwd(selectedProject, selectedRepository),
-        },
-      });
-      setAcpSession(nextSession);
-      setAcpSessionSource(selectedAcpCandidate.name);
-      setAcpEvents([]);
-      setAcpPromptResult(null);
-      const transcript = await createTranscriptSession(
-        "acp",
-        selectedAcpCandidate.name,
-        `${selectedAcpCandidate.name} ACP`,
-      );
-      if (transcript) {
-        await attachSelectedKnowledgeToTranscript(transcript.id);
-      }
-      await drainAcpEvents(nextSession.id, transcript?.id ?? null);
-    });
-  }
-
-  async function changeAcpCodingModel(modelId: string) {
-    if (!acpSession || !acpSession.codingModel || modelId === acpSession.codingModel.currentValue) {
-      return;
-    }
-
-    await runAction(async () => {
-      const updated = await invoke<AcpSessionInfo>("set_acp_model", {
-        request: {
-          sessionId: acpSession.id,
-          modelId,
-        },
-      });
-      setAcpSession(updated);
-    });
-  }
-
-  async function sendAcpPrompt() {
-    if (!canUseAcpSession || !acpSession) {
-      return;
-    }
-
-    setAcpPromptBusy(true);
-    setError(null);
-    try {
-      showLiveAcpEvents();
-      const activeTranscriptId = getActiveSessionId();
-      if (selectedProject && !activeTranscriptId) {
-        throw new Error("A project Task requires an active transcript session.");
-      }
-      if (
-        selectedProject &&
-        activeTranscriptId &&
-        !getTranscriptTask(activeTranscriptId)
-      ) {
-        const task = await invoke<TaskInfo>("create_task", {
-          request: {
-            projectId: selectedProject.id,
-            transcriptSessionId: activeTranscriptId,
-            originalPrompt: acpPrompt,
-          },
-        });
-        upsertTranscriptTask(task);
-      }
-      const userEvent: AcpSessionEvent = {
-        kind: "user_message",
-        content: acpPrompt,
-      };
-      setAcpEvents((current) => [...current, userEvent]);
-      await recordTranscriptEvents(activeTranscriptId, [userEvent]);
-
-      const result = await invoke<AcpPromptResult>("send_acp_prompt", {
-        sessionId: acpSession.id,
-        prompt: formatPromptWithKnowledge(attachedKnowledgeItems, acpPrompt),
-      });
-      setAcpPromptResult(result);
-      setAcpPromptBusy(false);
-      await drainAcpEvents(acpSession.id, activeTranscriptId);
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setAcpPromptBusy(false);
-    }
-  }
-
-  async function drainAcpEvents(
-    sessionId = acpSession?.id,
-    transcriptId = getActiveSessionId(),
-  ) {
-    if (!sessionId) {
-      return;
-    }
-
-    const events = await invoke<AcpSessionEvent[]>("drain_acp_events", { sessionId });
-    if (events.length > 0) {
-      setAcpEvents((current) => [...current, ...events]);
-      await recordTranscriptEvents(transcriptId, events);
-    }
-  }
-
-  async function stopAcpSession(force: boolean) {
-    if (!acpSession) {
-      return;
-    }
-
-    await runAction(async () => {
-      const nextSession = await invoke<AcpSessionInfo>("stop_acp_session", {
-        sessionId: acpSession.id,
-        force,
-      });
-      setAcpSession(nextSession);
-      await drainAcpEvents(acpSession.id);
-    });
   }
 
   async function resizeSessionTo(sessionId: string, size: TerminalSize) {
@@ -776,13 +586,13 @@ function App() {
             showWaiting={showAcpWaiting}
             statusLabel={acpStatusLabel}
             onChangeModel={(modelId) => void changeAcpCodingModel(modelId)}
-            onChangePrompt={setAcpPrompt}
+            onChangePrompt={setAcpPromptFromRuntime}
             onDrain={() => void drainAcpEvents()}
             onPreviewContext={() => void previewTaskContext()}
             onSendPrompt={() => void sendAcpPrompt()}
             onStartSelected={() => void startSelectedAcpSession()}
             onStop={() => void stopAcpSession(false)}
-            onToggleExpanded={() => setAcpControlsExpanded((expanded) => !expanded)}
+            onToggleExpanded={toggleAcpControlsExpanded}
           />
         ) : null}
 
@@ -917,10 +727,6 @@ function App() {
       <NotificationViewport />
     </main>
   );
-}
-
-function isLaunchableAcpCandidate(candidate: AcpRegistryCandidate) {
-  return candidate.status === "ready" || candidate.status === "installable";
 }
 
 function selectedProjectCwd(

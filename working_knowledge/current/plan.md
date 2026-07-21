@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.6. Extract ACP runtime orchestration
+- objective: move ACP registry, session, model, prompt, polling and project-delete cleanup out of App behind a semantic runtime hook.
+- status: complete
+- files: src/App.tsx; src/features/runtime/useAcpRuntime.ts; src/features/runtime/useAcpRuntime.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: registry discovery/selection; ACP start/stop/drain; coding model changes; prompt/Task/transcript coordination; active-session polling; deletion cleanup.
+- expected changes: add a gateway-backed ACP runtime hook and leave App responsible only for composing runtime, transcript, Knowledge and project boundaries.
+- acceptance criteria: exact command names/payloads, transcript creation/attachment, original Task prompt, enriched agent prompt, event persistence, polling and graceful deletion shutdown remain unchanged.
+- required tests: registry/start/transcript; model/prompt/event recording; project-delete shutdown; existing 157 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 expanded overly compressed implementation formatting and rechecked the 250-line hard limit, and cycle 2 found no remaining ownership, payload, transcript, Task, polling, model, shutdown, gateway, regression, or scope issue.
+- commit: this commit
+
 ### 21.5. Extract transcript and Task-index orchestration
 - objective: move transcript session/list/replay/rename/event persistence and project Task indexing out of App while exposing a semantic ACP integration API.
 - status: complete

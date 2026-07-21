@@ -42,7 +42,7 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is now 963 lines; ACP/PTy process orchestration and root composition cleanup are the remaining responsibilities.
+- `src/App.tsx` is now 769 lines; PTY process, Agent Doctor/model catalog, project-delete coordination and root composition cleanup remain.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
@@ -73,6 +73,7 @@
 - `src/features/initialization/useProjectInitializationWorkflow.ts` owns start/details/interview modal state, Facts/Markdown actions, Interview validation/save and Summary generation/approval while updating evidence through semantic actions.
 - `src/features/knowledge/useKnowledgeWorkspace.ts` owns stale-safe Knowledge Card loading, form/create, transcript attachments and approved-Summary task-context preview.
 - `src/features/transcripts/useTranscriptWorkspace.ts` owns stale-safe transcript/Task loading, create/replay/rename/live state, event persistence and synchronous semantic session/Task access for ACP.
+- `src/features/runtime/useAcpRuntime.ts` owns ACP registry selection, session/model/prompt lifecycle, transcript/Task event coordination, polling and graceful shutdown before project deletion.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints
