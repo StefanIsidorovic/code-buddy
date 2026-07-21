@@ -25,6 +25,7 @@ Radno pravilo:
 - Project Delete potvrda je izdvojena; App i dalje poseduje busy close guard, ACP stop-before-delete, persistence, selection cleanup, greske i toastove.
 - Task Context Preview modal je izdvojen; App i dalje poseduje selector invoke, prompt, visibility i loading/error/result lifecycle.
 - New Knowledge Card modal je izdvojen; App i dalje poseduje scope, create/persistence, list update, auto-attach, transcript linkage, reset i loading/error lifecycle.
+- Knowledge Cards sidebar je izdvojen; App i dalje poseduje refresh, attachment state/persistence, transcript linkage, dialog/error policy i mutacije.
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 

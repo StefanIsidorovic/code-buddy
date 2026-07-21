@@ -21,6 +21,7 @@ import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
 import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
 import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
+import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -2044,66 +2045,10 @@ function App() {
             </div>
           </details>
 
-          <details className="agent-accordion sidebar-knowledge">
-            <summary>
-              <span>Knowledge Cards</span>
-              <strong>{attachedKnowledgeItems.length} attached</strong>
-            </summary>
-
-            <div className="accordion-body">
-              <div className="knowledge-toolbar">
-                <div>
-                  <h3 id="knowledge-title">Knowledge Cards</h3>
-                  <span>{knowledgeItems.length} available</span>
-                </div>
-                <button
-                  aria-label="Add knowledge card"
-                  className="icon-button"
-                  type="button"
-                  onClick={openKnowledgeDialog}
-                  disabled={knowledgeLoading}
-                >
-                  +
-                </button>
-              </div>
-
-              {knowledgeError && !knowledgeDialogOpen ? (
-                <p className="error-message" role="alert">
-                  {knowledgeError}
-                </p>
-              ) : null}
-
-              <ul className="knowledge-list" aria-label="Knowledge cards">
-                {knowledgeItems.length === 0 ? (
-                  <li>No knowledge cards yet.</li>
-                ) : (
-                  knowledgeItems.map((item) => {
-                    const attached = attachedKnowledgeIds.includes(item.id);
-                    return (
-                      <li data-selected={attached} key={item.id}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={attached}
-                            onChange={(event) =>
-                              void toggleKnowledgeAttachment(item, event.currentTarget.checked)
-                            }
-                          />
-                          <span>
-                            <strong>{item.title}</strong>
-                            <small>
-                              {item.kind} · {item.scope} · {item.projectId ? "project" : "global"}
-                            </small>
-                            <em>{item.body}</em>
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
-          </details>
+          <KnowledgeCardsPanel attachedCount={attachedKnowledgeItems.length}
+            attachedIds={attachedKnowledgeIds} error={knowledgeDialogOpen ? null : knowledgeError}
+            items={knowledgeItems} loading={knowledgeLoading} onAdd={openKnowledgeDialog}
+            onToggle={(item, attached) => void toggleKnowledgeAttachment(item, attached)} />
 
           <details className="agent-accordion sidebar-agent sidebar-fallback">
             <summary>

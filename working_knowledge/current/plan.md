@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.12. Extract Knowledge Cards sidebar presentation
+- objective: move the manual Knowledge Cards accordion out of the frontend coordinator while preserving App-owned loading, persistence, attachment, transcript linkage, errors, and dialog state.
+- status: complete
+- files: src/App.tsx; src/features/knowledge/KnowledgeCardsPanel.tsx; src/features/knowledge/KnowledgeCardsPanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: sidebar details/summary; attached/available counts; add action; visible error; empty/list states; card metadata/body; attachment checkboxes.
+- expected changes: add a typed state-free and Tauri-free knowledge sidebar component; pass items, attached IDs/count, loading/visible error, and add/toggle callbacks from App; preserve the details DOM boundary and default-collapsed behavior.
+- acceptance criteria: summary count uses valid attached items; available count/meta/body and empty/error copy remain unchanged; add locks while loading; checkboxes forward the item and exact checked state; App retains refresh, persistence, transcript attachment, dialog/error visibility policy, and state.
+- required tests: collapsed summary/count; empty/error/add; populated metadata and selected state; attach/detach callback payloads; loading add lock; existing 97 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 confirmed the details/default-collapsed DOM and App-owned error visibility boundary, and cycle 2 found no remaining count, metadata, attachment payload, loading, accessibility, runtime-boundary, persistence-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.11. Extract New Knowledge Card dialog presentation
 - objective: move the controlled manual Knowledge Card creation modal out of the frontend coordinator while preserving App-owned creation, attachment, reset, persistence, and errors.
 - status: complete

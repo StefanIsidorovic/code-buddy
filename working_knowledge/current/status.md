@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.4.11 implementation and knowledge updates ready for commit.
+- worktree: plan item 19.4.12 implementation and knowledge updates ready for commit.
 - relevant files: src/App.tsx; src/features/knowledge/KnowledgeCardDialog.tsx; src/features/knowledge/KnowledgeCardDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.4.11 complete
+- active plan step: 19.4.12 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -65,3 +65,4 @@
 - 2026-07-21: 89 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.9; Project Delete confirmation is state-free presentation and `App.tsx` is 55 lines smaller.
 - 2026-07-21: 93 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.10; Task Context Preview is state-free knowledge presentation and `App.tsx` is 95 lines smaller.
 - 2026-07-21: 97 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.11; New Knowledge Card is state-free knowledge presentation and `App.tsx` is 79 lines smaller.
+- 2026-07-21: 101 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.12; Knowledge Cards sidebar is state-free presentation and `App.tsx` is 55 lines smaller.

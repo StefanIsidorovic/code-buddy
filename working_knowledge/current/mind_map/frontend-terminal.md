@@ -32,6 +32,7 @@
 - Project Delete confirmation is state-free workspace presentation; App retains the busy close guard and all destructive ACP shutdown, persistence, cleanup, error, and notification behavior.
 - Task Context Preview is state-free knowledge presentation; App retains selector invocation, prompt, visibility, and async result/error lifecycle.
 - New Knowledge Card dialog is state-free knowledge presentation; App retains create scope, persistence, list/attachment updates, transcript linkage, reset, visibility, loading, and errors.
+- Knowledge Cards sidebar is state-free presentation with its responsive/default-collapsed details boundary; App retains refresh, attachment persistence, transcript linkage, dialog/error policy, and mutations.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

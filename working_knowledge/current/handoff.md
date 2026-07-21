@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Extract the Knowledge Cards sidebar presentation as the next knowledge feature slice, keeping list refresh, attachment persistence, active-transcript linkage, dialog visibility, and errors in App.
+- Extract Session History sidebar presentation next, keeping filtering derivation, transcript loading/opening/rename persistence, stale-response guards, and errors in App.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.
