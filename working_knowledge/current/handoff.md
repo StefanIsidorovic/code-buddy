@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Extract the repository management dialog as the next workspace feature slice, keeping selection, persistence, native folder picking, and delete/create orchestration in App.
+- Extract the workspace management dialog as the next workspace feature slice, keeping persistence, folder picking, project deletion confirmation, and create/select orchestration in App.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.4. Extract repository management dialog presentation
+- objective: move repository listing, selection/deletion controls, and add-repository form out of `App.tsx` behind a typed workspace feature boundary.
+- status: complete
+- files: src/App.tsx; src/features/workspace/RepositoryDialog.tsx; src/features/workspace/RepositoryDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: repository modal/backdrop; heading/close/refresh; repository list and default badge; selection/delete locks; controlled name/path fields; add action.
+- expected changes: accept project/repository data, loading/busy/session-lock state, controlled form values, and callbacks; keep dialog visibility, selected ID mutation, async refresh/create/delete, persistence, and errors in App.
+- acceptance criteria: dialog semantics, backdrop/close behavior, empty state, selected/default presentation, session safety locks, controlled fields, and add validation remain unchanged; feature imports no Tauri API and owns no state; App loses at least 100 lines.
+- required tests: empty dialog/refresh; selected/default row locks; unlocked select/delete callbacks; controlled form/add validation; backdrop/close callbacks; existing 62 frontend tests; typecheck; production build; boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 found and corrected an accidental session lock on Add Repository while preserving select/delete locks, and cycle 2 found no remaining modal, validation, default protection, state-ownership, accessibility, runtime-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.3. Extract workspace context selection presentation
 - objective: move the responsive current workspace/repository summary and picker controls out of `App.tsx` behind a minimal typed feature boundary.
 - status: complete
