@@ -6,6 +6,7 @@
 - Initial and effective complexity are persisted separately; every system/user change is retained in append-only history.
 - ACP Controls now shows a responsive read-only Task assessment for the live transcript, including profile, phase, reasons, confidence/source, version, and differing initial profile.
 - ACP Controls now exposes the active agent's advertised Coding model independently of Summary synthesis selection; changes are validated and scoped to the live ACP session.
+- ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
 - Implement plan item 18.4: persist immutable task knowledge artifacts and ordered phase transitions, then let analysis propose auditable complexity confirmation or change.

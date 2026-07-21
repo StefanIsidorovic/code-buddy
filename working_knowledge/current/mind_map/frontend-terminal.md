@@ -14,6 +14,8 @@
 - Responsive behavior uses four work zones on wide displays, a sticky command rail with stacked work areas on compact desktops, a two-column sidebar grid on tablets, and a single flowing layout on mobile.
 - Project Initialization Summary now loads the backend model catalog and renders compact fast/mid/high/max plus profile selection controls with capability badges.
 - ACP Controls independently renders the active agent's advertised Coding model options; Summary profiles remain a separate synthesis concern.
+- ACP Controls has a local accessible collapse state that prioritizes Session Output; the prompt composer and session toolbar remain outside the hidden detail boundary.
+- The collapse affordance is a standalone heavy chevron with an invisible generous hit target, subtle color/scale hover feedback, and keyboard-only focus indication.
 - Persisted Summary model selection is restored on reload; the preview/modal distinguish requested model provenance from the deterministic generator.
 - App.tsx is the current single-screen product coordinator and remains a decomposition risk as workflows grow.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
@@ -148,6 +150,7 @@
 - ACP JSON-RPC events should be normalized by the backend; frontend should not parse raw ACP protocol messages.
 - ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP or Start Fake ACP may cause an ACP backend process launch.
 - Coding model changes must use agent-advertised values and remain disabled while a prompt operation is in flight; never rewrite global Codex config from this UI.
+- Collapsed ACP mode must keep Prompt/Preview/Send and Drain/Stop reachable; hidden model/Task/result details must leave the accessibility tree until expanded.
 - If ACP Test shows fake as the active source, stop that session before starting the selected registry candidate.
 - Real ACP send/start can take time; backend commands run off the UI thread to avoid the app window being marked not responding.
 - Knowledge Cards are manual and explicit for now; automatic suggestions, relevance search, conflict checks, and redaction are deferred.

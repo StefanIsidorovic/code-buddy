@@ -1,8 +1,8 @@
 # Status
 
 ## Session
-- session_id: codex-20260720-runtime-model-selection
-- date_utc: 2026-07-20
+- session_id: codex-20260721-aiadne-beyond-conductor
+- date_utc: 2026-07-21
 - agent_model: codex
 
 ## Target Repositories
@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: current plan item 18.3.2.1 documentation closure commit
-- worktree: expected clean after the current documentation closure commit.
-- relevant files: src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src-tauri/src/models.rs; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: a8856ae step 18.3.3.2: emphasize ACP chevron
+- worktree: source implementation committed; post-commit working knowledge updates present.
+- relevant files: src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
-- request: commit all remaining adaptive Task and coding-model knowledge state before continuing.
+- request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 18.3.2.1 complete
+- active plan step: 18.3.3.3 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -42,3 +42,11 @@
 - 2026-07-20: repository state, active knowledge, AIadne ACP client, and installed `codex-acp@1.1.0` inspected; the adapter exposes runtime models in `session/new` and accepts `session/set_config_option` with `configId=model`.
 - 2026-07-20: 92 Rust tests, 38 frontend tests, formatting, clippy with warnings denied, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 18.3.2.
 - 2026-07-20: commit 017041d has a verified provenance note under `refs/notes/provenance` for plan item 18.3.2.
+- 2026-07-20: 38 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 18.3.3; the existing Vite chunk-size warning remains non-fatal.
+- 2026-07-20: commit 083a4b9 has a verified provenance note under `refs/notes/provenance` for plan item 18.3.3.
+- 2026-07-20: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial review cycle 1 pass for plan item 18.3.3.1.
+- 2026-07-20: commit 4cb2826 has a verified provenance note under `refs/notes/provenance` for plan item 18.3.3.1.
+- 2026-07-20: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial review cycle 1 pass for plan item 18.3.3.2.
+- 2026-07-20: commit a8856ae has a verified provenance note under `refs/notes/provenance` for plan item 18.3.3.2.
+- 2026-07-21: the first full frontend verification exposed one transient Markdown findings timing failure; the isolated test and immediate full rerun passed.
+- 2026-07-21: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial documentation review pass for plan item 18.3.3.3; the existing Vite chunk-size warning remains non-fatal.

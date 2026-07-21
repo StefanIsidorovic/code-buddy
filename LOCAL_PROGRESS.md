@@ -86,6 +86,8 @@ Radno pravilo:
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.
+- ACP Controls sada ima premium chevron toggle: sklapa model, Task assessment i result detalje da Output dobije vise prostora, dok Prompt/Send, Drain i Stop ostaju dostupni.
+- Chevron je sada velika/deblja samostalna strelica bez stalnog kruga, border-a ili shadow-a; velika nevidljiva klik zona i keyboard focus ostaju.
 - Selector je trenutno preview-only: `Send ACP` jos ne ubacuje generisane jedinice bez eksplicitne korisnicke kontrole.
 - Vidljivi proizvod, Tauri window i sidebar sada nose AIadne identitet, lokalni logo, Geist font i Ariadne Atelier boje.
 
@@ -185,6 +187,7 @@ Test ACP Registry-ja:
 24. U `Saved Transcript` proveri da agentov odgovor nije iseckan u vise redova, nego da je prikazan kao jedan `Answer`.
 25. Dok agent odgovara u live `ACP Events`, output treba sam da skroluje na najnoviji deo.
 26. Za proveru history-ja napravi novi prompt posle ovog fix-a; stari transcript-i kojima chunkovi nikad nisu upisani ne mogu skroz da se poprave.
+27. Klikni chevron u ACP Controls headeru; model i Task assessment treba da se sklone, dok Prompt/Send i Drain/Stop ostaju vidljivi i Session Output dobija vise prostora.
 25. Vizuelno proveri da pastelni UI nema overlap i da kartice ostaju citljive.
 
 ## Komande za proveru

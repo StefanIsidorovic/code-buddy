@@ -79,6 +79,50 @@
 - review status: passed after 2 cycles; cycle 1 corrected duplicate manual-test numbering and resolved documentation-commit self-reference without amending history, and cycle 2 found no remaining template, source-truth, mind-map coverage, stale-count, scope, provenance, or patch-hygiene issue.
 - commit: this commit
 
+### 18.3.3. Add a collapsible ACP workspace
+- objective: let the user hide non-essential ACP working controls during Task execution so the output area gets substantially more vertical space while safety actions remain available.
+- status: complete
+- files: src/App.tsx; src/App.css; src/App.test.tsx.
+- affected units: ACP Controls header; local expanded state; coding-model/prompt/Task/stop-reason content boundary; responsive runtime-panel styling.
+- expected changes: add an accessible chevron toggle; keep session status, Drain, and Stop visible; collapse Coding model, Prompt, Task assessment, and stop reason; preserve the user's typed prompt in React state while hidden.
+- acceptance criteria: ACP controls start expanded; the toggle accurately exposes `aria-expanded`; collapse hides non-essential controls but not session safety actions; expand restores the unchanged prompt and Task content; desktop/mobile layouts remain readable.
+- required tests: initial expanded state; collapse and expand behavior; retained prompt value; Stop/Drain visibility while collapsed; accessibility attributes; typecheck and production build.
+- review status: passed after 2 cycles; cycle 1 added coverage for the real Task assessment card, and cycle 2 corrected the hidden accessibility-tree assertion and found no remaining state-retention, safety-action, accessibility, responsive-layout, visual-consistency, regression, or performance issue.
+- commit: 083a4b9
+
+### 18.3.3.1. Keep the prompt visible in compact ACP mode
+- objective: keep Task interaction available while ACP details are collapsed by leaving Prompt, Preview Context, and Send ACP visible.
+- status: complete
+- files: src/App.tsx; src/App.test.tsx.
+- affected units: ACP collapsible content boundary; compact-mode regression assertions.
+- expected changes: move the prompt composer outside the hidden details region; continue hiding Coding model, Task assessment, stop reason, and waiting detail; preserve the same prompt state and command behavior.
+- acceptance criteria: collapsing ACP leaves the prompt composer and session safety actions visible; model and Task details leave layout/accessibility flow; prompt content can be edited and sent without expanding; expansion restores all details.
+- required tests: prompt visibility/value while collapsed; Task detail absence/restoration; Drain/Stop visibility; existing ACP send behavior; typecheck and production build.
+- review status: passed in cycle 1; prompt editing/sending, session safety actions, hidden detail boundaries, accessibility flow, state restoration, responsive layout, regressions, and complexity were checked with no remaining issue.
+- commit: 4cb2826
+
+### 18.3.3.2. Refine the ACP collapse affordance
+- objective: render the ACP collapse action as a larger, heavier standalone chevron without a persistent circular container.
+- status: complete
+- files: src/App.css; src/App.test.tsx.
+- affected units: ACP collapse-toggle visual states; chevron SVG sizing; existing accessibility regression contract.
+- expected changes: reset inherited button border/background/shadow; retain a generous invisible hit target; increase chevron size and stroke weight; use color/scale feedback on hover and preserve keyboard-only focus indication.
+- acceptance criteria: no circle or ellipse is visible at rest/hover; the arrow is more prominent; click target and `aria-expanded` behavior are unchanged; keyboard focus remains visible.
+- required tests: existing collapse/expand accessibility regression; frontend suite; typecheck; production build; CSS patch review.
+- review status: passed in cycle 1; inherited button chrome, resting/hover visuals, hit-target size, keyboard focus, responsive header fit, accessibility behavior, and regressions were checked with no remaining issue.
+- commit: a8856ae
+
+### 18.3.3.3. Commit collapsible ACP workspace knowledge
+- objective: reconcile and commit the post-implementation knowledge state for completed plan items 18.3.3, 18.3.3.1, and 18.3.3.2.
+- status: complete
+- files: LOCAL_PROGRESS.md; working_knowledge/current/status.md; working_knowledge/current/plan.md; working_knowledge/current/handoff.md; working_knowledge/current/repo-code-buddy.md; working_knowledge/current/mind_map/frontend-terminal.md.
+- affected units: human progress log; session status; active plan; repository findings; frontend/runtime mind map.
+- expected changes: preserve the completed collapsible ACP workspace architecture and validation record as a separately auditable knowledge closure.
+- acceptance criteria: active knowledge matches source commits 083a4b9, 4cb2826, and a8856ae; required files retain template structure; no source or generated artifact is included.
+- required tests: frontend suite; typecheck; production build; `git diff --check`; commit and provenance-note readback.
+- review status: passed in cycle 1; source alignment, template structure, scope, stale claims, patch hygiene, and the transient frontend timing failure were reviewed with no remaining deterministic issue.
+- commit: this commit
+
 ### 18.4. Persist phase outputs as task knowledge
 - objective: add source-backed task knowledge artifacts produced during analysis, planning, execution, and review and advance phase state safely, with depth informed by the effective complexity profile.
 - status: pending

@@ -37,6 +37,8 @@
 - Task rows retain immutable initial and effective complexity fields for fast reads; `task_complexity_changes` stores append-only system/user history, and validated overrides preserve the initial assessment.
 - ACP Controls renders the live transcript's Task assessment read-only; project switches clear stale render state immediately and saved/other transcript Tasks are not presented as active.
 - ACP session creation retains agent-advertised model options; the UI changes the Coding model through `session/set_config_option`, validates choices against that session, and leaves Summary selection and global Codex config unchanged.
+- The ACP runtime panel has an accessible local chevron toggle; collapsed mode removes model, Task, and result details from layout/accessibility flow while preserving Prompt/Send and active-session Drain/Stop actions.
+- The ACP chevron uses a 42 px invisible hit target with a prominent 24 px heavy arrow; persistent border, background, radius, and shadow chrome are removed.
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
