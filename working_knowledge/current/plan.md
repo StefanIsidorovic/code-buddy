@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.11. Extract New Knowledge Card dialog presentation
+- objective: move the controlled manual Knowledge Card creation modal out of the frontend coordinator while preserving App-owned creation, attachment, reset, persistence, and errors.
+- status: complete
+- files: src/App.tsx; src/features/knowledge/KnowledgeCardDialog.tsx; src/features/knowledge/KnowledgeCardDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: card modal/backdrop; title/kind/body controlled fields; error alert; cancel/close/create actions; loading and trimmed-field validation.
+- expected changes: add a typed state-free and Tauri-free knowledge form component; pass controlled values, loading/error state, and callbacks from App; keep create invoke, project/global scope, transcript attachment, list update, reset, and visibility in App.
+- acceptance criteria: all five kind options and existing copy remain unchanged; changes forward exact values; Create requires non-blank trimmed title/body and is locked while loading; Close/Cancel lock while loading; backdrop delegates to App's guarded close handler.
+- required tests: controlled field callbacks and kind options; trimmed validation; create callback; error rendering; close/cancel/backdrop; loading locks and backdrop delegation; existing 93 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 removed the now-unused final inline-modal CloseIcon import from App, and cycle 2 found no remaining option, controlled-field, trimmed-validation, loading, backdrop-delegation, accessibility, runtime-boundary, create/attach/reset ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.10. Extract Task Context Preview presentation
 - objective: move the auditable Knowledge Unit selector preview modal out of the frontend coordinator while preserving App-owned selector invocation, prompt, visibility, and async lifecycle.
 - status: complete

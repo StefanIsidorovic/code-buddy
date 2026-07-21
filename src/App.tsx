@@ -6,7 +6,6 @@ import "@xterm/xterm/css/xterm.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import aiadneMark from "./assets/aiadne-mark.svg";
 import { StateNotice } from "./components/ui/StateNotice";
-import { CloseIcon } from "./components/ui/icons";
 import { NotificationViewport } from "./features/notifications/NotificationViewport";
 import { ProjectInitializeDialog } from "./features/initialization/ProjectInitializeDialog";
 import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGuardrailsDialog";
@@ -21,6 +20,7 @@ import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
 import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
 import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
 import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
+import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -2838,89 +2838,10 @@ function App() {
       ) : null}
 
       {knowledgeDialogOpen ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeKnowledgeDialog();
-            }
-          }}
-        >
-          <section
-            aria-labelledby="knowledge-dialog-title"
-            aria-modal="true"
-            className="knowledge-modal"
-            role="dialog"
-          >
-            <div className="modal-heading">
-              <div>
-                <p className="eyebrow">Knowledge</p>
-                <h2 id="knowledge-dialog-title">New Knowledge Card</h2>
-              </div>
-              <button
-                aria-label="Close knowledge card dialog"
-                className="icon-button"
-                type="button"
-                onClick={closeKnowledgeDialog}
-                disabled={knowledgeLoading}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            {knowledgeError ? (
-              <p className="error-message" role="alert">
-                {knowledgeError}
-              </p>
-            ) : null}
-
-            <div className="knowledge-form knowledge-modal-form">
-              <label>
-                <span>Title</span>
-                <input
-                  aria-label="Knowledge title"
-                  onChange={(event) => setKnowledgeTitle(event.target.value)}
-                  value={knowledgeTitle}
-                />
-              </label>
-              <label>
-                <span>Kind</span>
-                <select
-                  aria-label="Knowledge kind"
-                  onChange={(event) => setKnowledgeKind(event.target.value)}
-                  value={knowledgeKind}
-                >
-                  <option value="decision">Decision</option>
-                  <option value="constraint">Constraint</option>
-                  <option value="preference">Preference</option>
-                  <option value="fact">Fact</option>
-                  <option value="todo">Todo</option>
-                </select>
-              </label>
-              <label>
-                <span>Text</span>
-                <textarea
-                  aria-label="Knowledge body"
-                  onChange={(event) => setKnowledgeBody(event.target.value)}
-                  rows={5}
-                  value={knowledgeBody}
-                />
-              </label>
-              <div className="modal-actions">
-                <button type="button" onClick={closeKnowledgeDialog} disabled={knowledgeLoading}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void createKnowledgeItem()}
-                  disabled={knowledgeLoading || !knowledgeTitle.trim() || !knowledgeBody.trim()}
-                >
-                  Create Card
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
+        <KnowledgeCardDialog body={knowledgeBody} error={knowledgeError} kind={knowledgeKind}
+          loading={knowledgeLoading} title={knowledgeTitle} onChangeBody={setKnowledgeBody}
+          onChangeKind={setKnowledgeKind} onChangeTitle={setKnowledgeTitle}
+          onClose={closeKnowledgeDialog} onCreate={() => void createKnowledgeItem()} />
       ) : null}
 
       <NotificationViewport />
