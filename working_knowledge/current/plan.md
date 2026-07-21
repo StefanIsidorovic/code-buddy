@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.5. Extract transcript and Task-index orchestration
+- objective: move transcript session/list/replay/rename/event persistence and project Task indexing out of App while exposing a semantic ACP integration API.
+- status: complete
+- files: src/App.tsx; src/features/transcripts/useTranscriptWorkspace.ts; src/features/transcripts/useTranscriptWorkspace.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: transcript and task loading; current/saved session refs/state; replay request identity; create/rename/live mode; event append/coalescing/metadata; get/upsert Task.
+- expected changes: add a gateway-backed transcript hook with synchronous active-session identity and stale load/open guards; replace App-owned refs/setters with create/record/getTask/upsertTask actions.
+- acceptance criteria: exact create/list/event/rename payloads, replay ordering, current-session identity, event counts/timestamps and Task reuse remain unchanged; stale project or saved-session responses cannot overwrite current state.
+- required tests: project session/Task load; synchronous create identity; stale saved replay; event persistence/metadata; existing 153 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 retained synchronous refs behind semantic accessors and verified stored-vs-ACP event kind conversion, and cycle 2 found no remaining identity, stale-response, replay, persistence, metadata, Task-index, gateway, regression, or scope issue.
+- commit: this commit
+
 ### 21.4. Extract Knowledge workspace orchestration
 - objective: move Knowledge Card loading/form/creation, transcript attachments and task-context preview out of App.
 - status: complete

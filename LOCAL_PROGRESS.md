@@ -693,3 +693,8 @@ YYYY-MM-DD
 - Knowledge Card load/forma/create, attachments i task-context preview izdvojeni su u `useKnowledgeWorkspace`.
 - Hook cuva active transcript source, project/global scope, stale project-load identity i tacan selector budget/payload.
 - `App.tsx` je pao sa 1.361 na 1.218 linija; audit, typecheck, 153 testa i build prolaze.
+### 2026-07-21 - Transcript workspace hook
+
+- Transcript list/current/saved replay/rename/event persistence i Task indeks izdvojeni su u `useTranscriptWorkspace`.
+- ACP koristi semanticke session/Task accessor akcije; project i replay request identity sprecavaju stale overwrite.
+- `App.tsx` je pao sa 1.218 na 963 linije; audit, typecheck, 157 testova i build prolaze.

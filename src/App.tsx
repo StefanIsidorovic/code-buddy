@@ -25,6 +25,7 @@ import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
 import { useKnowledgeWorkspace } from "./features/knowledge/useKnowledgeWorkspace";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
+import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
 import {
@@ -36,7 +37,6 @@ import {
   coalesceTranscriptEvents,
   errorText,
   formatPromptWithKnowledge,
-  transcriptEventToAcpEvent,
 } from "./lib/presentation";
 import { invokeCommand as invoke } from "./lib/tauriGateway";
 import type {
@@ -53,8 +53,6 @@ import type {
   RuntimeMode,
   SessionInfo,
   TaskInfo,
-  TranscriptEventInfo,
-  TranscriptSessionInfo,
 } from "./types/domain";
 import "./App.css";
 
@@ -64,10 +62,6 @@ export { StateNotice, boundToastMessages };
 
 function App() {
   const acpEventsList = useRef<HTMLUListElement | null>(null);
-  const transcriptOpenRequest = useRef(0);
-  const taskLoadRequest = useRef(0);
-  const transcriptSessionRef = useRef<TranscriptSessionInfo | null>(null);
-  const tasksByTranscriptIdRef = useRef<Record<string, TaskInfo>>({});
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [sessionKind, setSessionKind] = useState<"fake" | "codex" | null>(null);
   const [output, setOutput] = useState("");
@@ -82,16 +76,6 @@ function App() {
   );
   const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
-  const [transcriptSession, setTranscriptSession] = useState<TranscriptSessionInfo | null>(null);
-  const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSessionInfo[]>([]);
-  const [tasksByTranscriptId, setTasksByTranscriptId] = useState<Record<string, TaskInfo>>({});
-  const [openedTranscriptSession, setOpenedTranscriptSession] =
-    useState<TranscriptSessionInfo | null>(null);
-  const [openedTranscriptEvents, setOpenedTranscriptEvents] = useState<AcpSessionEvent[]>([]);
-  const [transcriptError, setTranscriptError] = useState<string | null>(null);
-  const [transcriptLoading, setTranscriptLoading] = useState(false);
-  const [historyFilter, setHistoryFilter] = useState("");
-  const [historyRenameTitle, setHistoryRenameTitle] = useState("");
   const [acpRegistryCandidates, setAcpRegistryCandidates] = useState<AcpRegistryCandidate[]>([]);
   const [acpRegistryError, setAcpRegistryError] = useState<string | null>(null);
   const [acpRegistryLoading, setAcpRegistryLoading] = useState(false);
@@ -119,6 +103,16 @@ function App() {
     useProjectCatalog({ onBusyChange: setBusy, notify: pushToast });
   const initializationEvidence = useInitializationEvidence({ projectId: selectedProjectId,
     notifyError: (message) => pushToast("error", message) });
+  const { session: transcriptSession, sessions: transcriptSessions,
+    openedSession: openedTranscriptSession, openedEvents: openedTranscriptEvents,
+    error: transcriptError, loading: transcriptLoading, filter: historyFilter,
+    renameTitle: historyRenameTitle, selectedId: selectedHistorySessionId, activeTask,
+    refresh: refreshTranscriptSessions, create: createTranscriptSession,
+    openSaved: openTranscriptSession, renameSelected: renameSelectedTranscriptSession,
+    showLive: showLiveAcpEvents, record: recordTranscriptEvents,
+    changeFilter: setHistoryFilter, changeRenameTitle: setHistoryRenameTitle,
+    getActiveSessionId, getTask: getTranscriptTask, upsertTask: upsertTranscriptTask } =
+    useTranscriptWorkspace({ projectId: selectedProjectId, onShowAcp: () => setRuntimeMode("acp") });
   const { elementRef: terminalElement, size: terminalSize, fit: fitTerminal,
     focus: focusTerminal, reset: resetTerminal, write: writeTerminal } = usePtyTerminal({
       mode: runtimeMode, output, session, onError: setError,
@@ -201,12 +195,6 @@ function App() {
     () => projectInitializationMarkdownFindings.slice(0, 3),
     [projectInitializationMarkdownFindings],
   );
-  const selectedHistorySessionId = openedTranscriptSession?.id ?? transcriptSession?.id ?? null;
-  const activeTask = transcriptSession ? tasksByTranscriptId[transcriptSession.id] ?? null : null;
-  const selectedHistorySession = useMemo(
-    () => transcriptSessions.find((session) => session.id === selectedHistorySessionId) ?? null,
-    [selectedHistorySessionId, transcriptSessions],
-  );
   const displayAcpEvents = useMemo(
     () =>
       openedTranscriptSession
@@ -234,14 +222,6 @@ function App() {
   }, [session, sessionKind]);
 
   useEffect(() => {
-    transcriptSessionRef.current = transcriptSession;
-  }, [transcriptSession]);
-
-  useEffect(() => {
-    setHistoryRenameTitle(selectedHistorySession?.title ?? "");
-  }, [selectedHistorySession?.id, selectedHistorySession?.title]);
-
-  useEffect(() => {
     if (runtimeMode !== "acp" || displayAcpEvents.length === 0) {
       return;
     }
@@ -256,11 +236,6 @@ function App() {
     void refreshAcpRegistryCandidates();
     void refreshModelCatalog();
   }, []);
-
-  useEffect(() => {
-    void refreshTranscriptSessions(selectedProjectId);
-    void refreshProjectTasks(selectedProjectId);
-  }, [selectedProjectId]);
 
   useEffect(() => {
     if (
@@ -382,229 +357,6 @@ function App() {
     }
 
     return runningAcpSessions.length;
-  }
-
-  async function refreshTranscriptSessions(projectId = selectedProjectId) {
-    setTranscriptLoading(true);
-    setTranscriptError(null);
-    try {
-      const nextSessions =
-        (await invoke<TranscriptSessionInfo[]>("list_transcript_sessions", {
-          projectId: projectId ?? null,
-        })) ?? [];
-      setTranscriptSessions(nextSessions);
-      if (
-        openedTranscriptSession &&
-        !nextSessions.some((session) => session.id === openedTranscriptSession.id)
-      ) {
-        setOpenedTranscriptSession(null);
-        setOpenedTranscriptEvents([]);
-      }
-    } catch (err) {
-      setTranscriptError(errorText(err));
-    } finally {
-      setTranscriptLoading(false);
-    }
-  }
-
-  async function refreshProjectTasks(projectId = selectedProjectId) {
-    const requestId = taskLoadRequest.current + 1;
-    taskLoadRequest.current = requestId;
-    tasksByTranscriptIdRef.current = {};
-    setTasksByTranscriptId({});
-    if (!projectId) {
-      return;
-    }
-
-    try {
-      const tasks =
-        (await invoke<TaskInfo[]>("list_project_tasks", {
-          projectId,
-        })) ?? [];
-      const indexedTasks = Object.fromEntries(
-        tasks.map((task) => [task.transcriptSessionId, task]),
-      );
-      if (taskLoadRequest.current === requestId) {
-        tasksByTranscriptIdRef.current = indexedTasks;
-        setTasksByTranscriptId(indexedTasks);
-      }
-    } catch (err) {
-      if (taskLoadRequest.current === requestId) {
-        setTranscriptError(errorText(err));
-      }
-    }
-  }
-
-  async function createTranscriptSession(runtime: string, source: string, title: string) {
-    setTranscriptError(null);
-    try {
-      const nextSession = await invoke<TranscriptSessionInfo | null>("create_transcript_session", {
-        request: {
-          projectId: selectedProject?.id ?? null,
-          runtime,
-          source,
-          title,
-        },
-      });
-      if (!nextSession) {
-        transcriptSessionRef.current = null;
-        setTranscriptSession(null);
-        return null;
-      }
-
-      transcriptSessionRef.current = nextSession;
-      setTranscriptSession(nextSession);
-      setOpenedTranscriptSession(null);
-      setOpenedTranscriptEvents([]);
-      setTranscriptSessions((current) => [
-        nextSession,
-        ...current.filter((session) => session.id !== nextSession.id),
-      ]);
-      return nextSession;
-    } catch (err) {
-      transcriptSessionRef.current = null;
-      setTranscriptSession(null);
-      setTranscriptError(errorText(err));
-      return null;
-    }
-  }
-
-  async function openTranscriptSession(session: TranscriptSessionInfo) {
-    const requestId = transcriptOpenRequest.current + 1;
-    transcriptOpenRequest.current = requestId;
-    setRuntimeMode("acp");
-    setOpenedTranscriptSession(session);
-    setOpenedTranscriptEvents([]);
-    setTranscriptLoading(true);
-    setTranscriptError(null);
-    try {
-      const events =
-        (await invoke<TranscriptEventInfo[]>("list_transcript_events", {
-          sessionId: session.id,
-        })) ?? [];
-      if (transcriptOpenRequest.current !== requestId) {
-        return;
-      }
-      setOpenedTranscriptSession(session);
-      setOpenedTranscriptEvents(events.map(transcriptEventToAcpEvent));
-    } catch (err) {
-      if (transcriptOpenRequest.current !== requestId) {
-        return;
-      }
-      setTranscriptError(errorText(err));
-    } finally {
-      if (transcriptOpenRequest.current === requestId) {
-        setTranscriptLoading(false);
-      }
-    }
-  }
-
-  async function renameSelectedTranscriptSession() {
-    if (!selectedHistorySession || !historyRenameTitle.trim()) {
-      return;
-    }
-
-    setTranscriptLoading(true);
-    setTranscriptError(null);
-    try {
-      const renamed = await invoke<TranscriptSessionInfo>("rename_transcript_session", {
-        request: {
-          sessionId: selectedHistorySession.id,
-          title: historyRenameTitle,
-        },
-      });
-      upsertTranscriptSession(renamed);
-    } catch (err) {
-      setTranscriptError(errorText(err));
-    } finally {
-      setTranscriptLoading(false);
-    }
-  }
-
-  function upsertTranscriptSession(nextSession: TranscriptSessionInfo) {
-    setTranscriptSessions((current) =>
-      current.map((session) => (session.id === nextSession.id ? nextSession : session)),
-    );
-    setTranscriptSession((current) => (current?.id === nextSession.id ? nextSession : current));
-    setOpenedTranscriptSession((current) =>
-      current?.id === nextSession.id ? nextSession : current,
-    );
-    if (transcriptSessionRef.current?.id === nextSession.id) {
-      transcriptSessionRef.current = nextSession;
-    }
-  }
-
-  function showLiveAcpEvents() {
-    transcriptOpenRequest.current += 1;
-    setRuntimeMode("acp");
-    setOpenedTranscriptSession(null);
-    setOpenedTranscriptEvents([]);
-  }
-
-  async function recordTranscriptEvents(
-    transcriptId: string | null | undefined,
-    events: AcpSessionEvent[],
-  ) {
-    if (!transcriptId) {
-      return;
-    }
-
-    const cleanEvents = coalesceTranscriptEvents(
-      events
-        .map((event) => ({
-          kind: event.kind,
-          content: event.content,
-        }))
-        .filter((event) => event.content.trim().length > 0),
-    );
-    if (cleanEvents.length === 0) {
-      return;
-    }
-
-    setTranscriptError(null);
-    try {
-      const inserted = await invoke<TranscriptEventInfo[]>("append_transcript_events", {
-        sessionId: transcriptId,
-        events: cleanEvents,
-      });
-      touchTranscriptSession(transcriptId, inserted);
-    } catch (err) {
-      setTranscriptError(errorText(err));
-    }
-  }
-
-  function touchTranscriptSession(transcriptId: string, insertedEvents: TranscriptEventInfo[]) {
-    if (insertedEvents.length === 0) {
-      return;
-    }
-
-    const updatedAt = insertedEvents[insertedEvents.length - 1].createdAt;
-    setTranscriptSessions((current) =>
-      current.map((session) =>
-        session.id === transcriptId
-          ? {
-              ...session,
-              updatedAt,
-              eventCount: session.eventCount + insertedEvents.length,
-            }
-          : session,
-      ),
-    );
-    setTranscriptSession((current) =>
-      current?.id === transcriptId
-        ? {
-            ...current,
-            updatedAt,
-            eventCount: current.eventCount + insertedEvents.length,
-          }
-        : current,
-    );
-    if (openedTranscriptSession?.id === transcriptId) {
-      setOpenedTranscriptEvents((current) => [
-        ...current,
-        ...insertedEvents.map(transcriptEventToAcpEvent),
-      ]);
-    }
   }
 
   async function startSession(kind: "fake" | "codex") {
@@ -802,14 +554,14 @@ function App() {
     setError(null);
     try {
       showLiveAcpEvents();
-      const activeTranscriptId = transcriptSessionRef.current?.id ?? transcriptSession?.id ?? null;
+      const activeTranscriptId = getActiveSessionId();
       if (selectedProject && !activeTranscriptId) {
         throw new Error("A project Task requires an active transcript session.");
       }
       if (
         selectedProject &&
         activeTranscriptId &&
-        !tasksByTranscriptIdRef.current[activeTranscriptId]
+        !getTranscriptTask(activeTranscriptId)
       ) {
         const task = await invoke<TaskInfo>("create_task", {
           request: {
@@ -818,14 +570,7 @@ function App() {
             originalPrompt: acpPrompt,
           },
         });
-        tasksByTranscriptIdRef.current = {
-          ...tasksByTranscriptIdRef.current,
-          [activeTranscriptId]: task,
-        };
-        setTasksByTranscriptId((current) => ({
-          ...current,
-          [activeTranscriptId]: task,
-        }));
+        upsertTranscriptTask(task);
       }
       const userEvent: AcpSessionEvent = {
         kind: "user_message",
@@ -850,7 +595,7 @@ function App() {
 
   async function drainAcpEvents(
     sessionId = acpSession?.id,
-    transcriptId = transcriptSessionRef.current?.id ?? null,
+    transcriptId = getActiveSessionId(),
   ) {
     if (!sessionId) {
       return;
