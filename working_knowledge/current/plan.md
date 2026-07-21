@@ -684,6 +684,17 @@
 - review status: not_started
 - commit: none
 
+### 22.15. Add focused ACP workspace views
+- objective: keep ACP controls and live output immediately usable while moving the tall Task workflow and receipt histories into dedicated views inspired by Claude Buddy's single-active-view navigation.
+- status: complete
+- files: src/App.tsx; src/App.css; src/features/runtime/AcpWorkspaceViews.tsx; src/features/runtime/AcpWorkspaceViews.test.tsx; src/features/tasks/TaskWorkflowRegion.tsx; src/features/tasks/TaskWorkflowRegion.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP runtime composition; local workspace-view state; accessible view navigation; Task phase/activity placement; PTY output placement; responsive runtime layout.
+- expected changes: add Agent, Task, and Activity tabs; default to Agent with ACP Controls and Session Output together; show phase editing only in Task; show receipt histories only in Activity; reset safely to Agent when the active Task disappears; retain PTY output behavior.
+- acceptance criteria: ACP Controls and Session Output are in the default viewport flow; only one major workspace context renders at a time; tabs expose correct accessible state and disabled semantics; no Task means Task and Activity are unavailable; PTY behavior and backend contracts are unchanged; mobile layout remains readable.
+- required tests: default Agent view; Task and Activity switching; count labels; disabled no-Task state; reset after Task removal; existing ACP/PTY/App regression suite; frontend audit, typecheck, production build, Rust tests/fmt/clippy, and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 added complete ARIA tab keyboard navigation and restored the App.tsx size ceiling, while cycle 2 found no remaining view-state, task-removal, PTY, accessibility, responsive-layout, architecture, regression, performance, security, or patch-hygiene issue.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

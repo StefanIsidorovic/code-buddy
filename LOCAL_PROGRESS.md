@@ -812,3 +812,9 @@ YYYY-MM-DD
 - Global text-input min-height i grid label cascade su pravili ogromne checkboxove; checkbox controls su sada eksplicitno normalizovani na 16px.
 - Provenance je collapsed po defaultu, prikazuje selected/event count i bounded compact rows sa sequence/kind i two-line content preview-em.
 - Frontend audit, 205 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; TaskPhasePanel ostaje na 65 linija.
+
+### 2026-07-22 - Focused ACP Workspace Views
+
+- ACP se otvara u Agent view-u koji drzi ACP Controls i Session Output zajedno; Task faze i receipt istorije su odvojeni Task i Activity view-i.
+- Pristupacni tabovi podrzavaju klik, Arrow/Home/End navigaciju, disabled no-Task stanje i bezbedan povratak na Agent kada Task nestane.
+- Frontend audit, 209 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 562 linije.

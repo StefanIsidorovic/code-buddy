@@ -21,7 +21,8 @@
 - Phase-run recovery: manual recovery may only mark pending as failed with a bounded reason after the associated ACP session stops; finalized outcomes cannot be rewritten.
 - Evidence draft boundary: the explicit draft action copies only the highest-sequence persisted agent message/thought and selects its real event ID; persistence and phase completion remain separate user actions.
 - Review checkpoint boundary: persisted artifacts remain the backend completion gate; the phase-aware acknowledgment is a transient UI safeguard reset by Task, evidence, or transition changes and must not be represented as a durable audit approval.
-- Runtime layout boundary: the runtime lane is a dynamic vertical flex stack because ACP and PTY have different optional child counts; Task Phase remains primary while audit histories live under a native collapsed Task activity disclosure.
+- Runtime layout boundary: ACP uses one active local workspace view—Agent for controls/output, Task for phase work, and Activity for receipts—while PTY retains its dedicated controls/output flow.
+- Workspace state boundary: focused ACP view selection is transient state owned by `AcpWorkspaceViews`; it does not justify shared Zustand state or backend persistence.
 - Provenance picker boundary: generic text-input sizing must explicitly exclude checkboxes; transcript provenance remains complete but collapsed by default with compact sequence/kind/content rows rather than an unbounded open fieldset.
 
 ## Deferred

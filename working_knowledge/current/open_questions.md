@@ -9,6 +9,7 @@
 - Which measured Task outcomes should later calibrate classifier weights and confidence without silently changing historical assessments?
 
 ## Resolved
+- Should ACP Controls, Task phases, receipt histories, and Output remain one stacked page?: No; Agent is the default focused view with controls/output, while Task and Activity are separate local views.
 - Is a Task identical to a transcript?: No; Task owns lifecycle and task knowledge, while transcript owns ordered conversation events.
 - What creates the first Task?: The first user prompt in a new ACP/transcript session.
 - Are later prompts in that session new tasks?: No; they continue the existing Task.

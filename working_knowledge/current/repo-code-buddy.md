@@ -11,7 +11,7 @@
 - Explicit preview confirmation now enriches only the ACP wire prompt; persisted Task/transcript prompt identity remains plain and unchanged.
 - `task_context_dispatch_receipts` records exact context-send intent before ACP dispatch and its later sent/failed outcome; list access is typed for later recovery/history UI.
 - Tauri 2 desktop application with a React 19/TypeScript/Vite frontend and Rust backend.
-- `src/App.tsx` coordinates the single-screen workspace, initialization, runtime, history, and dialog workflows; `src/App.css` owns the visual system.
+- `src/App.tsx` composes the workspace, initialization, runtime, history, and dialogs; focused ACP view state lives in `src/features/runtime/AcpWorkspaceViews.tsx`, and `src/App.css` owns the visual system.
 - Rust modules separate PTY sessions, ACP transport, agent adapters, SQLite storage, model catalog, synthesis providers, Knowledge Unit selection, commands, and errors.
 - SQLite persists projects, repositories, initialization artefacts, summaries, Knowledge Units, ACP transcripts, and manual Knowledge Cards.
 - Structured ACP is the primary runtime surface; xterm-backed PTY remains the compatibility fallback.
@@ -25,7 +25,7 @@
 
 ## Tests
 - `src/App.test.tsx` contains 38 mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, Task creation/reuse/failure isolation and assessment rendering, PTY, and responsive product-shell contracts.
-- Rust has 92 unit/integration tests across PTY/ACP lifecycle and model configuration, adapters, storage, synthesis, model catalog, deterministic context selection, Task persistence, complexity classification, overrides, audit history, and migration.
+- Rust has 97 unit/integration tests across PTY/ACP lifecycle and model configuration, adapters, storage, synthesis, model catalog, deterministic context selection, Task persistence, complexity classification, overrides, audit history, and migration.
 - Current validation commands: `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`.
 
 ## Current Findings
@@ -46,7 +46,8 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is a 519-line composition root with no backend commands; frontend orchestration modularization is complete.
+- `src/App.tsx` is a 562-line composition root with no backend commands; frontend orchestration modularization is complete.
+- `AcpWorkspaceViews` applies Claude Buddy's single-active-view navigation pattern locally: Agent keeps controls/output together by default, while Task and Activity isolate tall workflow surfaces without global state.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.

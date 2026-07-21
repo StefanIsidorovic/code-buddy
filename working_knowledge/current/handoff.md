@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- ACP now opens in a focused Agent view containing both ACP Controls and Session Output; Task and Activity are separate accessible tab views instead of one stacked page.
+- View tabs support click and Arrow/Home/End keyboard navigation, disable Task-owned views without an active Task, and return safely to Agent when the Task disappears.
 - Transcript provenance is now collapsed by default with selected/event counts, normalized 16px checkboxes, compact event metadata, two-line previews and a bounded scroll area.
 - The screenshot-confirmed runtime overlap is fixed: dynamic controls/workflow/errors size naturally, Output grows, and phase/context histories are grouped under collapsed Task activity.
 - ACP session status/actions switch to a narrow layout at 760px and long session IDs wrap instead of clipping actions.
@@ -26,7 +28,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Design the first safe two-step phase continuation using persisted receipts/artifacts while retaining a user checkpoint between phases.
+- Manually exercise the new Agent/Task/Activity navigation in the Tauri window, then design the first safe two-step phase continuation using persisted receipts/artifacts.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

@@ -175,8 +175,8 @@
 - ACP Registry discovery and selection remain side-effect-free; only Start Selected ACP may launch an ACP backend process from the product UI.
 - Coding model changes must use agent-advertised values and remain disabled while a prompt operation is in flight; never rewrite global Codex config from this UI.
 - Collapsed ACP mode must keep Prompt/Preview/Send and Drain/Stop reachable; hidden model/Task/result details must leave the accessibility tree until expanded.
-- Runtime lane uses a vertical flex stack rather than fixed child rows because ACP, PTY, Task workflow and error surfaces are conditional; Output flexes into remaining space without collapsing Task controls.
-- Task Phase stays visible while phase-run/context histories live under a native collapsed Task activity disclosure; ACP session IDs/actions wrap at the 760px workflow breakpoint.
+- ACP runtime renders one active local workspace view: Agent contains ACP Controls and Session Output, Task contains phase work, and Activity contains phase-run/context histories; PTY retains its dedicated flow.
+- Agent is the default view, Task-owned views disable without an active Task, and task removal resets navigation to Agent; tabs support Arrow/Home/End keyboard navigation.
 - Task artifact provenance uses a native collapsed picker with normalized checkbox dimensions and bounded event previews; generic text-input min-height must never leak onto checkbox controls.
 - If ACP Test shows fake as the active source, stop that session before starting the selected registry candidate.
 - Real ACP send/start can take time; backend commands run off the UI thread to avoid the app window being marked not responding.

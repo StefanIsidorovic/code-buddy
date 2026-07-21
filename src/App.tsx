@@ -9,6 +9,7 @@ import { ProjectInitializationPanel } from "./features/initialization/ProjectIni
 import { useInitializationEvidence } from "./features/initialization/useInitializationEvidence";
 import { useProjectInitializationWorkflow } from "./features/initialization/useProjectInitializationWorkflow";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
+import { AcpWorkspaceViews } from "./features/runtime/AcpWorkspaceViews";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import { usePtyRuntime } from "./features/runtime/usePtyRuntime";
@@ -30,7 +31,6 @@ import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel"
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
 import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
-import { TaskWorkflowRegion } from "./features/tasks/TaskWorkflowRegion";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
@@ -339,10 +339,9 @@ function App() {
             onStartCodex={() => void startSession("codex")} onStartFake={() => void startSession("fake")}
             onStop={(force) => void stopSession(force)} onUseAcp={() => setRuntimeMode("acp")} />
         ) : null}
-
-
         {runtimeMode === "acp" ? (
-          <><AcpRuntimePanel
+          <AcpWorkspaceViews
+            agent={<AcpRuntimePanel
             activeTask={activeTask}
             busy={busy}
             canPreviewContext={
@@ -367,10 +366,13 @@ function App() {
             onStartSelected={() => void startSelectedAcpSession()}
             onStop={() => void stopAcpSession(false)}
             onToggleExpanded={toggleAcpControlsExpanded}
-          />
-          {activeTask ? <TaskWorkflowRegion phase={<TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
-            currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents}
-            selectedSourceIds={taskPhase.sourceIds} kind={taskPhase.kind} content={taskPhase.content}
+          />}
+            output={<SessionOutputPanel events={displayAcpEvents} eventsListRef={acpEventsList} output={output}
+              openedTranscript={openedTranscriptSession} runtimeMode={runtimeMode} showWaiting={showAcpWaiting}
+              terminalElementRef={terminalElement} onFocusTerminal={focusTerminal} onShowLiveEvents={showLiveAcpEvents} />}
+            task={activeTask ? <TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
+            currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents} kind={taskPhase.kind}
+            selectedSourceIds={taskPhase.sourceIds} content={taskPhase.content}
             error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
             agentRunning={acpPromptBusy} evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
@@ -379,30 +381,29 @@ function App() {
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)
-              .then(() => void taskPhaseRuns.refresh())} />}
-            phaseRunHistory={<TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts} loading={taskPhaseRuns.loading}
-            error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
+              .then(() => void taskPhaseRuns.refresh())} /> : null}
+            activity={activeTask ? <><TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
+            loading={taskPhaseRuns.loading} error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}
             onOpenResolution={taskPhaseRuns.openResolution} onChangeResolutionReason={taskPhaseRuns.changeResolutionReason}
-            onCancelResolution={taskPhaseRuns.cancelResolution} onResolve={() => void taskPhaseRuns.resolve()} />}
-            contextDispatchHistory={<TaskDispatchHistoryPanel receipts={taskDispatch.receipts}
-            loading={taskDispatch.loading} error={taskDispatch.error}
-            resolutionReceiptId={taskDispatch.resolutionReceiptId}
+            onCancelResolution={taskPhaseRuns.cancelResolution} onResolve={() => void taskPhaseRuns.resolve()} />
+            <TaskDispatchHistoryPanel receipts={taskDispatch.receipts} loading={taskDispatch.loading}
+            error={taskDispatch.error} resolutionReceiptId={taskDispatch.resolutionReceiptId}
             resolutionReason={taskDispatch.resolutionReason}
             onRefresh={() => void taskDispatch.refresh()} onOpenResolution={taskDispatch.openResolution}
             onChangeResolutionReason={taskDispatch.changeResolutionReason}
             onCancelResolution={taskDispatch.cancelResolution}
-            onResolve={() => void taskDispatch.resolve()} />}
-            phaseRunCount={taskPhaseRuns.receipts.length} contextDispatchCount={taskDispatch.receipts.length} /> : null}</>
+            onResolve={() => void taskDispatch.resolve()} /></> : null}
+            currentPhase={activeTask?.currentPhase ?? null} phaseRunCount={taskPhaseRuns.receipts.length}
+            contextDispatchCount={taskDispatch.receipts.length} />
         ) : null}
-
         {error ? (
           <p className="error-message" role="alert">
             {error}
           </p>
         ) : null}
 
-        <SessionOutputPanel
+        {runtimeMode === "pty" ? <SessionOutputPanel
           events={displayAcpEvents}
           eventsListRef={acpEventsList}
           openedTranscript={openedTranscriptSession}
@@ -412,10 +413,8 @@ function App() {
           terminalElementRef={terminalElement}
           onFocusTerminal={focusTerminal}
           onShowLiveEvents={showLiveAcpEvents}
-        />
+        /> : null}
       </section>
-
-
       {repositoryDialogOpen ? (
         <RepositoryDialog
           busy={busy}

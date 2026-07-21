@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 8923ff9 step 22.13: repair task workflow layout
-- worktree: plan item 22.14 provenance picker UI repair and knowledge updates ready for commit.
-- relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: bd6dc03 step 22.14: repair provenance picker
+- worktree: plan item 22.15 focused ACP workspace views verified and ready for commit.
+- relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.14 complete
+- active plan step: 22.15 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 209 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, keyboard tab behavior, `git diff --check`, and two adversarial review cycles pass for plan item 22.15; `App.tsx` is 562 lines.
 - 2026-07-19: repository, active knowledge, ACP prompt/transcript flow, SQLite schema, storage tests, and task-context selector inspected; no Task aggregate currently exists.
 - 2026-07-19: 82 Rust tests, Rust formatting, clippy with warnings denied, adversarial review cycle 1, and `git diff --check` pass for plan item 18.1.
 - 2026-07-19: commit 2cfde08 has a verified provenance note under `refs/notes/provenance` for plan item 18.1.

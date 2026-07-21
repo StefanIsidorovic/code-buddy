@@ -4619,14 +4619,26 @@ summary:focus-visible {
   background: var(--surface-raised);
 }
 
-.task-workflow-region { min-width: 0; display: grid; gap: 0.75rem; }
-.task-workflow-history { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.8rem;
-  background: var(--surface-raised); }
-.task-workflow-history > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 0.85rem 1rem; cursor: pointer; font-weight: 650; }
-.task-workflow-history > summary small { color: var(--muted); font-weight: 500; overflow-wrap: anywhere; }
-.task-workflow-history > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;
-  padding: 0 0.75rem 0.75rem; }
+.acp-workspace { min-width: 0; min-height: 0; display: flex; flex: 1 1 auto; flex-direction: column;
+  gap: 0.75rem; }
+.acp-workspace-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem;
+  padding: 0.35rem; border: 1px solid var(--border-subtle); border-radius: 0.9rem;
+  background: var(--surface-subtle); }
+.acp-workspace-tabs button { min-width: 0; min-height: 3.4rem; display: grid; align-content: center;
+  justify-items: start; gap: 0.15rem; padding: 0.55rem 0.75rem; border: 1px solid transparent;
+  border-radius: 0.65rem; color: var(--muted); background: transparent; box-shadow: none; text-align: left; }
+.acp-workspace-tabs button strong { color: inherit; font-size: 0.88rem; }
+.acp-workspace-tabs button small { max-width: 100%; overflow: hidden; color: inherit; font-size: 0.68rem;
+  font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.acp-workspace-tabs button[aria-selected="true"] { border-color: var(--border-subtle); color: var(--ink-strong);
+  background: var(--surface-raised); box-shadow: 0 0.25rem 0.8rem rgb(55 48 39 / 0.08); }
+.acp-workspace-tabs button[aria-selected="true"] strong { color: var(--color-primary); }
+.acp-workspace-tabs button:disabled { cursor: not-allowed; opacity: 0.48; }
+.acp-workspace-panel { min-width: 0; min-height: 0; }
+.acp-agent-view { display: flex; flex: 1 1 auto; flex-direction: column; gap: 0.75rem; }
+.acp-agent-view .output-panel { min-height: 24rem; flex: 1 1 28rem; }
+.acp-activity-view { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;
+  align-items: start; }
 
 .task-dispatch-panel {
   display: grid;
@@ -4689,11 +4701,16 @@ summary:focus-visible {
 .task-artifact-list ul { display: grid; gap: 0.45rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
 
 @media (max-width: 760px) {
-  .task-workflow-history > summary { align-items: flex-start; flex-direction: column; }
-  .task-workflow-history > div { grid-template-columns: 1fr; }
+  .acp-activity-view { grid-template-columns: 1fr; }
   .task-phase-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .task-dispatch-list > li > div:first-child { flex-direction: column; }
   .task-dispatch-resolution > div { flex-direction: column-reverse; }
+}
+
+@media (max-width: 480px) {
+  .acp-workspace-tabs button { min-height: 3rem; justify-items: center; padding-inline: 0.35rem;
+    text-align: center; }
+  .acp-workspace-tabs button small { display: none; }
 }
 .task-phase-run { display: grid; gap: .45rem; padding: .75rem; border: 1px solid var(--border); border-radius: .65rem; }
 .task-phase-run pre { margin: .5rem 0 0; max-height: 14rem; overflow: auto; white-space: pre-wrap; }
