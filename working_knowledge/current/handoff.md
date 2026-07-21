@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Extract the large Project Initialization lane presentation next, then the remaining PTY runtime controls before introducing the typed Tauri gateway.
+- Extract Facts/Markdown/Interview evidence cards and the remaining Initialization lane shell next, then PTY runtime controls before the typed Tauri gateway.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

@@ -42,7 +42,7 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is now 2,694 lines after staged extraction; Project Initialization and PTY runtime controls are the remaining dominant presentation blocks.
+- `src/App.tsx` is now 2,522 lines after staged extraction; Initialization evidence cards/lane shell and PTY runtime controls are the remaining dominant presentation blocks.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
@@ -62,6 +62,7 @@
 - Session History sidebar now lives in `src/features/transcripts/SessionHistoryPanel.tsx`; it owns pure filtering and the three-row presentation cap, while App owns transcript loading/opening, stale-response guards, rename persistence, selection, and errors.
 - ACP Registry sidebar now lives in `src/features/agents/AcpRegistryPanel.tsx`; App owns candidate discovery, selected ID and session policy, while the feature owns status/metadata/command and selected-summary presentation.
 - Terminal PTY/Agent Doctor sidebar now lives in `src/features/agents/TerminalFallbackPanel.tsx`; App owns Doctor discovery, runtime mode and active-session policy, while the feature owns report and toggle presentation.
+- Project Initialization Summary phase card now lives in `src/features/initialization/InitializationSummaryCard.tsx`; App retains catalog/selection workflow and generation persistence, while the feature derives tier options/provider presentation and renders capabilities/actions/preview.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

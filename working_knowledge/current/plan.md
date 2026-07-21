@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.16. Extract Project Initialization Summary phase card
+- objective: move synthesis tier/profile selection, capability presentation, Summary generation/review actions, and compact provenance preview out of the frontend coordinator.
+- status: complete
+- files: src/App.tsx; src/features/initialization/InitializationSummaryCard.tsx; src/features/initialization/InitializationSummaryCard.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Phase 5 card; tier group; profile options/unavailability; provider/capability badges; Generate/View locks; summary metrics/status/model provenance and prerequisite state.
+- expected changes: add a typed state-free and Tauri-free phase component; move tier/capability formatting to presentation helpers; move tier-profile/provider presentation derivation into the feature; keep selected profile derivation used by generation workflow in App.
+- acceptance criteria: all tiers/options/status reasons/capabilities and provenance copy remain unchanged; Generate requires selectable profile and idle state; View requires Summary; callbacks forward exact tier/profile; App retains catalog loading, selection state, provider invocation, Summary persistence and errors.
+- required tests: tiers/profile callbacks; empty/unavailable options; capabilities/provider; action locks/callbacks; draft/approved/empty preview; helper mappings; existing 116 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 removed the stale App ModelProfileInfo import and confirmed workflow-required selected profile remains App-owned, and cycle 2 found no remaining tier/profile, availability, provider/capability, action-lock, provenance, accessibility, runtime-boundary, generation ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.15. Extract Terminal PTY and Agent Doctor sidebar presentation
 - objective: move PTY fallback mode switching and Agent Doctor report rendering out of the frontend coordinator while preserving App-owned discovery, runtime mode, and active-session policy.
 - status: complete

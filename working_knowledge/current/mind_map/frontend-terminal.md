@@ -36,6 +36,7 @@
 - Session History sidebar is state-free transcript presentation with filtering and the three-row cap; App retains open/rename persistence, stale-response guards, selection, loading, and errors.
 - ACP Registry sidebar is state-free agent presentation; App retains discovery, selected ID, errors/loading, and active-session selection policy.
 - Terminal PTY/Agent Doctor sidebar is state-free agent presentation; App retains Doctor discovery, runtime mode, errors/loading, and active-session policy.
+- Initialization Summary phase card is state-free presentation; App retains catalog/selection workflow, provider generation, persistence, loading and errors.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

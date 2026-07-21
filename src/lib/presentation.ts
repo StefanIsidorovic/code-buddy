@@ -106,6 +106,24 @@ export function transportDetail(transports: { pty: string; acpStdio: string }) {
   return `PTY: ${capabilityLabel(transports.pty)} · ACP: ${capabilityLabel(transports.acpStdio)}`;
 }
 
+export function formatModelTier(tier: string) {
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
+export function modelCapabilityBadges(profile: { capabilities: {
+  structuredOutput: string; reasoningControl: string; backgroundMode: string;
+  api: string; cli: string; acp: string;
+} }) {
+  return [
+    { label: "structured", status: profile.capabilities.structuredOutput },
+    { label: "reasoning", status: profile.capabilities.reasoningControl },
+    { label: "background", status: profile.capabilities.backgroundMode },
+    { label: "api", status: profile.capabilities.api },
+    { label: "cli", status: profile.capabilities.cli },
+    { label: "acp", status: profile.capabilities.acp },
+  ];
+}
+
 export function acpEventLabel(kind: AcpEventKind) {
   return ({ agent_message: "Agent", user_message: "User", tool_call: "Tool", plan: "Plan",
     notice: "Notice", usage: "Usage", error: "Error" } as const)[kind];

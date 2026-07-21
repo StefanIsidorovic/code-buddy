@@ -10,6 +10,7 @@ import { NotificationViewport } from "./features/notifications/NotificationViewp
 import { ProjectInitializeDialog } from "./features/initialization/ProjectInitializeDialog";
 import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGuardrailsDialog";
 import { InitializationDetailsDialog } from "./features/initialization/InitializationDetailsDialog";
+import { InitializationSummaryCard } from "./features/initialization/InitializationSummaryCard";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
@@ -53,7 +54,6 @@ import type {
   KnowledgeItemInfo,
   KnowledgeUnitInfo,
   ModelCatalogInfo,
-  ModelProfileInfo,
   ModelTier,
   ProjectInfo,
   ProjectInitializationFactInfo,
@@ -78,7 +78,6 @@ const initialSize = {
   rows: 24,
 };
 
-const modelTiers: ModelTier[] = ["fast", "mid", "high", "max"];
 const defaultSynthesisModelProfileId = "openai-gpt-5.6-terra-medium";
 
 export { StateNotice, boundToastMessages };
@@ -230,21 +229,10 @@ function App() {
   const projectInitializationKnowledgeUnits = projectInitialization
     ? knowledgeUnitsByInitializationId[projectInitialization.id] ?? []
     : [];
-  const synthesisTierProfiles = useMemo(
-    () => (modelCatalog?.profiles ?? []).filter((profile) => profile.tier === synthesisTier),
-    [modelCatalog, synthesisTier],
-  );
   const selectedSynthesisModelProfile = useMemo(
     () =>
       modelCatalog?.profiles.find((profile) => profile.id === synthesisModelProfileId) ?? null,
     [modelCatalog, synthesisModelProfileId],
-  );
-  const selectedSynthesisModelProvider = useMemo(
-    () =>
-      modelCatalog?.providers.find(
-        (provider) => provider.id === selectedSynthesisModelProfile?.providerId,
-      ) ?? null,
-    [modelCatalog, selectedSynthesisModelProfile?.providerId],
   );
   const projectInitializationPhases = useMemo(
     () => projectInitializationPhaseItems(projectInitialization?.status ?? null),
@@ -2183,157 +2171,12 @@ function App() {
                   />
                 )}
               </section>
-              <section
-                className="initialize-result-card"
-                aria-labelledby="initialize-summary-title"
-              >
-                <div className="initialize-card-topline">
-                  <span className="initialize-phase-index">05</span>
-                  <div>
-                    <span>Phase 5</span>
-                    <h4 id="initialize-summary-title">Summary</h4>
-                  </div>
-                  <strong data-state={projectInitializationSummary ? "success" : "pending"}>
-                    {projectInitializationSummary
-                      ? projectInitializationSummary.status
-                      : "not generated"}
-                  </strong>
-                </div>
-                <div className="synthesis-model-controls">
-                  <div
-                    className="model-tier-control"
-                    role="group"
-                    aria-label="Synthesis tier"
-                  >
-                    {modelTiers.map((tier) => (
-                      <button
-                        key={tier}
-                        type="button"
-                        aria-pressed={synthesisTier === tier}
-                        onClick={() => selectSynthesisTier(tier)}
-                      >
-                        {formatModelTier(tier)}
-                      </button>
-                    ))}
-                  </div>
-                  <label className="synthesis-model-select">
-                    <span>Synthesis model</span>
-                    <select
-                      aria-label="Synthesis model"
-                      value={synthesisModelProfileId}
-                      onChange={(event) => setSynthesisModelProfileId(event.target.value)}
-                      disabled={!modelCatalog || synthesisTierProfiles.length === 0}
-                    >
-                      {synthesisTierProfiles.length === 0 ? (
-                        <option value="">No profile for this tier</option>
-                      ) : null}
-                      {synthesisTierProfiles.map((profile) => (
-                        <option
-                          key={profile.id}
-                          value={profile.id}
-                          disabled={profile.status !== "selectable"}
-                        >
-                          {profile.displayName}
-                          {profile.status === "unavailable" && profile.unavailableReason
-                            ? ` — ${profile.unavailableReason}`
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {selectedSynthesisModelProfile ? (
-                    <>
-                      <div
-                        className="model-capability-list"
-                        aria-label="Synthesis model capabilities"
-                      >
-                        <span className="model-provider-badge">
-                          {selectedSynthesisModelProvider?.displayName ??
-                            selectedSynthesisModelProfile.providerId}
-                        </span>
-                        {modelCapabilityBadges(selectedSynthesisModelProfile).map((capability) => (
-                          <span
-                            key={capability.label}
-                            className={`model-capability model-capability-${capability.status}`}
-                            title={`${capability.label}: ${capability.status}`}
-                          >
-                            {capability.label}
-                          </span>
-                        ))}
-                      </div>
-                      {selectedSynthesisModelProfile.status === "unavailable" &&
-                      selectedSynthesisModelProfile.unavailableReason ? (
-                        <p className="model-availability-note" role="status">
-                          {selectedSynthesisModelProfile.unavailableReason}
-                        </p>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-                <div className="initialize-card-actions">
-                  <button
-                    className="primary-action"
-                    type="button"
-                    onClick={() => void generateProjectInitializationSummary()}
-                    disabled={
-                      initializeLoading ||
-                      !selectedSynthesisModelProfile ||
-                      selectedSynthesisModelProfile.status !== "selectable"
-                    }
-                  >
-                    Generate Summary
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInitializeDetailsView("summary")}
-                    disabled={!projectInitializationSummary}
-                  >
-                    View Summary
-                  </button>
-                </div>
-                {projectInitializationSummary ? (
-                  <div
-                    className="summary-preview"
-                    aria-label="Project initialization summary preview"
-                  >
-                    <div className="initialize-metric-grid" aria-label="Summary source counts">
-                      <div>
-                        <span>Facts</span>
-                        <strong>{projectInitializationSummary.factCount}</strong>
-                      </div>
-                      <div>
-                        <span>Markdown</span>
-                        <strong>{projectInitializationSummary.markdownFindingCount}</strong>
-                      </div>
-                      <div>
-                        <span>Rules</span>
-                        <strong>{projectInitializationSummary.guardrailCount}</strong>
-                      </div>
-                    </div>
-                    <p className="summary-compact-note">
-                      {projectInitializationSummary.status === "approved"
-                        ? "Approved profile is ready for agent context."
-                        : "Draft profile is ready for review."}
-                    </p>
-                    <p className="summary-model-provenance">
-                      <strong>
-                        {projectInitializationSummary.requestedModelId ??
-                          "Legacy deterministic draft"}
-                      </strong>
-                      <span>
-                        {projectInitializationSummary.requestedModelTier ?? "unversioned"} ·{" "}
-                        {projectInitializationSummary.generationEngine}
-                      </span>
-                    </p>
-                  </div>
-                ) : (
-                  <StateNotice
-                    kind="prerequisite"
-                    title="No summary draft"
-                    description="Generate a reviewable profile from Facts, Markdown, and Interview evidence."
-                  />
-                )}
-              </section>
+              <InitializationSummaryCard catalog={modelCatalog} loading={initializeLoading}
+                profileId={synthesisModelProfileId} selectedProfile={selectedSynthesisModelProfile}
+                summary={projectInitializationSummary} tier={synthesisTier}
+                onChangeProfile={setSynthesisModelProfileId} onChangeTier={selectSynthesisTier}
+                onGenerate={() => void generateProjectInitializationSummary()}
+                onView={() => setInitializeDetailsView("summary")} />
               </div>
             </>
           ) : (
@@ -2656,21 +2499,6 @@ function groupInitializationFacts(facts: ProjectInitializationFactInfo[]) {
   }
 
   return Array.from(groups.values());
-}
-
-function formatModelTier(tier: ModelTier) {
-  return tier.charAt(0).toUpperCase() + tier.slice(1);
-}
-
-function modelCapabilityBadges(profile: ModelProfileInfo) {
-  return [
-    { label: "structured", status: profile.capabilities.structuredOutput },
-    { label: "reasoning", status: profile.capabilities.reasoningControl },
-    { label: "background", status: profile.capabilities.backgroundMode },
-    { label: "api", status: profile.capabilities.api },
-    { label: "cli", status: profile.capabilities.cli },
-    { label: "acp", status: profile.capabilities.acp },
-  ];
 }
 
 function guardrailToInput(

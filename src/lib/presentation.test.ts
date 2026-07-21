@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   acpCandidateStatusLabel, capabilityLabel, coalesceAcpEvents, doctorDetail, doctorStatusLabel,
   errorText, filterTranscriptSessions, folderNameFromPath,
-  formatMarkdownCategory, formatPromptWithKnowledge, formatTimestamp, guardrailKindClassName, guardrailKindLabel,
+  formatMarkdownCategory, formatModelTier, formatPromptWithKnowledge, formatTimestamp,
+  guardrailKindClassName, guardrailKindLabel, modelCapabilityBadges,
   markdownCategoryClassName,
   transcriptEventToAcpEvent, transportDetail, uniqueIds,
 } from "./presentation";
@@ -81,5 +82,12 @@ describe("presentation helpers", () => {
       error: null, installHint: "install" })).toBe("/bin/tool");
     expect(transportDetail({ pty: "supported", acpStdio: "unknown" }))
       .toBe("PTY: Supported · ACP: Unknown");
+  });
+
+  it("formats synthesis tiers and capability badges", () => {
+    expect(formatModelTier("mid")).toBe("Mid");
+    expect(modelCapabilityBadges({ capabilities: { structuredOutput: "supported",
+      reasoningControl: "unknown", backgroundMode: "unsupported", api: "supported",
+      cli: "unknown", acp: "unsupported" } })).toHaveLength(6);
   });
 });

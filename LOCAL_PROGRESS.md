@@ -29,6 +29,7 @@ Radno pravilo:
 - Session History sidebar je izdvojen; feature radi filter i three-row cap, dok App poseduje open/rename persistence, stale-response guardove, selection, loading i greske.
 - ACP Registry sidebar je izdvojen; App i dalje poseduje discovery, selected ID, loading/greske i session selection policy.
 - Terminal PTY/Agent Doctor sidebar je izdvojen; App i dalje poseduje Doctor discovery, runtime mode, loading/greske i active-session policy.
+- Initialization Summary phase kartica je izdvojena; App i dalje poseduje catalog/selection workflow, provider generation, persistence, loading i greske.
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 
