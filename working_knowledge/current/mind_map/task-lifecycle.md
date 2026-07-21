@@ -28,6 +28,7 @@
 - Each Run creates an ordered durable receipt only after backend validation confirms the exact current in-progress phase; its ACP outcome finalizes once without advancing the Task.
 - Phase Run History exposes those exact attempts; manual recovery can only mark a stale pending run failed after its ACP session is no longer running.
 - Evidence drafting may copy the latest persisted agent message/thought and its exact event ID into the editable artifact form; no artifact or completion is automatic.
+- Completion UI requires review against visible phase-specific criteria; this acknowledgment is transient, while the backend persisted-artifact requirement remains authoritative.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.
 - Task/transcript persistence failures block project-owned ACP sending, while project-less ACP remains a compatibility smoke path.
 

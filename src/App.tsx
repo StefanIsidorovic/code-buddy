@@ -371,9 +371,10 @@ function App() {
             currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents}
             selectedSourceIds={taskPhase.sourceIds} kind={taskPhase.kind} content={taskPhase.content}
             error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
-            agentRunning={acpPromptBusy} onChangeKind={taskPhase.changeKind}
+            agentRunning={acpPromptBusy} evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onDraftLatestAgentResponseEvidence={taskPhase.draftLatestAgentResponseEvidence}
+            onAcknowledgeEvidenceReview={taskPhase.acknowledgeEvidenceReview}
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)

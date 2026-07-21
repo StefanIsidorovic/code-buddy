@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.12. Add a phase-aware evidence review checkpoint
+- objective: prevent accidental UI completion immediately after artifact creation by requiring explicit review against transparent phase-specific criteria.
+- status: complete
+- files: src/features/tasks/taskPhaseReview.ts; src/features/tasks/useTaskPhaseWorkflow.ts; src/features/tasks/TaskPhasePanel.tsx; src/App.tsx; related tests and current knowledge.
+- affected units: deterministic review guidance; transient acknowledgment state; completion UI gate; Task composition.
+- expected changes: show three criteria for the current canonical phase; require acknowledgment after persisted artifacts exist; reset acknowledgment on Task change, artifact creation, or transition.
+- acceptance criteria: no automatic quality claim; backend artifact requirement remains authoritative; acknowledgment cannot survive evidence/phase changes; semantic checkbox and disabled state are testable.
+- required tests: criteria display; locked/unlocked completion; callback payload; hook completion guard and reset; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 established explicit reset semantics rather than deriving review from artifact existence, and cycle 2 verified accessibility, stale behavior, size/dependency boundaries, and the documented transient-versus-persisted distinction.
+- commit: this commit
+
 ### 22.11. Draft phase evidence from persisted ACP output
 - objective: reduce manual evidence copying while preserving explicit review, provenance, persistence, and completion gates.
 - status: complete

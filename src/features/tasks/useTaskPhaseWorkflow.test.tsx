@@ -23,7 +23,8 @@ describe("useTaskPhaseWorkflow", () => {
       : Promise.resolve(task)); const upsertTask = vi.fn();
     const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source], upsertTask }));
     await waitFor(() => expect(result.current.artifacts).toEqual([artifact]));
-    await act(() => result.current.start()); await act(() => result.current.complete());
+    await act(() => result.current.start()); act(() => result.current.acknowledgeEvidenceReview(true));
+    await act(() => result.current.complete());
     expect(invoke).toHaveBeenCalledWith("transition_task_phase", { request: { taskId: "t1", action: "start" } });
     expect(invoke).toHaveBeenCalledWith("transition_task_phase", { request: { taskId: "t1", action: "complete" } });
     expect(upsertTask).toHaveBeenCalledTimes(2);
@@ -59,5 +60,16 @@ describe("useTaskPhaseWorkflow", () => {
     act(() => result.current.draftLatestAgentResponseEvidence());
     expect(result.current.sourceIds).toEqual(["e3"]);
     expect(result.current.content).toBe("Final review");
+  });
+  it("blocks completion until evidence review is acknowledged and resets it after artifact change", async () => {
+    invoke.mockImplementation((command) => command === "list_task_phase_artifacts" ? Promise.resolve([artifact])
+      : command === "create_task_phase_artifact" ? Promise.resolve(artifact) : Promise.resolve(task));
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source], upsertTask: vi.fn() }));
+    await waitFor(() => expect(result.current.artifacts).toEqual([artifact]));
+    await act(() => result.current.complete());
+    expect(invoke.mock.calls.filter(([command]) => command === "transition_task_phase")).toHaveLength(0);
+    act(() => result.current.acknowledgeEvidenceReview(true)); expect(result.current.evidenceReviewed).toBe(true);
+    act(() => { result.current.changeContent("New evidence"); result.current.toggleSource("e1", true); });
+    await act(() => result.current.createArtifact()); expect(result.current.evidenceReviewed).toBe(false);
   });
 });

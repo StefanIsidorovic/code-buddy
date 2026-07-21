@@ -17,9 +17,10 @@ const artifact: TaskPhaseArtifactInfo = { id: "a1", taskId: "t1", phase: "analys
   kind: "summary", content: "Analysis evidence", sourceTranscriptEventIds: ["e1"], createdAt: 1 };
 function props(overrides = {}) { return { task, artifacts: [], currentPhase: phases[0], sourceEvents: [event],
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
-  canRunAgent: true, agentRunning: false,
+  canRunAgent: true, agentRunning: false, evidenceReviewed: false,
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
-  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), onDraftLatestAgentResponseEvidence: vi.fn(), ...overrides }; }
+  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), onDraftLatestAgentResponseEvidence: vi.fn(),
+  onAcknowledgeEvidenceReview: vi.fn(), ...overrides }; }
 
 describe("TaskPhasePanel", () => {
   it("renders phase state and forwards evidence form changes", () => {
@@ -34,7 +35,7 @@ describe("TaskPhasePanel", () => {
   it("locks completion without an artifact and enables it with persisted evidence", () => {
     const value = props(); const view = render(<TaskPhasePanel {...value} />);
     expect(screen.getByRole("button", { name: "Complete analysis" })).toBeDisabled();
-    view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact] })} />);
+    view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact], evidenceReviewed: true })} />);
     expect(screen.getByRole("button", { name: "Complete analysis" })).toBeEnabled();
     expect(screen.getByText("Analysis evidence")).toBeInTheDocument();
   });
@@ -60,5 +61,14 @@ describe("TaskPhasePanel", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByRole("button", { name: "Draft evidence from latest agent response" }));
     expect(value.onDraftLatestAgentResponseEvidence).toHaveBeenCalledOnce();
+  });
+  it("requires explicit phase-aware evidence review before completion", () => {
+    const value = props({ artifacts: [artifact] }); const view = render(<TaskPhasePanel {...value} />);
+    expect(screen.getByText("Risks and unknowns are explicit.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete analysis" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /I reviewed the persisted evidence/ }));
+    expect(value.onAcknowledgeEvidenceReview).toHaveBeenCalledWith(true);
+    view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact], evidenceReviewed: true })} />);
+    expect(screen.getByRole("button", { name: "Complete analysis" })).toBeEnabled();
   });
 });

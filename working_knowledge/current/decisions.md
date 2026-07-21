@@ -20,9 +20,11 @@
 - Phase-run audit boundary: persist an ordered `pending` receipt only for the current in-progress phase before ACP dispatch, then finalize once as `sent`/`failed`; interrupted uncertainty remains `pending`.
 - Phase-run recovery: manual recovery may only mark pending as failed with a bounded reason after the associated ACP session stops; finalized outcomes cannot be rewritten.
 - Evidence draft boundary: the explicit draft action copies only the highest-sequence persisted agent message/thought and selects its real event ID; persistence and phase completion remain separate user actions.
+- Review checkpoint boundary: persisted artifacts remain the backend completion gate; the phase-aware acknowledgment is a transient UI safeguard reset by Task, evidence, or transition changes and must not be represented as a durable audit approval.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
 - Multi-session Task continuation: defer until the one-session Task workflow is validated.
 - Automatic reconciliation of pending receipts: defer until external ACP delivery evidence exists; never infer `sent` from age or session shutdown alone.
 - Structured evidence curation: raw agent output can now seed a draft, but automated summarization/validation of evidence remains deferred.
+- Durable review approval: persist reviewer identity/time/criteria only if a future compliance or multi-user workflow requires an auditable approval record.

@@ -1,6 +1,7 @@
 # Handoff
 
 ## Current State
+- Phase completion UI now shows deterministic phase-specific review criteria and requires an explicit acknowledgment that resets when Task/evidence/phase state changes.
 - The current phase can draft editable evidence from the latest persisted agent response with exact transcript-event provenance; saving and completion remain explicit.
 - Phase Run History now exposes ordered exact instructions/outcomes and can conservatively resolve stale pending runs only after their ACP session stops.
 - Controlled phase runs now persist an ordered `pending` receipt before ACP and finalize it once as `sent` or `failed`, retaining exact instruction, phase, session and outcome.
@@ -22,7 +23,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Add phase-aware evidence validation/curation and a guided review checkpoint before considering multi-phase automation.
+- Design the first safe two-step phase continuation using persisted receipts/artifacts while retaining a user checkpoint between phases.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

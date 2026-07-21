@@ -1,17 +1,20 @@
 import type { TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo, TranscriptEventInfo } from "../../types/domain";
 import { buildTaskPhaseExecutionPrompt } from "./taskPhaseExecution";
+import { taskPhaseReviewCriteria } from "./taskPhaseReview";
 
 interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPhase: TaskPhaseInfo | null;
   sourceEvents: TranscriptEventInfo[]; selectedSourceIds: string[]; kind: string; content: string;
   error: string | null; loading: boolean; onChangeKind: (value: string) => void;
-  canRunAgent: boolean; agentRunning: boolean;
+  canRunAgent: boolean; agentRunning: boolean; evidenceReviewed: boolean;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
-  onRunAgent: (instruction: string) => void; onDraftLatestAgentResponseEvidence: () => void }
+  onRunAgent: (instruction: string) => void; onDraftLatestAgentResponseEvidence: () => void;
+  onAcknowledgeEvidenceReview: (reviewed: boolean) => void }
 
 export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
-  kind, content, error, loading, canRunAgent, agentRunning, onChangeKind, onChangeContent,
-  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAgent, onDraftLatestAgentResponseEvidence }: Props) {
+  kind, content, error, loading, canRunAgent, agentRunning, evidenceReviewed, onChangeKind, onChangeContent,
+  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAgent, onDraftLatestAgentResponseEvidence,
+  onAcknowledgeEvidenceReview }: Props) {
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
   const inProgress = currentPhase?.status === "in_progress";
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
@@ -42,8 +45,13 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           <span>{event.sequence + 1}. {event.content}</span></label>)}</fieldset>
       <button type="button" onClick={onCreateArtifact} disabled={loading || !kind.trim()
         || !content.trim() || selectedSourceIds.length === 0}>Add evidence</button>
+      {phaseArtifacts.length > 0 ? <fieldset className="task-phase-review"><legend>Review checkpoint</legend>
+        <ul>{taskPhaseReviewCriteria[task.currentPhase].map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
+        <label><input type="checkbox" checked={evidenceReviewed}
+          onChange={(event) => onAcknowledgeEvidenceReview(event.target.checked)} />
+          I reviewed the persisted evidence against these criteria.</label></fieldset> : null}
       <button className="primary-action" type="button" onClick={onComplete}
-        disabled={loading || phaseArtifacts.length === 0}>Complete {task.currentPhase}</button>
+        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed}>Complete {task.currentPhase}</button>
     </div> : null}
     <div className="task-artifact-list"><strong>Current phase artifacts</strong>
       {phaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{phaseArtifacts.map((artifact) =>

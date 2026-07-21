@@ -794,3 +794,9 @@ YYYY-MM-DD
 - Current phase moze eksplicitno da popuni editabilni evidence draft iz latest persisted agent message/thought event-a i izabere samo njegov realni ID kao provenance.
 - Izbor koristi najveci transcript sequence, ne array redosled; Add evidence i Complete phase ostaju odvojeni backend gate-ovi.
 - Frontend audit, 201 frontend test, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 560 linija.
+
+### 2026-07-22 - Phase-Aware Evidence Review Checkpoint
+
+- Current phase prikazuje tri transparentna review kriterijuma i Complete ostaje zakljucan dok korisnik ne potvrdi pregled persisted artifact-a.
+- Acknowledgment je namerno transient UI safeguard i resetuje se pri Task promeni, novom artifact-u ili transition-u; backend artifact gate ostaje autoritativan.
+- Frontend audit, 203 frontend testa, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 561 liniju.
