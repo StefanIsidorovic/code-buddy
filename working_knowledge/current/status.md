@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: d0b4ff9 step 21.8: extract agent environment hook
-- worktree: plan item 21.9 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/workspace/useProjectDeletion.ts; src/features/workspace/useProjectDeletion.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 8923904 step 21.9: extract project deletion hook
+- worktree: plan item 21.10 implementation and knowledge updates ready for commit.
+- relevant files: src/features/runtime/usePtyTerminal.ts; src/features/runtime/usePtyTerminal.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 21.9 complete
+- active plan step: 21.10 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -84,3 +84,4 @@
 - 2026-07-21: frontend audit, 163 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.7; PTY process/terminal orchestration is isolated and `App.tsx` is 113 lines smaller at 656 lines.
 - 2026-07-21: frontend audit, 167 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.8; Agent Doctor/synthesis catalog orchestration is isolated and `App.tsx` is 98 lines smaller at 558 lines.
 - 2026-07-21: frontend audit, 170 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.9; project deletion coordination is isolated, App has no backend workflow, and `App.tsx` is 39 lines smaller at 519 lines.
+- 2026-07-21: frontend audit, 171 frontend tests, typecheck, production build without chunk warnings, `git diff --check`, and two adversarial review cycles pass for plan item 21.10; initial JS is 281.69 kB and PTY-only xterm is a separate 329.31 kB chunk.

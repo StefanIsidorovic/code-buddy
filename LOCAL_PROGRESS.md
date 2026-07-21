@@ -722,3 +722,9 @@ YYYY-MM-DD
 - Project delete candidate/error, ACP-first shutdown, backend delete, catalog/evidence cleanup i success toast izdvojeni su u `useProjectDeletion`.
 - Cleanup je atomski sa frontend strane: ako ACP shutdown ili backend delete ne uspe, lokalni domeni se ne uklanjaju i potvrda ostaje otvorena.
 - `App.tsx` je 519-linijski composition root bez backend poziva; audit, typecheck, 170 testova i build prolaze.
+
+### 2026-07-21 - PTY xterm code splitting
+
+- xterm, FitAddon i njihov CSS se dinamicki ucitavaju tek kada korisnik udje u PTY fallback mod; kasni import posle unmount/mode promene ne montira terminal.
+- Pocetni JS je pao sa oko 611 kB na 281.69 kB; xterm je zaseban 329.31 kB chunk i Vite vise nema chunk-size warning.
+- Frontend modularizacija je zavrsena: audit, typecheck, 171 test i production build prolaze.

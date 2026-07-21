@@ -42,7 +42,7 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is now a 519-line composition root with no backend commands; code splitting is the remaining frontend modularization item.
+- `src/App.tsx` is a 519-line composition root with no backend commands; frontend orchestration modularization is complete.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
@@ -77,6 +77,7 @@
 - `src/features/runtime/usePtyRuntime.ts` owns PTY process state/start/resize/drain/stop and composes the xterm lifecycle hook; App supplies only mode, cwd and Doctor readiness.
 - `src/features/agents/useAgentEnvironment.ts` owns stale-safe Agent Doctor discovery, synthesis catalog validation/fallback, tier/profile selection and Summary provenance restoration; ACP coding-model state remains session-owned.
 - `src/features/workspace/useProjectDeletion.ts` owns confirmation/error state and ACP-first deletion coordination through injected catalog/evidence callbacks; App no longer invokes the backend directly.
+- `src/features/runtime/usePtyTerminal.ts` dynamically loads xterm/FitAddon/CSS only in PTY mode and guards late async resolution; initial JS is 281.69 kB and the isolated xterm chunk is 329.31 kB.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints
@@ -87,5 +88,5 @@
 - Do not hold the SQLite lock during provider network calls; reject stale synthesis results when evidence changes.
 - Keep credentials in the Rust process and out of React/SQLite.
 - Real CLI/ACP behavior depends on locally installed tools and PATH; browser-only Vite mode cannot validate Tauri commands.
-- The Vite bundle currently has a known non-fatal >500 kB chunk warning.
+- The initial Vite JS bundle is below 500 kB; xterm is a separate PTY-only dynamic chunk and the build has no chunk-size warning.
 - Linux-first fake CLI/runtime helpers still need platform hardening before cross-platform release.

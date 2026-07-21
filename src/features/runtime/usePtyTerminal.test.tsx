@@ -44,9 +44,21 @@ describe("usePtyTerminal", () => {
     expect(doubles.dispose).toHaveBeenCalled();
   });
 
-  it("shows the empty message and ignores input without a running session", () => {
+  it("shows the empty message and ignores input without a running session", async () => {
     render(<Harness session={null} output="" />);
-    expect(doubles.writeln).toHaveBeenCalledWith("No session yet.");
+    await waitFor(() => expect(doubles.writeln).toHaveBeenCalledWith("No session yet."));
     act(() => doubles.input?.("ignored")); expect(doubles.invoke).not.toHaveBeenCalled();
+  });
+
+  it("does not mount a terminal after the PTY lifecycle is disposed during loading", async () => {
+    const view = render(<Harness />);
+    view.unmount();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(doubles.write).not.toHaveBeenCalled();
+    expect(doubles.writeln).not.toHaveBeenCalled();
+    expect(doubles.dispose).not.toHaveBeenCalled();
   });
 });

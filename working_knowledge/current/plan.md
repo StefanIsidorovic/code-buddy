@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.10. Code-split the PTY terminal runtime
+- objective: remove xterm from the initial application bundle while preserving the complete PTY lifecycle and making async loading teardown-safe.
+- status: complete
+- files: src/features/runtime/usePtyTerminal.ts; src/features/runtime/usePtyTerminal.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: xterm/FitAddon/CSS loading; PTY mount; input/resize; output initialization; unmount cleanup; production chunks.
+- expected changes: replace static runtime imports with dynamic imports inside the PTY-only effect and guard late resolution after mode change/unmount.
+- acceptance criteria: ACP startup does not load xterm; PTY behavior is unchanged; a disposed lifecycle cannot mount late; initial JS is below 500 kB and Vite emits no chunk-size warning.
+- required tests: existing terminal lifecycle behavior; disposed-during-load race; existing 170 frontend tests; audit; typecheck; build output/chunk check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added a late-import disposal regression test after confirming the bundle split, and cycle 2 found no remaining async lifecycle, cleanup, input, resize, CSS, error, bundle, regression, or scope issue.
+- commit: this commit
+
 ### 21.9. Extract project deletion coordination
 - objective: remove the final backend workflow from App by isolating cross-domain project deletion behind semantic callbacks.
 - status: complete

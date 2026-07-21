@@ -1,6 +1,5 @@
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
+import type { FitAddon } from "@xterm/addon-fit";
+import type { Terminal } from "@xterm/xterm";
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
@@ -35,34 +34,57 @@ export function usePtyTerminal({ mode, output, session, onError, onResizeSession
 
   useEffect(() => {
     if (mode !== "pty" || !elementRef.current) return;
-    const terminal = new Terminal({ cursorBlink: true, convertEol: true,
-      fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace', fontSize: 13,
-      scrollback: 1_000, theme: { background: "#111c18", foreground: "#d7ede3",
-        cursor: "#d7ede3", selectionBackground: "#31584d" } });
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon); terminal.open(elementRef.current); fitAddon.fit();
-    setSize(readTerminalSize(terminal));
-    if (outputRef.current.length > 0) terminal.write(outputRef.current); else terminal.writeln("No session yet.");
-    terminalRef.current = terminal; fitAddonRef.current = fitAddon;
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
 
-    const inputDisposable = terminal.onData((text) => {
-      const activeSession = sessionRef.current;
-      if (!activeSession || activeSession.state !== "running") return;
-      void invokeCommand("write_session_input", { sessionId: activeSession.id, text })
-        .catch((error) => onErrorRef.current(errorText(error)));
-    });
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddonRef.current?.fit();
-      const nextSize = readTerminalSize(terminal); setSize(nextSize);
-      const activeSession = sessionRef.current;
-      if (activeSession?.state === "running" &&
-        (activeSession.cols !== nextSize.cols || activeSession.rows !== nextSize.rows)) {
-        onResizeSessionRef.current(activeSession.id, nextSize);
+    async function mountTerminal() {
+      try {
+        const [{ Terminal }, { FitAddon }] = await Promise.all([
+          import("@xterm/xterm"),
+          import("@xterm/addon-fit"),
+          import("@xterm/xterm/css/xterm.css"),
+        ]);
+        const element = elementRef.current;
+        if (disposed || !element) return;
+        const terminal = new Terminal({ cursorBlink: true, convertEol: true,
+          fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace', fontSize: 13,
+          scrollback: 1_000, theme: { background: "#111c18", foreground: "#d7ede3",
+            cursor: "#d7ede3", selectionBackground: "#31584d" } });
+        const fitAddon = new FitAddon();
+        terminal.loadAddon(fitAddon); terminal.open(element); fitAddon.fit();
+        setSize(readTerminalSize(terminal));
+        if (outputRef.current.length > 0) terminal.write(outputRef.current);
+        else terminal.writeln("No session yet.");
+        terminalRef.current = terminal; fitAddonRef.current = fitAddon;
+
+        const inputDisposable = terminal.onData((text) => {
+          const activeSession = sessionRef.current;
+          if (!activeSession || activeSession.state !== "running") return;
+          void invokeCommand("write_session_input", { sessionId: activeSession.id, text })
+            .catch((error) => onErrorRef.current(errorText(error)));
+        });
+        const resizeObserver = new ResizeObserver(() => {
+          fitAddonRef.current?.fit();
+          const nextSize = readTerminalSize(terminal); setSize(nextSize);
+          const activeSession = sessionRef.current;
+          if (activeSession?.state === "running" &&
+            (activeSession.cols !== nextSize.cols || activeSession.rows !== nextSize.rows)) {
+            onResizeSessionRef.current(activeSession.id, nextSize);
+          }
+        });
+        resizeObserver.observe(element);
+        cleanup = () => { inputDisposable.dispose(); resizeObserver.disconnect(); terminal.dispose();
+          terminalRef.current = null; fitAddonRef.current = null; };
+      } catch (reason) {
+        if (!disposed) onErrorRef.current(errorText(reason));
       }
-    });
-    resizeObserver.observe(elementRef.current);
-    return () => { inputDisposable.dispose(); resizeObserver.disconnect(); terminal.dispose();
-      terminalRef.current = null; fitAddonRef.current = null; };
+    }
+
+    void mountTerminal();
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
   }, [mode]);
 
   function fit(): TerminalSize {
