@@ -29,7 +29,9 @@ import { useKnowledgeWorkspace } from "./features/knowledge/useKnowledgeWorkspac
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
+import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
+import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
 import { useTaskDispatchHistory } from "./features/tasks/useTaskDispatchHistory";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
@@ -168,6 +170,7 @@ function App() {
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask });
   const taskDispatch = useTaskDispatchHistory(activeTask);
+  const taskPhaseRuns = useTaskPhaseRunHistory(activeTask);
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -372,7 +375,13 @@ function App() {
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
-            onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)} /> : null}
+            onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)
+              .then(() => void taskPhaseRuns.refresh())} /> : null}
+          {activeTask ? <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts} loading={taskPhaseRuns.loading}
+            error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
+            resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}
+            onOpenResolution={taskPhaseRuns.openResolution} onChangeResolutionReason={taskPhaseRuns.changeResolutionReason}
+            onCancelResolution={taskPhaseRuns.cancelResolution} onResolve={() => void taskPhaseRuns.resolve()} /> : null}
           {activeTask ? <TaskDispatchHistoryPanel receipts={taskDispatch.receipts}
             loading={taskDispatch.loading} error={taskDispatch.error}
             resolutionReceiptId={taskDispatch.resolutionReceiptId}

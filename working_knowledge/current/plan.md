@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.10. Present phase-run history and recover stale pending runs
+- objective: make controlled phase-run attempts inspectable and provide a conservative recovery path for genuinely stale pending runs.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; src/features/tasks/useTaskPhaseRunHistory.ts; src/features/tasks/TaskPhaseRunHistoryPanel.tsx; src/App.tsx; related tests and current knowledge.
+- affected units: active-session recovery guard; ordered Task history; stale-safe feature state; state-free presentation; App composition.
+- expected changes: show exact instruction, phase, time and outcome; refresh after every completed run attempt; allow only pending-to-failed recovery with a bounded reason after ACP stops.
+- acceptance criteria: finalized outcomes are immutable; recovery cannot claim delivery; Task changes invalidate old loads; exact stored instruction is visible; no Zustand or direct Tauri coupling enters presentation.
+- required tests: exact resolution payload; stale load; exact instruction/status display; mandatory reason; finalized lock; backend pending/finalized policy; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 extended storage coverage for manual recovery and finalized immutability, and cycle 2 refreshed history after both successful and failed ACP attempts so failure evidence is immediately visible.
+- commit: this commit
+
 ### 22.9. Persist auditable phase-run receipts
 - objective: persist the exact current-phase execution intent before ACP dispatch and its conservative outcome afterward.
 - status: complete

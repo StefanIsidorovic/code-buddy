@@ -310,6 +310,14 @@ pub struct CreateTaskPhaseRunRequest {
     pub instruction: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolveTaskPhaseRunRequest {
+    pub task_id: String,
+    pub receipt_id: String,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPhaseRunReceiptInfo {
@@ -1766,6 +1774,32 @@ impl ProjectStore {
         ids.into_iter()
             .map(|id| self.task_phase_run_receipt(&id))
             .collect()
+    }
+
+    pub fn resolve_pending_task_phase_run(
+        &self,
+        request: ResolveTaskPhaseRunRequest,
+    ) -> AppResult<TaskPhaseRunReceiptInfo> {
+        let task_id = request.task_id.trim();
+        let receipt_id = request.receipt_id.trim();
+        let reason = request.reason.trim();
+        if task_id.is_empty()
+            || receipt_id.is_empty()
+            || reason.is_empty()
+            || reason.chars().count() > 1000
+        {
+            return Err(AppError::InvalidInput("pending phase run resolution requires task, receipt, and a reason up to 1000 characters".into()));
+        }
+        let connection = self.connection()?;
+        let changed = connection.execute("UPDATE task_phase_run_receipts SET status = 'failed', error = ?3, updated_at = ?4 WHERE id = ?1 AND task_id = ?2 AND status = 'pending'",
+            params![receipt_id, task_id, format!("manually resolved as failed: {reason}"), unix_timestamp()?]).map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "phase run receipt is missing, finalized, or belongs to another task".into(),
+            ));
+        }
+        drop(connection);
+        self.task_phase_run_receipt(receipt_id)
     }
 
     fn task_phase_run_receipt(&self, receipt_id: &str) -> AppResult<TaskPhaseRunReceiptInfo> {
@@ -6210,7 +6244,7 @@ mod tests {
         let second = store
             .begin_task_phase_run(CreateTaskPhaseRunRequest {
                 task_id: task.id.clone(),
-                transcript_session_id: transcript.id,
+                transcript_session_id: transcript.id.clone(),
                 phase: "analysis".into(),
                 acp_session_id: "acp-1".into(),
                 instruction: "Analyze retry".into(),
@@ -6219,10 +6253,38 @@ mod tests {
         store
             .finalize_task_phase_run(&second.id, "failed", None, Some("offline"))
             .expect("retry failed");
+        let third = store
+            .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id,
+                phase: "analysis".into(),
+                acp_session_id: "acp-1".into(),
+                instruction: "Analyze after restart".into(),
+            })
+            .expect("uncertain run persisted");
+        let resolved = store
+            .resolve_pending_task_phase_run(ResolveTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                receipt_id: third.id,
+                reason: "Agent process was stopped".into(),
+            })
+            .expect("pending run resolved");
+        assert_eq!(resolved.status, "failed");
+        assert_eq!(
+            resolved.error.as_deref(),
+            Some("manually resolved as failed: Agent process was stopped")
+        );
+        assert!(store
+            .resolve_pending_task_phase_run(ResolveTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                receipt_id: first.id.clone(),
+                reason: "rewrite".into(),
+            })
+            .is_err());
         let listed = store
             .list_task_phase_run_receipts(&task.id)
             .expect("runs listed");
-        assert_eq!(listed.len(), 2);
+        assert_eq!(listed.len(), 3);
         assert_eq!(listed[0].instruction, "Analyze only");
         assert_eq!(listed[1].sequence, 1);
         assert_eq!(listed[1].error.as_deref(), Some("offline"));

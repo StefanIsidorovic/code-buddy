@@ -18,9 +18,10 @@
 - Pending dispatch recovery: manual recovery may only turn `pending` into `failed` with an explicit bounded reason, and only while the associated ACP session is not running; it can never manufacture a `sent` outcome.
 - Controlled phase execution: a Run action sends one visible canonical phase instruction only for the exact active Task; ACP output does not create evidence, complete the phase, or advance the state machine automatically.
 - Phase-run audit boundary: persist an ordered `pending` receipt only for the current in-progress phase before ACP dispatch, then finalize once as `sent`/`failed`; interrupted uncertainty remains `pending`.
+- Phase-run recovery: manual recovery may only mark pending as failed with a bounded reason after the associated ACP session stops; finalized outcomes cannot be rewritten.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
 - Multi-session Task continuation: defer until the one-session Task workflow is validated.
 - Automatic reconciliation of pending receipts: defer until external ACP delivery evidence exists; never infer `sent` from age or session shutdown alone.
-- Phase-run history presentation and pending recovery: the typed ordered API exists, but UI and conservative recovery remain deferred to the next slice.
+- Phase evidence capture from ACP output: history is now visible, but turning selected persisted output into an artifact remains explicit future work.

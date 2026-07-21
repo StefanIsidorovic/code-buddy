@@ -25,10 +25,10 @@ use crate::{
         ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
         ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
         ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
-        ResolveTaskContextDispatchRequest, SaveProjectInitializationGuardrailsRequest,
-        TaskContextDispatchReceiptInfo, TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo,
-        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
-        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskContextDispatchReceiptInfo, TaskInfo,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptEventInfo, TranscriptEventInput,
+        TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -388,6 +388,31 @@ pub fn list_task_phase_run_receipts(
     task_id: String,
 ) -> AppResult<Vec<TaskPhaseRunReceiptInfo>> {
     state.list_task_phase_run_receipts(&task_id)
+}
+
+#[tauri::command]
+pub async fn resolve_pending_task_phase_run(
+    store_state: State<'_, ProjectStore>,
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    request: ResolveTaskPhaseRunRequest,
+) -> AppResult<TaskPhaseRunReceiptInfo> {
+    let receipt = store_state
+        .list_task_phase_run_receipts(&request.task_id)?
+        .into_iter()
+        .find(|value| value.id == request.receipt_id)
+        .ok_or_else(|| {
+            AppError::InvalidInput("phase run receipt is missing or belongs to another task".into())
+        })?;
+    let manager = Arc::clone(manager_state.inner());
+    let sessions = run_acp_task(move || manager.list_sessions()).await?;
+    if sessions.iter().any(|session| {
+        session.id == receipt.acp_session_id && session.state == SessionState::Running
+    }) {
+        return Err(AppError::InvalidInput(
+            "stop the associated ACP session before resolving its pending phase run".into(),
+        ));
+    }
+    store_state.resolve_pending_task_phase_run(request)
 }
 
 #[tauri::command]
