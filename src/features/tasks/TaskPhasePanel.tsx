@@ -38,11 +38,15 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         onChange={(event) => onChangeContent(event.target.value)} /></label>
       <button type="button" onClick={onDraftLatestAgentResponseEvidence} disabled={loading || !sourceEvents.some((event) =>
         event.kind === "agent_message" || event.kind === "agent_thought")}>Draft evidence from latest agent response</button>
-      <fieldset><legend>Transcript provenance</legend>{sourceEvents.length === 0
-        ? <p>No persisted transcript events yet.</p> : sourceEvents.map((event) => <label key={event.id}>
-          <input type="checkbox" checked={selectedSourceIds.includes(event.id)}
-            onChange={(change) => onToggleSource(event.id, change.target.checked)} />
-          <span>{event.sequence + 1}. {event.content}</span></label>)}</fieldset>
+      <details className="task-provenance-picker"><summary><span>Transcript provenance</span>
+        <small>{selectedSourceIds.length} selected · {sourceEvents.length} persisted event(s)</small></summary>
+        {sourceEvents.length === 0 ? <p>No persisted transcript events yet.</p>
+          : <div className="task-provenance-list">{sourceEvents.map((event) => <label key={event.id}>
+            <input type="checkbox" checked={selectedSourceIds.includes(event.id)}
+              onChange={(change) => onToggleSource(event.id, change.target.checked)} />
+            <span className="task-provenance-meta">#{event.sequence + 1} · {event.kind.split("_").join(" ")}</span>
+            <span className="task-provenance-content">{event.content}</span></label>)}</div>}
+      </details>
       <button type="button" onClick={onCreateArtifact} disabled={loading || !kind.trim()
         || !content.trim() || selectedSourceIds.length === 0}>Add evidence</button>
       {phaseArtifacts.length > 0 ? <fieldset className="task-phase-review"><legend>Review checkpoint</legend>

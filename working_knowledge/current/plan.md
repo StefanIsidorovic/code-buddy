@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.14. Repair transcript provenance picker UX
+- objective: fix the screenshot-confirmed oversized/misaligned checkbox layout and keep long transcript provenance inspectable without dominating the Task workflow.
+- status: complete
+- files: src/App.css; src/features/tasks/TaskPhasePanel.tsx; related test and current knowledge.
+- affected units: global checkbox normalization; native provenance disclosure; event metadata/content preview; selected-state presentation.
+- expected changes: reset checkbox dimensions excluded from generic text-input sizing; collapse provenance by default; show selected/event counts; render compact labeled rows with kind, sequence and two-line preview.
+- acceptance criteria: checkboxes remain keyboard-accessible and label-bound; long instructions wrap/clamp; all persisted event kinds remain selectable; selected items are visually distinct; picker does not consume space until opened.
+- required tests: collapsed/open behavior; selected count; exact event metadata; existing selection callback; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 traced the regression to global input sizing plus grid-stretched labels and introduced the compact disclosure, and cycle 2 verified persisted-event access, selection semantics, compatibility target, accessibility and global checkbox scope.
+- commit: this commit
+
 ### 22.13. Repair the runtime workflow layout and compact activity UI
 - objective: fix the screenshot-confirmed Task Phase collapse/overlay and reduce empty receipt-history space without hiding access to audit data.
 - status: complete

@@ -1,6 +1,7 @@
 # Handoff
 
 ## Current State
+- Transcript provenance is now collapsed by default with selected/event counts, normalized 16px checkboxes, compact event metadata, two-line previews and a bounded scroll area.
 - The screenshot-confirmed runtime overlap is fixed: dynamic controls/workflow/errors size naturally, Output grows, and phase/context histories are grouped under collapsed Task activity.
 - ACP session status/actions switch to a narrow layout at 760px and long session IDs wrap instead of clipping actions.
 - Phase completion UI now shows deterministic phase-specific review criteria and requires an explicit acknowledgment that resets when Task/evidence/phase state changes.

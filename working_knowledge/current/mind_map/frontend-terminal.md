@@ -177,6 +177,7 @@
 - Collapsed ACP mode must keep Prompt/Preview/Send and Drain/Stop reachable; hidden model/Task/result details must leave the accessibility tree until expanded.
 - Runtime lane uses a vertical flex stack rather than fixed child rows because ACP, PTY, Task workflow and error surfaces are conditional; Output flexes into remaining space without collapsing Task controls.
 - Task Phase stays visible while phase-run/context histories live under a native collapsed Task activity disclosure; ACP session IDs/actions wrap at the 760px workflow breakpoint.
+- Task artifact provenance uses a native collapsed picker with normalized checkbox dimensions and bounded event previews; generic text-input min-height must never leak onto checkbox controls.
 - If ACP Test shows fake as the active source, stop that session before starting the selected registry candidate.
 - Real ACP send/start can take time; backend commands run off the UI thread to avoid the app window being marked not responding.
 - Knowledge Cards are manual and explicit for now; automatic suggestions, relevance search, conflict checks, and redaction are deferred.

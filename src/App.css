@@ -169,6 +169,17 @@ select {
   color: var(--ink);
 }
 
+input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0.2rem;
+  box-shadow: none;
+  accent-color: var(--color-primary);
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -4658,8 +4669,23 @@ summary:focus-visible {
 
 .task-phase-list li[data-current="true"] { border-color: var(--color-accent); }
 .task-artifact-editor { display: grid; gap: 0.7rem; }
-.task-artifact-editor label { display: grid; gap: 0.35rem; }
+.task-artifact-editor > label { display: grid; gap: 0.35rem; }
 .task-artifact-editor fieldset { display: grid; gap: 0.4rem; }
+.task-provenance-picker { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.7rem; }
+.task-provenance-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.75rem; cursor: pointer; font-weight: 650; }
+.task-provenance-picker > summary small { color: var(--muted); font-weight: 500; }
+.task-provenance-picker > p { margin: 0; padding: 0 0.75rem 0.75rem; color: var(--muted); }
+.task-provenance-list { display: grid; gap: 0.35rem; max-height: 18rem; overflow: auto; padding: 0 0.55rem 0.55rem; }
+.task-provenance-list label { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.6rem; align-items: start; padding: 0.6rem; border: 1px solid var(--border-subtle);
+  border-radius: 0.55rem; background: var(--surface-subtle); cursor: pointer; text-transform: none; }
+.task-provenance-list input { grid-row: 1 / span 2; margin-top: 0.15rem; }
+.task-provenance-list label:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.task-provenance-meta { color: var(--muted); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; }
+.task-provenance-content { min-width: 0; display: -webkit-box; overflow: hidden; color: var(--ink);
+  font-size: 0.78rem; font-weight: 400; line-height: 1.35; text-transform: none;
+  overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .task-artifact-list ul { display: grid; gap: 0.45rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
 
 @media (max-width: 760px) {

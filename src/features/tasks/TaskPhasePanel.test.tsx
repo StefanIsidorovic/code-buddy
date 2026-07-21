@@ -28,6 +28,7 @@ describe("TaskPhasePanel", () => {
     expect(screen.getByRole("heading", { name: "Task phases" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Artifact kind"), { target: { value: "risk" } });
     fireEvent.change(screen.getByLabelText("Phase evidence"), { target: { value: "Risk found" } });
+    fireEvent.click(screen.getByText("Transcript provenance"));
     fireEvent.click(screen.getByRole("checkbox", { name: /Found the boundary/ }));
     expect(value.onChangeKind).toHaveBeenCalledWith("risk"); expect(value.onChangeContent).toHaveBeenCalledWith("Risk found");
     expect(value.onToggleSource).toHaveBeenCalledWith("e1", true);
@@ -61,6 +62,15 @@ describe("TaskPhasePanel", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByRole("button", { name: "Draft evidence from latest agent response" }));
     expect(value.onDraftLatestAgentResponseEvidence).toHaveBeenCalledOnce();
+  });
+  it("keeps transcript provenance compact until explicitly opened", () => {
+    render(<TaskPhasePanel {...props({ selectedSourceIds: ["e1"] })} />);
+    const disclosure = screen.getByText("Transcript provenance").closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getByText("1 selected · 1 persisted event(s)")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Transcript provenance"));
+    expect(disclosure).toHaveAttribute("open");
+    expect(screen.getByText("#1 · agent message")).toBeInTheDocument();
   });
   it("requires explicit phase-aware evidence review before completion", () => {
     const value = props({ artifacts: [artifact] }); const view = render(<TaskPhasePanel {...value} />);
