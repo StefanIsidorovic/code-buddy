@@ -42,7 +42,7 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is now 2,204 lines after staged extraction; PTY runtime controls are the remaining dominant presentation block before gateway/orchestration extraction.
+- `src/App.tsx` is now 2,161 lines after staged presentation extraction; direct Tauri calls and feature orchestration are the next dominant responsibilities.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
@@ -64,6 +64,7 @@
 - Terminal PTY/Agent Doctor sidebar now lives in `src/features/agents/TerminalFallbackPanel.tsx`; App owns Doctor discovery, runtime mode and active-session policy, while the feature owns report and toggle presentation.
 - Project Initialization Summary phase card now lives in `src/features/initialization/InitializationSummaryCard.tsx`; App retains catalog/selection workflow and generation persistence, while the feature derives tier options/provider presentation and renders capabilities/actions/preview.
 - The full Project Initialization lane now lives in `src/features/initialization/ProjectInitializationPanel.tsx`; phase/prerequisite/evidence presentation composes the Summary card while App retains async commands, modal state and persistence.
+- PTY runtime controls now live in `src/features/runtime/PtyRuntimePanel.tsx`; the feature owns action-lock presentation while App retains xterm integration and process lifecycle.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

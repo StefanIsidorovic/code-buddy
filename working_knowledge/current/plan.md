@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.18. Extract PTY runtime controls
+- objective: move fallback PTY actions, status, button-lock policy, and terminal-size presentation out of the frontend coordinator.
+- status: complete
+- files: src/App.tsx; src/features/runtime/PtyRuntimePanel.tsx; src/features/runtime/PtyRuntimePanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Use ACP; Start Fake; Start Codex; Drain; Resize; Stop; Kill; PTY status and terminal dimensions.
+- expected changes: add a typed state-free and Tauri-free runtime panel; accept runtime capabilities, dimensions and callbacks; keep PTY lifecycle, xterm integration, mode state and backend commands in App.
+- acceptance criteria: all button labels/order/locks and dimensions remain unchanged; callbacks preserve fake/codex and graceful/force semantics; panel has an accessible heading and terminal-state definition list.
+- required tests: idle/session/busy/codex-unavailable locks; all callback forwarding; terminal dimensions; existing 127 frontend tests; typecheck; production build; Tauri/xterm boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 verified explicit has-session versus usable-session policy and graceful/force callback semantics, and cycle 2 found no remaining lock-policy, action-order, dimensions, accessibility, Tauri/xterm-boundary, lifecycle-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.17. Extract the Project Initialization lane
 - objective: move the Initialization lane shell, phase rail, Preflight, Facts, Markdown, and Interview evidence presentation out of the frontend coordinator and compose the extracted Summary card.
 - status: complete

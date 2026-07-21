@@ -652,3 +652,8 @@ YYYY-MM-DD
 - Izdvojena je kompletna Initialization traka (phase rail, Preflight, Facts, Markdown, Interview i Summary kompozicija) u state-free feature komponentu.
 - `App.tsx` je smanjen sa 2.522 na 2.204 linije; async Tauri workflow, modali i persistence ostaju u koordinatoru.
 - Provera: 127 frontend testova, typecheck, production build, Tauri boundary i diff check prolaze; slede PTY runtime kontrole.
+### 2026-07-21 - PTY runtime controls extraction
+
+- PTY status, terminal dimensions i akcije Use ACP/Start/Drain/Resize/Stop/Kill izdvojene su u state-free runtime komponentu.
+- Lock pravila razlikuju postojanje sesije od upotrebljive sesije, a Stop/Kill zadržavaju graceful/force semantiku.
+- Provera: 131 frontend test, typecheck, production build, Tauri/xterm boundary i diff check prolaze; `App.tsx` ima 2.161 liniju.

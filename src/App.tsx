@@ -12,6 +12,7 @@ import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGu
 import { InitializationDetailsDialog } from "./features/initialization/InitializationDetailsDialog";
 import { ProjectInitializationPanel } from "./features/initialization/ProjectInitializationPanel";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
+import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
   WorkspaceContextSelector,
@@ -1919,55 +1920,11 @@ function App() {
 
       <section className="runtime-lane" aria-label="Runtime lane">
         {runtimeMode === "pty" ? (
-          <section className="runtime-panel" aria-labelledby="pty-controls-title">
-            <div className="doctor-heading">
-              <h3 id="pty-controls-title">PTY Controls</h3>
-              <span>{statusLabel}</span>
-            </div>
-
-            <div className="button-row">
-              <button
-                type="button"
-                onClick={() => setRuntimeMode("acp")}
-                disabled={canUseSession}
-              >
-                Use ACP
-              </button>
-              <button
-                type="button"
-                onClick={() => void startSession("fake")}
-                disabled={busy || canUseSession}
-              >
-                Start Fake
-              </button>
-              <button
-                type="button"
-                onClick={() => void startSession("codex")}
-                disabled={busy || canUseSession || !canStartCodex}
-              >
-                Start Codex
-              </button>
-              <button type="button" onClick={() => void drainOutput()} disabled={busy || !session}>
-                Drain
-              </button>
-              <button type="button" onClick={resizeSession} disabled={busy || !canUseSession}>
-                Resize
-              </button>
-              <button type="button" onClick={() => void stopSession(false)} disabled={busy || !session}>
-                Stop
-              </button>
-              <button type="button" onClick={() => void stopSession(true)} disabled={busy || !session}>
-                Kill
-              </button>
-            </div>
-
-            <dl className="terminal-meta" aria-label="Terminal state">
-              <div>
-                <dt>Terminal</dt>
-                <dd>{terminalSize.cols}x{terminalSize.rows}</dd>
-              </div>
-            </dl>
-          </section>
+          <PtyRuntimePanel busy={busy} canStartCodex={canStartCodex} hasSession={!!session}
+            sessionUsable={canUseSession} statusLabel={statusLabel} terminalSize={terminalSize}
+            onDrain={() => void drainOutput()} onResize={resizeSession}
+            onStartCodex={() => void startSession("codex")} onStartFake={() => void startSession("fake")}
+            onStop={(force) => void stopSession(force)} onUseAcp={() => setRuntimeMode("acp")} />
         ) : null}
 
 

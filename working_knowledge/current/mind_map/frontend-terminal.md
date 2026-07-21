@@ -159,6 +159,7 @@
 - Tests also cover Workspace rendering, project creation/selection, native folder picker population, Project delete confirmation and ACP stop-before-delete behavior, Workspace toast auto-dismiss/manual dismiss, Project Initialize repository selection/project-scoped status/Facts collection/Markdown analysis/Interview guardrail save/Summary generate-approve, Facts/Markdown detail modals, default-collapsed sidebar sections, PTY fallback activation and cwd launch, selected ACP cwd launch, mode-specific output, coalesced adjacent ACP messages, ACP output autoscroll, opening saved transcript events, chunked saved answer replay, switching saved transcripts without mixed output, Session History filter/rename behavior, Knowledge Card popup creation and prompt injection, ACP waiting state display, and ACP waiting-state release after a prompt result.
 
 ## Watchouts
+- PTY control presentation is isolated in `features/runtime/PtyRuntimePanel.tsx`; keep xterm objects, resize effects, Tauri calls and process lifecycle in orchestration/runtime infrastructure.
 - Project Initialization presentation is isolated in `features/initialization/ProjectInitializationPanel.tsx` and composes the separately tested Summary card; keep Tauri calls, persistence and modal orchestration outside both components.
 - CSS includes a final product-shell refinement layer after the historical rules; future visual work should consolidate or modify that final layer rather than accidentally overriding it earlier in the file.
 - Output polling interval is currently 400 ms and may feel slow.
