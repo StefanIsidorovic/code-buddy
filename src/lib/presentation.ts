@@ -106,3 +106,12 @@ export function guardrailKindLabel(kind: string) {
   };
   return labels[kind] ?? kind.replace(/[_-]+/g, " ");
 }
+
+export function markdownCategoryClassName(category: string) {
+  const normalized = category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return `markdown-category markdown-category-${normalized}`;
+}
+
+export function formatMarkdownCategory(category: string) {
+  return category.replace(/[_-]+/g, " ");
+}

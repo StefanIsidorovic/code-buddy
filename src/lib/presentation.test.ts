@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   coalesceAcpEvents, errorText, filterTranscriptSessions, folderNameFromPath,
-  formatPromptWithKnowledge, guardrailKindClassName, guardrailKindLabel,
+  formatMarkdownCategory, formatPromptWithKnowledge, guardrailKindClassName, guardrailKindLabel,
+  markdownCategoryClassName,
   transcriptEventToAcpEvent, uniqueIds,
 } from "./presentation";
 
@@ -52,6 +53,13 @@ describe("presentation helpers", () => {
     expect(guardrailKindLabel("custom-kind")).toBe("custom kind");
     expect(guardrailKindClassName("Needs REVIEW!")).toBe(
       "guardrail-kind guardrail-kind-needs-review-",
+    );
+  });
+
+  it("formats markdown categories for labels and stable CSS classes", () => {
+    expect(formatMarkdownCategory("build_rule")).toBe("build rule");
+    expect(markdownCategoryClassName("Build RULE!")).toBe(
+      "markdown-category markdown-category-build-rule-",
     );
   });
 });

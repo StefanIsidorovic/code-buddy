@@ -28,6 +28,7 @@
 - Workspace management dialog is state-free workspace presentation; App retains persistence, native folder picking, async operations, selection closing, and the project-deletion confirmation handoff.
 - Project Initialize scope dialog is state-free initialization presentation; App retains repository-scope state, initialization creation, persistence, errors, and downstream phase orchestration.
 - Interview Guardrails dialog is state-free initialization presentation; App retains draft validation/mutation, persistence, reset, loading, and errors.
+- Initialization Details dialog is state-free presentation for Facts, Markdown, Summary provenance, approval state, and published Knowledge Units; App retains selected view and async workflows.
 - The temporary panel defaults to ACP controls/output and exposes Terminal PTY only through a collapsed fallback panel.
 - xterm.js renders PTY output and captures terminal keyboard input.
 - FitAddon fits xterm to the available terminal frame.

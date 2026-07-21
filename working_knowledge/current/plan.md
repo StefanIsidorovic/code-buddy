@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.8. Extract Initialization Details dialog presentation
+- objective: move Facts, Markdown, and Summary/Knowledge Unit detail rendering out of the frontend coordinator while preserving App-owned view and async workflow state.
+- status: complete
+- files: src/App.tsx; src/features/initialization/InitializationDetailsDialog.tsx; src/features/initialization/InitializationDetailsDialog.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: details modal/backdrop/title; Facts groups; Markdown findings; Summary metrics/provenance/sections; published Knowledge Unit states/list; Summary approval and close actions; markdown category helpers.
+- expected changes: add a typed state-free and Tauri-free initialization details component; move pure markdown category label/class formatting to presentation helpers; pass the selected view, derived data, loading/error state, and close/approve callbacks from App.
+- acceptance criteria: all three titles and detail layouts remain unchanged; prerequisite, approval-required, loading, error, empty, and populated states retain their order and copy; approval stays disabled while loading or already approved; App retains view selection, approval mutation, Knowledge Unit loading, and errors.
+- required tests: Facts populated/empty; Markdown populated/empty; Summary missing/draft and approval callback; approved Knowledge Unit loading/error/empty/populated states and source fallback; close/backdrop behavior; markdown helper mapping; existing 79 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added an explicit in-flight draft approval lock assertion, and cycle 2 found no remaining view, prerequisite, provenance, approval, Knowledge Unit state-ordering, source-fallback, accessibility, runtime-boundary, workflow-ownership, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.7. Extract Interview Guardrails dialog presentation
 - objective: move the controlled Interview Guardrails modal out of the frontend coordinator while preserving App-owned draft validation, mutation, persistence, and reset rules.
 - status: complete

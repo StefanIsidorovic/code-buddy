@@ -10,6 +10,7 @@ import { CloseIcon } from "./components/ui/icons";
 import { NotificationViewport } from "./features/notifications/NotificationViewport";
 import { ProjectInitializeDialog } from "./features/initialization/ProjectInitializeDialog";
 import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGuardrailsDialog";
+import { InitializationDetailsDialog } from "./features/initialization/InitializationDetailsDialog";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
@@ -30,8 +31,10 @@ import {
   folderNameFromPath,
   formatCommand,
   formatPromptWithKnowledge,
+  formatMarkdownCategory,
   guardrailKindClassName,
   guardrailKindLabel,
+  markdownCategoryClassName,
   shortId,
   transcriptEventToAcpEvent,
   uniqueIds,
@@ -2785,275 +2788,18 @@ function App() {
       ) : null}
 
       {initializeDetailsView ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setInitializeDetailsView(null);
-            }
-          }}
-        >
-          <section
-            aria-labelledby="initialize-details-dialog-title"
-            aria-modal="true"
-            className="knowledge-modal initialize-details-modal"
-            role="dialog"
-          >
-            <div className="modal-heading">
-              <div>
-                <p className="eyebrow">Initialize</p>
-                <h2 id="initialize-details-dialog-title">
-                  {initializeDetailsView === "facts"
-                    ? "Facts Detail"
-                    : initializeDetailsView === "summary"
-                      ? "Summary Review"
-                      : "Markdown Findings"}
-                </h2>
-              </div>
-              <button
-                aria-label="Close initialization details"
-                className="icon-button"
-                type="button"
-                onClick={() => setInitializeDetailsView(null)}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            {initializeDetailsView === "facts" ? (
-              projectInitializationFactGroups.length > 0 ? (
-                <ul
-                  className="fact-list details-fact-list"
-                  aria-label="Project initialization fact details"
-                >
-                  {projectInitializationFactGroups.map((group) => (
-                    <li key={group.repositoryId}>
-                      <div className="fact-repository-heading">
-                        <strong>{group.repositoryName}</strong>
-                        <small>{group.facts.length} facts</small>
-                      </div>
-                      <div className="fact-grid">
-                        {group.facts.map((fact) => (
-                          <div key={fact.id}>
-                            <span>
-                              {fact.label}: {fact.value}
-                            </span>
-                            <small>{fact.source}</small>
-                          </div>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <StateNotice
-                  kind="prerequisite"
-                  title="Facts have not been collected yet"
-                  description="Return to Project Initialization and run Collect Facts first."
-                />
-              )
-            ) : initializeDetailsView === "markdown" ? (
-              projectInitializationMarkdownFindings.length > 0 ? (
-                <ul
-                  className="markdown-finding-list details-markdown-list"
-                  aria-label="Project initialization markdown finding details"
-                >
-                  {projectInitializationMarkdownFindings.map((finding) => (
-                    <li key={finding.id}>
-                      <div className="markdown-finding-heading">
-                        <span className={markdownCategoryClassName(finding.category)}>
-                          {formatMarkdownCategory(finding.category)}
-                        </span>
-                        <strong>{finding.title}</strong>
-                      </div>
-                      <p>{finding.excerpt}</p>
-                      <div className="markdown-finding-meta">
-                        <span>{finding.repositoryName}</span>
-                        <small>
-                          {finding.filePath} · {finding.source}
-                        </small>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <StateNotice
-                  kind="prerequisite"
-                  title="Markdown has not been analyzed yet"
-                  description="Return to Project Initialization and run Analyze Markdown first."
-                />
-              )
-            ) : projectInitializationSummary ? (
-              <>
-                <div
-                  className="summary-details"
-                  aria-label="Project initialization summary"
-                >
-                  <div className="initialize-metric-grid" aria-label="Summary source counts">
-                    <div>
-                      <span>Facts</span>
-                      <strong>{projectInitializationSummary.factCount}</strong>
-                    </div>
-                    <div>
-                      <span>Markdown</span>
-                      <strong>{projectInitializationSummary.markdownFindingCount}</strong>
-                    </div>
-                    <div>
-                      <span>Rules</span>
-                      <strong>{projectInitializationSummary.guardrailCount}</strong>
-                    </div>
-                  </div>
-                  <dl
-                    className="summary-provenance-grid"
-                    aria-label="Summary generation provenance"
-                  >
-                    <div>
-                      <dt>Requested model</dt>
-                      <dd>
-                        {projectInitializationSummary.requestedModelProviderId &&
-                        projectInitializationSummary.requestedModelId
-                          ? `${projectInitializationSummary.requestedModelProviderId} / ${projectInitializationSummary.requestedModelId}`
-                          : "Legacy deterministic draft"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Tier</dt>
-                      <dd>{projectInitializationSummary.requestedModelTier ?? "unversioned"}</dd>
-                    </div>
-                    <div>
-                      <dt>Generator</dt>
-                      <dd>{projectInitializationSummary.generationEngine}</dd>
-                    </div>
-                    <div>
-                      <dt>Schema</dt>
-                      <dd>
-                        knowledge {projectInitializationSummary.knowledgeSchemaVersion} · catalog{" "}
-                        {projectInitializationSummary.modelCatalogSchemaVersion ?? "legacy"}
-                      </dd>
-                    </div>
-                  </dl>
-                  <dl className="summary-section-list details-summary-list">
-                    <div>
-                      <dt>Purpose</dt>
-                      <dd>{projectInitializationSummary.projectPurpose}</dd>
-                    </div>
-                    <div>
-                      <dt>Repositories</dt>
-                      <dd>{projectInitializationSummary.repositoryMap}</dd>
-                    </div>
-                    <div>
-                      <dt>Repository Roles</dt>
-                      <dd>{projectInitializationSummary.repositoryRoles}</dd>
-                    </div>
-                    <div>
-                      <dt>Build/Test</dt>
-                      <dd>{projectInitializationSummary.buildTestMatrix}</dd>
-                    </div>
-                    <div>
-                      <dt>Fragile Areas</dt>
-                      <dd>{projectInitializationSummary.fragileAreas}</dd>
-                    </div>
-                    <div>
-                      <dt>Do Not Touch</dt>
-                      <dd>{projectInitializationSummary.doNotTouchRules}</dd>
-                    </div>
-                    <div>
-                      <dt>Agent Rules</dt>
-                      <dd>{projectInitializationSummary.agentWorkingRules}</dd>
-                    </div>
-                    <div>
-                      <dt>Open Questions</dt>
-                      <dd>{projectInitializationSummary.openQuestions}</dd>
-                    </div>
-                  </dl>
-                  <section className="knowledge-unit-preview" aria-label="Published knowledge units">
-                    <div className="knowledge-unit-preview-heading">
-                      <div>
-                        <span>Approved knowledge</span>
-                        <h3>Published units</h3>
-                      </div>
-                      <strong>{projectInitializationKnowledgeUnits.length}</strong>
-                    </div>
-                    {projectInitializationSummary.status !== "approved" ? (
-                      <StateNotice
-                        kind="prerequisite"
-                        title="Approval required"
-                        description="Knowledge Units are published only after this Summary is approved."
-                      />
-                    ) : knowledgeUnitsLoading ? (
-                      <StateNotice
-                        kind="loading"
-                        title="Loading published units…"
-                        description="Retrieving approved Knowledge Units and their source provenance."
-                      />
-                    ) : knowledgeUnitsError ? (
-                      <StateNotice
-                        kind="error"
-                        title="Published units could not be loaded"
-                        description={knowledgeUnitsError}
-                      />
-                    ) : projectInitializationKnowledgeUnits.length === 0 ? (
-                      <StateNotice
-                        kind="empty"
-                        title="No Knowledge Units were published"
-                        description="The approved Summary did not produce any active or reviewable units."
-                      />
-                    ) : (
-                      <ul className="knowledge-unit-list">
-                        {projectInitializationKnowledgeUnits.map((unit) => (
-                          <li key={unit.id}>
-                            <div className="knowledge-unit-meta">
-                              <span>{unit.kind.replace(/_/g, " ")}</span>
-                              <span>{unit.topic.replace(/_/g, " ")}</span>
-                              <span className={`knowledge-unit-status ${unit.status}`}>
-                                {unit.status.replace(/_/g, " ")}
-                              </span>
-                              <span>{unit.confidence}% confidence</span>
-                            </div>
-                            <p>{unit.content}</p>
-                            <div className="knowledge-unit-sources">
-                              <span>Sources</span>
-                              {unit.sources.length > 0 ? (
-                                unit.sources.map((source) => (
-                                  <code key={`${unit.id}-${source.sourceKey}`}>
-                                    {source.sourceKey}
-                                    {source.path ? ` · ${source.path}` : ""}
-                                  </code>
-                                ))
-                              ) : (
-                                <em>Needs confirmation; no evidence source.</em>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                </div>
-                <div className="modal-actions">
-                  <button type="button" onClick={() => setInitializeDetailsView(null)}>
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void approveProjectInitializationSummary()}
-                    disabled={
-                      initializeLoading || projectInitializationSummary.status === "approved"
-                    }
-                  >
-                    Approve Summary
-                  </button>
-                </div>
-              </>
-            ) : (
-              <StateNotice
-                kind="prerequisite"
-                title="No summary available for review"
-                description="Generate a Summary draft before opening the detailed review."
-              />
-            )}
-          </section>
-        </div>
+        <InitializationDetailsDialog
+          factGroups={projectInitializationFactGroups}
+          initializeLoading={initializeLoading}
+          knowledgeUnits={projectInitializationKnowledgeUnits}
+          knowledgeUnitsError={knowledgeUnitsError}
+          knowledgeUnitsLoading={knowledgeUnitsLoading}
+          markdownFindings={projectInitializationMarkdownFindings}
+          summary={projectInitializationSummary}
+          view={initializeDetailsView}
+          onApproveSummary={() => void approveProjectInitializationSummary()}
+          onClose={() => setInitializeDetailsView(null)}
+        />
       ) : null}
 
       {interviewDialogOpen ? (
@@ -3461,15 +3207,6 @@ function groupInitializationFacts(facts: ProjectInitializationFactInfo[]) {
   }
 
   return Array.from(groups.values());
-}
-
-function markdownCategoryClassName(category: string) {
-  const normalized = category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return `markdown-category markdown-category-${normalized}`;
-}
-
-function formatMarkdownCategory(category: string) {
-  return category.replace(/[_-]+/g, " ");
 }
 
 function formatModelTier(tier: ModelTier) {
