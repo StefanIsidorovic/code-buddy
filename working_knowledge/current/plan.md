@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.3. Extract workspace context selection presentation
+- objective: move the responsive current workspace/repository summary and picker controls out of `App.tsx` behind a minimal typed feature boundary.
+- status: complete
+- files: src/App.tsx; src/features/workspace/WorkspaceContextSelector.tsx; src/features/workspace/WorkspaceContextSelector.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: mobile context summary; current workspace picker; current repository picker; dialog-open callbacks.
+- expected changes: accept selected Project/Repository contracts and two open callbacks; preserve empty/default labels and repository disabled state; keep selection, persistence, dialogs, native folder picker, forms, and deletion in App.
+- acceptance criteria: accessible dialog semantics, responsive summary, empty labels, selected names/paths, Switch/Manage affordances, and repository prerequisite remain unchanged; feature imports no Tauri API and owns no state; App loses at least 25 lines.
+- required tests: empty context/disabled repository; selected project with no repository; selected repository and both callbacks; existing 59 frontend tests; typecheck; production build; boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 preserved the responsive summary outside collapsible sidebar content by separating summary and picker exports, and cycle 2 made the intentional duplicate empty label explicit in tests; no remaining state-ownership, accessibility, responsive-DOM, runtime-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.2. Remove Fake ACP from the product surface
 - objective: remove the test-only Fake ACP launch path from the user-facing frontend and public Tauri command surface while retaining deterministic internal Rust ACP fixtures.
 - status: complete

@@ -49,6 +49,7 @@
 - ACP Controls now lives in `src/features/runtime/AcpRuntimePanel.tsx` behind a typed view-model/callback API; it owns presentation only and imports neither Tauri nor transcript/project orchestration.
 - Session Output now lives in `src/features/runtime/SessionOutputPanel.tsx`; App retains xterm/event refs, polling, coalescing, scroll effects, transcript selection, and live-view state while the feature owns PTY/ACP output markup.
 - Fake ACP is no longer a frontend control or public Tauri command; selected registry candidates are the only product ACP launch path, while manager-level fake subprocesses remain deterministic Rust protocol fixtures.
+- Responsive workspace/repository context summary and picker controls now live in `src/features/workspace/WorkspaceContextSelector.tsx`; App still owns selected IDs, persistence, modal state, and all mutations.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

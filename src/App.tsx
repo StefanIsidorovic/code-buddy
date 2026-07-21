@@ -11,6 +11,10 @@ import { NotificationViewport } from "./features/notifications/NotificationViewp
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
+  WorkspaceContextSelector,
+  WorkspaceContextSummary,
+} from "./features/workspace/WorkspaceContextSelector";
+import {
   boundToastMessages,
   useNotificationStore,
 } from "./features/notifications/notificationStore";
@@ -1851,41 +1855,15 @@ function App() {
           </button>
         </div>
 
-        <p className="mobile-context-summary" aria-live="polite">
-          <span>{selectedProject?.name ?? "No workspace"}</span>
-          <span aria-hidden="true">/</span>
-          <span>{selectedRepository?.name ?? (selectedProject ? "Default repository" : "No repository")}</span>
-        </p>
+        <WorkspaceContextSummary project={selectedProject} repository={selectedRepository} />
 
         <div className="mobile-sidebar-content" id="mobile-sidebar-navigation">
-        <button
-          aria-haspopup="dialog"
-          className="workspace-picker"
-          type="button"
-          onClick={() => setWorkspaceDialogOpen(true)}
-        >
-          <span className="workspace-picker-label">Current workspace</span>
-          <strong>{selectedProject?.name ?? "Choose a workspace"}</strong>
-          <small>{selectedProject?.path ?? "Add or select a project"}</small>
-          <span className="workspace-picker-action" aria-hidden="true">
-            Switch
-          </span>
-        </button>
-
-        <button
-          aria-haspopup="dialog"
-          className="workspace-picker repository-picker"
-          type="button"
-          onClick={() => setRepositoryDialogOpen(true)}
-          disabled={!selectedProject}
-        >
-          <span className="workspace-picker-label">Current repository</span>
-          <strong>{selectedRepository?.name ?? (selectedProject ? "Choose a repository" : "No workspace")}</strong>
-          <small>{selectedRepository?.path ?? "Select a workspace first"}</small>
-          <span className="workspace-picker-action" aria-hidden="true">
-            Manage
-          </span>
-        </button>
+        <WorkspaceContextSelector
+          project={selectedProject}
+          repository={selectedRepository}
+          onOpenRepository={() => setRepositoryDialogOpen(true)}
+          onOpenWorkspace={() => setWorkspaceDialogOpen(true)}
+        />
 
         <div className="sidebar-scroll">
           <details className="agent-accordion sidebar-agent">
