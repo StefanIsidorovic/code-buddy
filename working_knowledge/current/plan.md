@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.3. Extract Project Initialization workflow orchestration
+- objective: move initialization start scope, Facts/Markdown actions, Interview draft/validation/save, Summary generation/approval and modal state out of App.
+- status: complete
+- files: src/App.tsx; src/features/initialization/useProjectInitializationWorkflow.ts; src/features/initialization/useProjectInitializationWorkflow.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: initialize/details/interview modal state; repository scope; Facts/Markdown commands; Interview guardrail form and validation; synthesis generation/approval; evidence semantic updates.
+- expected changes: add a focused gateway-backed workflow hook composed with the evidence hook; expose semantic actions and controlled form values; remove initialization form state/functions from App.
+- acceptance criteria: all validation copy, payloads, status transitions, notifications, modal locks and model selection behavior remain unchanged; Summary approval refreshes Knowledge Units; App only composes workflow values/actions.
+- required tests: start scope/payload; interview validation/draft; Facts update/status; Summary model payload/approval refresh; existing 145 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 corrected a same-batch test interaction to model real rendered events and verified Summary refresh ordering, and cycle 2 found no remaining form ownership, validation, payload, status, notification, loading, evidence-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 21.2. Extract initialization evidence orchestration
 - objective: move project initialization identity and persisted Facts/Markdown/Guardrails/Summary/Knowledge Unit caches and refreshes out of App.
 - status: complete

@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Project catalog and initialization evidence are extracted; move initialization forms/actions into a workflow hook next, then isolate ACP/transcript workflows.
+- Project catalog and complete initialization orchestration are extracted; isolate transcript/knowledge persistence next, then ACP runtime orchestration.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

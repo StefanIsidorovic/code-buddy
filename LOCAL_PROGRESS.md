@@ -683,3 +683,8 @@ YYYY-MM-DD
 - Initialization identity i Facts/Markdown/Guardrails/Summary/Knowledge Unit cache i refresh logika izdvojeni su u `useInitializationEvidence`.
 - Project i evidence request identity sprecavaju stare async odgovore; Summary approval ima poseban Knowledge Unit refresh.
 - `App.tsx` je pao sa 1.882 na 1.636 linija; audit, typecheck, 145 testova i build prolaze.
+### 2026-07-21 - Project Initialization workflow hook
+
+- Start scope, Facts/Markdown akcije, Interview forma/validacija/save i Summary generate/approve izdvojeni su u `useProjectInitializationWorkflow`.
+- Workflow komunicira sa evidence hook-om samo kroz semanticke akcije; `App` vise nema initialization forme ni backend workflow.
+- `App.tsx` je pao sa 1.636 na 1.361 liniju; audit, typecheck, 149 testova i build prolaze.

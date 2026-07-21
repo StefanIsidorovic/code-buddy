@@ -7,6 +7,7 @@ import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGu
 import { InitializationDetailsDialog } from "./features/initialization/InitializationDetailsDialog";
 import { ProjectInitializationPanel } from "./features/initialization/ProjectInitializationPanel";
 import { useInitializationEvidence } from "./features/initialization/useInitializationEvidence";
+import { useProjectInitializationWorkflow } from "./features/initialization/useProjectInitializationWorkflow";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
@@ -44,19 +45,11 @@ import type {
   AcpSessionEvent,
   AcpSessionInfo,
   AgentDoctorReport,
-  InitializeDetailsView,
-  InterviewScope,
   KnowledgeItemInfo,
   ModelCatalogInfo,
   ModelTier,
   ProjectInfo,
   ProjectInitializationFactInfo,
-  ProjectInitializationGuardrailInfo,
-  ProjectInitializationGuardrailInput,
-  ProjectInitializationGuardrailKind,
-  ProjectInitializationInfo,
-  ProjectInitializationMarkdownFindingInfo,
-  ProjectInitializationSummaryInfo,
   ProjectRepositoryInfo,
   RuntimeMode,
   SessionInfo,
@@ -91,23 +84,6 @@ function App() {
   );
   const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
-  const [initializeDialogOpen, setInitializeDialogOpen] = useState(false);
-  const [initializeRepositoryIds, setInitializeRepositoryIds] = useState<string[]>([]);
-  const [initializeLoading, setInitializeLoading] = useState(false);
-  const [initializeError, setInitializeError] = useState<string | null>(null);
-  const [initializeDetailsView, setInitializeDetailsView] =
-    useState<InitializeDetailsView | null>(null);
-  const [interviewDialogOpen, setInterviewDialogOpen] = useState(false);
-  const [interviewError, setInterviewError] = useState<string | null>(null);
-  const [interviewScope, setInterviewScope] = useState<InterviewScope>("project");
-  const [interviewRepositoryId, setInterviewRepositoryId] = useState("");
-  const [interviewKind, setInterviewKind] =
-    useState<ProjectInitializationGuardrailKind>("fragile");
-  const [interviewPathPattern, setInterviewPathPattern] = useState("");
-  const [interviewContent, setInterviewContent] = useState("");
-  const [interviewDraftGuardrails, setInterviewDraftGuardrails] = useState<
-    ProjectInitializationGuardrailInput[]
-  >([]);
   const [taskContextPreview, setTaskContextPreview] =
     useState<TaskContextSelectionInfo | null>(null);
   const [taskContextPreviewOpen, setTaskContextPreviewOpen] = useState(false);
@@ -186,6 +162,27 @@ function App() {
       modelCatalog?.profiles.find((profile) => profile.id === synthesisModelProfileId) ?? null,
     [modelCatalog, synthesisModelProfileId],
   );
+  const { dialogOpen: initializeDialogOpen, repositoryIds: initializeRepositoryIds,
+    loading: initializeLoading, error: initializeError, detailsView: initializeDetailsView,
+    interviewOpen: interviewDialogOpen, interviewError, scope: interviewScope,
+    repositoryId: interviewRepositoryId, kind: interviewKind, pathPattern: interviewPathPattern,
+    content: interviewContent, drafts: interviewDraftGuardrails,
+    openDialog: openProjectInitializeDialog, closeDialog: closeProjectInitializeDialog,
+    toggleRepository: toggleInitializeRepository, createInitialization: createProjectInitialization,
+    collectFacts: collectProjectInitializationFacts, analyzeMarkdown: analyzeProjectInitializationMarkdown,
+    openInterview: openInterviewDialog, closeInterview: closeInterviewDialog,
+    addGuardrail: addInterviewGuardrail, removeGuardrail: removeInterviewGuardrail,
+    saveGuardrails: saveProjectInitializationGuardrails,
+    generateSummary: generateProjectInitializationSummary,
+    approveSummary: approveProjectInitializationSummary, setDetailsView: setInitializeDetailsView,
+    changeScope: setInterviewScope, changeRepositoryId: setInterviewRepositoryId,
+    changeKind: setInterviewKind, changePathPattern: setInterviewPathPattern,
+    changeContent: setInterviewContent } = useProjectInitializationWorkflow({
+      project: selectedProject, repositories: projectRepositories,
+      selectedRepositoryId: selectedRepository?.id ?? null, initialization: projectInitialization,
+      guardrails: projectInitializationGuardrails, summary: projectInitializationSummary,
+      modelProfile: selectedSynthesisModelProfile, evidence: initializationEvidence, notify: pushToast,
+    });
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -292,13 +289,6 @@ function App() {
   }, [selectedSynthesisModelProfile]);
 
   useEffect(() => {
-    if (!projectInitialization) {
-      setInitializeDetailsView(null);
-      setInterviewDialogOpen(false);
-    }
-  }, [projectInitialization]);
-
-  useEffect(() => {
     if (!canUseSession || !session) {
       return;
     }
@@ -396,260 +386,6 @@ function App() {
     }
 
     return runningAcpSessions.length;
-  }
-
-  function openProjectInitializeDialog() {
-    if (!selectedProject) {
-      setInitializeError("Select a project before initializing it.");
-      return;
-    }
-    setInitializeError(null);
-    setInitializeRepositoryIds(projectRepositories.map((repository) => repository.id));
-    setInitializeDialogOpen(true);
-  }
-
-  function closeProjectInitializeDialog() {
-    if (initializeLoading) {
-      return;
-    }
-    setInitializeDialogOpen(false);
-    setInitializeError(null);
-  }
-
-  function toggleInitializeRepository(repositoryId: string, selected: boolean) {
-    setInitializeRepositoryIds((current) =>
-      selected
-        ? uniqueIds([...current, repositoryId])
-        : current.filter((candidate) => candidate !== repositoryId),
-    );
-  }
-
-  async function createProjectInitialization() {
-    if (!selectedProject) {
-      setInitializeError("Select a project before initializing it.");
-      return;
-    }
-    if (initializeRepositoryIds.length === 0) {
-      setInitializeError("Select at least one repository.");
-      return;
-    }
-
-    setInitializeLoading(true);
-    setInitializeError(null);
-    try {
-      const initialization = await invoke<ProjectInitializationInfo>(
-        "create_project_initialization",
-        {
-          request: {
-            projectId: selectedProject.id,
-            repositoryIds: initializeRepositoryIds,
-          },
-        },
-      );
-      initializationEvidence.setInitialization(initialization);
-      setInitializeDialogOpen(false);
-    } catch (err) {
-      setInitializeError(errorText(err));
-    } finally {
-      setInitializeLoading(false);
-    }
-  }
-
-  async function collectProjectInitializationFacts() {
-    if (!projectInitialization) {
-      pushToast("error", "Start Project Initialize before collecting facts.");
-      return;
-    }
-
-    setInitializeLoading(true);
-    try {
-      const facts = await invoke<ProjectInitializationFactInfo[]>(
-        "collect_project_initialization_facts",
-        {
-          initializationId: projectInitialization.id,
-        },
-      );
-      initializationEvidence.setFacts(projectInitialization.id, facts);
-      initializationEvidence.advanceStatus(projectInitialization, "facts");
-      pushToast("success", `Facts collected for ${projectInitialization.repositoryCount} repositories.`);
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setInitializeLoading(false);
-    }
-  }
-
-  async function analyzeProjectInitializationMarkdown() {
-    if (!projectInitialization) {
-      pushToast("error", "Start Project Initialize before analyzing markdown.");
-      return;
-    }
-
-    setInitializeLoading(true);
-    try {
-      const findings = await invoke<ProjectInitializationMarkdownFindingInfo[]>(
-        "analyze_project_initialization_markdown",
-        {
-          initializationId: projectInitialization.id,
-        },
-      );
-      initializationEvidence.setMarkdown(projectInitialization.id, findings);
-      initializationEvidence.advanceStatus(projectInitialization, "markdown");
-      pushToast(
-        "success",
-        `Markdown analyzed with ${findings.length} findings.`,
-      );
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setInitializeLoading(false);
-    }
-  }
-
-  function openInterviewDialog() {
-    if (!projectInitialization) {
-      pushToast("error", "Start Project Initialize before the interview.");
-      return;
-    }
-
-    setInterviewDraftGuardrails(projectInitializationGuardrails.map(guardrailToInput));
-    setInterviewScope("project");
-    setInterviewRepositoryId(selectedRepository?.id ?? projectRepositories[0]?.id ?? "");
-    setInterviewKind("fragile");
-    setInterviewPathPattern("");
-    setInterviewContent("");
-    setInterviewError(null);
-    setInterviewDialogOpen(true);
-  }
-
-  function closeInterviewDialog() {
-    if (initializeLoading) {
-      return;
-    }
-
-    setInterviewDialogOpen(false);
-    setInterviewError(null);
-  }
-
-  function addInterviewGuardrail() {
-    const content = interviewContent.trim();
-    if (!content) {
-      setInterviewError("Describe the guardrail before adding it.");
-      return;
-    }
-
-    const repositoryId = interviewScope === "repository" ? interviewRepositoryId : null;
-    if (interviewScope === "repository" && !repositoryId) {
-      setInterviewError("Choose a repository for this guardrail.");
-      return;
-    }
-
-    setInterviewDraftGuardrails((current) => [
-      ...current,
-      {
-        repositoryId,
-        kind: interviewKind,
-        pathPattern: interviewPathPattern.trim() || null,
-        content,
-      },
-    ]);
-    setInterviewPathPattern("");
-    setInterviewContent("");
-    setInterviewError(null);
-  }
-
-  function removeInterviewGuardrail(index: number) {
-    setInterviewDraftGuardrails((current) =>
-      current.filter((_, candidateIndex) => candidateIndex !== index),
-    );
-  }
-
-  async function saveProjectInitializationGuardrails() {
-    if (!projectInitialization) {
-      setInterviewError("Start Project Initialize before saving interview guardrails.");
-      return;
-    }
-    if (interviewDraftGuardrails.length === 0) {
-      setInterviewError("Add at least one guardrail before saving.");
-      return;
-    }
-
-    setInitializeLoading(true);
-    setInterviewError(null);
-    try {
-      const guardrails = await invoke<ProjectInitializationGuardrailInfo[]>(
-        "save_project_initialization_guardrails",
-        {
-          request: {
-            initializationId: projectInitialization.id,
-            guardrails: interviewDraftGuardrails,
-          },
-        },
-      );
-      initializationEvidence.setGuardrails(projectInitialization.id, guardrails);
-      initializationEvidence.advanceStatus(projectInitialization, "interview");
-      setInterviewDialogOpen(false);
-      pushToast("success", `Interview saved with ${guardrails.length} guardrails.`);
-    } catch (err) {
-      setInterviewError(errorText(err));
-    } finally {
-      setInitializeLoading(false);
-    }
-  }
-
-  async function generateProjectInitializationSummary() {
-    if (!projectInitialization) {
-      pushToast("error", "Start Project Initialize before generating a summary.");
-      return;
-    }
-    if (!selectedSynthesisModelProfile || selectedSynthesisModelProfile.status !== "selectable") {
-      pushToast("error", "Choose an available synthesis model before generating a summary.");
-      return;
-    }
-
-    setInitializeLoading(true);
-    try {
-      const summary = await invoke<ProjectInitializationSummaryInfo>(
-        "generate_project_initialization_summary",
-        {
-          request: {
-            initializationId: projectInitialization.id,
-            modelProfileId: selectedSynthesisModelProfile.id,
-          },
-        },
-      );
-      initializationEvidence.setSummary(projectInitialization.id, summary);
-      initializationEvidence.advanceStatus(projectInitialization, "summary");
-      pushToast("success", "Summary draft generated.");
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setInitializeLoading(false);
-    }
-  }
-
-  async function approveProjectInitializationSummary() {
-    if (!projectInitializationSummary) {
-      pushToast("error", "Generate a summary before approving it.");
-      return;
-    }
-
-    setInitializeLoading(true);
-    try {
-      const summary = await invoke<ProjectInitializationSummaryInfo>(
-        "approve_project_initialization_summary",
-        {
-          summaryId: projectInitializationSummary.id,
-        },
-      );
-      initializationEvidence.setSummary(summary.initializationId, summary);
-      await initializationEvidence.refreshUnits(summary.initializationId);
-      pushToast("success", "Summary approved as active project profile.");
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setInitializeLoading(false);
-    }
   }
 
   async function previewTaskContext() {
@@ -1620,17 +1356,6 @@ function groupInitializationFacts(facts: ProjectInitializationFactInfo[]) {
   }
 
   return Array.from(groups.values());
-}
-
-function guardrailToInput(
-  guardrail: ProjectInitializationGuardrailInfo,
-): ProjectInitializationGuardrailInput {
-  return {
-    repositoryId: guardrail.repositoryId,
-    kind: guardrail.kind,
-    pathPattern: guardrail.pathPattern,
-    content: guardrail.content,
-  };
 }
 
 export default App;
