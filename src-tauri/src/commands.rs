@@ -11,14 +11,15 @@ use crate::{
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
-        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskRequest,
-        CreateTranscriptSessionRequest, GenerateProjectInitializationSummaryRequest,
-        KnowledgeItemInfo, KnowledgeUnitInfo, ProjectInfo, ProjectInitializationFactInfo,
-        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
-        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
-        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
-        SaveProjectInitializationGuardrailsRequest, TaskInfo, TranscriptEventInfo,
-        TranscriptEventInput, TranscriptSessionInfo, UpdateTaskComplexityRequest,
+        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskPhaseArtifactRequest,
+        CreateTaskRequest, CreateTranscriptSessionRequest,
+        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
+        ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
+        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
+        RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest, TaskInfo,
+        TaskPhaseArtifactInfo, TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+        UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -272,6 +273,22 @@ pub fn update_task_complexity(
     request: UpdateTaskComplexityRequest,
 ) -> AppResult<TaskInfo> {
     state.update_task_complexity(request)
+}
+
+#[tauri::command]
+pub fn create_task_phase_artifact(
+    state: State<'_, ProjectStore>,
+    request: CreateTaskPhaseArtifactRequest,
+) -> AppResult<TaskPhaseArtifactInfo> {
+    state.create_task_phase_artifact(request)
+}
+
+#[tauri::command]
+pub fn list_task_phase_artifacts(
+    state: State<'_, ProjectStore>,
+    task_id: String,
+) -> AppResult<Vec<TaskPhaseArtifactInfo>> {
+    state.list_task_phase_artifacts(&task_id)
 }
 
 #[tauri::command]

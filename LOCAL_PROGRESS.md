@@ -728,3 +728,9 @@ YYYY-MM-DD
 - xterm, FitAddon i njihov CSS se dinamicki ucitavaju tek kada korisnik udje u PTY fallback mod; kasni import posle unmount/mode promene ne montira terminal.
 - Pocetni JS je pao sa oko 611 kB na 281.69 kB; xterm je zaseban 329.31 kB chunk i Vite vise nema chunk-size warning.
 - Frontend modularizacija je zavrsena: audit, typecheck, 171 test i production build prolaze.
+
+### 2026-07-21 - Immutable Task phase artifacts
+
+- Dodate su append-only `task_phase_artifacts` i normalizovane veze ka transcript event izvorima; svaki izvor mora pripadati istoj Task transcript sesiji.
+- Artefakti imaju per-phase sequence, a provenance se vraca canonical redom transcript event-a i deduplikuje bez gubitka integriteta.
+- Registrovane su tipizovane create/list Tauri komande; 93 Rust testa, 171 frontend test, fmt, clippy, audit, typecheck i build prolaze.

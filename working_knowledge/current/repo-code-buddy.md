@@ -78,6 +78,7 @@
 - `src/features/agents/useAgentEnvironment.ts` owns stale-safe Agent Doctor discovery, synthesis catalog validation/fallback, tier/profile selection and Summary provenance restoration; ACP coding-model state remains session-owned.
 - `src/features/workspace/useProjectDeletion.ts` owns confirmation/error state and ACP-first deletion coordination through injected catalog/evidence callbacks; App no longer invokes the backend directly.
 - `src/features/runtime/usePtyTerminal.ts` dynamically loads xterm/FitAddon/CSS only in PTY mode and guards late async resolution; initial JS is 281.69 kB and the isolated xterm chunk is 329.31 kB.
+- `task_phase_artifacts` stores append-only outputs ordered per Task phase; normalized event-source links require real transcript events from the Task's own session and list them in transcript sequence order.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

@@ -323,6 +323,17 @@ export type TaskInfo = {
   updatedAt: number;
 };
 
+export type TaskPhaseArtifactInfo = {
+  id: string;
+  taskId: string;
+  phase: TaskPhaseInfo["phase"];
+  sequence: number;
+  kind: string;
+  content: string;
+  sourceTranscriptEventIds: string[];
+  createdAt: number;
+};
+
 export type KnowledgeItemInfo = {
   id: string;
   projectId: string | null;

@@ -16,6 +16,7 @@
 - `create_task` validates non-empty identifiers/prompt, project existence, transcript existence, project ownership, and transcript uniqueness.
 - `list_project_tasks` returns project-scoped Task records with ordered phase state.
 - Tauri exposes `create_task` and `list_project_tasks`; the frontend loads Tasks by transcript id and creates one before the first project-owned ACP prompt.
+- Tauri exposes create/list Task phase artifacts. Each append-only artifact has per-phase sequence, kind/content, and normalized links to one or more transcript events from that Task's session; listed provenance follows transcript event order.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.
 - Task/transcript persistence failures block project-owned ACP sending, while project-less ACP remains a compatibility smoke path.
 
@@ -29,7 +30,7 @@
 - The frontend keeps transcript-indexed Task ref/state in sync and renders the live Task assessment inside ACP Controls; the panel is read-only until explicit override controls are planned.
 
 ## Deferred
-- Ordered phase transitions, phase execution, and immutable task-knowledge artifacts with source provenance.
+- Ordered phase transitions and phase execution/gates over the persisted artifact evidence.
 - Analysis-driven complexity confirmation/reclassification and user-facing profile controls.
 - UI progress/context presentation and explicit context assembly across project, manual, and task knowledge.
 

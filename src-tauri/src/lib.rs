@@ -56,6 +56,8 @@ pub fn run() {
             commands::create_task,
             commands::list_project_tasks,
             commands::update_task_complexity,
+            commands::create_task_phase_artifact,
+            commands::list_task_phase_artifacts,
             commands::append_transcript_events,
             commands::list_transcript_sessions,
             commands::list_transcript_events,

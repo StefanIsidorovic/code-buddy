@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.1. Persist immutable Task phase artifacts
+- objective: establish the evidence-backed persistence contract required for phase gates, execution/review evidence and later learning.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; docs/product-roadmap.md; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: SQLite task schema migration; artifact create/list storage API; transcript-event provenance ownership; Tauri commands; frontend DTO/gateway contracts.
+- expected changes: add append-only per-phase artifacts and a normalized source link table; validate Task/phase and same-transcript event ownership; return sources in transcript sequence order.
+- acceptance criteria: artifact content/order are immutable; sequences are scoped per Task phase; every artifact has real same-Task transcript provenance; old databases migrate idempotently; create/list commands are typed and registered.
+- required tests: create/list/order/normalization/deduplication; cross-transcript rejection; all Rust/frontend tests; fmt; clippy with warnings denied; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 replaced UUID source ordering with canonical transcript-event sequence and strengthened the fixture with reversed/duplicate input, and cycle 2 found no remaining immutability, transaction, ownership, FK, migration, ordering, command, contract, regression, or scope issue.
+- commit: this commit
+
 ### 21.10. Code-split the PTY terminal runtime
 - objective: remove xterm from the initial application bundle while preserving the complete PTY lifecycle and making async loading teardown-safe.
 - status: complete

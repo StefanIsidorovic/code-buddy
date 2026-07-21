@@ -277,6 +277,29 @@ pub struct TaskPhaseInfo {
     pub completed_at: Option<i64>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskPhaseArtifactRequest {
+    pub task_id: String,
+    pub phase: String,
+    pub kind: String,
+    pub content: String,
+    pub source_transcript_event_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPhaseArtifactInfo {
+    pub id: String,
+    pub task_id: String,
+    pub phase: String,
+    pub sequence: i64,
+    pub kind: String,
+    pub content: String,
+    pub source_transcript_event_ids: Vec<String>,
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskInfo {
@@ -1301,6 +1324,163 @@ impl ProjectStore {
         task_ids.iter().map(|task_id| self.task(task_id)).collect()
     }
 
+    pub fn create_task_phase_artifact(
+        &self,
+        request: CreateTaskPhaseArtifactRequest,
+    ) -> AppResult<TaskPhaseArtifactInfo> {
+        let task_id = request.task_id.trim();
+        let phase = request.phase.trim().to_lowercase();
+        let kind = request.kind.trim().to_lowercase();
+        let content = request.content.trim();
+        if task_id.is_empty() || !TASK_PHASES.contains(&phase.as_str()) {
+            return Err(AppError::InvalidInput(
+                "task artifact requires a valid task and phase".to_string(),
+            ));
+        }
+        if kind.is_empty() || content.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task artifact kind and content must not be empty".to_string(),
+            ));
+        }
+        let mut source_ids = Vec::new();
+        for source_id in request.source_transcript_event_ids {
+            let source_id = source_id.trim().to_string();
+            if !source_ids.contains(&source_id) {
+                source_ids.push(source_id);
+            }
+        }
+        if source_ids.is_empty() || source_ids.iter().any(String::is_empty) {
+            return Err(AppError::InvalidInput(
+                "task artifact requires transcript event provenance".to_string(),
+            ));
+        }
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let transcript_session_id: String = transaction
+            .query_row(
+                "SELECT transcript_session_id FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| row.get(0),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("task not found: {task_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        let phase_exists: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM task_phases WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, phase],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if phase_exists == 0 {
+            return Err(AppError::InvalidInput("task phase not found".to_string()));
+        }
+        let mut sourced_events = Vec::new();
+        for event_id in &source_ids {
+            let (event_session_id, event_sequence): (String, i64) = transaction
+                .query_row(
+                    "SELECT session_id, sequence FROM transcript_events WHERE id = ?1",
+                    params![event_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .map_err(|error| match error {
+                    rusqlite::Error::QueryReturnedNoRows => {
+                        AppError::InvalidInput(format!("transcript event not found: {event_id}"))
+                    }
+                    other => storage_error(other),
+                })?;
+            if event_session_id != transcript_session_id {
+                return Err(AppError::InvalidInput(
+                    "artifact provenance must belong to the task transcript".to_string(),
+                ));
+            }
+            sourced_events.push((event_id.clone(), event_sequence));
+        }
+        sourced_events.sort_by_key(|(_, sequence)| *sequence);
+        source_ids = sourced_events.into_iter().map(|(id, _)| id).collect();
+        let sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), -1) + 1 FROM task_phase_artifacts WHERE task_id = ?1 AND phase = ?2",
+            params![task_id, phase], |row| row.get(0),
+        ).map_err(storage_error)?;
+        let artifact_id = Uuid::new_v4().to_string();
+        let created_at = unix_timestamp()?;
+        transaction.execute(
+            "INSERT INTO task_phase_artifacts (id, task_id, phase, sequence, kind, content, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![artifact_id, task_id, phase, sequence, kind, content, created_at],
+        ).map_err(storage_error)?;
+        for event_id in &source_ids {
+            transaction.execute(
+                "INSERT INTO task_phase_artifact_event_sources (artifact_id, transcript_event_id) VALUES (?1, ?2)",
+                params![artifact_id, event_id],
+            ).map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+        Ok(TaskPhaseArtifactInfo {
+            id: artifact_id,
+            task_id: task_id.to_string(),
+            phase,
+            sequence,
+            kind,
+            content: content.to_string(),
+            source_transcript_event_ids: source_ids,
+            created_at,
+        })
+    }
+
+    pub fn list_task_phase_artifacts(
+        &self,
+        task_id: &str,
+    ) -> AppResult<Vec<TaskPhaseArtifactInfo>> {
+        let task_id = task_id.trim();
+        if task_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task id must not be empty".to_string(),
+            ));
+        }
+        self.task(task_id)?;
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, task_id, phase, sequence, kind, content, created_at FROM task_phase_artifacts
+             WHERE task_id = ?1 ORDER BY CASE phase WHEN 'analysis' THEN 0 WHEN 'planning' THEN 1
+             WHEN 'execution' THEN 2 ELSE 3 END, sequence ASC",
+        ).map_err(storage_error)?;
+        let mut artifacts = statement
+            .query_map(params![task_id], |row| {
+                Ok(TaskPhaseArtifactInfo {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    phase: row.get(2)?,
+                    sequence: row.get(3)?,
+                    kind: row.get(4)?,
+                    content: row.get(5)?,
+                    source_transcript_event_ids: Vec::new(),
+                    created_at: row.get(6)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        drop(statement);
+        for artifact in &mut artifacts {
+            let mut sources = connection.prepare(
+                "SELECT sources.transcript_event_id FROM task_phase_artifact_event_sources sources
+                 JOIN transcript_events events ON events.id = sources.transcript_event_id
+                 WHERE sources.artifact_id = ?1 ORDER BY events.sequence ASC",
+            ).map_err(storage_error)?;
+            artifact.source_transcript_event_ids = sources
+                .query_map(params![artifact.id], |row| row.get(0))
+                .map_err(storage_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?;
+        }
+        Ok(artifacts)
+    }
+
     pub fn append_transcript_events(
         &self,
         session_id: &str,
@@ -1798,6 +1978,26 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_task_phases_task_order
                     ON task_phases(task_id, phase_index);
+
+                CREATE TABLE IF NOT EXISTS task_phase_artifacts (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    phase TEXT NOT NULL CHECK(phase IN ('analysis', 'planning', 'execution', 'review')),
+                    sequence INTEGER NOT NULL,
+                    kind TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(task_id, phase, sequence)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_phase_artifacts_task_phase_sequence
+                    ON task_phase_artifacts(task_id, phase, sequence);
+
+                CREATE TABLE IF NOT EXISTS task_phase_artifact_event_sources (
+                    artifact_id TEXT NOT NULL REFERENCES task_phase_artifacts(id) ON DELETE CASCADE,
+                    transcript_event_id TEXT NOT NULL REFERENCES transcript_events(id) ON DELETE RESTRICT,
+                    PRIMARY KEY (artifact_id, transcript_event_id)
+                );
 
                 CREATE TABLE IF NOT EXISTS task_complexity_changes (
                     id TEXT PRIMARY KEY,
@@ -5153,6 +5353,113 @@ mod tests {
             .list_project_tasks(&task.project_id)
             .expect("tasks listed");
         assert_eq!(listed, vec![task]);
+    }
+
+    #[test]
+    fn persists_ordered_task_phase_artifacts_with_same_transcript_provenance() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("task-phase-artifacts"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Analyze the change".to_string(),
+            })
+            .expect("task created");
+        let events = store
+            .append_transcript_events(
+                &transcript.id,
+                vec![
+                    TranscriptEventInput {
+                        kind: "user_message".to_string(),
+                        content: "Analyze".to_string(),
+                    },
+                    TranscriptEventInput {
+                        kind: "agent_message".to_string(),
+                        content: "Repository analysis".to_string(),
+                    },
+                ],
+            )
+            .expect("event appended");
+
+        let first = store
+            .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                task_id: task.id.clone(),
+                phase: " analysis ".to_string(),
+                kind: " summary ".to_string(),
+                content: " Evidence-backed analysis ".to_string(),
+                source_transcript_event_ids: vec![
+                    events[1].id.clone(),
+                    events[0].id.clone(),
+                    events[1].id.clone(),
+                ],
+            })
+            .expect("artifact created");
+        let second = store
+            .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".to_string(),
+                kind: "risk".to_string(),
+                content: "One risk".to_string(),
+                source_transcript_event_ids: vec![events[0].id.clone()],
+            })
+            .expect("second artifact created");
+        assert_eq!(first.sequence, 0);
+        assert_eq!(first.phase, "analysis");
+        assert_eq!(first.kind, "summary");
+        assert_eq!(first.content, "Evidence-backed analysis");
+        assert_eq!(
+            first.source_transcript_event_ids,
+            vec![events[0].id.clone(), events[1].id.clone()]
+        );
+        assert_eq!(second.sequence, 1);
+        assert_eq!(
+            store
+                .list_task_phase_artifacts(&task.id)
+                .expect("artifacts listed"),
+            vec![first, second]
+        );
+
+        let other_transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id),
+                runtime: "acp".to_string(),
+                source: "Codex".to_string(),
+                title: None,
+            })
+            .expect("other transcript created");
+        let other_event = store
+            .append_transcript_events(
+                &other_transcript.id,
+                vec![TranscriptEventInput {
+                    kind: "agent_message".to_string(),
+                    content: "Wrong source".to_string(),
+                }],
+            )
+            .expect("other event appended");
+        let wrong_source = store
+            .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                task_id: task.id,
+                phase: "planning".to_string(),
+                kind: "plan".to_string(),
+                content: "Plan".to_string(),
+                source_transcript_event_ids: vec![other_event[0].id.clone()],
+            })
+            .expect_err("cross-transcript provenance rejected");
+        assert!(matches!(wrong_source, AppError::InvalidInput(_)));
     }
 
     #[test]
