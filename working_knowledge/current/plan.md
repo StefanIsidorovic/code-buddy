@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.5. Extract workspace management dialog presentation
+- objective: move the Choose Workspace modal out of the frontend coordinator while preserving App-owned project persistence, folder selection, deletion confirmation, and session policy.
+- status: complete
+- files: src/App.tsx; src/features/workspace/WorkspaceDialog.tsx; src/features/workspace/WorkspaceDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: workspace modal shell; project list and selected state; controlled project form; folder picker, refresh, select, delete, add, close, and backdrop callbacks.
+- expected changes: add a typed state-free and Tauri-free workspace feature component; keep async commands and dialog visibility in App; replace the inline JSX with explicit props and callbacks.
+- acceptance criteria: empty and selected states remain unchanged; Refresh is locked only while projects load; Select/Delete remain locked by busy or an active session; folder picking and trimmed-field validation preserve their current rules; App keeps deletion confirmation and closes after selection/deletion.
+- required tests: empty/refresh rendering; selected state and session locks; select/delete callback forwarding; controlled inputs, folder/add validation, close, and backdrop dismissal; typecheck; frontend suite; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added explicit regression coverage for the distinct loading and folder-picking locks, and cycle 2 found no remaining modal, selection, deletion-handoff, validation, session-safety, accessibility, runtime-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.4. Extract repository management dialog presentation
 - objective: move repository listing, selection/deletion controls, and add-repository form out of `App.tsx` behind a typed workspace feature boundary.
 - status: complete

@@ -15,6 +15,7 @@ import {
   WorkspaceContextSummary,
 } from "./features/workspace/WorkspaceContextSelector";
 import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
+import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -2741,131 +2742,30 @@ function App() {
       ) : null}
 
       {workspaceDialogOpen ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setWorkspaceDialogOpen(false);
-            }
+        <WorkspaceDialog
+          busy={busy}
+          folderPicking={projectFolderPicking}
+          loading={projectLoading}
+          name={projectName}
+          path={projectPath}
+          projects={projects}
+          selectedProjectId={selectedProject?.id ?? null}
+          sessionLocked={canUseSession || canUseAcpSession}
+          onAdd={() => void createProject()}
+          onChangeName={setProjectName}
+          onChangePath={setProjectPath}
+          onChooseFolder={() => void chooseProjectFolder()}
+          onClose={() => setWorkspaceDialogOpen(false)}
+          onDelete={(project) => {
+            setWorkspaceDialogOpen(false);
+            openProjectDeleteDialog(project);
           }}
-        >
-          <section
-            aria-labelledby="workspace-dialog-title"
-            aria-modal="true"
-            className="knowledge-modal workspace-modal"
-            role="dialog"
-          >
-            <div className="modal-heading">
-              <div>
-                <p className="eyebrow">Global context</p>
-                <h2 id="workspace-dialog-title">Choose Workspace</h2>
-                <span>Select the project AIadne should use across initialization and sessions.</span>
-              </div>
-              <button
-                aria-label="Close workspace picker"
-                className="icon-button"
-                type="button"
-                onClick={() => setWorkspaceDialogOpen(false)}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            <div className="workspace-modal-toolbar">
-              <strong>{projects.length} workspaces</strong>
-              <button type="button" onClick={() => void refreshProjects()} disabled={projectLoading}>
-                Refresh
-              </button>
-            </div>
-
-            <ul className="project-list workspace-project-list" aria-label="Projects">
-              {projects.length === 0 ? (
-                <StateNotice
-                  as="li"
-                  kind="empty"
-                  title="No workspaces yet"
-                  description="Add your first project folder below to begin."
-                />
-              ) : (
-                projects.map((project) => (
-                  <li data-selected={project.id === selectedProject?.id} key={project.id}>
-                    <div>
-                      <strong>{project.name}</strong>
-                      <span>{project.path}</span>
-                      {project.id === selectedProject?.id ? <small>Current workspace</small> : null}
-                    </div>
-                    <div className="project-actions">
-                      <button
-                        aria-label={`Select ${project.name} project`}
-                        aria-pressed={project.id === selectedProject?.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedProjectId(project.id);
-                          setWorkspaceDialogOpen(false);
-                        }}
-                        disabled={busy || canUseSession || canUseAcpSession}
-                      >
-                        {project.id === selectedProject?.id ? "Selected" : "Select"}
-                      </button>
-                      <button
-                        aria-label={`Delete ${project.name} project`}
-                        className="danger-button"
-                        type="button"
-                        onClick={() => {
-                          setWorkspaceDialogOpen(false);
-                          openProjectDeleteDialog(project);
-                        }}
-                        disabled={busy || canUseSession || canUseAcpSession}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
-
-            <div className="workspace-create-panel">
-              <div>
-                <span className="section-kicker">New workspace</span>
-                <h3>Add a project folder</h3>
-              </div>
-              <div className="workspace-form">
-                <label>
-                  <span>Name</span>
-                  <input
-                    aria-label="Project name"
-                    onChange={(event) => setProjectName(event.target.value)}
-                    value={projectName}
-                  />
-                </label>
-                <label>
-                  <span>Path</span>
-                  <input
-                    aria-label="Project path"
-                    onChange={(event) => setProjectPath(event.target.value)}
-                    value={projectPath}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void chooseProjectFolder()}
-                  disabled={busy || projectFolderPicking}
-                >
-                  Choose Folder
-                </button>
-                <button
-                  className="primary-action"
-                  type="button"
-                  onClick={() => void createProject()}
-                  disabled={busy || projectFolderPicking || !projectName.trim() || !projectPath.trim()}
-                >
-                  Add Project
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
+          onRefresh={() => void refreshProjects()}
+          onSelect={(projectId) => {
+            setSelectedProjectId(projectId);
+            setWorkspaceDialogOpen(false);
+          }}
+        />
       ) : null}
 
       {initializeDialogOpen ? (
