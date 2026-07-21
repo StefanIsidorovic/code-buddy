@@ -758,3 +758,9 @@ YYYY-MM-DD
 - Preview ima eksplicitno `Send with this context`; ACP wire payload dobija tacno pregledani context, dok Task originalPrompt i transcript user event ostaju originalni.
 - Prazan context, nedostupan ACP, slanje u toku i brzi dupli klik ne mogu proizvesti dodatni zahtev; neuspeh ostavlja dialog otvoren za retry.
 - Frontend skill audit, 183 frontend testa, 94 Rust testa, typecheck, build, fmt i clippy prolaze.
+
+### 2026-07-22 - Auditable Context Dispatch Receipts
+
+- Svaki eksplicitni context send prvo dobija trajni `pending` Task receipt, pa se posle ACP odgovora finalizuje kao `sent` ili `failed`.
+- Receipt cuva exact prompt/context/wire tekst, source snapshot, ACP session, stop reason/gresku i stabilan per-Task sequence; interrupted send ostaje konzervativno `pending`.
+- Frontend audit, 182 frontend testa, 96 Rust testova, typecheck, build, fmt i clippy prolaze; App ostaje na 534 linije.

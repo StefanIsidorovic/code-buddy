@@ -14,8 +14,9 @@
 - Phase gate policy: every canonical phase requires explicit `start` and evidence-backed `complete`; completion advances to the next pending phase but never starts it automatically.
 - Unified context boundary: preview project knowledge, explicitly attached cards, and current-Task artifacts through one deterministic budgeted result; source type and inclusion reason remain visible, and preview never implies ACP injection.
 - Explicit context send boundary: only the preview confirmation action may enrich the ACP wire prompt; Task `originalPrompt` and transcript user messages keep the plain user prompt, and legacy Send ACP remains compatible.
+- Dispatch audit boundary: persist a `pending` receipt before the external ACP side effect, then finalize `sent`/`failed`; an interrupted or SQLite-finalization-uncertain dispatch remains conservatively `pending` rather than claiming success.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
 - Multi-session Task continuation: defer until the one-session Task workflow is validated.
-- Context-send receipt persistence: defer until the explicit send flow is manually validated; later automation needs an auditable record of the exact selection and wire dispatch.
+- Pending receipt reconciliation and receipt-history UI: defer until real dispatch receipts are manually inspected; do not infer `sent` from a stale `pending` record without external evidence.

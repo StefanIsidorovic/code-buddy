@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.6. Persist auditable context dispatch receipts
+- objective: retain a durable, ordered record of the exact reviewed context intent and ACP dispatch outcome before any automatic phase execution.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/runtime/useAcpRuntime.ts; related tests and current knowledge.
+- affected units: SQLite Task audit schema; pending/sent/failed lifecycle; ACP dispatch orchestration; exact prompt/context/source snapshot; typed frontend boundary.
+- expected changes: persist intent before ACP side effects; finalize the same receipt with stop reason or error; expose ordered list API; route explicit context send through the new command while preserving legacy sends.
+- acceptance criteria: Task/transcript ownership is authoritative; exact whitespace and wire prompt are retained; known unique sources are snapshotted; per-Task order is stable; failed and interrupted attempts remain auditable; original Task/transcript prompt is unchanged.
+- required tests: begin/finalize/list/order; double-finalize; cross-transcript/incomplete inputs; exact whitespace/wire prompt; runtime typed payload and original transcript event; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 preserved byte-exact prompt/context values and restricted source snapshots to known unique source classes, and cycle 2 verified conservative pending recovery semantics across external ACP and SQLite failure boundaries.
+- commit: this commit
+
 ### 22.5. Send frozen Task context explicitly
 - objective: let the user send the exact context they reviewed while preserving the original Task prompt and transcript message unchanged.
 - status: complete

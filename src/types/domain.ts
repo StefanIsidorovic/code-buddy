@@ -298,6 +298,35 @@ export type UnifiedTaskContextSelectionInfo = {
   excluded: UnifiedTaskContextSelectionEntryInfo[];
 };
 
+export type TaskContextDispatchSourceInfo = {
+  sourceId: string;
+  sourceType: UnifiedTaskContextSourceInfo["sourceType"];
+  reason: string;
+  score: number;
+};
+
+export type TaskContextDispatchReceiptInfo = {
+  id: string;
+  taskId: string;
+  transcriptSessionId: string;
+  sequence: number;
+  acpSessionId: string;
+  userPrompt: string;
+  renderedContext: string;
+  wirePrompt: string;
+  sources: TaskContextDispatchSourceInfo[];
+  status: "pending" | "sent" | "failed";
+  stopReason: string | null;
+  error: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TaskContextDispatchResultInfo = {
+  promptResult: AcpPromptResult;
+  receipt: TaskContextDispatchReceiptInfo;
+};
+
 export type TranscriptSessionInfo = {
   id: string;
   projectId: string | null;

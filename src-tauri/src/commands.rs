@@ -15,20 +15,28 @@ use crate::{
     session::{SessionInfo, SessionManager, StartCodexSessionRequest, StartFakeSessionRequest},
     storage::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
-        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskPhaseArtifactRequest,
-        CreateTaskRequest, CreateTranscriptSessionRequest,
+        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskContextDispatchRequest,
+        CreateTaskPhaseArtifactRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
         GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
         ProjectInfo, ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
         ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
         ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
-        RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest, TaskInfo,
-        TaskPhaseArtifactInfo, TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
-        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest,
+        TaskContextDispatchReceiptInfo, TaskInfo, TaskPhaseArtifactInfo, TranscriptEventInfo,
+        TranscriptEventInput, TranscriptSessionInfo, TransitionTaskPhaseRequest,
+        UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
 use std::sync::Arc;
 use tauri::State;
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskContextDispatchResultInfo {
+    pub prompt_result: AcpPromptResult,
+    pub receipt: TaskContextDispatchReceiptInfo,
+}
 
 #[tauri::command]
 pub fn list_model_catalog() -> ModelCatalogInfo {
@@ -364,6 +372,14 @@ pub fn list_task_phase_artifacts(
 }
 
 #[tauri::command]
+pub fn list_task_context_dispatch_receipts(
+    state: State<'_, ProjectStore>,
+    task_id: String,
+) -> AppResult<Vec<TaskContextDispatchReceiptInfo>> {
+    state.list_task_context_dispatch_receipts(&task_id)
+}
+
+#[tauri::command]
 pub fn transition_task_phase(
     state: State<'_, ProjectStore>,
     request: TransitionTaskPhaseRequest,
@@ -454,6 +470,43 @@ pub async fn send_acp_prompt(
 ) -> AppResult<AcpPromptResult> {
     let manager = Arc::clone(state.inner());
     run_acp_task(move || manager.send_prompt(&session_id, &prompt)).await
+}
+
+#[tauri::command]
+pub async fn send_acp_prompt_with_context(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    request: CreateTaskContextDispatchRequest,
+) -> AppResult<TaskContextDispatchResultInfo> {
+    let receipt = store_state.begin_task_context_dispatch(request)?;
+    let receipt_id = receipt.id.clone();
+    let wire_prompt = receipt.wire_prompt.clone();
+    let acp_session_id = receipt.acp_session_id.clone();
+    let manager = Arc::clone(manager_state.inner());
+    match run_acp_task(move || manager.send_prompt(&acp_session_id, &wire_prompt)).await {
+        Ok(prompt_result) => {
+            let receipt = store_state.finalize_task_context_dispatch(
+                &receipt_id,
+                "sent",
+                Some(&prompt_result.stop_reason),
+                None,
+            )?;
+            Ok(TaskContextDispatchResultInfo {
+                prompt_result,
+                receipt,
+            })
+        }
+        Err(error) => {
+            let message = error.to_string();
+            store_state.finalize_task_context_dispatch(
+                &receipt_id,
+                "failed",
+                None,
+                Some(&message),
+            )?;
+            Err(error)
+        }
+    }
 }
 
 #[tauri::command]

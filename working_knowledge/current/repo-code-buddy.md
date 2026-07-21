@@ -9,6 +9,7 @@
 - Unified Task Context preserves the legacy project-only selector while adding an authoritative three-source preview across project knowledge, attached cards, and same-transcript Task artifacts.
 - The unified preview is source-aware, strict-budgeted, and stale-safe; it never triggers automatic ACP prompt injection.
 - Explicit preview confirmation now enriches only the ACP wire prompt; persisted Task/transcript prompt identity remains plain and unchanged.
+- `task_context_dispatch_receipts` records exact context-send intent before ACP dispatch and its later sent/failed outcome; list access is typed for later recovery/history UI.
 - Tauri 2 desktop application with a React 19/TypeScript/Vite frontend and Rust backend.
 - `src/App.tsx` coordinates the single-screen workspace, initialization, runtime, history, and dialog workflows; `src/App.css` owns the visual system.
 - Rust modules separate PTY sessions, ACP transport, agent adapters, SQLite storage, model catalog, synthesis providers, Knowledge Unit selection, commands, and errors.

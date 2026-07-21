@@ -300,6 +300,45 @@ pub struct TaskPhaseArtifactInfo {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskContextDispatchSourceInput {
+    pub source_id: String,
+    pub source_type: String,
+    pub reason: String,
+    pub score: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskContextDispatchRequest {
+    pub task_id: String,
+    pub transcript_session_id: String,
+    pub acp_session_id: String,
+    pub user_prompt: String,
+    pub rendered_context: String,
+    pub sources: Vec<TaskContextDispatchSourceInput>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskContextDispatchReceiptInfo {
+    pub id: String,
+    pub task_id: String,
+    pub transcript_session_id: String,
+    pub sequence: i64,
+    pub acp_session_id: String,
+    pub user_prompt: String,
+    pub rendered_context: String,
+    pub wire_prompt: String,
+    pub sources: Vec<TaskContextDispatchSourceInput>,
+    pub status: String,
+    pub stop_reason: Option<String>,
+    pub error: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransitionTaskPhaseRequest {
@@ -1495,6 +1534,170 @@ impl ProjectStore {
         Ok(artifacts)
     }
 
+    pub fn begin_task_context_dispatch(
+        &self,
+        request: CreateTaskContextDispatchRequest,
+    ) -> AppResult<TaskContextDispatchReceiptInfo> {
+        let task_id = request.task_id.trim();
+        let transcript_session_id = request.transcript_session_id.trim();
+        let acp_session_id = request.acp_session_id.trim();
+        let user_prompt = request.user_prompt.as_str();
+        let rendered_context = request.rendered_context.as_str();
+        if task_id.is_empty()
+            || transcript_session_id.is_empty()
+            || acp_session_id.is_empty()
+            || user_prompt.trim().is_empty()
+            || rendered_context.trim().is_empty()
+            || request.sources.is_empty()
+        {
+            return Err(AppError::InvalidInput(
+                "context dispatch requires task, transcript, ACP session, prompt, context, and sources".into(),
+            ));
+        }
+        let task = self.task(task_id)?;
+        if task.transcript_session_id != transcript_session_id {
+            return Err(AppError::InvalidInput(
+                "context dispatch transcript does not belong to the task".into(),
+            ));
+        }
+        let mut source_keys = HashSet::new();
+        if request.sources.iter().any(|source| {
+            source.source_id.trim().is_empty()
+                || !matches!(
+                    source.source_type.as_str(),
+                    "project_knowledge" | "knowledge_card" | "task_artifact"
+                )
+                || source.reason.trim().is_empty()
+                || !source_keys.insert((source.source_type.as_str(), source.source_id.as_str()))
+        }) {
+            return Err(AppError::InvalidInput(
+                "context dispatch sources must be complete".into(),
+            ));
+        }
+        let wire_prompt =
+            format!("Selected task context:\n{rendered_context}\n\nUser prompt:\n{user_prompt}");
+        let sources_json = serde_json::to_string(&request.sources)
+            .map_err(|error| AppError::Storage(error.to_string()))?;
+        let id = Uuid::new_v4().to_string();
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), -1) + 1 FROM task_context_dispatch_receipts WHERE task_id = ?1",
+            params![task_id], |row| row.get(0)).map_err(storage_error)?;
+        transaction
+            .execute(
+                "INSERT INTO task_context_dispatch_receipts
+             (id, task_id, transcript_session_id, sequence, acp_session_id, user_prompt,
+              rendered_context, wire_prompt, sources_json, status, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'pending', ?10, ?10)",
+                params![
+                    id,
+                    task_id,
+                    transcript_session_id,
+                    sequence,
+                    acp_session_id,
+                    user_prompt,
+                    rendered_context,
+                    wire_prompt,
+                    sources_json,
+                    now
+                ],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task_context_dispatch_receipt(&id)
+    }
+
+    pub fn finalize_task_context_dispatch(
+        &self,
+        receipt_id: &str,
+        status: &str,
+        stop_reason: Option<&str>,
+        error: Option<&str>,
+    ) -> AppResult<TaskContextDispatchReceiptInfo> {
+        if !matches!(status, "sent" | "failed") {
+            return Err(AppError::InvalidInput(
+                "context dispatch final status is invalid".into(),
+            ));
+        }
+        let now = unix_timestamp()?;
+        let changed = self.connection()?.execute(
+            "UPDATE task_context_dispatch_receipts SET status = ?2, stop_reason = ?3, error = ?4,
+             updated_at = ?5 WHERE id = ?1 AND status = 'pending'",
+            params![receipt_id, status, stop_reason, error, now],
+        ).map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "context dispatch receipt is missing or already finalized".into(),
+            ));
+        }
+        self.task_context_dispatch_receipt(receipt_id)
+    }
+
+    pub fn list_task_context_dispatch_receipts(
+        &self,
+        task_id: &str,
+    ) -> AppResult<Vec<TaskContextDispatchReceiptInfo>> {
+        self.task(task_id)?;
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id FROM task_context_dispatch_receipts WHERE task_id = ?1 ORDER BY sequence ASC",
+        ).map_err(storage_error)?;
+        let ids = statement
+            .query_map(params![task_id], |row| row.get::<_, String>(0))
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        drop(statement);
+        drop(connection);
+        ids.iter()
+            .map(|id| self.task_context_dispatch_receipt(id))
+            .collect()
+    }
+
+    fn task_context_dispatch_receipt(
+        &self,
+        receipt_id: &str,
+    ) -> AppResult<TaskContextDispatchReceiptInfo> {
+        self.connection()?
+            .query_row(
+                "SELECT id, task_id, transcript_session_id, sequence, acp_session_id, user_prompt,
+                    rendered_context, wire_prompt, sources_json, status, stop_reason, error,
+                    created_at, updated_at FROM task_context_dispatch_receipts WHERE id = ?1",
+                params![receipt_id],
+                |row| {
+                    let sources_json: String = row.get(8)?;
+                    let sources = serde_json::from_str(&sources_json).map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(8, Type::Text, Box::new(error))
+                    })?;
+                    Ok(TaskContextDispatchReceiptInfo {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        transcript_session_id: row.get(2)?,
+                        sequence: row.get(3)?,
+                        acp_session_id: row.get(4)?,
+                        user_prompt: row.get(5)?,
+                        rendered_context: row.get(6)?,
+                        wire_prompt: row.get(7)?,
+                        sources,
+                        status: row.get(9)?,
+                        stop_reason: row.get(10)?,
+                        error: row.get(11)?,
+                        created_at: row.get(12)?,
+                        updated_at: row.get(13)?,
+                    })
+                },
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => AppError::InvalidInput(format!(
+                    "context dispatch receipt not found: {receipt_id}"
+                )),
+                other => storage_error(other),
+            })
+    }
+
     pub fn transition_task_phase(
         &self,
         request: TransitionTaskPhaseRequest,
@@ -2117,6 +2320,27 @@ impl ProjectStore {
                     transcript_event_id TEXT NOT NULL REFERENCES transcript_events(id) ON DELETE RESTRICT,
                     PRIMARY KEY (artifact_id, transcript_event_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS task_context_dispatch_receipts (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    transcript_session_id TEXT NOT NULL REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    sequence INTEGER NOT NULL,
+                    acp_session_id TEXT NOT NULL,
+                    user_prompt TEXT NOT NULL,
+                    rendered_context TEXT NOT NULL,
+                    wire_prompt TEXT NOT NULL,
+                    sources_json TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed')),
+                    stop_reason TEXT,
+                    error TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    UNIQUE(task_id, sequence)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_context_dispatch_receipts_task_sequence
+                    ON task_context_dispatch_receipts(task_id, sequence);
 
                 CREATE TABLE IF NOT EXISTS task_complexity_changes (
                     id TEXT PRIMARY KEY,
@@ -5684,6 +5908,152 @@ mod tests {
             })
             .expect_err("completed task transition rejected");
         assert!(matches!(after_completion, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn persists_and_finalizes_ordered_task_context_dispatch_receipts() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".into(),
+                path: temp_project_path("context-dispatch"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Original task".into(),
+            })
+            .expect("task created");
+        let source = TaskContextDispatchSourceInput {
+            source_id: "artifact-1".into(),
+            source_type: "task_artifact".into(),
+            reason: "task_phase_artifact".into(),
+            score: 1500,
+        };
+        let request = CreateTaskContextDispatchRequest {
+            task_id: task.id.clone(),
+            transcript_session_id: transcript.id.clone(),
+            acp_session_id: "acp-1".into(),
+            user_prompt: " Continue implementation ".into(),
+            rendered_context: "- Verified plan".into(),
+            sources: vec![source.clone()],
+        };
+        let first = store
+            .begin_task_context_dispatch(request.clone())
+            .expect("intent persisted");
+        assert_eq!(first.sequence, 0);
+        assert_eq!(first.status, "pending");
+        assert_eq!(first.user_prompt, " Continue implementation ");
+        assert_eq!(
+            first.wire_prompt,
+            "Selected task context:\n- Verified plan\n\nUser prompt:\n Continue implementation "
+        );
+        assert_eq!(first.sources, vec![source]);
+        let sent = store
+            .finalize_task_context_dispatch(&first.id, "sent", Some("end_turn"), None)
+            .expect("receipt finalized");
+        assert_eq!(sent.status, "sent");
+        assert_eq!(sent.stop_reason.as_deref(), Some("end_turn"));
+        assert!(store
+            .finalize_task_context_dispatch(&first.id, "failed", None, Some("late"))
+            .is_err());
+        let second = store
+            .begin_task_context_dispatch(request)
+            .expect("second intent persisted");
+        assert_eq!(second.sequence, 1);
+        let failed = store
+            .finalize_task_context_dispatch(&second.id, "failed", None, Some("offline"))
+            .expect("failure finalized");
+        assert_eq!(failed.error.as_deref(), Some("offline"));
+        assert_eq!(
+            store
+                .list_task_context_dispatch_receipts(&task.id)
+                .expect("receipts listed"),
+            vec![sent, failed]
+        );
+    }
+
+    #[test]
+    fn rejects_cross_transcript_or_incomplete_context_dispatch_intents() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".into(),
+                path: temp_project_path("context-dispatch-invalid"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let other = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("other transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Original".into(),
+            })
+            .expect("task created");
+        let source = TaskContextDispatchSourceInput {
+            source_id: "unit".into(),
+            source_type: "project_knowledge".into(),
+            reason: "mandatory_kind".into(),
+            score: 1000,
+        };
+        let cross_transcript = store
+            .begin_task_context_dispatch(CreateTaskContextDispatchRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: other.id,
+                acp_session_id: "acp".into(),
+                user_prompt: "Continue".into(),
+                rendered_context: "context".into(),
+                sources: vec![source.clone()],
+            })
+            .expect_err("cross-transcript intent rejected");
+        assert!(matches!(cross_transcript, AppError::InvalidInput(_)));
+        let incomplete = store
+            .begin_task_context_dispatch(CreateTaskContextDispatchRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                acp_session_id: "acp".into(),
+                user_prompt: " ".into(),
+                rendered_context: "context".into(),
+                sources: vec![source.clone()],
+            })
+            .expect_err("incomplete intent rejected");
+        assert!(matches!(incomplete, AppError::InvalidInput(_)));
+        let duplicate = store
+            .begin_task_context_dispatch(CreateTaskContextDispatchRequest {
+                task_id: task.id,
+                transcript_session_id: transcript.id,
+                acp_session_id: "acp".into(),
+                user_prompt: "Continue".into(),
+                rendered_context: "context".into(),
+                sources: vec![source.clone(), source],
+            })
+            .expect_err("duplicate sources rejected");
+        assert!(matches!(duplicate, AppError::InvalidInput(_)));
     }
 
     #[test]

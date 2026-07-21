@@ -489,7 +489,7 @@ function App() {
         <TaskContextPreviewDialog error={taskContextPreviewError} loading={taskContextPreviewLoading}
           sending={acpPromptBusy} canSend={canUseAcpSession} preview={taskContextPreview}
           onClose={closeTaskContextPreview} onSend={() => { void (async () => {
-            if (taskContextPreview && await sendAcpPrompt(taskContextPreview.renderedContext)) closeTaskContextPreview();
+            if (taskContextPreview && await sendAcpPrompt(taskContextPreview)) closeTaskContextPreview();
           })(); }} />
       ) : null}
 

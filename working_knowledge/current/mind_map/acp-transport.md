@@ -50,6 +50,7 @@
 - AIA-027 normalizes saved transcript replay into Question/Answer rows.
 - AIA-028 keeps frontend ACP drain polling tied to the active transcript id so streamed Codex chunks are not lost before persistence.
 - AIA-031 injects checked Knowledge Cards into the ACP prompt text sent to the agent while transcript history stores the original user prompt.
+- Reviewed unified context uses a dedicated backend dispatch command: it persists a pending Task receipt before `session/prompt`, then records stop reason or failure without rewriting transcript prompt identity.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.

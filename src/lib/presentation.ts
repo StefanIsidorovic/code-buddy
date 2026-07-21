@@ -22,11 +22,6 @@ export function formatPromptWithKnowledge(items: KnowledgeItem[], prompt: string
   return `Attached session knowledge:\n${context}\n\nUser prompt:\n${prompt}`;
 }
 
-export function formatPromptWithTaskContext(context: string, prompt: string) {
-  const selectedContext = context.trim();
-  if (!selectedContext) return prompt;
-  return `Selected task context:\n${selectedContext}\n\nUser prompt:\n${prompt}`;
-}
 
 export function shortId(id: string) {
   return id.slice(0, 8);

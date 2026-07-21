@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AcpRegistryCandidate,
   AcpSessionInfo,
+  TaskInfo,
   TranscriptSessionInfo,
+  UnifiedTaskContextSelectionInfo,
 } from "../../types/domain";
 
 const invoke = vi.hoisted(() => vi.fn());
@@ -50,14 +52,22 @@ const transcriptSession: TranscriptSessionInfo = {
   updatedAt: 1,
   eventCount: 0,
 };
+const task = { id: "task1", projectId: "p1", transcriptSessionId: "t1",
+  originalPrompt: "Explain this change" } as TaskInfo;
+const preview: UnifiedTaskContextSelectionInfo = { initializationId: "init1", characterBudget: 6000,
+  usedCharacters: 42, remainingCharacters: 5958,
+  renderedContext: "- [task_artifact] Verified evidence",
+  included: [{ source: { id: "artifact1", sourceType: "task_artifact", kind: "finding",
+    title: "analysis phase", content: "Verified evidence" }, score: 1500,
+    reason: "task_phase_artifact", characterCount: 42 }], excluded: [] };
 
-function setup() {
+function setup(projectId: string | null = null, activeTask: TaskInfo | null = null) {
   const transcript = {
     create: vi.fn().mockResolvedValue(transcriptSession),
     attachKnowledge: vi.fn().mockResolvedValue(undefined),
     showLive: vi.fn(),
     getActiveId: vi.fn(() => "t1"),
-    getTask: vi.fn(() => null),
+    getTask: vi.fn(() => activeTask),
     upsertTask: vi.fn(),
     record: vi.fn().mockResolvedValue(undefined),
   };
@@ -69,7 +79,7 @@ function setup() {
     reportError,
     ...renderHook(() =>
       useAcpRuntime({
-        projectId: null,
+        projectId,
         cwd: "/repo",
         prompt: "Explain this change",
         onPromptChange: vi.fn(),
@@ -146,17 +156,24 @@ describe("useAcpRuntime", () => {
     invoke.mockImplementation((command) => {
       if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
       if (command === "start_acp_registry_session") return Promise.resolve(session);
-      if (command === "send_acp_prompt") return Promise.resolve({ sessionId: "acp1", stopReason: "end_turn" });
+      if (command === "send_acp_prompt_with_context") return Promise.resolve({
+        promptResult: { sessionId: "acp1", stopReason: "end_turn" },
+        receipt: { id: "receipt1", status: "sent" },
+      });
       return Promise.resolve([]);
     });
-    const { result, transcript, unmount } = setup();
+    const { result, transcript, unmount } = setup("p1", task);
     await waitFor(() => expect(result.current.canStartSelected).toBe(true));
     await act(() => result.current.startSelected());
     let sent = false;
-    await act(async () => { sent = await result.current.sendPrompt("- [task_artifact] Verified evidence"); });
+    await act(async () => { sent = await result.current.sendPrompt(preview); });
     expect(sent).toBe(true);
-    expect(invoke).toHaveBeenCalledWith("send_acp_prompt", { sessionId: "acp1",
-      prompt: "Selected task context:\n- [task_artifact] Verified evidence\n\nUser prompt:\nExplain this change" });
+    expect(invoke).toHaveBeenCalledWith("send_acp_prompt_with_context", { request: {
+      taskId: "task1", transcriptSessionId: "t1", acpSessionId: "acp1",
+      userPrompt: "Explain this change", renderedContext: "- [task_artifact] Verified evidence",
+      sources: [{ sourceId: "artifact1", sourceType: "task_artifact",
+        reason: "task_phase_artifact", score: 1500 }],
+    } });
     expect(transcript.record).toHaveBeenCalledWith("t1", [
       { kind: "user_message", content: "Explain this change" },
     ]);
@@ -177,8 +194,8 @@ describe("useAcpRuntime", () => {
     await act(() => result.current.startSelected());
     let first: Promise<boolean>; let second = true;
     await act(async () => {
-      first = result.current.sendPrompt("context");
-      second = await result.current.sendPrompt("context");
+      first = result.current.sendPrompt();
+      second = await result.current.sendPrompt();
       resolvePrompt({ sessionId: "acp1", stopReason: "end_turn" });
       await first;
     });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { errorText, formatPromptWithKnowledge, formatPromptWithTaskContext } from "../../lib/presentation";
+import { errorText, formatPromptWithKnowledge } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
 import type {
   AcpPromptResult,
@@ -7,8 +7,10 @@ import type {
   AcpSessionEvent,
   AcpSessionInfo,
   KnowledgeItemInfo,
+  TaskContextDispatchResultInfo,
   TaskInfo,
   TranscriptSessionInfo,
+  UnifiedTaskContextSelectionInfo,
 } from "../../types/domain";
 
 interface TranscriptApi {
@@ -116,7 +118,7 @@ export function useAcpRuntime({
       );
     });
   }
-  async function sendPrompt(selectedTaskContext?: string) {
+  async function sendPrompt(selectedTaskContext?: UnifiedTaskContextSelectionInfo) {
     if (!usable || !session || promptInFlight.current) return false;
     promptInFlight.current = true;
     setPromptBusy(true);
@@ -125,24 +127,32 @@ export function useAcpRuntime({
       transcript.showLive();
       const transcriptId = transcript.getActiveId();
       if (projectId && !transcriptId) throw new Error("A project Task requires an active transcript session.");
-      if (projectId && transcriptId && !transcript.getTask(transcriptId)) {
-        transcript.upsertTask(
-          await invokeCommand<TaskInfo>("create_task", {
+      let activeTask = transcriptId ? transcript.getTask(transcriptId) : null;
+      if (projectId && transcriptId && !activeTask) {
+        activeTask = await invokeCommand<TaskInfo>("create_task", {
             request: { projectId, transcriptSessionId: transcriptId, originalPrompt: prompt },
-          }),
-        );
+          });
+        transcript.upsertTask(activeTask);
       }
       const userEvent: AcpSessionEvent = { kind: "user_message", content: prompt };
       setEvents((current) => [...current, userEvent]);
       await transcript.record(transcriptId, [userEvent]);
-      setPromptResult(
-        await invokeCommand<AcpPromptResult>("send_acp_prompt", {
-          sessionId: session.id,
-          prompt: selectedTaskContext === undefined
-            ? formatPromptWithKnowledge(attachedKnowledge, prompt)
-            : formatPromptWithTaskContext(selectedTaskContext, prompt),
-        }),
-      );
+      if (selectedTaskContext === undefined) {
+        setPromptResult(await invokeCommand<AcpPromptResult>("send_acp_prompt", {
+          sessionId: session.id, prompt: formatPromptWithKnowledge(attachedKnowledge, prompt),
+        }));
+      } else {
+        if (!transcriptId || !activeTask) throw new Error("Reviewed Task context requires an active Task.");
+        const dispatched = await invokeCommand<TaskContextDispatchResultInfo>(
+          "send_acp_prompt_with_context", { request: { taskId: activeTask.id,
+            transcriptSessionId: transcriptId, acpSessionId: session.id, userPrompt: prompt,
+            renderedContext: selectedTaskContext.renderedContext,
+            sources: selectedTaskContext.included.map(({ source, reason, score }) => ({
+              sourceId: source.id, sourceType: source.sourceType, reason, score,
+            })) } },
+        );
+        setPromptResult(dispatched.promptResult);
+      }
       setPromptBusy(false);
       await drain(session.id, transcriptId);
       return true;

@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Explicit context sends now create an ordered Task receipt before ACP dispatch and finalize it as `sent` or `failed`; interrupted attempts remain `pending` for later recovery.
+- Receipts retain exact user/context/wire strings, included source snapshots, ACP session, stop reason/error, and Task/transcript ownership; a typed list API is available but no receipt-history UI exists yet.
 - Unified Task Context Preview now has an explicit send action; the exact rendered context enriches only the ACP wire prompt, while Task `originalPrompt` and transcript user events retain the user's plain prompt.
 - Prompt dispatch has a synchronous in-flight guard, and the dialog stays open on failed dispatch for an explicit retry.
 - Task Context Preview now unifies approved project Knowledge Units, transcript-attached Knowledge Cards, and active Task phase artifacts with visible source/reason and a strict character budget.
@@ -13,7 +15,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Manually smoke-test preview-and-send with a real Task artifact and attached card, then persist an auditable context-selection/send receipt before adding automatic phase execution.
+- Manually smoke-test preview-and-send and inspect its receipt, then add pending-receipt reconciliation/history presentation before automatic phase execution.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

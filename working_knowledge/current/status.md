@@ -1,8 +1,8 @@
 # Status
 
 ## Session
-- session_id: codex-20260721-aiadne-beyond-conductor
-- date_utc: 2026-07-21
+- session_id: codex-20260722-aiadne-receipts
+- date_utc: 2026-07-22
 - agent_model: codex
 
 ## Target Repositories
@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 0bf063c step 22.4: preview unified task context
-- worktree: plan item 22.5 implementation and knowledge updates ready for commit.
-- relevant files: src/features/knowledge/TaskContextPreviewDialog.tsx; src/features/runtime/useAcpRuntime.ts; src/lib/presentation.ts; src/App.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: f7ce04a step 22.5: send reviewed task context
+- worktree: plan item 22.6 implementation and knowledge updates ready for commit.
+- relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/features/runtime/useAcpRuntime.ts; src/types/domain.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.5 complete
+- active plan step: 22.6 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -90,3 +90,4 @@
 - 2026-07-21: 93 Rust tests, 177 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.3; Task phases/artifacts are manually operable with persisted event provenance and stale-safe frontend orchestration.
 - 2026-07-21: 94 Rust tests, 178 frontend tests, Rust fmt/clippy with warnings denied, typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.4; the preview unifies three source classes under one strict budget without ACP injection.
 - 2026-07-21: 94 Rust tests, 183 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.5; frozen preview context reaches only the ACP wire payload after explicit confirmation.
+- 2026-07-22: 96 Rust tests, 182 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.6; exact context dispatch intents/outcomes are durable and ordered before ACP automation.
