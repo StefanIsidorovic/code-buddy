@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.7. Present receipt history and resolve stale pending dispatches safely
+- objective: make every reviewed-context dispatch inspectable and provide an explicit, conservative recovery path for genuinely stale `pending` receipts.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; src/features/tasks/TaskDispatchHistoryPanel.tsx; src/features/tasks/useTaskDispatchHistory.ts; src/App.tsx; src/App.css; related tests and current knowledge.
+- affected units: ordered Task receipt history; stale-safe frontend loading; manual recovery boundary; active ACP session race protection; App feature composition.
+- expected changes: display exact prompt/context, sources and outcome for each receipt; allow only `pending` to become `failed` with a bounded mandatory reason; never infer or manually assert successful delivery.
+- acceptance criteria: finalized receipts are immutable; receipts cannot cross Task ownership; an associated running ACP session blocks resolution; exact stored context remains inspectable; stale Task loads cannot overwrite the current workspace.
+- required tests: ordered display and exact context; mandatory reason; exact resolve payload; finalized-receipt lock; stale load; active-session/backend storage guards; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 added the active ACP-session guard to close a dispatch/resolution race, and cycle 2 bounded manual reasons and preserved responsive presentation.
+- commit: this commit
+
 ### 22.6. Persist auditable context dispatch receipts
 - objective: retain a durable, ordered record of the exact reviewed context intent and ACP dispatch outcome before any automatic phase execution.
 - status: complete

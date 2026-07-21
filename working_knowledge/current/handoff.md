@@ -1,8 +1,10 @@
 # Handoff
 
 ## Current State
+- Task Dispatch History now shows ordered receipts with exact stored prompt/context, source count, ACP outcome, stop reason and error.
+- A genuinely stale `pending` receipt can be manually resolved only to `failed`, with a mandatory bounded reason and only after its associated ACP session is no longer running; finalized outcomes remain immutable.
 - Explicit context sends now create an ordered Task receipt before ACP dispatch and finalize it as `sent` or `failed`; interrupted attempts remain `pending` for later recovery.
-- Receipts retain exact user/context/wire strings, included source snapshots, ACP session, stop reason/error, and Task/transcript ownership; a typed list API is available but no receipt-history UI exists yet.
+- Receipts retain exact user/context/wire strings, included source snapshots, ACP session, stop reason/error, and Task/transcript ownership.
 - Unified Task Context Preview now has an explicit send action; the exact rendered context enriches only the ACP wire prompt, while Task `originalPrompt` and transcript user events retain the user's plain prompt.
 - Prompt dispatch has a synchronous in-flight guard, and the dialog stays open on failed dispatch for an explicit retry.
 - Task Context Preview now unifies approved project Knowledge Units, transcript-attached Knowledge Cards, and active Task phase artifacts with visible source/reason and a strict character budget.
@@ -15,7 +17,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Manually smoke-test preview-and-send and inspect its receipt, then add pending-receipt reconciliation/history presentation before automatic phase execution.
+- Design and implement the first controlled single-phase execution action, retaining explicit evidence and completion gates before broader automation.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run
@@ -31,3 +33,4 @@
 - Keep canonical phase order deterministic and avoid free-form phase names at this layer.
 - Preserve unrelated user changes if the worktree changes during implementation.
 - Do not use AIadne's synthesis catalog as the ACP runtime model source; retain and validate the active agent's advertised options.
+- Show the user the stable approximate `AIadne -> beyond Conductor` progress tracker in every substantive work update; the percentage is directional rather than a delivery estimate.

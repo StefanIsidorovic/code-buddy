@@ -38,6 +38,7 @@ export type TauriCommand =
   | "list_transcript_sessions"
   | "rename_transcript_session"
   | "resize_session"
+  | "resolve_pending_task_context_dispatch"
   | "save_project_initialization_guardrails"
   | "select_project_task_context"
   | "select_unified_project_task_context"

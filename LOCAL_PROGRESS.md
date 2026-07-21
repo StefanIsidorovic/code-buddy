@@ -764,3 +764,9 @@ YYYY-MM-DD
 - Svaki eksplicitni context send prvo dobija trajni `pending` Task receipt, pa se posle ACP odgovora finalizuje kao `sent` ili `failed`.
 - Receipt cuva exact prompt/context/wire tekst, source snapshot, ACP session, stop reason/gresku i stabilan per-Task sequence; interrupted send ostaje konzervativno `pending`.
 - Frontend audit, 182 frontend testa, 96 Rust testova, typecheck, build, fmt i clippy prolaze; App ostaje na 534 linije.
+
+### 2026-07-22 - Context Dispatch History and Safe Recovery
+
+- Task workspace sada prikazuje ordered receipt istoriju sa tacnim sacuvanim prompt/context tekstom, izvorima i ACP ishodom.
+- Samo `pending` receipt moze rucno da postane `failed`, uz obavezan razlog; backend odbija promenu dok je vezana ACP sesija aktivna i nikad ne dozvoljava lazni `sent`.
+- Frontend audit, 187 frontend testova, 96 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje composition root sa 547 linija.

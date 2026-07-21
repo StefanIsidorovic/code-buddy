@@ -320,6 +320,14 @@ pub struct CreateTaskContextDispatchRequest {
     pub sources: Vec<TaskContextDispatchSourceInput>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolveTaskContextDispatchRequest {
+    pub task_id: String,
+    pub receipt_id: String,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskContextDispatchReceiptInfo {
@@ -1655,6 +1663,41 @@ impl ProjectStore {
         ids.iter()
             .map(|id| self.task_context_dispatch_receipt(id))
             .collect()
+    }
+
+    pub fn resolve_pending_task_context_dispatch(
+        &self,
+        request: ResolveTaskContextDispatchRequest,
+    ) -> AppResult<TaskContextDispatchReceiptInfo> {
+        let task_id = request.task_id.trim();
+        let receipt_id = request.receipt_id.trim();
+        let reason = request.reason.trim();
+        if task_id.is_empty()
+            || receipt_id.is_empty()
+            || reason.is_empty()
+            || reason.chars().count() > 1_000
+        {
+            return Err(AppError::InvalidInput(
+                "pending context dispatch resolution requires task, receipt, and a reason up to 1000 characters".into(),
+            ));
+        }
+        self.task(task_id)?;
+        let now = unix_timestamp()?;
+        let error = format!("manually resolved as failed: {reason}");
+        let changed = self
+            .connection()?
+            .execute(
+                "UPDATE task_context_dispatch_receipts SET status = 'failed', error = ?3,
+             updated_at = ?4 WHERE id = ?1 AND task_id = ?2 AND status = 'pending'",
+                params![receipt_id, task_id, error, now],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "context dispatch receipt is missing, finalized, or belongs to another task".into(),
+            ));
+        }
+        self.task_context_dispatch_receipt(receipt_id)
     }
 
     fn task_context_dispatch_receipt(
@@ -5975,11 +6018,45 @@ mod tests {
             .finalize_task_context_dispatch(&second.id, "failed", None, Some("offline"))
             .expect("failure finalized");
         assert_eq!(failed.error.as_deref(), Some("offline"));
+        let third = store
+            .begin_task_context_dispatch(CreateTaskContextDispatchRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                acp_session_id: "acp-1".into(),
+                user_prompt: "Retry".into(),
+                rendered_context: "- Verified plan".into(),
+                sources: vec![TaskContextDispatchSourceInput {
+                    source_id: "artifact-1".into(),
+                    source_type: "task_artifact".into(),
+                    reason: "task_phase_artifact".into(),
+                    score: 1500,
+                }],
+            })
+            .expect("third intent persisted");
+        let resolved = store
+            .resolve_pending_task_context_dispatch(ResolveTaskContextDispatchRequest {
+                task_id: task.id.clone(),
+                receipt_id: third.id,
+                reason: "No ACP result after restart".into(),
+            })
+            .expect("pending receipt resolved");
+        assert_eq!(resolved.status, "failed");
+        assert_eq!(
+            resolved.error.as_deref(),
+            Some("manually resolved as failed: No ACP result after restart")
+        );
+        assert!(store
+            .resolve_pending_task_context_dispatch(ResolveTaskContextDispatchRequest {
+                task_id: task.id.clone(),
+                receipt_id: first.id.clone(),
+                reason: "Cannot rewrite sent".into(),
+            })
+            .is_err());
         assert_eq!(
             store
                 .list_task_context_dispatch_receipts(&task.id)
                 .expect("receipts listed"),
-            vec![sent, failed]
+            vec![sent, failed, resolved]
         );
     }
 

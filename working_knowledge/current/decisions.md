@@ -15,8 +15,9 @@
 - Unified context boundary: preview project knowledge, explicitly attached cards, and current-Task artifacts through one deterministic budgeted result; source type and inclusion reason remain visible, and preview never implies ACP injection.
 - Explicit context send boundary: only the preview confirmation action may enrich the ACP wire prompt; Task `originalPrompt` and transcript user messages keep the plain user prompt, and legacy Send ACP remains compatible.
 - Dispatch audit boundary: persist a `pending` receipt before the external ACP side effect, then finalize `sent`/`failed`; an interrupted or SQLite-finalization-uncertain dispatch remains conservatively `pending` rather than claiming success.
+- Pending dispatch recovery: manual recovery may only turn `pending` into `failed` with an explicit bounded reason, and only while the associated ACP session is not running; it can never manufacture a `sent` outcome.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
 - Multi-session Task continuation: defer until the one-session Task workflow is validated.
-- Pending receipt reconciliation and receipt-history UI: defer until real dispatch receipts are manually inspected; do not infer `sent` from a stale `pending` record without external evidence.
+- Automatic reconciliation of pending receipts: defer until external ACP delivery evidence exists; never infer `sent` from age or session shutdown alone.

@@ -30,6 +30,8 @@ import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel"
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
+import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
+import { useTaskDispatchHistory } from "./features/tasks/useTaskDispatchHistory";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
 import { useAgentEnvironment } from "./features/agents/useAgentEnvironment";
@@ -164,6 +166,7 @@ function App() {
     });
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask });
+  const taskDispatch = useTaskDispatchHistory(activeTask);
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -366,7 +369,15 @@ function App() {
             error={taskPhase.error} loading={taskPhase.loading} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onCreateArtifact={() => void taskPhase.createArtifact()}
-            onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()} /> : null}</>
+            onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()} /> : null}
+          {activeTask ? <TaskDispatchHistoryPanel receipts={taskDispatch.receipts}
+            loading={taskDispatch.loading} error={taskDispatch.error}
+            resolutionReceiptId={taskDispatch.resolutionReceiptId}
+            resolutionReason={taskDispatch.resolutionReason}
+            onRefresh={() => void taskDispatch.refresh()} onOpenResolution={taskDispatch.openResolution}
+            onChangeResolutionReason={taskDispatch.changeResolutionReason}
+            onCancelResolution={taskDispatch.cancelResolution}
+            onResolve={() => void taskDispatch.resolve()} /> : null}</>
         ) : null}
 
         {error ? (
@@ -489,7 +500,9 @@ function App() {
         <TaskContextPreviewDialog error={taskContextPreviewError} loading={taskContextPreviewLoading}
           sending={acpPromptBusy} canSend={canUseAcpSession} preview={taskContextPreview}
           onClose={closeTaskContextPreview} onSend={() => { void (async () => {
-            if (taskContextPreview && await sendAcpPrompt(taskContextPreview)) closeTaskContextPreview();
+            if (taskContextPreview && await sendAcpPrompt(taskContextPreview)) {
+              closeTaskContextPreview(); await taskDispatch.refresh();
+            }
           })(); }} />
       ) : null}
 

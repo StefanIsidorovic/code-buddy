@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: f7ce04a step 22.5: send reviewed task context
-- worktree: plan item 22.6 implementation and knowledge updates ready for commit.
-- relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/features/runtime/useAcpRuntime.ts; src/types/domain.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 0a47f62 step 22.6: persist context dispatch receipts
+- worktree: plan item 22.7 implementation and knowledge updates ready for commit.
+- relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/features/tasks/TaskDispatchHistoryPanel.tsx; src/features/tasks/useTaskDispatchHistory.ts; src/App.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.6 complete
+- active plan step: 22.7 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -91,3 +91,4 @@
 - 2026-07-21: 94 Rust tests, 178 frontend tests, Rust fmt/clippy with warnings denied, typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.4; the preview unifies three source classes under one strict budget without ACP injection.
 - 2026-07-21: 94 Rust tests, 183 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.5; frozen preview context reaches only the ACP wire payload after explicit confirmation.
 - 2026-07-22: 96 Rust tests, 182 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.6; exact context dispatch intents/outcomes are durable and ordered before ACP automation.
+- 2026-07-22: 96 Rust tests, 187 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.7; receipt history is inspectable and stale pending attempts can only be resolved as failed after their ACP session stops.

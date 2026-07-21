@@ -11,6 +11,7 @@
 - Preview preserves canonical artifact order and is invalidated on project, initialization, transcript, or Task changes.
 - Explicit context send does not rewrite Task `originalPrompt` or transcript user events; enrichment exists only on the ACP wire.
 - Context dispatch receipts are Task-ordered and transition once from `pending` to `sent`/`failed`; uncertain interrupted work stays `pending`.
+- Receipt history exposes the exact stored dispatch record. Manual recovery is restricted to `pending -> failed` with a reason and is rejected while the associated ACP session is running.
 - A Task is the persistent user assignment; a transcript is its ordered conversation history and ACP is its runtime transport.
 - One project-owned transcript session may own at most one Task.
 - The immutable original prompt is stored on the Task separately from any future context-enriched ACP payload.
@@ -36,9 +37,9 @@
 - The frontend keeps transcript-indexed Task ref/state in sync and renders the live Task assessment inside ACP Controls; the panel is read-only until explicit override controls are planned.
 
 ## Deferred
-- Agent-driven phase execution, retry semantics, and user-facing gate controls over the persisted state machine.
+- Agent-driven phase execution and controlled retry semantics over the persisted state machine.
 - Analysis-driven complexity confirmation/reclassification and user-facing profile controls.
-- UI progress/context presentation and explicit context assembly across project, manual, and task knowledge.
+- Automatic receipt reconciliation without external ACP delivery evidence.
 
 ## Risks
 - Never replace the transcript with Task state or infer a new Task from every follow-up prompt.
