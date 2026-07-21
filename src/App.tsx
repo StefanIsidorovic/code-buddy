@@ -5,6 +5,20 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import aiadneMark from "./assets/aiadne-mark.svg";
+import {
+  acpEventLabel,
+  coalesceAcpEvents,
+  coalesceTranscriptEvents,
+  errorText,
+  filterTranscriptSessions,
+  folderNameFromPath,
+  formatCommand,
+  formatPromptWithKnowledge,
+  shortId,
+  transcriptEventLabel,
+  transcriptEventToAcpEvent,
+  uniqueIds,
+} from "./lib/presentation";
 import "./App.css";
 
 type SessionState = "running" | "exited" | "killed" | "errored";
@@ -130,16 +144,6 @@ type AcpSessionEvent = {
   kind: AcpEventKind;
   content: string;
 };
-
-const acpEventKinds = new Set<string>([
-  "agent_message",
-  "user_message",
-  "plan",
-  "tool_call",
-  "usage",
-  "notice",
-  "error",
-]);
 
 type AcpPromptResult = {
   sessionId: string;
@@ -4602,50 +4606,6 @@ function guardrailKindLabel(kind: string) {
   return labels[kind] ?? kind.replace(/[_-]+/g, " ");
 }
 
-function uniqueIds(ids: string[]) {
-  return Array.from(new Set(ids));
-}
-
-function formatPromptWithKnowledge(items: KnowledgeItemInfo[], prompt: string) {
-  if (items.length === 0) {
-    return prompt;
-  }
-
-  const context = items
-    .map(
-      (item, index) =>
-        `${index + 1}. ${item.title} (${item.kind}, ${item.scope})\n${item.body}`,
-    )
-    .join("\n\n");
-
-  return `Attached session knowledge:\n${context}\n\nUser prompt:\n${prompt}`;
-}
-
-function filterTranscriptSessions(sessions: TranscriptSessionInfo[], filter: string) {
-  const query = filter.trim().toLowerCase();
-  if (!query) {
-    return sessions;
-  }
-
-  return sessions.filter((session) =>
-    [
-      session.title,
-      session.source,
-      session.runtime,
-      session.id,
-      session.projectId ?? "",
-      shortId(session.id),
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(query),
-  );
-}
-
-function shortId(id: string) {
-  return id.slice(0, 8);
-}
-
 function formatTimestamp(timestamp: number) {
   return new Date(timestamp * 1_000).toLocaleString(undefined, {
     month: "short",
@@ -4655,131 +4615,11 @@ function formatTimestamp(timestamp: number) {
   });
 }
 
-function coalesceAcpEvents(events: AcpSessionEvent[]) {
-  return coalesceEvents(events, (kind) => kind === "agent_message" || kind === "plan");
-}
-
-function coalesceTranscriptEvents(events: AcpSessionEvent[]) {
-  return coalesceEvents(events, (kind) => kind === "agent_message" || kind === "plan");
-}
-
-function coalesceEvents(
-  events: AcpSessionEvent[],
-  shouldMergeKind: (kind: AcpEventKind) => boolean,
-) {
-  const coalesced: AcpSessionEvent[] = [];
-
-  for (const event of events) {
-    const previous = coalesced[coalesced.length - 1];
-    if (
-      previous &&
-      previous.kind === event.kind &&
-      shouldMergeKind(event.kind)
-    ) {
-      previous.content = joinAcpText(previous.content, event.content);
-    } else {
-      coalesced.push({ ...event });
-    }
-  }
-
-  return coalesced;
-}
-
-function joinAcpText(left: string, right: string) {
-  if (!left.trim()) {
-    return right;
-  }
-
-  if (!right.trim()) {
-    return left;
-  }
-
-  if (left.endsWith("\n") || right.startsWith("\n")) {
-    return `${left}${right}`;
-  }
-
-  return `${left} ${right}`;
-}
-
-function transcriptEventToAcpEvent(event: TranscriptEventInfo): AcpSessionEvent {
-  return {
-    kind: isAcpEventKind(event.kind) ? event.kind : "notice",
-    content: event.content,
-  };
-}
-
-function isAcpEventKind(kind: string): kind is AcpEventKind {
-  return acpEventKinds.has(kind);
-}
-
-function formatCommand(command: string[]) {
-  return command.map((part) => (part.includes(" ") ? JSON.stringify(part) : part)).join(" ");
-}
-
-function acpEventLabel(kind: AcpEventKind) {
-  if (kind === "agent_message") {
-    return "Agent";
-  }
-
-  if (kind === "user_message") {
-    return "User";
-  }
-
-  if (kind === "tool_call") {
-    return "Tool";
-  }
-
-  if (kind === "plan") {
-    return "Plan";
-  }
-
-  if (kind === "notice") {
-    return "Notice";
-  }
-
-  if (kind === "usage") {
-    return "Usage";
-  }
-
-  if (kind === "error") {
-    return "Error";
-  }
-}
-
-function transcriptEventLabel(kind: AcpEventKind) {
-  if (kind === "user_message") {
-    return "Question";
-  }
-
-  if (kind === "agent_message") {
-    return "Answer";
-  }
-
-  return acpEventLabel(kind);
-}
-
 function readTerminalSize(activeTerminal: Terminal | null) {
   return {
     cols: Math.max(1, activeTerminal?.cols ?? initialSize.cols),
     rows: Math.max(1, activeTerminal?.rows ?? initialSize.rows),
   };
-}
-
-function folderNameFromPath(path: string) {
-  const parts = path.split(/[\\/]/).filter(Boolean);
-  return parts[parts.length - 1] ?? "Project";
-}
-
-function errorText(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  return JSON.stringify(error);
 }
 
 export default App;

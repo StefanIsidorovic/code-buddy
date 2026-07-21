@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.1. Establish the first modular frontend seam
+- objective: create a stable, directly tested presentation boundary and record the architecture/product roadmap before decomposing stateful features.
+- status: complete
+- files: docs/product-roadmap.md; src/App.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; LOCAL_PROGRESS.md; working_knowledge/current/status.md; working_knowledge/current/plan.md; working_knowledge/current/handoff.md; working_knowledge/current/repo-code-buddy.md; working_knowledge/current/mind_map/frontend-terminal.md.
+- affected units: event/prompt/session/path/error presentation helpers; App imports; frontend architecture roadmap; active project knowledge.
+- expected changes: move pure prompt enrichment, filtering, coalescing, event normalization/labels, command/path/error formatting, and ID helpers into a tested presentation module; preserve current behavior and use actual feature ownership to guide later DTO/component/Zustand slices.
+- acceptance criteria: runtime behavior and accessible UI remain unchanged; extracted utilities have direct success/edge-case tests; `App.tsx` loses at least 150 lines; roadmap records the path beyond Conductor; no state or persistence semantics change.
+- required tests: direct utility tests for prompt enrichment, transcript filtering/coalescing, path/error formatting, and toast bounds; existing 38 frontend integration tests; typecheck; production build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 narrowed an over-broad first slice and corrected its acceptance boundary, and cycle 2 found no remaining behavior, mutation, type-safety, edge-case, test, scope, or architecture issue.
+- commit: this commit
+
 ### 18.1. Add the persistent Task lifecycle foundation
 - objective: introduce the Task aggregate and its four-phase lifecycle foundation without yet changing ACP prompt behavior; the canonical order was finalized by 18.2 as analysis, planning, execution, review.
 - status: complete
