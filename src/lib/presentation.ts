@@ -1,6 +1,4 @@
-export type AcpEventKind =
-  | "agent_message" | "user_message" | "plan" | "tool_call"
-  | "usage" | "notice" | "error";
+import type { AcpEventKind } from "../types/domain";
 
 export type AcpEvent = { kind: AcpEventKind; content: string };
 export type KnowledgeItem = { title: string; body: string; kind: string; scope: string };

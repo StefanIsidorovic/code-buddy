@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.3. Extract frontend domain contracts
+- objective: remove all Rust/Tauri DTO and frontend domain contract declarations from `App.tsx` into one dependency-free typed boundary.
+- status: complete
+- files: src/App.tsx; src/types/domain.ts; src/types/domain.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: session, adapter/doctor, ACP, model catalog, project initialization, knowledge, transcript, Task, and runtime TypeScript contracts; App type imports.
+- expected changes: export the existing contracts unchanged from `src/types/domain.ts`; use type-only imports in App; add compile-time/runtime-free contract fixtures for representative nested types; leave constants, state, commands, and rendering unchanged.
+- acceptance criteria: no DTO/domain declaration remains in App; domain module imports no React/Tauri/runtime dependency; serialized field names and unions remain unchanged; `App.tsx` loses at least 300 lines; UI and backend invocation behavior remain identical.
+- required tests: representative contract fixture assertions for ACP model, project initialization summary, and Task phase nesting; existing 48 frontend tests; typecheck; production build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 corrected the net-line acceptance threshold and removed a duplicate ACP event union from presentation helpers, and cycle 2 found no remaining contract drift, runtime dependency, type-safety, serialization, regression, or scope issue.
+- commit: this commit
+
 ### 19.2. Extract shared UI primitives and global notifications
 - objective: remove the first cross-feature state and reusable UI primitives from `App.tsx` through a narrowly owned Zustand store and component boundary.
 - status: complete

@@ -26,346 +26,40 @@ import {
   transcriptEventToAcpEvent,
   uniqueIds,
 } from "./lib/presentation";
+import type {
+  AcpPromptResult,
+  AcpRegistryCandidate,
+  AcpRegistryCandidateStatus,
+  AcpSessionEvent,
+  AcpSessionInfo,
+  AgentDoctorReport,
+  AgentDoctorStatus,
+  CapabilityStatus,
+  InitializeDetailsView,
+  InterviewScope,
+  KnowledgeItemInfo,
+  KnowledgeUnitInfo,
+  ModelCatalogInfo,
+  ModelProfileInfo,
+  ModelTier,
+  ProjectInfo,
+  ProjectInitializationFactInfo,
+  ProjectInitializationGuardrailInfo,
+  ProjectInitializationGuardrailInput,
+  ProjectInitializationGuardrailKind,
+  ProjectInitializationInfo,
+  ProjectInitializationMarkdownFindingInfo,
+  ProjectInitializationSummaryInfo,
+  ProjectRepositoryInfo,
+  RuntimeMode,
+  SessionInfo,
+  TaskContextSelectionInfo,
+  TaskInfo,
+  TranscriptEventInfo,
+  TranscriptSessionInfo,
+} from "./types/domain";
 import "./App.css";
 
-type SessionState = "running" | "exited" | "killed" | "errored";
-
-type SessionInfo = {
-  id: string;
-  state: SessionState;
-  pid: number | null;
-  cwd: string;
-  cols: number;
-  rows: number;
-  exitCode: number | null;
-};
-
-type AgentDoctorStatus = "installed" | "missing" | "error";
-type CapabilityStatus = "supported" | "unsupported" | "unknown";
-type ModelTier = "fast" | "mid" | "high" | "max";
-type ModelProfileStatus = "selectable" | "unavailable";
-type AcpRegistryCandidateStatus = "ready" | "installable" | "missing_runner" | "missing_binary";
-type AcpRegistryDistributionKind = "npx" | "binary";
-
-type AgentDoctorReport = {
-  adapter: {
-    id: string;
-    displayName: string;
-    executable: string;
-    transports: {
-      pty: CapabilityStatus;
-      acpStdio: CapabilityStatus;
-    };
-  };
-  status: AgentDoctorStatus;
-  path: string | null;
-  version: string | null;
-  error: string | null;
-  installHint: string;
-};
-
-type AcpRegistryCandidate = {
-  id: string;
-  name: string;
-  version: string;
-  description: string;
-  distribution: AcpRegistryDistributionKind;
-  status: AcpRegistryCandidateStatus;
-  command: string[];
-  runnerPath: string | null;
-  installHint: string;
-  sourceUrl: string;
-};
-
-type ModelProviderInfo = {
-  id: string;
-  displayName: string;
-};
-
-type ModelParameterInfo = {
-  name: string;
-  value: string;
-};
-
-type ModelCapabilityInfo = {
-  structuredOutput: CapabilityStatus;
-  reasoningControl: CapabilityStatus;
-  backgroundMode: CapabilityStatus;
-  api: CapabilityStatus;
-  cli: CapabilityStatus;
-  acp: CapabilityStatus;
-};
-
-type ModelProfileInfo = {
-  id: string;
-  providerId: string;
-  modelId: string;
-  displayName: string;
-  tier: ModelTier;
-  parameters: ModelParameterInfo[];
-  capabilities: ModelCapabilityInfo;
-  status: ModelProfileStatus;
-  unavailableReason: string | null;
-};
-
-type ModelCatalogInfo = {
-  schemaVersion: number;
-  providers: ModelProviderInfo[];
-  profiles: ModelProfileInfo[];
-};
-
-type AcpSessionInfo = {
-  id: string;
-  state: SessionState;
-  pid: number | null;
-  cwd: string;
-  protocolVersion: number | null;
-  agentSessionId: string | null;
-  agentName: string | null;
-  agentVersion: string | null;
-  exitCode: number | null;
-  codingModel?: AcpModelState | null;
-};
-
-type AcpModelOption = {
-  value: string;
-  name: string;
-  description: string | null;
-};
-
-type AcpModelState = {
-  currentValue: string;
-  options: AcpModelOption[];
-};
-
-type AcpEventKind =
-  | "agent_message"
-  | "user_message"
-  | "plan"
-  | "tool_call"
-  | "usage"
-  | "notice"
-  | "error";
-
-type AcpSessionEvent = {
-  kind: AcpEventKind;
-  content: string;
-};
-
-type AcpPromptResult = {
-  sessionId: string;
-  stopReason: string;
-};
-
-type ProjectInfo = {
-  id: string;
-  name: string;
-  path: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
-type ProjectRepositoryInfo = {
-  id: string;
-  projectId: string;
-  name: string;
-  path: string;
-  isDefault: boolean;
-  createdAt: number;
-  updatedAt: number;
-};
-
-type ProjectInitializationInfo = {
-  id: string;
-  projectId: string;
-  status: string;
-  repositoryCount: number;
-  createdAt: number;
-  updatedAt: number;
-};
-
-type ProjectInitializationFactInfo = {
-  id: string;
-  initializationId: string;
-  repositoryId: string;
-  repositoryName: string;
-  repositoryPath: string;
-  kind: string;
-  label: string;
-  value: string;
-  source: string;
-  createdAt: number;
-};
-
-type ProjectInitializationMarkdownFindingInfo = {
-  id: string;
-  initializationId: string;
-  repositoryId: string;
-  repositoryName: string;
-  repositoryPath: string;
-  filePath: string;
-  category: string;
-  title: string;
-  excerpt: string;
-  source: string;
-  createdAt: number;
-};
-
-type InitializeDetailsView = "facts" | "markdown" | "summary";
-type InterviewScope = "project" | "repository";
-type ProjectInitializationGuardrailKind =
-  | "fragile"
-  | "do_not_touch"
-  | "requires_review"
-  | "agent_rule";
-
-type ProjectInitializationGuardrailInput = {
-  repositoryId: string | null;
-  kind: ProjectInitializationGuardrailKind;
-  pathPattern: string | null;
-  content: string;
-};
-
-type ProjectInitializationGuardrailInfo = ProjectInitializationGuardrailInput & {
-  id: string;
-  initializationId: string;
-  repositoryName: string | null;
-  repositoryPath: string | null;
-  guardrailIndex: number;
-  scope: InterviewScope;
-  source: string;
-  createdAt: number;
-};
-
-type ProjectInitializationSummaryInfo = {
-  id: string;
-  initializationId: string;
-  status: "draft" | "approved";
-  projectPurpose: string;
-  repositoryMap: string;
-  repositoryRoles: string;
-  buildTestMatrix: string;
-  fragileAreas: string;
-  doNotTouchRules: string;
-  agentWorkingRules: string;
-  openQuestions: string;
-  factCount: number;
-  markdownFindingCount: number;
-  guardrailCount: number;
-  requestedModelProfileId: string | null;
-  requestedModelProviderId: string | null;
-  requestedModelId: string | null;
-  requestedModelTier: ModelTier | null;
-  requestedModelParameters: ModelParameterInfo[];
-  modelCatalogSchemaVersion: number | null;
-  knowledgeSchemaVersion: number;
-  generationEngine: string;
-  createdAt: number;
-  approvedAt: number | null;
-};
-
-type KnowledgeUnitSourceInfo = {
-  sourceKey: string;
-  repositoryId: string | null;
-  path: string | null;
-};
-
-type KnowledgeUnitInfo = {
-  id: string;
-  projectId: string;
-  initializationId: string;
-  derivedFromSummaryId: string;
-  kind: string;
-  topic: string;
-  content: string;
-  scope: string;
-  status: "active" | "needs_confirmation";
-  confidence: number;
-  schemaVersion: number;
-  sources: KnowledgeUnitSourceInfo[];
-  createdAt: number;
-};
-
-type TaskContextSelectionEntryInfo = {
-  unit: KnowledgeUnitInfo;
-  score: number;
-  reason: string;
-  characterCount: number;
-};
-
-type TaskContextSelectionInfo = {
-  initializationId: string;
-  characterBudget: number;
-  usedCharacters: number;
-  remainingCharacters: number;
-  renderedContext: string;
-  included: TaskContextSelectionEntryInfo[];
-  excluded: TaskContextSelectionEntryInfo[];
-};
-
-type TranscriptSessionInfo = {
-  id: string;
-  projectId: string | null;
-  runtime: string;
-  source: string;
-  title: string;
-  startedAt: number;
-  updatedAt: number;
-  eventCount: number;
-};
-
-type TranscriptEventInfo = {
-  id: string;
-  sessionId: string;
-  sequence: number;
-  kind: string;
-  content: string;
-  createdAt: number;
-};
-
-type TaskPhaseInfo = {
-  id: string;
-  taskId: string;
-  phase: "analysis" | "planning" | "execution" | "review";
-  phaseIndex: number;
-  status: string;
-  startedAt: number | null;
-  completedAt: number | null;
-};
-
-type TaskInfo = {
-  id: string;
-  projectId: string;
-  transcriptSessionId: string;
-  originalPrompt: string;
-  status: string;
-  currentPhase: TaskPhaseInfo["phase"];
-  initialComplexityProfile: "quick" | "standard" | "complex";
-  initialComplexityReasons: string[];
-  initialComplexityConfidence: number;
-  complexityProfile: "quick" | "standard" | "complex";
-  complexityReasons: string[];
-  complexityConfidence: number | null;
-  complexitySource: "system" | "user" | "analysis";
-  complexityAssessmentVersion: string;
-  phases: TaskPhaseInfo[];
-  createdAt: number;
-  updatedAt: number;
-};
-
-type KnowledgeItemInfo = {
-  id: string;
-  projectId: string | null;
-  title: string;
-  body: string;
-  kind: string;
-  scope: string;
-  sourceTranscriptSessionId: string | null;
-  createdAt: number;
-  updatedAt: number;
-};
-
-type RuntimeMode = "pty" | "acp";
 const initialSize = {
   cols: 80,
   rows: 24,
