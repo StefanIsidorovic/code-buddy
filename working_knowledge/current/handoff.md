@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Extract the Interview Guardrails dialog as the next bounded initialization feature slice, keeping draft mutation rules, persistence, initialization loading, and async errors in App.
+- Extract the Initialization Details dialog as the next initialization feature slice, keeping view selection, Summary approval, Knowledge Unit loading, and all async mutations in App.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

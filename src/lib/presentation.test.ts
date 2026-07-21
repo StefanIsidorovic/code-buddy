@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   coalesceAcpEvents, errorText, filterTranscriptSessions, folderNameFromPath,
-  formatPromptWithKnowledge, transcriptEventToAcpEvent, uniqueIds,
+  formatPromptWithKnowledge, guardrailKindClassName, guardrailKindLabel,
+  transcriptEventToAcpEvent, uniqueIds,
 } from "./presentation";
 
 describe("presentation helpers", () => {
@@ -44,5 +45,13 @@ describe("presentation helpers", () => {
     expect(folderNameFromPath("///")).toBe("Project");
     expect(errorText(new Error("broken"))).toBe("broken");
     expect(uniqueIds(["a", "a", "b"])).toEqual(["a", "b"]);
+  });
+
+  it("formats guardrail kinds for labels and stable CSS classes", () => {
+    expect(guardrailKindLabel("do_not_touch")).toBe("Do not touch");
+    expect(guardrailKindLabel("custom-kind")).toBe("custom kind");
+    expect(guardrailKindClassName("Needs REVIEW!")).toBe(
+      "guardrail-kind guardrail-kind-needs-review-",
+    );
   });
 });

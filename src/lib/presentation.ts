@@ -91,3 +91,18 @@ export function errorText(error: unknown) {
   if (typeof error === "string") return error;
   return JSON.stringify(error);
 }
+
+export function guardrailKindClassName(kind: string) {
+  const normalized = kind.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return `guardrail-kind guardrail-kind-${normalized}`;
+}
+
+export function guardrailKindLabel(kind: string) {
+  const labels: Record<string, string> = {
+    fragile: "Fragile",
+    do_not_touch: "Do not touch",
+    requires_review: "Needs review",
+    agent_rule: "Agent rule",
+  };
+  return labels[kind] ?? kind.replace(/[_-]+/g, " ");
+}

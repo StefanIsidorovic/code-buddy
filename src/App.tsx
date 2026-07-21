@@ -9,6 +9,7 @@ import { StateNotice } from "./components/ui/StateNotice";
 import { CloseIcon } from "./components/ui/icons";
 import { NotificationViewport } from "./features/notifications/NotificationViewport";
 import { ProjectInitializeDialog } from "./features/initialization/ProjectInitializeDialog";
+import { InterviewGuardrailsDialog } from "./features/initialization/InterviewGuardrailsDialog";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import {
@@ -29,6 +30,8 @@ import {
   folderNameFromPath,
   formatCommand,
   formatPromptWithKnowledge,
+  guardrailKindClassName,
+  guardrailKindLabel,
   shortId,
   transcriptEventToAcpEvent,
   uniqueIds,
@@ -3054,149 +3057,26 @@ function App() {
       ) : null}
 
       {interviewDialogOpen ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeInterviewDialog();
-            }
-          }}
-        >
-          <section
-            aria-labelledby="interview-dialog-title"
-            aria-modal="true"
-            className="knowledge-modal interview-modal"
-            role="dialog"
-          >
-            <div className="modal-heading">
-              <div>
-                <p className="eyebrow">Initialize</p>
-                <h2 id="interview-dialog-title">Interview Guardrails</h2>
-              </div>
-              <button
-                aria-label="Close interview guardrails"
-                className="icon-button"
-                type="button"
-                onClick={closeInterviewDialog}
-                disabled={initializeLoading}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            {interviewError ? (
-              <p className="error-message" role="alert">
-                {interviewError}
-              </p>
-            ) : null}
-
-            <div className="interview-form">
-              <label>
-                <span>Scope</span>
-                <select
-                  aria-label="Guardrail scope"
-                  value={interviewScope}
-                  onChange={(event) => setInterviewScope(event.currentTarget.value as InterviewScope)}
-                >
-                  <option value="project">Project-wide</option>
-                  <option value="repository">Repository</option>
-                </select>
-              </label>
-              {interviewScope === "repository" ? (
-                <label>
-                  <span>Repository</span>
-                  <select
-                    aria-label="Guardrail repository"
-                    value={interviewRepositoryId}
-                    onChange={(event) => setInterviewRepositoryId(event.currentTarget.value)}
-                  >
-                    {projectRepositories.map((repository) => (
-                      <option key={repository.id} value={repository.id}>
-                        {repository.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <label>
-                <span>Type</span>
-                <select
-                  aria-label="Guardrail type"
-                  value={interviewKind}
-                  onChange={(event) =>
-                    setInterviewKind(event.currentTarget.value as ProjectInitializationGuardrailKind)
-                  }
-                >
-                  <option value="fragile">Fragile</option>
-                  <option value="do_not_touch">Do not touch</option>
-                  <option value="requires_review">Needs review</option>
-                  <option value="agent_rule">Agent rule</option>
-                </select>
-              </label>
-              <label>
-                <span>Path or glob</span>
-                <input
-                  aria-label="Guardrail path pattern"
-                  value={interviewPathPattern}
-                  onChange={(event) => setInterviewPathPattern(event.currentTarget.value)}
-                />
-              </label>
-              <label className="interview-content-field">
-                <span>Guardrail</span>
-                <textarea
-                  aria-label="Guardrail content"
-                  rows={4}
-                  value={interviewContent}
-                  onChange={(event) => setInterviewContent(event.currentTarget.value)}
-                />
-              </label>
-              <button type="button" onClick={addInterviewGuardrail}>
-                Add Guardrail
-              </button>
-            </div>
-
-            <ul className="guardrail-draft-list" aria-label="Draft interview guardrails">
-              {interviewDraftGuardrails.length === 0 ? (
-                <li>No guardrails yet.</li>
-              ) : (
-                interviewDraftGuardrails.map((guardrail, index) => (
-                  <li key={`${guardrail.kind}-${index}`}>
-                    <div className="guardrail-heading">
-                      <span className={guardrailKindClassName(guardrail.kind)}>
-                        {guardrailKindLabel(guardrail.kind)}
-                      </span>
-                      <strong>
-                        {guardrail.repositoryId
-                          ? projectRepositories.find(
-                              (repository) => repository.id === guardrail.repositoryId,
-                            )?.name ?? "Repository"
-                          : "Project-wide"}
-                      </strong>
-                    </div>
-                    {guardrail.pathPattern ? <code>{guardrail.pathPattern}</code> : null}
-                    <p>{guardrail.content}</p>
-                    <button type="button" onClick={() => removeInterviewGuardrail(index)}>
-                      Remove
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-
-            <div className="modal-actions">
-              <button type="button" onClick={closeInterviewDialog} disabled={initializeLoading}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveProjectInitializationGuardrails()}
-                disabled={initializeLoading || interviewDraftGuardrails.length === 0}
-              >
-                Save Interview
-              </button>
-            </div>
-          </section>
-        </div>
+        <InterviewGuardrailsDialog
+          content={interviewContent}
+          drafts={interviewDraftGuardrails}
+          error={interviewError}
+          kind={interviewKind}
+          loading={initializeLoading}
+          pathPattern={interviewPathPattern}
+          repositories={projectRepositories}
+          repositoryId={interviewRepositoryId}
+          scope={interviewScope}
+          onAdd={addInterviewGuardrail}
+          onChangeContent={setInterviewContent}
+          onChangeKind={setInterviewKind}
+          onChangePathPattern={setInterviewPathPattern}
+          onChangeRepositoryId={setInterviewRepositoryId}
+          onChangeScope={setInterviewScope}
+          onClose={closeInterviewDialog}
+          onRemove={removeInterviewGuardrail}
+          onSave={() => void saveProjectInitializationGuardrails()}
+        />
       ) : null}
 
       {projectDeleteCandidate ? (
@@ -3616,22 +3496,6 @@ function guardrailToInput(
     pathPattern: guardrail.pathPattern,
     content: guardrail.content,
   };
-}
-
-function guardrailKindClassName(kind: string) {
-  const normalized = kind.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return `guardrail-kind guardrail-kind-${normalized}`;
-}
-
-function guardrailKindLabel(kind: string) {
-  const labels: Record<string, string> = {
-    fragile: "Fragile",
-    do_not_touch: "Do not touch",
-    requires_review: "Needs review",
-    agent_rule: "Agent rule",
-  };
-
-  return labels[kind] ?? kind.replace(/[_-]+/g, " ");
 }
 
 function formatTimestamp(timestamp: number) {

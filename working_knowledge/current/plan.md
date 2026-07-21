@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.7. Extract Interview Guardrails dialog presentation
+- objective: move the controlled Interview Guardrails modal out of the frontend coordinator while preserving App-owned draft validation, mutation, persistence, and reset rules.
+- status: complete
+- files: src/App.tsx; src/features/initialization/InterviewGuardrailsDialog.tsx; src/features/initialization/InterviewGuardrailsDialog.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: interview modal/backdrop; scope/repository/kind/path/content fields; draft guardrail list; kind label/style helpers; add/remove/save/cancel/close callbacks.
+- expected changes: add a typed state-free and Tauri-free initialization feature component; move pure guardrail label/class formatting to shared presentation helpers; keep draft construction/validation, initialization checks, persistence, reset, loading, and errors in App.
+- acceptance criteria: project/repository scope branches, repository fallback label, kind/path/content rendering, empty draft state, and all callback payloads remain unchanged; loading locks Close/Cancel/Save only as before; Save requires a draft; App retains all workflow state and mutations.
+- required tests: controlled field callbacks and project scope; repository selector and draft rendering/removal; empty/save/loading rules; error, close, and backdrop behavior; guardrail helper mappings/fallback; existing 74 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 corrected an ambiguous test query caused by identical option and draft-label text, and cycle 2 found no remaining controlled-field, scope, fallback-label, draft-action, loading, validation-ownership, accessibility, runtime-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.6. Extract Project Initialize scope dialog presentation
 - objective: move the initial repository-scope and phase-preview modal out of the frontend coordinator while preserving App-owned initialization orchestration.
 - status: complete
