@@ -19,6 +19,7 @@ import {
 } from "./features/workspace/WorkspaceContextSelector";
 import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
 import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
+import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -2826,64 +2827,8 @@ function App() {
       ) : null}
 
       {projectDeleteCandidate ? (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeProjectDeleteDialog();
-            }
-          }}
-        >
-          <section
-            aria-labelledby="project-delete-dialog-title"
-            aria-modal="true"
-            className="knowledge-modal project-delete-modal"
-            role="dialog"
-          >
-            <div className="modal-heading">
-              <div>
-                <p className="eyebrow">Workspace</p>
-                <h2 id="project-delete-dialog-title">Delete Project</h2>
-              </div>
-              <button
-                aria-label="Close delete project dialog"
-                className="icon-button"
-                type="button"
-                onClick={closeProjectDeleteDialog}
-                disabled={busy}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-
-            {projectDeleteError ? (
-              <p className="error-message" role="alert">
-                {projectDeleteError}
-              </p>
-            ) : null}
-
-            <p className="delete-modal-copy">
-              Delete <strong>{projectDeleteCandidate.name}</strong> from AIadne? This removes the
-              saved project, its repository list, and its initialization runs. Saved transcripts are
-              kept without the project link. Running ACP sessions will be stopped first.
-            </p>
-
-            <div className="modal-actions">
-              <button type="button" onClick={closeProjectDeleteDialog} disabled={busy}>
-                Cancel
-              </button>
-              <button
-                aria-label="Confirm delete project"
-                className="danger-button"
-                type="button"
-                onClick={() => void confirmDeleteProject()}
-                disabled={busy}
-              >
-                Delete Project
-              </button>
-            </div>
-          </section>
-        </div>
+        <ProjectDeleteDialog busy={busy} error={projectDeleteError} project={projectDeleteCandidate}
+          onClose={closeProjectDeleteDialog} onConfirm={() => void confirmDeleteProject()} />
       ) : null}
 
       {taskContextPreviewOpen ? (

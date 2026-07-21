@@ -42,7 +42,7 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is now 3,254 lines after staged extraction, but remains the primary maintainability risk before several more stateful frontend workflows are added.
+- `src/App.tsx` is now 3,199 lines after staged extraction, but remains the primary maintainability risk before several more stateful frontend workflows are added.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
@@ -55,6 +55,7 @@
 - Initial Project Initialize repository-scope modal now lives in `src/features/initialization/ProjectInitializeDialog.tsx`; App owns selected scope, initialization creation/persistence, state reset, errors, and all later phases.
 - Interview Guardrails modal now lives in `src/features/initialization/InterviewGuardrailsDialog.tsx`; App owns controlled draft state, validation, reset, persistence, loading, and errors, while shared kind labels/classes live in presentation helpers.
 - Initialization Details modal now lives in `src/features/initialization/InitializationDetailsDialog.tsx` with internal Facts, Markdown, Summary, and published-unit views; App owns selected view, Summary approval, Knowledge Unit loading/errors, and all mutations.
+- Project Delete confirmation now lives in `src/features/workspace/ProjectDeleteDialog.tsx`; App owns busy-guarded closing, ACP shutdown, deletion persistence, selected-project cleanup, errors, and notifications.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

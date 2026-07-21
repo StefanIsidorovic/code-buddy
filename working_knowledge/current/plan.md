@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4.9. Extract Project Delete confirmation presentation
+- objective: move the destructive project-deletion confirmation modal out of the frontend coordinator while preserving App-owned ACP shutdown, persistence, cleanup, and errors.
+- status: complete
+- files: src/App.tsx; src/features/workspace/ProjectDeleteDialog.tsx; src/features/workspace/ProjectDeleteDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: delete modal/backdrop; project consequence copy; error alert; close/cancel/confirm actions; busy locks.
+- expected changes: add a typed state-free and Tauri-free workspace confirmation component; pass candidate, busy/error state, and close/confirm callbacks from App; keep all destructive orchestration in existing App functions.
+- acceptance criteria: exact deletion consequences remain visible; project name and error render correctly; busy disables Close/Cancel/Confirm; backdrop delegates to the guarded App close handler; no ACP stop, invoke, selection, initialization, transcript, or toast logic moves into the component.
+- required tests: project/copy rendering; error alert; confirm callback; close/cancel/backdrop callbacks; busy locks; existing 85 frontend tests; typecheck; production build; Tauri boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 made the busy-backdrop delegation to App's guarded close handler explicit in tests, and cycle 2 found no remaining consequence-copy, error, action-lock, destructive-boundary, accessibility, runtime-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.8. Extract Initialization Details dialog presentation
 - objective: move Facts, Markdown, and Summary/Knowledge Unit detail rendering out of the frontend coordinator while preserving App-owned view and async workflow state.
 - status: complete

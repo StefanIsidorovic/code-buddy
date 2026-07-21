@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 3f3360e step 18.3.3.3: record collapsible ACP workspace
-- worktree: plan item 19.4.8 implementation and knowledge updates ready for commit.
-- relevant files: src/App.tsx; src/features/initialization/InitializationDetailsDialog.tsx; src/features/initialization/InitializationDetailsDialog.test.tsx; src/lib/presentation.ts; src/lib/presentation.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- worktree: plan item 19.4.9 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/features/workspace/ProjectDeleteDialog.tsx; src/features/workspace/ProjectDeleteDialog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 19.4.8 complete
+- active plan step: 19.4.9 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -62,3 +62,4 @@
 - 2026-07-21: 74 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.6; Project Initialize scope dialog is state-free feature presentation and `App.tsx` is 78 lines smaller.
 - 2026-07-21: 79 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.7; Interview Guardrails dialog is state-free feature presentation, shared kind formatting is directly tested, and `App.tsx` is 136 lines smaller.
 - 2026-07-21: 85 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.8; Initialization Details is state-free feature presentation across Facts, Markdown, Summary, and Knowledge Units, and `App.tsx` is 263 lines smaller.
+- 2026-07-21: 89 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.9; Project Delete confirmation is state-free presentation and `App.tsx` is 55 lines smaller.
