@@ -300,6 +300,13 @@ pub struct TaskPhaseArtifactInfo {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransitionTaskPhaseRequest {
+    pub task_id: String,
+    pub action: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskInfo {
@@ -1357,11 +1364,11 @@ impl ProjectStore {
 
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(storage_error)?;
-        let transcript_session_id: String = transaction
+        let (transcript_session_id, current_phase): (String, String) = transaction
             .query_row(
-                "SELECT transcript_session_id FROM tasks WHERE id = ?1",
+                "SELECT transcript_session_id, current_phase FROM tasks WHERE id = ?1",
                 params![task_id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|error| match error {
                 rusqlite::Error::QueryReturnedNoRows => {
@@ -1369,15 +1376,22 @@ impl ProjectStore {
                 }
                 other => storage_error(other),
             })?;
-        let phase_exists: i64 = transaction
+        let phase_status: String = transaction
             .query_row(
-                "SELECT COUNT(*) FROM task_phases WHERE task_id = ?1 AND phase = ?2",
+                "SELECT status FROM task_phases WHERE task_id = ?1 AND phase = ?2",
                 params![task_id, phase],
                 |row| row.get(0),
             )
-            .map_err(storage_error)?;
-        if phase_exists == 0 {
-            return Err(AppError::InvalidInput("task phase not found".to_string()));
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput("task phase not found".to_string())
+                }
+                other => storage_error(other),
+            })?;
+        if phase != current_phase || phase_status != "in_progress" {
+            return Err(AppError::InvalidInput(
+                "artifacts may only be added to the current in-progress phase".to_string(),
+            ));
         }
         let mut sourced_events = Vec::new();
         for event_id in &source_ids {
@@ -1479,6 +1493,111 @@ impl ProjectStore {
                 .map_err(storage_error)?;
         }
         Ok(artifacts)
+    }
+
+    pub fn transition_task_phase(
+        &self,
+        request: TransitionTaskPhaseRequest,
+    ) -> AppResult<TaskInfo> {
+        let task_id = request.task_id.trim();
+        let action = request.action.trim().to_lowercase();
+        if task_id.is_empty() || !matches!(action.as_str(), "start" | "complete") {
+            return Err(AppError::InvalidInput(
+                "task phase transition requires a task and start or complete action".to_string(),
+            ));
+        }
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let (task_status, current_phase): (String, String) = transaction
+            .query_row(
+                "SELECT status, current_phase FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("task not found: {task_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        if task_status == "completed" {
+            return Err(AppError::InvalidInput(
+                "completed task cannot transition".to_string(),
+            ));
+        }
+        let (phase_index, phase_status): (i64, String) = transaction
+            .query_row(
+                "SELECT phase_index, status FROM task_phases WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, current_phase],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(storage_error)?;
+
+        if action == "start" {
+            if phase_status != "pending" {
+                return Err(AppError::InvalidInput(
+                    "only a pending current phase can start".to_string(),
+                ));
+            }
+            transaction
+                .execute(
+                    "UPDATE task_phases SET status = 'in_progress', started_at = ?1
+                 WHERE task_id = ?2 AND phase = ?3",
+                    params![now, task_id, current_phase],
+                )
+                .map_err(storage_error)?;
+            transaction
+                .execute(
+                    "UPDATE tasks SET status = 'in_progress', updated_at = ?1 WHERE id = ?2",
+                    params![now, task_id],
+                )
+                .map_err(storage_error)?;
+        } else {
+            if phase_status != "in_progress" {
+                return Err(AppError::InvalidInput(
+                    "only the in-progress current phase can complete".to_string(),
+                ));
+            }
+            let artifact_count: i64 = transaction
+                .query_row(
+                    "SELECT COUNT(*) FROM task_phase_artifacts WHERE task_id = ?1 AND phase = ?2",
+                    params![task_id, current_phase],
+                    |row| row.get(0),
+                )
+                .map_err(storage_error)?;
+            if artifact_count == 0 {
+                return Err(AppError::InvalidInput(
+                    "current phase requires at least one evidence artifact before completion"
+                        .to_string(),
+                ));
+            }
+            transaction
+                .execute(
+                    "UPDATE task_phases SET status = 'completed', completed_at = ?1
+                 WHERE task_id = ?2 AND phase = ?3",
+                    params![now, task_id, current_phase],
+                )
+                .map_err(storage_error)?;
+            if let Some(next_phase) = TASK_PHASES.get((phase_index + 1) as usize) {
+                transaction
+                    .execute(
+                        "UPDATE tasks SET current_phase = ?1, updated_at = ?2 WHERE id = ?3",
+                        params![next_phase, now, task_id],
+                    )
+                    .map_err(storage_error)?;
+            } else {
+                transaction
+                    .execute(
+                        "UPDATE tasks SET status = 'completed', updated_at = ?1 WHERE id = ?2",
+                        params![now, task_id],
+                    )
+                    .map_err(storage_error)?;
+            }
+        }
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task(task_id)
     }
 
     pub fn append_transcript_events(
@@ -5324,6 +5443,21 @@ mod tests {
                 original_prompt: "  Implement task knowledge  ".to_string(),
             })
             .expect("task created");
+        for request in [
+            TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "skip".to_string(),
+            },
+            TransitionTaskPhaseRequest {
+                task_id: "missing-task".to_string(),
+                action: "start".to_string(),
+            },
+        ] {
+            let invalid = store
+                .transition_task_phase(request)
+                .expect_err("invalid transition rejected");
+            assert!(matches!(invalid, AppError::InvalidInput(_)));
+        }
 
         assert_eq!(task.project_id, project.id);
         assert_eq!(task.transcript_session_id, transcript.id);
@@ -5395,6 +5529,39 @@ mod tests {
             )
             .expect("event appended");
 
+        let not_started = store
+            .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".to_string(),
+                kind: "summary".to_string(),
+                content: "Too early".to_string(),
+                source_transcript_event_ids: vec![events[0].id.clone()],
+            })
+            .expect_err("pending phase artifact rejected");
+        assert!(matches!(not_started, AppError::InvalidInput(_)));
+        let started = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "start".to_string(),
+            })
+            .expect("analysis started");
+        assert_eq!(started.status, "in_progress");
+        assert_eq!(started.phases[0].status, "in_progress");
+        let duplicate_start = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "start".to_string(),
+            })
+            .expect_err("duplicate start rejected");
+        assert!(matches!(duplicate_start, AppError::InvalidInput(_)));
+        let missing_evidence = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "complete".to_string(),
+            })
+            .expect_err("completion without artifact rejected");
+        assert!(matches!(missing_evidence, AppError::InvalidInput(_)));
+
         let first = store
             .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
                 task_id: task.id.clone(),
@@ -5432,6 +5599,22 @@ mod tests {
                 .expect("artifacts listed"),
             vec![first, second]
         );
+        let advanced = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "complete".to_string(),
+            })
+            .expect("analysis completed");
+        assert_eq!(advanced.current_phase, "planning");
+        assert_eq!(advanced.phases[0].status, "completed");
+        assert_eq!(advanced.phases[1].status, "pending");
+
+        store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "start".to_string(),
+            })
+            .expect("planning started");
 
         let other_transcript = store
             .create_transcript_session(CreateTranscriptSessionRequest {
@@ -5452,7 +5635,7 @@ mod tests {
             .expect("other event appended");
         let wrong_source = store
             .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
-                task_id: task.id,
+                task_id: task.id.clone(),
                 phase: "planning".to_string(),
                 kind: "plan".to_string(),
                 content: "Plan".to_string(),
@@ -5460,6 +5643,47 @@ mod tests {
             })
             .expect_err("cross-transcript provenance rejected");
         assert!(matches!(wrong_source, AppError::InvalidInput(_)));
+
+        let mut transitioned = advanced;
+        for phase in ["planning", "execution", "review"] {
+            if phase != "planning" {
+                transitioned = store
+                    .transition_task_phase(TransitionTaskPhaseRequest {
+                        task_id: task.id.clone(),
+                        action: "start".to_string(),
+                    })
+                    .expect("next phase started");
+            }
+            assert_eq!(transitioned.current_phase, phase);
+            store
+                .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                    task_id: task.id.clone(),
+                    phase: phase.to_string(),
+                    kind: "summary".to_string(),
+                    content: format!("{phase} evidence"),
+                    source_transcript_event_ids: vec![events[1].id.clone()],
+                })
+                .expect("phase artifact created");
+            transitioned = store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "complete".to_string(),
+                })
+                .expect("phase completed");
+        }
+        assert_eq!(transitioned.status, "completed");
+        assert_eq!(transitioned.current_phase, "review");
+        assert!(transitioned
+            .phases
+            .iter()
+            .all(|phase| phase.status == "completed"));
+        let after_completion = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "start".to_string(),
+            })
+            .expect_err("completed task transition rejected");
+        assert!(matches!(after_completion, AppError::InvalidInput(_)));
     }
 
     #[test]

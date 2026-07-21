@@ -46,6 +46,7 @@ export type TauriCommand =
   | "start_fake_session"
   | "stop_acp_session"
   | "stop_session"
+  | "transition_task_phase"
   | "write_session_input";
 
 export function invokeCommand<TResult>(

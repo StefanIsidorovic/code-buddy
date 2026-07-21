@@ -334,6 +334,8 @@ export type TaskPhaseArtifactInfo = {
   createdAt: number;
 };
 
+export type TaskPhaseTransitionAction = "start" | "complete";
+
 export type KnowledgeItemInfo = {
   id: string;
   projectId: string | null;

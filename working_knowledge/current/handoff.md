@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Frontend modularization is complete and immutable Task phase artifacts now persist transcript-event provenance. Define and implement explicit phase transition/gate commands next, using artifacts as evidence rather than adding automation first.
+- Backend Task phases now have immutable evidence artifacts and explicit start/complete gates. Add a focused frontend Task Phase panel/hook next so the user can inspect artifacts and manually exercise the lifecycle before agent automation.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

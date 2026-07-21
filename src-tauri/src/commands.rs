@@ -19,7 +19,7 @@ use crate::{
         ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
         RenameTranscriptSessionRequest, SaveProjectInitializationGuardrailsRequest, TaskInfo,
         TaskPhaseArtifactInfo, TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
-        UpdateTaskComplexityRequest,
+        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -289,6 +289,14 @@ pub fn list_task_phase_artifacts(
     task_id: String,
 ) -> AppResult<Vec<TaskPhaseArtifactInfo>> {
     state.list_task_phase_artifacts(&task_id)
+}
+
+#[tauri::command]
+pub fn transition_task_phase(
+    state: State<'_, ProjectStore>,
+    request: TransitionTaskPhaseRequest,
+) -> AppResult<TaskInfo> {
+    state.transition_task_phase(request)
 }
 
 #[tauri::command]

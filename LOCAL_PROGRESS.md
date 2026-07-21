@@ -734,3 +734,9 @@ YYYY-MM-DD
 - Dodate su append-only `task_phase_artifacts` i normalizovane veze ka transcript event izvorima; svaki izvor mora pripadati istoj Task transcript sesiji.
 - Artefakti imaju per-phase sequence, a provenance se vraca canonical redom transcript event-a i deduplikuje bez gubitka integriteta.
 - Registrovane su tipizovane create/list Tauri komande; 93 Rust testa, 171 frontend test, fmt, clippy, audit, typecheck i build prolaze.
+
+### 2026-07-21 - Evidence-gated Task phase state machine
+
+- Dodat je transakcioni `transition_task_phase` sa eksplicitnim `start` i `complete` akcijama kroz analysis, planning, execution i review.
+- Samo aktuelna in-progress faza prima artefakte; completion bez artefakta, skip, dupli start i transition zavrsenog Task-a se odbijaju.
+- Review completion zavrsava Task; 93 Rust testa, 171 frontend test, fmt, clippy, audit, typecheck i build prolaze.

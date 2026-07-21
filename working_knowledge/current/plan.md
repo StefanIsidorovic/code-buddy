@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.2. Enforce explicit Task phase transitions and evidence gates
+- objective: make Rust/SQLite authoritative for canonical Task phase progression before adding UI or automatic execution.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Task/phase statuses and timestamps; artifact mutation boundary; transition validation; Tauri/frontend command contract.
+- expected changes: add transactional `start`/`complete` actions; restrict artifacts to the current in-progress phase; require evidence before completion; advance only to the next canonical phase and complete Task after review.
+- acceptance criteria: pending phases require explicit start; duplicate/invalid/missing/completed transitions fail; future phases cannot receive artifacts; completion without artifacts fails; analysis→planning→execution→review order is unskippable.
+- required tests: invalid/missing transition; pending artifact rejection; duplicate start; missing-evidence gate; full canonical lifecycle; cross-transcript source rejection; completed terminal state; all Rust/frontend tests; fmt; clippy; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 tightened artifact creation to the current in-progress phase and added full lifecycle coverage, and cycle 2 added invalid/missing/duplicate edges and found no remaining state-machine, transaction, gate, timestamp, ownership, command, regression, or scope issue.
+- commit: this commit
+
 ### 22.1. Persist immutable Task phase artifacts
 - objective: establish the evidence-backed persistence contract required for phase gates, execution/review evidence and later learning.
 - status: complete
