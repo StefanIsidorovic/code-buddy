@@ -9,7 +9,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Implement plan item 19.4 by extracting the first workflow component with a narrow typed boundary and no duplicated state ownership; prefer ACP runtime presentation before moving its orchestration.
+- Extract Session Output/ACP transcript rendering as the next 19.4 feature slice, preserving the scroll ref and live/saved event ownership in App until orchestration hooks exist.
 
 ## Commands To Re-Run
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.

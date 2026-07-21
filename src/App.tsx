@@ -6,8 +6,9 @@ import "@xterm/xterm/css/xterm.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import aiadneMark from "./assets/aiadne-mark.svg";
 import { StateNotice } from "./components/ui/StateNotice";
-import { ChevronIcon, CloseIcon } from "./components/ui/icons";
+import { CloseIcon } from "./components/ui/icons";
 import { NotificationViewport } from "./features/notifications/NotificationViewport";
+import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import {
   boundToastMessages,
   useNotificationStore,
@@ -2707,211 +2708,35 @@ function App() {
           </section>
         ) : null}
 
+
         {runtimeMode === "acp" ? (
-          <section
-            className="runtime-panel acp-runtime-panel"
-            data-expanded={acpControlsExpanded}
-            aria-labelledby="acp-title"
-          >
-            <div className="doctor-heading acp-panel-heading">
-              <div>
-                <h3 id="acp-title">ACP Controls</h3>
-                <span>{acpStatusLabel}</span>
-              </div>
-              <button
-                aria-controls="acp-controls-content"
-                aria-expanded={acpControlsExpanded}
-                aria-label={acpControlsExpanded ? "Collapse ACP controls" : "Expand ACP controls"}
-                className="acp-collapse-toggle"
-                type="button"
-                onClick={() => setAcpControlsExpanded((expanded) => !expanded)}
-                title={acpControlsExpanded ? "Collapse controls" : "Expand controls"}
-              >
-                <ChevronIcon expanded={acpControlsExpanded} />
-              </button>
-            </div>
-
-            <div className="acp-session-toolbar" data-active={canUseAcpSession}>
-              {!canUseAcpSession ? (
-                <div className="acp-start-actions" aria-label="ACP session start actions">
-                  <button
-                    className="primary-action"
-                    type="button"
-                    onClick={() => void startSelectedAcpSession()}
-                    disabled={busy || !canStartSelectedAcpCandidate}
-                  >
-                    Start Selected ACP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void startFakeAcpSession()}
-                    disabled={busy || canUseAcpSession}
-                  >
-                    Start Fake ACP
-                  </button>
-                </div>
-              ) : (
-                <p className="acp-session-status">
-                  <span aria-hidden="true" />
-                  Active session · {acpStatusLabel}
-                </p>
-              )}
-
-              {acpSession ? (
-                <div className="acp-session-utilities" aria-label="ACP active session actions">
-                  <button type="button" onClick={() => void drainAcpEvents()}>
-                    Drain ACP
-                  </button>
-                  <button
-                    className="danger-button"
-                    type="button"
-                    onClick={() => void stopAcpSession(false)}
-                  >
-                    Stop ACP
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="acp-composer">
-              <label className="prompt-field">
-                <span>Prompt</span>
-                <textarea
-                  aria-label="ACP prompt"
-                  onChange={(event) => setAcpPrompt(event.target.value)}
-                  rows={3}
-                  value={acpPrompt}
-                />
-              </label>
-
-              <div className="acp-composer-actions" aria-label="ACP prompt actions">
-                <button
-                  type="button"
-                  className="context-preview-button"
-                  onClick={() => void previewTaskContext()}
-                  disabled={
-                    taskContextPreviewLoading ||
-                    !acpPrompt.trim() ||
-                    projectInitializationSummary?.status !== "approved"
-                  }
-                >
-                  Preview Context
-                </button>
-                <button
-                  className="primary-action"
-                  type="button"
-                  onClick={() => void sendAcpPrompt()}
-                  disabled={busy || acpPromptBusy || !canUseAcpSession}
-                >
-                  Send ACP
-                </button>
-              </div>
-            </div>
-
-            <div
-              className="acp-controls-content"
-              hidden={!acpControlsExpanded}
-              id="acp-controls-content"
-            >
-            <div className="acp-coding-model">
-              <label>
-                <span>Coding model</span>
-                {acpSession?.codingModel ? (
-                  <select
-                    aria-label="Coding model"
-                    value={acpSession.codingModel.currentValue}
-                    onChange={(event) => void changeAcpCodingModel(event.target.value)}
-                    disabled={busy || acpPromptBusy || !canUseAcpSession}
-                  >
-                    {acpSession.codingModel.options.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="acp-model-unavailable">
-                    {acpSession
-                      ? "This agent does not advertise model selection."
-                      : "Start an ACP session to load its available models."}
-                  </span>
-                )}
-              </label>
-              {acpSession?.codingModel ? (
-                <small>
-                  {acpSession.codingModel.options.find(
-                    (option) => option.value === acpSession.codingModel?.currentValue,
-                  )?.description ?? "Model used by this coding session."}
-                </small>
-              ) : null}
-            </div>
-
-            {activeTask ? (
-              <section className="active-task-card" aria-labelledby="active-task-title">
-                <div className="active-task-heading">
-                  <div>
-                    <p className="eyebrow">Active Task</p>
-                    <h4 id="active-task-title">Task assessment</h4>
-                  </div>
-                  <span
-                    className="task-complexity-badge"
-                    data-profile={activeTask.complexityProfile}
-                  >
-                    {activeTask.complexityProfile}
-                  </span>
-                </div>
-
-                <dl className="active-task-meta">
-                  <div>
-                    <dt>Phase</dt>
-                    <dd>{activeTask.currentPhase}</dd>
-                  </div>
-                  <div>
-                    <dt>Assessment</dt>
-                    <dd>{activeTask.complexitySource}</dd>
-                  </div>
-                  <div>
-                    <dt>Confidence</dt>
-                    <dd>
-                      {activeTask.complexityConfidence === null
-                        ? "User selected"
-                        : `${activeTask.complexityConfidence}%`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Version</dt>
-                    <dd>{activeTask.complexityAssessmentVersion}</dd>
-                  </div>
-                </dl>
-
-                <div className="active-task-reasons">
-                  <strong>Why this profile</strong>
-                  <ul>
-                    {activeTask.complexityReasons.map((reason) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                {activeTask.initialComplexityProfile !== activeTask.complexityProfile ? (
-                  <p className="active-task-initial">
-                    Initially assessed as <strong>{activeTask.initialComplexityProfile}</strong>.
-                  </p>
-                ) : null}
-              </section>
-            ) : null}
-
-            {acpPromptResult ? (
-              <p className="acp-result">Stop reason: {acpPromptResult.stopReason}</p>
-            ) : null}
-
-            {showAcpWaiting ? (
-              <p className="acp-result acp-waiting-status" role="status">
-                Waiting for agent response...
-              </p>
-            ) : null}
-            </div>
-          </section>
+          <AcpRuntimePanel
+            activeTask={activeTask}
+            busy={busy}
+            canPreviewContext={
+              !taskContextPreviewLoading &&
+              !!acpPrompt.trim() &&
+              projectInitializationSummary?.status === "approved"
+            }
+            canStartSelectedCandidate={canStartSelectedAcpCandidate}
+            canUseSession={canUseAcpSession}
+            expanded={acpControlsExpanded}
+            prompt={acpPrompt}
+            promptBusy={acpPromptBusy}
+            promptResult={acpPromptResult}
+            session={acpSession}
+            showWaiting={showAcpWaiting}
+            statusLabel={acpStatusLabel}
+            onChangeModel={(modelId) => void changeAcpCodingModel(modelId)}
+            onChangePrompt={setAcpPrompt}
+            onDrain={() => void drainAcpEvents()}
+            onPreviewContext={() => void previewTaskContext()}
+            onSendPrompt={() => void sendAcpPrompt()}
+            onStartFake={() => void startFakeAcpSession()}
+            onStartSelected={() => void startSelectedAcpSession()}
+            onStop={() => void stopAcpSession(false)}
+            onToggleExpanded={() => setAcpControlsExpanded((expanded) => !expanded)}
+          />
         ) : null}
 
         {error ? (

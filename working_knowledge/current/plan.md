@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.4. Extract the ACP runtime controls feature
+- objective: move ACP session controls, prompt composer, coding-model selector, and active Task assessment out of `App.tsx` behind one typed presentation boundary.
+- status: complete
+- files: src/App.tsx; src/features/runtime/AcpRuntimePanel.tsx; src/features/runtime/AcpRuntimePanel.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP Controls markup; compact/expanded state callback; session start/safety actions; prompt/context/send callbacks; session-advertised model selector; active Task assessment; waiting/result status.
+- expected changes: introduce an explicit `AcpRuntimePanelProps` view-model/callback API; preserve App as orchestration owner; pass a derived `canPreviewContext` instead of initialization internals; keep the feature free of Tauri calls, transcript persistence, and duplicated state.
+- acceptance criteria: accessible labels, compact-mode behavior, prompt retention, model capability states, Task assessment, Drain/Stop safety actions, and waiting/result presentation remain unchanged; runtime feature imports no Tauri API; App loses at least 170 lines.
+- required tests: direct panel tests for inactive/active sessions, collapse callback, prompt/model callbacks, Task assessment, and waiting state; existing 51 frontend tests; typecheck; production build; Tauri-import boundary check; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 calibrated the net-line threshold and added direct Preview/Drain/Stop callback assertions, and cycle 2 found no remaining behavior, ownership, capability, safety-action, accessibility, Tauri-boundary, regression, or scope issue.
+- commit: this commit
+
 ### 19.3. Extract frontend domain contracts
 - objective: remove all Rust/Tauri DTO and frontend domain contract declarations from `App.tsx` into one dependency-free typed boundary.
 - status: complete
