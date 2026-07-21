@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
@@ -40,6 +39,7 @@ import {
   transcriptEventToAcpEvent,
   uniqueIds,
 } from "./lib/presentation";
+import { invokeCommand as invoke } from "./lib/tauriGateway";
 import type {
   AcpPromptResult,
   AcpRegistryCandidate,

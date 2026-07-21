@@ -1,0 +1,56 @@
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+export type TauriCommand =
+  | "analyze_project_initialization_markdown"
+  | "append_transcript_events"
+  | "approve_project_initialization_summary"
+  | "attach_knowledge_to_transcript_session"
+  | "collect_project_initialization_facts"
+  | "create_knowledge_item"
+  | "create_project"
+  | "create_project_initialization"
+  | "create_project_repository"
+  | "create_task"
+  | "create_transcript_session"
+  | "delete_project"
+  | "delete_project_repository"
+  | "drain_acp_events"
+  | "drain_session_output"
+  | "generate_project_initialization_summary"
+  | "list_acp_registry_candidates"
+  | "list_acp_sessions"
+  | "list_agent_doctor_reports"
+  | "list_knowledge_items"
+  | "list_model_catalog"
+  | "list_project_initialization_facts"
+  | "list_project_initialization_guardrails"
+  | "list_project_initialization_knowledge_units"
+  | "list_project_initialization_markdown_findings"
+  | "list_project_initialization_summary"
+  | "list_project_initializations"
+  | "list_project_repositories"
+  | "list_project_tasks"
+  | "list_projects"
+  | "list_transcript_events"
+  | "list_transcript_sessions"
+  | "rename_transcript_session"
+  | "resize_session"
+  | "save_project_initialization_guardrails"
+  | "select_project_task_context"
+  | "send_acp_prompt"
+  | "set_acp_model"
+  | "start_acp_registry_session"
+  | "start_codex_session"
+  | "start_fake_session"
+  | "stop_acp_session"
+  | "stop_session"
+  | "write_session_input";
+
+export function invokeCommand<TResult>(
+  command: TauriCommand,
+  args?: Record<string, unknown>,
+): Promise<TResult> {
+  return args === undefined
+    ? tauriInvoke<TResult>(command)
+    : tauriInvoke<TResult>(command, args);
+}

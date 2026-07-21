@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 19.5. Introduce the typed Tauri command gateway
+- objective: remove direct Tauri command imports from the application coordinator and establish one auditable frontend/backend invocation boundary.
+- status: complete
+- files: src/App.tsx; src/lib/tauriGateway.ts; src/lib/tauriGateway.test.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: all project, repository, initialization, knowledge, transcript, Task, PTY, doctor, catalog, ACP registry/session/model/prompt command calls.
+- expected changes: define the complete allowed command-name union and a generic typed result gateway; migrate App to the gateway without changing command names or payloads; directly test forwarding and error propagation.
+- acceptance criteria: App has no direct `@tauri-apps/api/core` import; every existing command is admitted explicitly; command args/results/errors are forwarded unchanged; backend behavior and mocks remain compatible.
+- required tests: gateway no-args/args/result/error forwarding; command inventory boundary checks; existing 131 frontend tests; typecheck; production build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 restored exact one-argument invocation shape and corrected the hoisted gateway mock, and cycle 2 found no remaining command-inventory, argument/result/error-forwarding, direct-import, mock-compatibility, regression, or scope issue.
+- commit: this commit
+
 ### 19.4.18. Extract PTY runtime controls
 - objective: move fallback PTY actions, status, button-lock policy, and terminal-size presentation out of the frontend coordinator.
 - status: complete

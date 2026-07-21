@@ -657,3 +657,8 @@ YYYY-MM-DD
 - PTY status, terminal dimensions i akcije Use ACP/Start/Drain/Resize/Stop/Kill izdvojene su u state-free runtime komponentu.
 - Lock pravila razlikuju postojanje sesije od upotrebljive sesije, a Stop/Kill zadržavaju graceful/force semantiku.
 - Provera: 131 frontend test, typecheck, production build, Tauri/xterm boundary i diff check prolaze; `App.tsx` ima 2.161 liniju.
+### 2026-07-21 - Typed Tauri gateway
+
+- Svih 44 dozvoljenih backend komandi sada prolazi kroz jedan eksplicitan frontend gateway; `App.tsx` vise ne uvozi Tauri core direktno.
+- Gateway cuva tacan oblik poziva, payload, rezultat i gresku, pa naredni feature hook-ovi zavise od nase granice umesto framework API-ja.
+- Provera: 134 frontend testa, typecheck, production build, direct-import boundary i diff check prolaze.
