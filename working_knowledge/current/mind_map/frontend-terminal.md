@@ -22,6 +22,7 @@
 - Global notifications are the first narrow Zustand slice: the feature store owns queue bounds, IDs, timers, dismissal, and reset while `NotificationViewport` owns accessible rendering.
 - Backend-facing frontend DTOs and domain unions live in dependency-free `src/types/domain.ts`; feature modules should import contracts from there rather than redeclaring response shapes.
 - ACP runtime controls are a state-free feature component: App owns sessions, Tasks, persistence, and commands while the panel owns accessible controls, model/Task presentation, and compact layout.
+- The ACP runtime lane composes a separate Task Phase panel for manual start/evidence/complete gates; persisted live transcript event IDs provide selectable artifact provenance without expanding ACP presentation ownership.
 - Session Output is a separate state-free feature: App owns xterm and ACP event lifecycles while the panel renders PTY mount/fallback, live/saved transcript rows, empty states, and pending feedback.
 - Workspace context summary and picker controls are state-free workspace feature exports; their split preserves the mobile summary outside collapsible navigation while App owns selection and dialogs.
 - Repository management dialog is state-free workspace presentation; session locks protect select/delete while repository creation preserves its prior independent availability.
@@ -166,7 +167,7 @@
 - CSS includes a final product-shell refinement layer after the historical rules; future visual work should consolidate or modify that final layer rather than accidentally overriding it earlier in the file.
 - Output polling interval is currently 400 ms and may feel slow.
 - Every keypress can become a separate Tauri invoke; batching may be needed.
-- Vite build warns about xterm chunk size over 500 kB; build still succeeds.
+- xterm is a separate PTY-only dynamic chunk; the initial bundle stays below the Vite warning threshold.
 - The UI theme should stay balanced across the earth-tone palette and light derived tints rather than drifting into a single flat green or beige treatment.
 - ResizeObserver can call fit/resize often; throttle/debounce may be needed later.
 - Doctor version checks are backend-owned; frontend should not shell out or infer PATH state.

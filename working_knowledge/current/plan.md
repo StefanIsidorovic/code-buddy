@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.3. Add the user-facing Task phase workflow
+- objective: make persisted artifacts and explicit phase gates inspectable and manually operable in the ACP workspace before agent automation.
+- status: complete
+- files: src/App.tsx; src/App.css; src/features/tasks/*; src/features/transcripts/useTranscriptWorkspace.ts; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: persisted live-event identity; artifact load/form/source selection; start/create/complete actions; phase/artifact presentation; runtime composition.
+- expected changes: retain backend-returned live transcript events; add stale-safe Task phase hook and state-free panel; compose it beside ACP controls without moving workflow into App.
+- acceptance criteria: user sees all four statuses; pending phase can start; only persisted event IDs can be selected; evidence draft sends exact payload; completion remains locked without persisted artifact; backend errors surface; stale Task responses are ignored.
+- required tests: panel form/status/locks/errors; hook load/create/transition payloads; stale transition; transcript live IDs; existing frontend/Rust tests; audit; typecheck; build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 fixed an undefined theme token and added Task-identity guards to async actions, and cycle 2 normalized empty mocked list responses and found no remaining ownership, stale, provenance, payload, gate, accessibility, responsive, regression, or scope issue.
+- commit: this commit
+
 ### 22.2. Enforce explicit Task phase transitions and evidence gates
 - objective: make Rust/SQLite authoritative for canonical Task phase progression before adding UI or automatic execution.
 - status: complete

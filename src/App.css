@@ -4596,3 +4596,39 @@ summary:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+.task-phase-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-raised);
+}
+
+.task-phase-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-phase-list li,
+.task-artifact-list li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.7rem;
+}
+
+.task-phase-list li[data-current="true"] { border-color: var(--color-accent); }
+.task-artifact-editor { display: grid; gap: 0.7rem; }
+.task-artifact-editor label { display: grid; gap: 0.35rem; }
+.task-artifact-editor fieldset { display: grid; gap: 0.4rem; }
+.task-artifact-list ul { display: grid; gap: 0.45rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
+
+@media (max-width: 760px) {
+  .task-phase-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

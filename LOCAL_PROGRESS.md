@@ -740,3 +740,9 @@ YYYY-MM-DD
 - Dodat je transakcioni `transition_task_phase` sa eksplicitnim `start` i `complete` akcijama kroz analysis, planning, execution i review.
 - Samo aktuelna in-progress faza prima artefakte; completion bez artefakta, skip, dupli start i transition zavrsenog Task-a se odbijaju.
 - Review completion zavrsava Task; 93 Rust testa, 171 frontend test, fmt, clippy, audit, typecheck i build prolaze.
+
+### 2026-07-21 - Task Phase panel
+
+- ACP workspace sada prikazuje cetiri Task faze, njihove statuse i artefakte, uz rucne Start/Add evidence/Complete akcije.
+- Evidence bira samo persisted live transcript event ID-jeve; hook ignorise stare async rezultate posle promene Task-a.
+- App ostaje composition root; 93 Rust testa, 177 frontend testova, fmt, clippy, audit, typecheck i build prolaze.

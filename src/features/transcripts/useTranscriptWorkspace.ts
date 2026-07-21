@@ -11,6 +11,7 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
   const [tasks, setTasks] = useState<Record<string, TaskInfo>>({});
   const [openedSession, setOpenedSession] = useState<TranscriptSessionInfo | null>(null);
   const [openedEvents, setOpenedEvents] = useState<AcpSessionEvent[]>([]);
+  const [liveEvents, setLiveEvents] = useState<TranscriptEventInfo[]>([]);
   const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(""); const [renameTitle, setRenameTitle] = useState("");
   const sessionRef = useRef<TranscriptSessionInfo | null>(null); const tasksRef = useRef<Record<string, TaskInfo>>({});
@@ -44,7 +45,7 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
     try { const value = await invokeCommand<TranscriptSessionInfo | null>("create_transcript_session",
       { request: { projectId, runtime, source, title } });
       sessionRef.current = value; setSession(value);
-      if (!value) return null; setOpenedSession(null); setOpenedEvents([]);
+      if (!value) return null; setOpenedSession(null); setOpenedEvents([]); setLiveEvents([]);
       setSessions((current) => [value, ...current.filter(({ id }) => id !== value.id)]); return value;
     } catch (reason) { sessionRef.current = null; setSession(null); setError(errorText(reason)); return null; }
   }
@@ -79,11 +80,12 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
     const update = (value: TranscriptSessionInfo) => ({ ...value, updatedAt, eventCount: value.eventCount + inserted.length });
     setSessions((current) => current.map((value) => value.id === id ? update(value) : value));
     setSession((current) => current?.id === id ? update(current) : current);
+    if (sessionRef.current?.id === id) setLiveEvents((current) => [...current, ...inserted]);
     if (openedSession?.id === id) setOpenedEvents((current) => [...current, ...inserted.map(transcriptEventToAcpEvent)]);
   }
   function upsertTask(task: TaskInfo) { tasksRef.current = { ...tasksRef.current, [task.transcriptSessionId]: task };
     setTasks((current) => ({ ...current, [task.transcriptSessionId]: task })); }
-  return { session, sessions, openedSession, openedEvents, error, loading, filter, renameTitle, selectedId,
+  return { session, sessions, openedSession, openedEvents, liveEvents, error, loading, filter, renameTitle, selectedId,
     activeTask, refresh, create, openSaved, renameSelected, showLive, record,
     changeFilter: setFilter, changeRenameTitle: setRenameTitle, getActiveSessionId: () => sessionRef.current?.id ?? null,
     getTask: (id: string) => tasksRef.current[id] ?? null, upsertTask };

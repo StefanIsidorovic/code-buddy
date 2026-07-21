@@ -59,5 +59,6 @@ describe("useTranscriptWorkspace", () => {
     await act(() => result.current.record("t1", [{ kind: "agent_message", content: "answer" },
       { kind: "agent_message", content: "" }]));
     expect(result.current.session?.eventCount).toBe(1); expect(result.current.session?.updatedAt).toBe(5);
+    expect(result.current.liveEvents).toEqual(inserted);
   });
 });

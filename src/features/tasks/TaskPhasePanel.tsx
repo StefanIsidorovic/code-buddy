@@ -1,0 +1,41 @@
+import type { TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo, TranscriptEventInfo } from "../../types/domain";
+
+interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPhase: TaskPhaseInfo | null;
+  sourceEvents: TranscriptEventInfo[]; selectedSourceIds: string[]; kind: string; content: string;
+  error: string | null; loading: boolean; onChangeKind: (value: string) => void;
+  onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
+  onCreateArtifact: () => void; onStart: () => void; onComplete: () => void }
+
+export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
+  kind, content, error, loading, onChangeKind, onChangeContent, onToggleSource,
+  onCreateArtifact, onStart, onComplete }: Props) {
+  const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
+  const inProgress = currentPhase?.status === "in_progress";
+  return <section className="task-phase-panel" aria-labelledby="task-phase-title">
+    <div className="doctor-heading"><div><h3 id="task-phase-title">Task phases</h3>
+      <span>{task.status} · current: {task.currentPhase}</span></div></div>
+    <ol className="task-phase-list">{task.phases.map((phase) => <li key={phase.id}
+      data-current={phase.phase === task.currentPhase}><strong>{phase.phase}</strong><span>{phase.status}</span></li>)}</ol>
+    {error ? <p className="error-message" role="alert">{error}</p> : null}
+    {currentPhase?.status === "pending" ? <button className="primary-action" type="button"
+      disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
+    {inProgress ? <div className="task-artifact-editor">
+      <label>Artifact kind<input value={kind} onChange={(event) => onChangeKind(event.target.value)} /></label>
+      <label>Phase evidence<textarea rows={3} value={content}
+        onChange={(event) => onChangeContent(event.target.value)} /></label>
+      <fieldset><legend>Transcript provenance</legend>{sourceEvents.length === 0
+        ? <p>No persisted transcript events yet.</p> : sourceEvents.map((event) => <label key={event.id}>
+          <input type="checkbox" checked={selectedSourceIds.includes(event.id)}
+            onChange={(change) => onToggleSource(event.id, change.target.checked)} />
+          <span>{event.sequence + 1}. {event.content}</span></label>)}</fieldset>
+      <button type="button" onClick={onCreateArtifact} disabled={loading || !kind.trim()
+        || !content.trim() || selectedSourceIds.length === 0}>Add evidence</button>
+      <button className="primary-action" type="button" onClick={onComplete}
+        disabled={loading || phaseArtifacts.length === 0}>Complete {task.currentPhase}</button>
+    </div> : null}
+    <div className="task-artifact-list"><strong>Current phase artifacts</strong>
+      {phaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{phaseArtifacts.map((artifact) =>
+        <li key={artifact.id}><span>{artifact.kind}</span><p>{artifact.content}</p>
+          <small>{artifact.sourceTranscriptEventIds.length} source event(s)</small></li>)}</ul>}</div>
+  </section>;
+}

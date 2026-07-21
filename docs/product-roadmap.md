@@ -31,6 +31,7 @@ The differentiator is not a larger feature count. It is a trustworthy loop in wh
 
 - Implemented foundation: immutable per-phase Task artifacts with same-transcript event provenance and typed create/list commands.
 - Implemented foundation: explicit start/complete phase transitions with evidence gates and canonical unskippable ordering.
+- Implemented foundation: a manual Task Phase panel with persisted transcript provenance selection, artifact inspection and gate controls.
 - Persist immutable phase outputs with transcript-event provenance.
 - Enforce analysis, planning, execution, and review transitions with explicit retry and approval rules.
 - Build task context from project Knowledge Units, manual cards, and task artifacts with a visible inclusion preview.

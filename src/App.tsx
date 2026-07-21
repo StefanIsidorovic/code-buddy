@@ -28,6 +28,8 @@ import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
 import { useKnowledgeWorkspace } from "./features/knowledge/useKnowledgeWorkspace";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
+import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
+import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
 import { useAgentEnvironment } from "./features/agents/useAgentEnvironment";
@@ -70,6 +72,7 @@ function App() {
     notifyError: (message) => pushToast("error", message) });
   const { session: transcriptSession, sessions: transcriptSessions,
     openedSession: openedTranscriptSession, openedEvents: openedTranscriptEvents,
+    liveEvents: liveTranscriptEvents,
     error: transcriptError, loading: transcriptLoading, filter: historyFilter,
     renameTitle: historyRenameTitle, selectedId: selectedHistorySessionId, activeTask,
     refresh: refreshTranscriptSessions, create: createTranscriptSession,
@@ -159,6 +162,8 @@ function App() {
       removeFromCatalog: removeProject, removeEvidence: initializationEvidence.removeProject,
       notifySuccess: (message) => pushToast("success", message),
     });
+  const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
+    upsertTask: upsertTranscriptTask });
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -329,7 +334,7 @@ function App() {
 
 
         {runtimeMode === "acp" ? (
-          <AcpRuntimePanel
+          <><AcpRuntimePanel
             activeTask={activeTask}
             busy={busy}
             canPreviewContext={
@@ -355,6 +360,13 @@ function App() {
             onStop={() => void stopAcpSession(false)}
             onToggleExpanded={toggleAcpControlsExpanded}
           />
+          {activeTask ? <TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
+            currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents}
+            selectedSourceIds={taskPhase.sourceIds} kind={taskPhase.kind} content={taskPhase.content}
+            error={taskPhase.error} loading={taskPhase.loading} onChangeKind={taskPhase.changeKind}
+            onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
+            onCreateArtifact={() => void taskPhase.createArtifact()}
+            onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()} /> : null}</>
         ) : null}
 
         {error ? (

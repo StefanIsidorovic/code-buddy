@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 91a7d48 step 22.1: persist task phase artifacts
-- worktree: plan item 22.2 implementation and knowledge updates ready for commit.
-- relevant files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: b65ca36 step 22.2: enforce task phase gates
+- worktree: plan item 22.3 implementation and knowledge updates ready for commit.
+- relevant files: src/App.tsx; src/App.css; src/features/tasks/*; src/features/transcripts/useTranscriptWorkspace.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.2 complete
+- active plan step: 22.3 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -87,3 +87,4 @@
 - 2026-07-21: frontend audit, 171 frontend tests, typecheck, production build without chunk warnings, `git diff --check`, and two adversarial review cycles pass for plan item 21.10; initial JS is 281.69 kB and PTY-only xterm is a separate 329.31 kB chunk.
 - 2026-07-21: 93 Rust tests, 171 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.1; immutable Task phase artifacts now retain same-transcript event provenance in canonical event order.
 - 2026-07-21: 93 Rust tests, 171 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.2; explicit start/complete transitions enforce canonical evidence-gated Task progression.
+- 2026-07-21: 93 Rust tests, 177 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.3; Task phases/artifacts are manually operable with persisted event provenance and stale-safe frontend orchestration.
