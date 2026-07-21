@@ -300,6 +300,33 @@ pub struct TaskPhaseArtifactInfo {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskPhaseRunRequest {
+    pub task_id: String,
+    pub transcript_session_id: String,
+    pub phase: String,
+    pub acp_session_id: String,
+    pub instruction: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPhaseRunReceiptInfo {
+    pub id: String,
+    pub task_id: String,
+    pub transcript_session_id: String,
+    pub sequence: i64,
+    pub phase: String,
+    pub acp_session_id: String,
+    pub instruction: String,
+    pub status: String,
+    pub stop_reason: Option<String>,
+    pub error: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskContextDispatchSourceInput {
@@ -1618,6 +1645,158 @@ impl ProjectStore {
         self.task_context_dispatch_receipt(&id)
     }
 
+    pub fn begin_task_phase_run(
+        &self,
+        request: CreateTaskPhaseRunRequest,
+    ) -> AppResult<TaskPhaseRunReceiptInfo> {
+        let task_id = request.task_id.trim();
+        let transcript_id = request.transcript_session_id.trim();
+        let phase = request.phase.trim().to_lowercase();
+        let acp_session_id = request.acp_session_id.trim();
+        if task_id.is_empty()
+            || transcript_id.is_empty()
+            || acp_session_id.is_empty()
+            || request.instruction.trim().is_empty()
+            || !TASK_PHASES.contains(&phase.as_str())
+        {
+            return Err(AppError::InvalidInput(
+                "phase run intent is incomplete".into(),
+            ));
+        }
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let (owned_transcript, current_phase): (String, String) = transaction
+            .query_row(
+                "SELECT transcript_session_id, current_phase FROM tasks WHERE id = ?1",
+                [task_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| AppError::InvalidInput("phase run Task was not found".into()))?;
+        if owned_transcript != transcript_id || current_phase != phase {
+            return Err(AppError::InvalidInput(
+                "phase run does not match the current Task phase and transcript".into(),
+            ));
+        }
+        let status: String = transaction
+            .query_row(
+                "SELECT status FROM task_phases WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, phase],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if status != "in_progress" {
+            return Err(AppError::InvalidInput(
+                "only the current in-progress phase can run".into(),
+            ));
+        }
+        let sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), -1) + 1 FROM task_phase_run_receipts WHERE task_id = ?1",
+            [task_id], |row| row.get(0)).map_err(storage_error)?;
+        let id = Uuid::new_v4().to_string();
+        let now = unix_timestamp()?;
+        transaction
+            .execute(
+                "INSERT INTO task_phase_run_receipts
+             (id, task_id, transcript_session_id, sequence, phase, acp_session_id, instruction,
+              status, stop_reason, error, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'pending', NULL, NULL, ?8, ?8)",
+                params![
+                    id,
+                    task_id,
+                    transcript_id,
+                    sequence,
+                    phase,
+                    acp_session_id,
+                    request.instruction,
+                    now
+                ],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task_phase_run_receipt(&id)
+    }
+
+    pub fn finalize_task_phase_run(
+        &self,
+        receipt_id: &str,
+        status: &str,
+        stop_reason: Option<&str>,
+        error: Option<&str>,
+    ) -> AppResult<TaskPhaseRunReceiptInfo> {
+        if !matches!(status, "sent" | "failed") {
+            return Err(AppError::InvalidInput(
+                "phase run final status is invalid".into(),
+            ));
+        }
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_phase_run_receipts SET status = ?2, stop_reason = ?3, error = ?4,
+             updated_at = ?5 WHERE id = ?1 AND status = 'pending'",
+                params![receipt_id, status, stop_reason, error, unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "phase run receipt is missing or already finalized".into(),
+            ));
+        }
+        drop(connection);
+        self.task_phase_run_receipt(receipt_id)
+    }
+
+    pub fn list_task_phase_run_receipts(
+        &self,
+        task_id: &str,
+    ) -> AppResult<Vec<TaskPhaseRunReceiptInfo>> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id FROM task_phase_run_receipts WHERE task_id = ?1 ORDER BY sequence ASC",
+            )
+            .map_err(storage_error)?;
+        let ids = statement
+            .query_map([task_id], |row| row.get::<_, String>(0))
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        drop(statement);
+        drop(connection);
+        ids.into_iter()
+            .map(|id| self.task_phase_run_receipt(&id))
+            .collect()
+    }
+
+    fn task_phase_run_receipt(&self, receipt_id: &str) -> AppResult<TaskPhaseRunReceiptInfo> {
+        self.connection()?
+            .query_row(
+                "SELECT id, task_id, transcript_session_id, sequence, phase, acp_session_id,
+             instruction, status, stop_reason, error, created_at, updated_at
+             FROM task_phase_run_receipts WHERE id = ?1",
+                [receipt_id],
+                |row| {
+                    Ok(TaskPhaseRunReceiptInfo {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        transcript_session_id: row.get(2)?,
+                        sequence: row.get(3)?,
+                        phase: row.get(4)?,
+                        acp_session_id: row.get(5)?,
+                        instruction: row.get(6)?,
+                        status: row.get(7)?,
+                        stop_reason: row.get(8)?,
+                        error: row.get(9)?,
+                        created_at: row.get(10)?,
+                        updated_at: row.get(11)?,
+                    })
+                },
+            )
+            .map_err(|_| {
+                AppError::InvalidInput(format!("phase run receipt not found: {receipt_id}"))
+            })
+    }
+
     pub fn finalize_task_context_dispatch(
         &self,
         receipt_id: &str,
@@ -2384,6 +2563,25 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_task_context_dispatch_receipts_task_sequence
                     ON task_context_dispatch_receipts(task_id, sequence);
+
+                CREATE TABLE IF NOT EXISTS task_phase_run_receipts (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    transcript_session_id TEXT NOT NULL REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    sequence INTEGER NOT NULL,
+                    phase TEXT NOT NULL CHECK(phase IN ('analysis', 'planning', 'execution', 'review')),
+                    acp_session_id TEXT NOT NULL,
+                    instruction TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed')),
+                    stop_reason TEXT,
+                    error TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    UNIQUE(task_id, sequence)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_phase_run_receipts_task_sequence
+                    ON task_phase_run_receipts(task_id, sequence);
 
                 CREATE TABLE IF NOT EXISTS task_complexity_changes (
                     id TEXT PRIMARY KEY,
@@ -5951,6 +6149,86 @@ mod tests {
             })
             .expect_err("completed task transition rejected");
         assert!(matches!(after_completion, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn persists_and_finalizes_task_phase_run_receipts() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".into(),
+                path: temp_project_path("phase-run"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Audit it".into(),
+            })
+            .expect("task created");
+        let pending = store
+            .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                phase: "analysis".into(),
+                acp_session_id: "acp-1".into(),
+                instruction: "Analyze only".into(),
+            })
+            .expect_err("pending phase rejected");
+        assert!(matches!(pending, AppError::InvalidInput(_)));
+        store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "start".into(),
+            })
+            .expect("analysis started");
+        let first = store
+            .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                phase: "analysis".into(),
+                acp_session_id: "acp-1".into(),
+                instruction: "Analyze only".into(),
+            })
+            .expect("run intent persisted");
+        assert_eq!(first.sequence, 0);
+        assert_eq!(first.status, "pending");
+        let sent = store
+            .finalize_task_phase_run(&first.id, "sent", Some("end_turn"), None)
+            .expect("run finalized");
+        assert_eq!(sent.status, "sent");
+        assert_eq!(sent.stop_reason.as_deref(), Some("end_turn"));
+        let second = store
+            .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id,
+                phase: "analysis".into(),
+                acp_session_id: "acp-1".into(),
+                instruction: "Analyze retry".into(),
+            })
+            .expect("retry intent persisted");
+        store
+            .finalize_task_phase_run(&second.id, "failed", None, Some("offline"))
+            .expect("retry failed");
+        let listed = store
+            .list_task_phase_run_receipts(&task.id)
+            .expect("runs listed");
+        assert_eq!(listed.len(), 2);
+        assert_eq!(listed[0].instruction, "Analyze only");
+        assert_eq!(listed[1].sequence, 1);
+        assert_eq!(listed[1].error.as_deref(), Some("offline"));
+        assert!(store
+            .finalize_task_phase_run(&first.id, "failed", None, Some("late"))
+            .is_err());
     }
 
     #[test]

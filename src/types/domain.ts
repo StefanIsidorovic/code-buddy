@@ -390,6 +390,15 @@ export type TaskPhaseArtifactInfo = {
 
 export type TaskPhaseTransitionAction = "start" | "complete";
 
+export type TaskPhaseRunReceiptInfo = {
+  id: string; taskId: string; transcriptSessionId: string; sequence: number;
+  phase: TaskPhaseInfo["phase"]; acpSessionId: string; instruction: string;
+  status: "pending" | "sent" | "failed"; stopReason: string | null; error: string | null;
+  createdAt: number; updatedAt: number;
+};
+
+export type TaskPhaseRunResultInfo = { promptResult: AcpPromptResult; receipt: TaskPhaseRunReceiptInfo };
+
 export type KnowledgeItemInfo = {
   id: string;
   projectId: string | null;

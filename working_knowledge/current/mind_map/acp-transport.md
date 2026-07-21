@@ -53,6 +53,7 @@
 - Reviewed unified context uses a dedicated backend dispatch command: it persists a pending Task receipt before `session/prompt`, then records stop reason or failure without rewriting transcript prompt identity.
 - Task Dispatch History reads those receipts without contacting ACP; manual stale recovery cannot claim delivery and the backend blocks `pending -> failed` while that ACP session is still running.
 - Controlled phase Run uses the same single-prompt concurrency boundary, persists its exact instruction as a transcript user event, and rejects a Task/transcript identity mismatch before ACP dispatch.
+- The dedicated phase-run Tauri command persists intent before `session/prompt`, then records stop reason or failure; process uncertainty remains conservatively pending.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.

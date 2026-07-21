@@ -53,7 +53,7 @@ const transcriptSession: TranscriptSessionInfo = {
   eventCount: 0,
 };
 const task = { id: "task1", projectId: "p1", transcriptSessionId: "t1",
-  originalPrompt: "Explain this change" } as TaskInfo;
+  originalPrompt: "Explain this change", currentPhase: "analysis" } as TaskInfo;
 const preview: UnifiedTaskContextSelectionInfo = { initializationId: "init1", characterBudget: 6000,
   usedCharacters: 42, remainingCharacters: 5958,
   renderedContext: "- [task_artifact] Verified evidence",
@@ -131,7 +131,9 @@ describe("useAcpRuntime", () => {
           },
         });
       }
-      if (command === "send_acp_prompt") return Promise.resolve({ sessionId: "acp1", stopReason: "end_turn" });
+      if (command === "send_task_phase_prompt") return Promise.resolve({
+        promptResult: { sessionId: "acp1", stopReason: "end_turn" }, receipt: { id: "run1" },
+      });
       return Promise.resolve([]);
     });
     const { result, transcript, unmount } = setup();
@@ -191,9 +193,10 @@ describe("useAcpRuntime", () => {
     await waitFor(() => expect(result.current.canStartSelected).toBe(true));
     await act(() => result.current.startSelected());
     await act(() => result.current.sendPhasePrompt("task1", "Run only analysis"));
-    expect(invoke).toHaveBeenCalledWith("send_acp_prompt", {
-      sessionId: "acp1", prompt: "Run only analysis",
-    });
+    expect(invoke).toHaveBeenCalledWith("send_task_phase_prompt", { request: {
+      taskId: "task1", transcriptSessionId: "t1", phase: task.currentPhase,
+      acpSessionId: "acp1", instruction: "Run only analysis",
+    } });
     expect(transcript.record).toHaveBeenCalledWith("t1", [
       { kind: "user_message", content: "Run only analysis" },
     ]);

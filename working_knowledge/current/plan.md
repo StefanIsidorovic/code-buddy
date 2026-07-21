@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 22.9. Persist auditable phase-run receipts
+- objective: persist the exact current-phase execution intent before ACP dispatch and its conservative outcome afterward.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/runtime/useAcpRuntime.ts; related tests and current knowledge.
+- affected units: SQLite migration; phase/state/Task ownership validation; ACP dispatch orchestration; typed runtime boundary.
+- expected changes: atomically create an ordered pending receipt; finalize sent/failed once; retain exact instruction, phase, ACP session, stop reason/error; expose ordered list API.
+- acceptance criteria: only the exact current in-progress phase can create an intent; old databases migrate idempotently; uncertain interrupted work remains pending; finalized outcomes are immutable; frontend uses only the auditable command.
+- required tests: pending-phase rejection; begin/order/list; sent/failed finalization; double-finalize; exact frontend payload; full frontend/Rust gates; audit/typecheck/build; fmt/clippy; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 fixed a SQLite read-back mutex deadlock and made begin atomic, and cycle 2 verified migration, single-finalization, failed dispatch, typed routing, and conservative pending semantics.
+- commit: this commit
+
 ### 22.8. Run one Task phase under explicit gates
 - objective: let the user invoke exactly one current Task phase without automatic evidence creation, completion, or phase advancement.
 - status: complete

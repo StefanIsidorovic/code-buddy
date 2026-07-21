@@ -9,6 +9,7 @@ import type {
   KnowledgeItemInfo,
   TaskContextDispatchResultInfo,
   TaskInfo,
+  TaskPhaseRunResultInfo,
   TranscriptSessionInfo,
   UnifiedTaskContextSelectionInfo,
 } from "../../types/domain";
@@ -172,16 +173,18 @@ export function useAcpRuntime({
     try {
       transcript.showLive();
       const transcriptId = transcript.getActiveId();
-      if (!transcriptId || transcript.getTask(transcriptId)?.id !== taskId) {
+      const activeTask = transcriptId ? transcript.getTask(transcriptId) : null;
+      if (!transcriptId || activeTask?.id !== taskId) {
         throw new Error("A controlled phase run requires the active Task transcript.");
       }
       const userEvent: AcpSessionEvent = { kind: "user_message", content: instruction };
       setEvents((current) => [...current, userEvent]);
       await transcript.record(transcriptId, [userEvent]);
-      setPromptResult(await invokeCommand<AcpPromptResult>("send_acp_prompt", {
-        sessionId: session.id,
-        prompt: instruction,
-      }));
+      const result = await invokeCommand<TaskPhaseRunResultInfo>("send_task_phase_prompt", {
+        request: { taskId, transcriptSessionId: transcriptId, phase: activeTask.currentPhase,
+          acpSessionId: session.id, instruction },
+      });
+      setPromptResult(result.promptResult);
       await drain(session.id, transcriptId);
       return true;
     } catch (reason) {

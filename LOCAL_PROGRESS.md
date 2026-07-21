@@ -776,3 +776,9 @@ YYYY-MM-DD
 - Svaka canonical Task faza ima vidljiv, deterministicki agent instruction i samo `in_progress` faza moze eksplicitno da posalje jedan ACP prompt.
 - Runtime proverava exact Task/transcript identitet i koristi postojeci single-prompt lock; Run ne pravi evidence, ne zavrsava fazu i ne prelazi automatski dalje.
 - Frontend audit, 195 frontend testova, 96 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 550 linija.
+
+### 2026-07-22 - Auditable Phase-Run Receipts
+
+- Svaki controlled phase Run sada atomski upisuje ordered `pending` receipt pre ACP side effect-a i finalizuje ga samo jednom kao `sent` ili `failed`.
+- Backend ponovo proverava exact Task/transcript/current in-progress phase; receipt cuva instrukciju, fazu, ACP session i ishod bez automatskog transition-a.
+- Frontend audit, 195 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje na 550 linija.
