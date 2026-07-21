@@ -1,4 +1,3 @@
-import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import aiadneMark from "./assets/aiadne-mark.svg";
 import { StateNotice } from "./components/ui/StateNotice";
@@ -18,6 +17,7 @@ import {
 import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
 import { WorkspaceDialog } from "./features/workspace/WorkspaceDialog";
 import { ProjectDeleteDialog } from "./features/workspace/ProjectDeleteDialog";
+import { useProjectCatalog } from "./features/workspace/useProjectCatalog";
 import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPreviewDialog";
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
@@ -32,7 +32,6 @@ import {
   coalesceAcpEvents,
   coalesceTranscriptEvents,
   errorText,
-  folderNameFromPath,
   formatPromptWithKnowledge,
   transcriptEventToAcpEvent,
   uniqueIds,
@@ -90,21 +89,8 @@ function App() {
   const [synthesisModelProfileId, setSynthesisModelProfileId] = useState(
     defaultSynthesisModelProfileId,
   );
-  const [projects, setProjects] = useState<ProjectInfo[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
-  const [projectName, setProjectName] = useState("");
-  const [projectPath, setProjectPath] = useState("");
-  const [projectLoading, setProjectLoading] = useState(false);
-  const [projectFolderPicking, setProjectFolderPicking] = useState(false);
   const [projectDeleteCandidate, setProjectDeleteCandidate] = useState<ProjectInfo | null>(null);
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
-  const [projectRepositories, setProjectRepositories] = useState<ProjectRepositoryInfo[]>([]);
-  const [selectedRepositoryId, setSelectedRepositoryId] = useState<string | null>(null);
-  const [repositoryDialogOpen, setRepositoryDialogOpen] = useState(false);
-  const [repositoryName, setRepositoryName] = useState("");
-  const [repositoryPath, setRepositoryPath] = useState("");
-  const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [initializeDialogOpen, setInitializeDialogOpen] = useState(false);
   const [initializeRepositoryIds, setInitializeRepositoryIds] = useState<string[]>([]);
   const [initializeLoading, setInitializeLoading] = useState(false);
@@ -182,6 +168,16 @@ function App() {
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
   const pushToast = useNotificationStore((state) => state.push);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const { projects, selectedProjectId, selectedProject, repositories: projectRepositories,
+    selectedRepository, workspaceDialogOpen, projectName, projectPath, projectLoading,
+    projectFolderPicking, repositoryDialogOpen, repositoryName, repositoryPath, repositoryLoading,
+    openWorkspaceDialog, closeWorkspaceDialog, changeProjectName: setProjectName,
+    changeProjectPath: setProjectPath, chooseProjectFolder, createProject, refreshProjects,
+    selectProject, openRepositoryDialog, closeRepositoryDialog,
+    changeRepositoryName: setRepositoryName, changeRepositoryPath: setRepositoryPath,
+    createRepository: createProjectRepository, deleteRepository: deleteProjectRepository,
+    refreshRepositories: refreshProjectRepositories, selectRepository, removeProject } =
+    useProjectCatalog({ onBusyChange: setBusy, notify: pushToast });
   const { elementRef: terminalElement, size: terminalSize, fit: fitTerminal,
     focus: focusTerminal, reset: resetTerminal, write: writeTerminal } = usePtyTerminal({
       mode: runtimeMode, output, session, onError: setError,
@@ -196,10 +192,6 @@ function App() {
     () =>
       acpRegistryCandidates.find((candidate) => candidate.id === selectedAcpCandidateId) ?? null,
     [acpRegistryCandidates, selectedAcpCandidateId],
-  );
-  const selectedProject = useMemo(
-    () => projects.find((project) => project.id === selectedProjectId) ?? null,
-    [projects, selectedProjectId],
   );
   const projectInitialization = selectedProjectId
     ? projectInitializationsByProjectId[selectedProjectId] ?? null
@@ -240,11 +232,6 @@ function App() {
   const projectInitializationMarkdownPreview = useMemo(
     () => projectInitializationMarkdownFindings.slice(0, 3),
     [projectInitializationMarkdownFindings],
-  );
-  const selectedRepository = useMemo(
-    () =>
-      projectRepositories.find((repository) => repository.id === selectedRepositoryId) ?? null,
-    [projectRepositories, selectedRepositoryId],
   );
   const selectedHistorySessionId = openedTranscriptSession?.id ?? transcriptSession?.id ?? null;
   const activeTask = transcriptSession ? tasksByTranscriptId[transcriptSession.id] ?? null : null;
@@ -301,7 +288,6 @@ function App() {
   }, [displayAcpEvents, runtimeMode]);
 
   useEffect(() => {
-    void refreshProjects();
     void refreshAgentDoctor();
     void refreshAcpRegistryCandidates();
     void refreshModelCatalog();
@@ -311,7 +297,6 @@ function App() {
     void refreshTranscriptSessions(selectedProjectId);
     void refreshProjectTasks(selectedProjectId);
     void refreshKnowledgeItems(selectedProjectId);
-    void refreshProjectRepositories(selectedProjectId);
     void refreshProjectInitializations(selectedProjectId);
   }, [selectedProjectId]);
 
@@ -388,69 +373,6 @@ function App() {
     }
   }
 
-  async function refreshProjects() {
-    setProjectLoading(true);
-    try {
-      const nextProjects = await invoke<ProjectInfo[]>("list_projects");
-      setProjects(nextProjects);
-      setSelectedProjectId((current) => {
-        if (current && nextProjects.some((project) => project.id === current)) {
-          return current;
-        }
-
-        return nextProjects[0]?.id ?? null;
-      });
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setProjectLoading(false);
-    }
-  }
-
-  async function createProject() {
-    setBusy(true);
-    setError(null);
-    try {
-      const project = await invoke<ProjectInfo>("create_project", {
-        request: {
-          name: projectName,
-          path: projectPath,
-        },
-      });
-      setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
-      setSelectedProjectId(project.id);
-      setProjectName("");
-      setProjectPath("");
-      pushToast("success", `${project.name} added.`);
-      await refreshProjectRepositories(project.id);
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function chooseProjectFolder() {
-    setProjectFolderPicking(true);
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: "Choose project folder",
-      });
-      if (!selected || Array.isArray(selected)) {
-        return;
-      }
-
-      setProjectPath(selected);
-      setProjectName((current) => current.trim() || folderNameFromPath(selected));
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setProjectFolderPicking(false);
-    }
-  }
-
   function openProjectDeleteDialog(project: ProjectInfo) {
     setProjectDeleteCandidate(project);
     setProjectDeleteError(null);
@@ -476,20 +398,11 @@ function App() {
     try {
       const stoppedAcpSessionCount = await stopRunningAcpSessionsForProjectDelete();
       await invoke("delete_project", { projectId });
-      setProjects((current) => current.filter((project) => project.id !== projectId));
+      removeProject(projectId);
       setProjectInitializationsByProjectId((current) => {
         const next = { ...current };
         delete next[projectId];
         return next;
-      });
-      setSelectedProjectId((current) => {
-        if (current === projectId) {
-          setProjectRepositories([]);
-          setSelectedRepositoryId(null);
-          return null;
-        }
-
-        return current;
       });
       setProjectDeleteCandidate(null);
       pushToast(
@@ -526,90 +439,6 @@ function App() {
     }
 
     return runningAcpSessions.length;
-  }
-
-  async function refreshProjectRepositories(projectId = selectedProjectId) {
-    if (!projectId) {
-      setProjectRepositories([]);
-      setSelectedRepositoryId(null);
-      return;
-    }
-
-    if (selectedRepository && selectedRepository.projectId !== projectId) {
-      setProjectRepositories([]);
-      setSelectedRepositoryId(null);
-    }
-
-    setRepositoryLoading(true);
-    try {
-      const repositories =
-        (await invoke<ProjectRepositoryInfo[]>("list_project_repositories", {
-          projectId,
-        })) ?? [];
-      setProjectRepositories(repositories);
-      setSelectedRepositoryId((current) => {
-        if (current && repositories.some((repository) => repository.id === current)) {
-          return current;
-        }
-
-        return repositories[0]?.id ?? null;
-      });
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setRepositoryLoading(false);
-    }
-  }
-
-  async function createProjectRepository() {
-    if (!selectedProject) {
-      pushToast("error", "Select a project before adding a repository.");
-      return;
-    }
-
-    setRepositoryLoading(true);
-    try {
-      const repository = await invoke<ProjectRepositoryInfo>("create_project_repository", {
-        request: {
-          projectId: selectedProject.id,
-          name: repositoryName,
-          path: repositoryPath,
-        },
-      });
-      setProjectRepositories((current) => [
-        repository,
-        ...current.filter((item) => item.id !== repository.id),
-      ]);
-      setSelectedRepositoryId(repository.id);
-      setRepositoryName("");
-      setRepositoryPath("");
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setRepositoryLoading(false);
-    }
-  }
-
-  async function deleteProjectRepository(repositoryId: string) {
-    setRepositoryLoading(true);
-    try {
-      await invoke("delete_project_repository", { repositoryId });
-      const nextRepositories = projectRepositories.filter(
-        (repository) => repository.id !== repositoryId,
-      );
-      setProjectRepositories(nextRepositories);
-      setSelectedRepositoryId((currentSelected) => {
-        if (currentSelected === repositoryId) {
-          return nextRepositories[0]?.id ?? null;
-        }
-
-        return currentSelected;
-      });
-    } catch (err) {
-      pushToast("error", errorText(err));
-    } finally {
-      setRepositoryLoading(false);
-    }
   }
 
   function openProjectInitializeDialog() {
@@ -850,7 +679,7 @@ function App() {
 
     setInterviewDraftGuardrails(projectInitializationGuardrails.map(guardrailToInput));
     setInterviewScope("project");
-    setInterviewRepositoryId(selectedRepositoryId ?? projectRepositories[0]?.id ?? "");
+    setInterviewRepositoryId(selectedRepository?.id ?? projectRepositories[0]?.id ?? "");
     setInterviewKind("fragile");
     setInterviewPathPattern("");
     setInterviewContent("");
@@ -1747,8 +1576,8 @@ function App() {
         <WorkspaceContextSelector
           project={selectedProject}
           repository={selectedRepository}
-          onOpenRepository={() => setRepositoryDialogOpen(true)}
-          onOpenWorkspace={() => setWorkspaceDialogOpen(true)}
+          onOpenRepository={openRepositoryDialog}
+          onOpenWorkspace={openWorkspaceDialog}
         />
 
         <div className="sidebar-scroll">
@@ -1898,13 +1727,10 @@ function App() {
           onAdd={() => void createProjectRepository()}
           onChangeName={setRepositoryName}
           onChangePath={setRepositoryPath}
-          onClose={() => setRepositoryDialogOpen(false)}
+          onClose={closeRepositoryDialog}
           onDelete={(repositoryId) => void deleteProjectRepository(repositoryId)}
           onRefresh={() => void refreshProjectRepositories()}
-          onSelect={(repositoryId) => {
-            setSelectedRepositoryId(repositoryId);
-            setRepositoryDialogOpen(false);
-          }}
+          onSelect={selectRepository}
         />
       ) : null}
 
@@ -1922,16 +1748,10 @@ function App() {
           onChangeName={setProjectName}
           onChangePath={setProjectPath}
           onChooseFolder={() => void chooseProjectFolder()}
-          onClose={() => setWorkspaceDialogOpen(false)}
-          onDelete={(project) => {
-            setWorkspaceDialogOpen(false);
-            openProjectDeleteDialog(project);
-          }}
+          onClose={closeWorkspaceDialog}
+          onDelete={(project) => { closeWorkspaceDialog(); openProjectDeleteDialog(project); }}
           onRefresh={() => void refreshProjects()}
-          onSelect={(projectId) => {
-            setSelectedProjectId(projectId);
-            setWorkspaceDialogOpen(false);
-          }}
+          onSelect={selectProject}
         />
       ) : null}
 

@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 21.1. Extract project catalog orchestration
+- objective: move project/repository selection, dialogs, forms, CRUD, folder picking and stale-safe repository loading out of App while retaining cross-domain project deletion coordination in the root temporarily.
+- status: complete
+- files: src/App.tsx; src/features/workspace/useProjectCatalog.ts; src/features/workspace/useProjectCatalog.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: project/repository state and derivation; initial/selection refresh; create/delete repository; create project; folder picker; dialog/form actions; selected-project removal.
+- expected changes: add a focused gateway-backed hook with semantic actions and request identity; App composes returned values/actions and retains ACP-aware delete workflow.
+- acceptance criteria: existing command payloads, default selections, forms, dialogs, notifications and locks remain unchanged; stale repository responses cannot overwrite a newer selection; no raw Tauri import or Zustand store is introduced.
+- required tests: initial project/repository selection; create/form/busy lifecycle; native picker; stale response; existing 138 frontend tests; audit; typecheck; build; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 separated cross-domain deletion and added repository request identity, and cycle 2 found no remaining ownership, stale-response, CRUD payload, selection, form, dialog, notification, gateway, regression, or scope issue.
+- commit: this commit
+
 ### 20. Add enforceable modern frontend skill
 - objective: make AIadne's React/TypeScript architecture, state ownership, infrastructure boundaries, tests and validation requirements automatically available and enforceable for future frontend work.
 - status: complete

@@ -673,3 +673,8 @@ YYYY-MM-DD
 - Audit blokira rast `App.tsx` preko 2.200 linija, feature module preko 250, direktne Tauri/xterm importe, `any`/`@ts-ignore` i feature komponente bez colocated testa.
 - Audit je pronasao stvarnu rupu: `NotificationViewport` je dobio behavior/accessibility i cleanup testove.
 - Provera: skill validator, frontend audit, typecheck, 138 testova i production build prolaze.
+### 2026-07-21 - Project catalog hook
+
+- Project/repository state, derivacija, forme, dijalozi, folder picker i CRUD izdvojeni su u `useProjectCatalog`; cross-domain brisanje ostaje privremeni App coordinator.
+- Repository refresh koristi request identity, pa stari odgovor ne moze pregaziti noviji izbor projekta.
+- `App.tsx` je pao sa 2.062 na 1.882 linije; audit, typecheck, 142 testa i build prolaze.
