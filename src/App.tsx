@@ -169,10 +169,11 @@ function App() {
       removeFromCatalog: removeProject, removeEvidence: initializationEvidence.removeProject,
       notifySuccess: (message) => pushToast("success", message),
     });
-  const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
-    upsertTask: upsertTranscriptTask });
   const taskDispatch = useTaskDispatchHistory(activeTask);
   const taskPhaseRuns = useTaskPhaseRunHistory(activeTask);
+  const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
+    upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
+    onRunSettled: taskPhaseRuns.refresh });
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -383,8 +384,7 @@ function App() {
             onAcknowledgeEvidenceReview={taskPhase.acknowledgeEvidenceReview}
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
-            onRunAgent={(instruction) => void sendAcpPhasePrompt(activeTask.id, instruction)
-              .then(() => void taskPhaseRuns.refresh())} /> : null}
+            onRunAndPrepare={(instruction) => void taskPhase.runAndPrepare(instruction)} /> : null}
             activity={activeTask ? <><TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
             loading={taskPhaseRuns.loading} error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}

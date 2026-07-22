@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- The current phase now offers `Run & prepare <phase>`: it sends one audited controlled prompt, refreshes the originating Task's run receipts, and fills the editable draft from exact linked events only after success.
+- Failed or stale runs never prepare evidence; standalone Prepare, Add evidence, Review, Complete, and next-phase Start remain separate explicit gates.
 - npx ACP adapters now bootstrap from the neutral OS temporary directory, preventing a selected project's invalid `devEngines`/npm metadata from exiting before initialize; `session/new` still targets the selected repository.
 - A real Codex ACP smoke test completed initialize and session creation for `/home/katarina/projects/super`; binary ACP launch cwd behavior is unchanged.
 - ACP child startup failures now include a bounded stderr reason and structured Tauri errors render as readable messages instead of raw `{code,message}` JSON.
@@ -43,8 +45,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Restart AIadne and create a new ACP session before retesting the formerly stuck prompt; the already-running process predates the transport fix.
-- Measure ACP phase-run latency across command wait, event drain, transcript persistence, and provenance linking before deciding whether further speed work belongs in AIadne, the adapter, or model/tool selection.
+- Add safe live ACP output during long prompts without allowing background drain to break exact phase-run provenance linking.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

@@ -9,12 +9,12 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   canRunAgent: boolean; agentRunning: boolean; evidenceReviewed: boolean;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
-  onRunAgent: (instruction: string) => void; onPrepareCompletion: () => void;
+  onRunAndPrepare: (instruction: string) => void; onPrepareCompletion: () => void;
   onAcknowledgeEvidenceReview: (reviewed: boolean) => void }
 
 export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
   kind, content, error, loading, canRunAgent, agentRunning, evidenceReviewed, onChangeKind, onChangeContent,
-  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAgent, onPrepareCompletion,
+  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
   const inProgress = currentPhase?.status === "in_progress";
@@ -34,9 +34,10 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       <div className="task-phase-run"><details><summary>Exact agent instruction</summary>
         <pre>{agentInstruction}</pre></details>
         <button className="primary-action" type="button" disabled={!canRunAgent || agentRunning || loading}
-          onClick={() => onRunAgent(agentInstruction)}>{agentRunning ? "Running phase…" : `Run ${task.currentPhase} phase`}</button>
+          onClick={() => onRunAndPrepare(agentInstruction)}>{agentRunning ? "Running phase…"
+            : `Run & prepare ${task.currentPhase}`}</button>
         {!canRunAgent ? <small>Start an ACP session to run this phase.</small> : null}
-        <small>This sends one prompt only. Evidence and phase completion remain manual.</small></div>
+        <small>This runs one prompt and prepares an editable linked draft. Saving evidence and completion remain manual.</small></div>
       <label>Artifact kind<input value={kind} onChange={(event) => onChangeKind(event.target.value)} /></label>
       <label>Phase evidence<textarea rows={3} value={content}
         onChange={(event) => onChangeContent(event.target.value)} /></label>

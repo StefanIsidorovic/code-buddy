@@ -93,6 +93,7 @@
 - ACP session normalization discards tool_call_update transport noise while retaining meaningful tool_call titles/status; idle polling is one second and Task/Activity panels own desktop scroll containment.
 - `transition_task_phase` is the authoritative Task state machine: only the current pending phase can start, only its in-progress state accepts artifacts, completion requires evidence, and review completion terminates the Task.
 - `src/features/tasks/` owns the stale-safe artifact/transition workflow and state-free phase panel; live transcript persistence retains backend event IDs solely for valid provenance selection.
+- Task-phase orchestration can chain a successful controlled run into an editable exact-provenance draft; App only wires runtime/history dependencies and does not own the workflow.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

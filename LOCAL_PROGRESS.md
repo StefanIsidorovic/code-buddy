@@ -860,3 +860,9 @@ YYYY-MM-DD
 - Root cause je bio npm koji je pre ACP starta citao projektni `package.json` i padao na invalid `devEngines.node`.
 - npx adapteri sada startuju iz neutralnog OS temp direktorijuma; binary adapteri zadrzavaju project cwd, a `session/new.cwd` i dalje usmerava Codex na pravi repository.
 - Realni Codex initialize/session-new za `/home/katarina/projects/super`, 216 frontend testova i 103 Rust testa prolaze uz sve audit/build/fmt/clippy gate-ove.
+
+### 2026-07-22 - Guarded Run And Prepare
+
+- Task faza sada jednim `Run & prepare` klikom izvrsava auditovani phase prompt, osvezava receipt-e originalnog Task-a i priprema editabilni draft samo iz tacno linked response event-a.
+- Failed/stale run ne moze pripremiti evidence; Save, Review, Complete i sledeci Start ostaju eksplicitni odvojeni gate-ovi.
+- Frontend audit, 218 frontend testova, 103 Rust testa, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 565 linija.

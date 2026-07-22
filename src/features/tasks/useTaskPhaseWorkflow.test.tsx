@@ -15,13 +15,16 @@ const source: TranscriptEventInfo = { id: "e1", sessionId: "s1", sequence: 0, ki
   content: "Evidence", createdAt: 1 };
 const artifact: TaskPhaseArtifactInfo = { id: "a1", taskId: "t1", phase: "analysis", sequence: 0,
   kind: "summary", content: "Result", sourceTranscriptEventIds: ["e1"], createdAt: 1 };
+const runAgent = vi.fn(); const onRunSettled = vi.fn();
 
 describe("useTaskPhaseWorkflow", () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => { invoke.mockReset(); runAgent.mockReset().mockResolvedValue(true);
+    onRunSettled.mockReset().mockResolvedValue(undefined); });
   it("loads artifacts and sends exact transition payloads", async () => {
     invoke.mockImplementation((command) => command === "list_task_phase_artifacts" ? Promise.resolve([artifact])
       : Promise.resolve(task)); const upsertTask = vi.fn();
-    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source], upsertTask }));
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source], upsertTask,
+      runAgent, onRunSettled }));
     await waitFor(() => expect(result.current.artifacts).toEqual([artifact]));
     await act(() => result.current.start()); act(() => result.current.acknowledgeEvidenceReview(true));
     await act(() => result.current.complete());
@@ -32,7 +35,7 @@ describe("useTaskPhaseWorkflow", () => {
   it("creates an artifact from selected persisted events and resets the draft", async () => {
     invoke.mockImplementation((command) => command === "list_task_phase_artifacts" ? Promise.resolve([])
       : Promise.resolve(artifact)); const { result } = renderHook(() => useTaskPhaseWorkflow({ task,
-        sourceEvents: [source], upsertTask: vi.fn() })); await waitFor(() => expect(result.current.loading).toBe(false));
+        sourceEvents: [source], upsertTask: vi.fn(), runAgent, onRunSettled })); await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => { result.current.changeKind("risk"); result.current.changeContent("Result");
       result.current.toggleSource("e1", true); }); await act(() => result.current.createArtifact());
     expect(invoke).toHaveBeenCalledWith("create_task_phase_artifact", { request: { taskId: "t1",
@@ -46,7 +49,7 @@ describe("useTaskPhaseWorkflow", () => {
     invoke.mockImplementation((command) => command === "list_task_phase_artifacts" ? Promise.resolve([]) : transition);
     const upsertTask = vi.fn(); const nextTask = { ...task, id: "t2", transcriptSessionId: "s2" };
     const { result, rerender } = renderHook(({ value }) => useTaskPhaseWorkflow({ task: value,
-      sourceEvents: [source], upsertTask }), { initialProps: { value: task } });
+      sourceEvents: [source], upsertTask, runAgent, onRunSettled }), { initialProps: { value: task } });
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => { void result.current.start(); }); rerender({ value: nextTask });
     await act(async () => { resolveTransition(task); await transition; });
@@ -56,16 +59,42 @@ describe("useTaskPhaseWorkflow", () => {
     const thought = { ...source, id: "e3", sequence: 2, kind: "agent_thought", content: "Risk check" };
     invoke.mockImplementation((command) => command === "latest_task_phase_run_response_events"
       ? Promise.resolve([source, thought]) : Promise.resolve([]));
-    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source, thought], upsertTask: vi.fn() }));
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source, thought],
+      upsertTask: vi.fn(), runAgent, onRunSettled }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(() => result.current.prepareCompletion());
     expect(invoke).toHaveBeenCalledWith("latest_task_phase_run_response_events", { taskId: "t1" });
     expect(result.current.sourceIds).toEqual(["e1", "e3"]);
     expect(result.current.content).toBe("Evidence\n\nRisk check");
   });
+  it("runs, refreshes receipts, then prepares the linked draft", async () => {
+    const order: string[] = [];
+    runAgent.mockImplementation(async () => { order.push("run"); return true; });
+    onRunSettled.mockImplementation(async () => { order.push("refresh"); });
+    invoke.mockImplementation((command) => { if (command === "latest_task_phase_run_response_events") {
+      order.push("prepare"); return Promise.resolve([source]); } return Promise.resolve([]); });
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source],
+      upsertTask: vi.fn(), runAgent, onRunSettled }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.runAndPrepare("exact instruction"));
+    expect(runAgent).toHaveBeenCalledWith("t1", "exact instruction");
+    expect(onRunSettled).toHaveBeenCalledWith("t1");
+    expect(order).toEqual(["run", "refresh", "prepare"]);
+    expect(result.current.content).toBe("Evidence"); expect(result.current.sourceIds).toEqual(["e1"]);
+  });
+  it("refreshes a failed run without preparing evidence", async () => {
+    runAgent.mockResolvedValue(false); invoke.mockResolvedValue([]);
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source],
+      upsertTask: vi.fn(), runAgent, onRunSettled }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.runAndPrepare("exact instruction"));
+    expect(onRunSettled).toHaveBeenCalledWith("t1");
+    expect(invoke.mock.calls.filter(([command]) => command === "latest_task_phase_run_response_events"))
+      .toHaveLength(0);
+  });
   it("explains when no linked phase response can prepare completion", async () => {
     invoke.mockResolvedValue([]); const { result } = renderHook(() => useTaskPhaseWorkflow({ task,
-      sourceEvents: [], upsertTask: vi.fn() })); await waitFor(() => expect(result.current.loading).toBe(false));
+      sourceEvents: [], upsertTask: vi.fn(), runAgent, onRunSettled })); await waitFor(() => expect(result.current.loading).toBe(false));
     await act(() => result.current.prepareCompletion());
     expect(result.current.error).toMatch(/Run the current phase first/);
   });
@@ -75,7 +104,7 @@ describe("useTaskPhaseWorkflow", () => {
     invoke.mockImplementation((command) => command === "latest_task_phase_run_response_events"
       ? response : Promise.resolve([])); const nextTask = { ...task, id: "t2", transcriptSessionId: "s2" };
     const { result, rerender } = renderHook(({ value }) => useTaskPhaseWorkflow({ task: value,
-      sourceEvents: [source], upsertTask: vi.fn() }), { initialProps: { value: task } });
+      sourceEvents: [source], upsertTask: vi.fn(), runAgent, onRunSettled }), { initialProps: { value: task } });
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => { void result.current.prepareCompletion(); }); rerender({ value: nextTask });
     await act(async () => { finish([source]); await response; });
@@ -84,7 +113,8 @@ describe("useTaskPhaseWorkflow", () => {
   it("blocks completion until evidence review is acknowledged and resets it after artifact change", async () => {
     invoke.mockImplementation((command) => command === "list_task_phase_artifacts" ? Promise.resolve([artifact])
       : command === "create_task_phase_artifact" ? Promise.resolve(artifact) : Promise.resolve(task));
-    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source], upsertTask: vi.fn() }));
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source],
+      upsertTask: vi.fn(), runAgent, onRunSettled }));
     await waitFor(() => expect(result.current.artifacts).toEqual([artifact]));
     await act(() => result.current.complete());
     expect(invoke.mock.calls.filter(([command]) => command === "transition_task_phase")).toHaveLength(0);

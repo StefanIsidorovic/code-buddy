@@ -772,6 +772,17 @@
 - review status: passed after 2 cycles; cycle 1 traced npm's `devEngines.node` failure to project-cwd bootstrap and separated adapter process cwd from ACP session cwd, and cycle 2 proved real initialize/session-new against the affected repository plus unchanged binary policy and full regressions.
 - commit: this commit
 
+### 23.1. Run a phase and prepare its evidence in one guarded action
+- objective: remove the idle manual gap between a successful controlled phase run and preparation of its linked editable evidence draft.
+- status: complete
+- files: src/features/tasks/useTaskPhaseWorkflow.ts; src/features/tasks/TaskPhasePanel.tsx; src/App.tsx; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Task-phase feature orchestration; phase action presentation; App dependency wiring; receipt refresh.
+- expected changes: execute the exact current-phase prompt, refresh run history, then prepare only its backend-linked response events; retain standalone Prepare for retry.
+- acceptance criteria: failed/false runs never prepare a draft; stale Task results cannot write state; evidence is not saved, reviewed, completed, or advanced automatically; App remains composition-only.
+- required tests: successful ordered run/refresh/prepare; failed run lock; panel callback payload/labels; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 kept orchestration in the feature hook and proved run-refresh-prepare ordering plus failed-run isolation, and cycle 2 bound receipt refresh to the originating Task id and found no remaining stale-task, double-submit, gate, accessibility, architecture, or regression issue.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: this commit, step 22.22: isolate npx ACP launch cwd (parent a8dc683)
-- worktree: plan item 22.22 complete and ready to commit.
+- head: this commit, step 23.1: run and prepare phase evidence (parent fe7e64d)
+- worktree: plan item 23.1 complete and ready to commit.
 - relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.22 complete
+- active plan step: 23.1 complete; AIadne-to-beyond-Conductor tracker approximately 74%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 218 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, ordered run-refresh-prepare and failed-run coverage, and `git diff --check` pass for plan item 23.1; App remains 565 lines.
 - 2026-07-22: real `codex-acp@1.1.0` initialize/session-new succeeds from neutral cwd against `/home/katarina/projects/super`; 216 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, and `git diff --check` pass for plan item 22.22.
 - 2026-07-22: 216 frontend tests, 102 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, bounded stderr startup-failure coverage, clean full rerun after one unrelated async test flake, and `git diff --check` pass for plan item 22.21.
 - 2026-07-22: 216 frontend tests, 100 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, explicit ACP permission UI and full request/response wire-flow coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.20.
