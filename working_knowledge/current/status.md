@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: f3b83e9 step 24.6: harden secondary agent flow
-- worktree: plan item 25.1 Task user workflow documentation complete pending commit.
-- relevant files: LOCAL_PROGRESS.md; working_knowledge/current/*.
+- head: 4f0ee18 step 25.1: document real user Task workflow
+- worktree: plan item 25.2 in-app Task operating model guidance complete pending commit.
+- relevant files: src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: continue beyond-Conductor work; first add concise real-user Task documentation because the current Task concept is confusing.
 - phase: in_progress
-- active plan step: 25.1 complete pending commit; next is in-app Task operating-model guidance; AIadne-to-beyond-Conductor tracker approximately 94%.
+- active plan step: 25.2 complete pending commit; next is final validation/handoff for the Task guidance slice; AIadne-to-beyond-Conductor tracker approximately 95%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,8 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 25.2 targeted TaskPhasePanel test, frontend audit, typecheck, 242 frontend tests, production build, no direct Tauri boundary check for TaskPhasePanel, size check (`TaskPhasePanel.tsx` 78 lines, `App.tsx` 585 lines), and `git diff --check` pass for in-app Task operating-model guidance.
+- 2026-07-22: commit 4f0ee18 has a verified provenance note under `refs/notes/provenance` for plan item 25.1.
 - 2026-07-22: commit f3b83e9 has a verified provenance note under `refs/notes/provenance` for plan item 24.6.
 - 2026-07-22: plan item 24.6 final hardening passed with frontend audit, typecheck, 241 frontend tests, production build, Rust formatting, 116 Rust tests, clippy with warnings denied, `git diff --check`, and verified provenance notes for commits 8554eb0/24.3, c1ae996/24.4 and 9bc5b7b/24.5; no executor Task mutation path or extra code fix was introduced.
 - 2026-07-22: 241 frontend tests, 116 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale-safe Activity advisor/reviewer run controls, exact typed `run_task_agent_report` payload, disabled/running/error states, Task-change stale guard, feature no-Tauri boundary, `App.tsx` 585-line composition check, and `git diff --check` pass for plan item 24.5.

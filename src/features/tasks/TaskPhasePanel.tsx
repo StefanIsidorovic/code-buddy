@@ -25,6 +25,13 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       <span>{task.status} · current: {task.currentPhase}</span></div></div>
     <ol className="task-phase-list">{task.phases.map((phase) => <li key={phase.id}
       data-current={phase.phase === task.currentPhase}><strong>{phase.phase}</strong><span>{phase.status}</span></li>)}</ol>
+    <details className="task-operating-model"><summary>How this Task works</summary>
+      <ul>
+        <li><strong>Agent</strong><span>Chat and live output happen in the Agent view.</span></li>
+        <li><strong>Task</strong><span>Use this view to save evidence, review it, and complete one phase at a time.</span></li>
+        <li><strong>Run &amp; prepare</strong><span>Optional helper: it drafts evidence, but never saves or completes the phase.</span></li>
+        <li><strong>Activity</strong><span>Audit context sends, phase runs, interrupted receipts, and read-only advisor/reviewer reports.</span></li>
+      </ul></details>
     {inProgress ? <TaskPhaseGuide hasDraft={!!content.trim() && selectedSourceIds.length > 0}
       hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} /> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}

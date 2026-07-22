@@ -126,6 +126,7 @@ Najbitnije pravilo: agentov odgovor nije automatski istina i nije automatski Tas
 - Activity sada prikazuje i pokrece izolovane secondary advisor/reviewer report run-ove: oni rade u snapshot sandbox-u, cuvaju poseban transcript/report i ne mogu da menjaju executor Task faze ili evidence.
 - `Run advisor` i `Run reviewer` su dostupni samo kada postoji aktivan in-progress Task, aktivna faza, izabran ACP kandidat i repository/project cwd; zakasneli rezultat posle promene Task-a se ignorise u UI-ju.
 - Secondary-agent family je zavrsen i ocvrsnut: sandbox, backend orchestration, Activity UI, report persistence, full gates i provenance audit su prosli bez dodavanja executor mutation puta.
+- Task tab sada ima `How this Task works` disclosure, da user odmah vidi razliku izmedju Agent razgovora, Task evidence/faza, optional Run & prepare pomoci i Activity audita.
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.

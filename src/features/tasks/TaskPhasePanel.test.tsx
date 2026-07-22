@@ -33,6 +33,14 @@ describe("TaskPhasePanel", () => {
     expect(value.onChangeKind).toHaveBeenCalledWith("risk"); expect(value.onChangeContent).toHaveBeenCalledWith("Risk found");
     expect(value.onToggleSource).toHaveBeenCalledWith("e1", true);
   });
+  it("explains the Task operating model without implying automatic completion", () => {
+    render(<TaskPhasePanel {...props()} />);
+    fireEvent.click(screen.getByText("How this Task works"));
+    expect(screen.getByText("Chat and live output happen in the Agent view.")).toBeInTheDocument();
+    expect(screen.getByText("Use this view to save evidence, review it, and complete one phase at a time.")).toBeInTheDocument();
+    expect(screen.getByText("Optional helper: it drafts evidence, but never saves or completes the phase.")).toBeInTheDocument();
+    expect(screen.getByText(/read-only advisor\/reviewer reports/)).toBeInTheDocument();
+  });
   it("locks completion without an artifact and enables it with persisted evidence", () => {
     const value = props(); const view = render(<TaskPhasePanel {...value} />);
     expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeDisabled();

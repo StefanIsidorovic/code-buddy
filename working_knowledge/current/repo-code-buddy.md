@@ -95,6 +95,7 @@
 - ACP session normalization discards tool_call_update transport noise while retaining meaningful tool_call titles/status; idle polling is one second and Task/Activity panels own desktop scroll containment.
 - `transition_task_phase` is the authoritative Task state machine: only the current pending phase can start, only its in-progress state accepts artifacts, completion requires evidence, and review completion terminates the Task.
 - `src/features/tasks/` owns the stale-safe artifact/transition workflow and state-free phase panel; live transcript persistence retains backend event IDs solely for valid provenance selection.
+- `TaskPhasePanel` now exposes a compact state-free `How this Task works` disclosure that mirrors the local Task docs: Agent is live output, Task is evidence/phase control, Run & prepare is optional draft assistance, and Activity is audit/report history.
 - Task-phase orchestration can chain a successful controlled run into an editable exact-provenance draft; App only wires runtime/history dependencies and does not own the workflow.
 - `useAcpEventDrain` owns serialized live drain/persistence, prompt transcript affinity and controlled-run event capture; `useAcpRuntime` remains below its 250-line ceiling.
 - ACP recovery identity is stored separately from generic transcript rows; the manager can now re-spawn the recorded registry candidate, require advertised load support, issue `session/load` without `session/new`, restore replay/model state, and publish the local process only after success.

@@ -15,14 +15,14 @@
 
 ### 25.2. Add in-app Task operating model guidance
 - objective: reduce Task UI confusion by showing a compact user-facing operating model directly in the Task phase panel.
-- status: pending
+- status: complete
 - files: src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.css; working_knowledge/current/*.
 - affected units: Task phase presentation, accessibility semantics, phase helper copy, frontend architecture guardrails.
 - expected changes: add a small disclosure or guidance panel explaining that Run/Prepare are helpers, Evidence proves work, Review gates completion, and Activity audits attempts/reports.
 - acceptance criteria: guidance is visible and accessible, does not add backend calls or state machine changes, keeps App out of feature logic, and preserves existing phase actions.
 - required tests: TaskPhasePanel behavior test for guidance copy and existing controls; frontend audit/typecheck/test/build; `git diff --check`.
-- review status: pending.
-- commit: pending.
+- review status: passed after 1 cycle; guidance is presentation-only, accessible through native disclosure, covered by behavior test, and does not add App logic, backend calls, derived state, or automatic phase/evidence claims.
+- commit: this commit.
 
 ### 25.1. Document the real-user Task workflow
 - objective: make the Task concept understandable from a real user's perspective before adding more execution/review features.

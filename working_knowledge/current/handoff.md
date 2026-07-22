@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 25.1 is complete pending commit: `LOCAL_PROGRESS.md` now explains the real-user Task model before adding more execution/review automation.
+- Plan item 25.2 is complete pending commit: `TaskPhasePanel` now has a compact native `How this Task works` disclosure that explains Agent, Task, Run & prepare, and Activity responsibilities.
+- Plan item 25.1 is committed as 4f0ee18: `LOCAL_PROGRESS.md` now explains the real-user Task model before adding more execution/review automation.
 - Plan item 24.6 is committed as f3b83e9: the secondary-agent flow passed full frontend/Rust hardening, provenance notes for 24.3/24.4/24.5 were verified, and no additional code fix was required.
 - Plan item 24.5 is committed: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
 - `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` remains state-free presentation.
@@ -68,7 +69,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 25.1 with a provenance note; then implement plan item 25.2 by adding compact Task operating-model guidance inside the Task phase panel.
+- Commit plan item 25.2 with a provenance note; then run plan item 25.3 final validation/knowledge handoff for this Task guidance slice.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run
