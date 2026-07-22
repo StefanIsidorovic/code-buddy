@@ -4,14 +4,14 @@
 
 ### 25.3. Finalize Task guidance and execution/review UX slice
 - objective: validate documentation, frontend guidance, knowledge state, provenance, and handoff before continuing to the next roadmap family.
-- status: pending
+- status: complete
 - files: LOCAL_PROGRESS.md; working_knowledge/current/*; src/features/tasks/*; src/App.css.
 - affected units: Task user mental model, Task panel guidance, current knowledge, frontend gates, provenance records.
 - expected changes: run required checks, perform adversarial review, update working knowledge, and commit the completed slice with provenance notes.
 - acceptance criteria: docs and UI describe the same Task workflow; `App.tsx` remains composition-only; provenance exists for completed items; worktree is clean.
 - required tests: `rg` docs/guidance checks; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
-- review status: pending.
-- commit: pending.
+- review status: passed after 1 cycle; provenance notes for 25.1 and 25.2 were verified, relevant frontend gates had already passed after the source change, and this slice leaves no unfinished Task-guidance implementation work.
+- commit: this commit.
 
 ### 25.2. Add in-app Task operating model guidance
 - objective: reduce Task UI confusion by showing a compact user-facing operating model directly in the Task phase panel.
