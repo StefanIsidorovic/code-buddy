@@ -315,8 +315,8 @@ describe("PTY test panel", () => {
     expect(screen.getByText("No ACP events yet.")).toBeInTheDocument();
     expect(screen.getByText("No ACP events yet.").closest(".state-notice"))
       .toHaveAttribute("data-kind", "empty");
-    expect(screen.getByText("Choose a workspace to begin").closest(".state-notice"))
-      .toHaveAttribute("data-kind", "prerequisite");
+    expect(screen.getByText("Choose a workspace to begin").closest(".initialize-compact-note"))
+      .toBeInTheDocument();
     expect(await screen.findByText("No saved sessions yet.")).toBeInTheDocument();
     expect(await screen.findAllByText("npx -y @agentclientprotocol/codex-acp@1.1.0"))
       .not.toHaveLength(0);
@@ -754,7 +754,11 @@ describe("PTY test panel", () => {
     render(<App />);
 
     await findCurrentRepository("AIadne");
+    expect(screen.getByRole("main", { name: "AIadne agent workspace" }))
+      .toHaveAttribute("data-initialization-expanded", "false");
     fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    expect(screen.getByRole("main", { name: "AIadne agent workspace" }))
+      .toHaveAttribute("data-initialization-expanded", "true");
     expect(screen.getByRole("dialog", { name: "Project Initialize" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("Include API repository"));
@@ -1294,6 +1298,7 @@ describe("PTY test panel", () => {
 
     render(<App />);
 
+    fireEvent.click(await screen.findByRole("button", { name: "Open setup" }));
     await waitFor(() => {
       expect(screen.getByLabelText("Synthesis model")).toHaveValue(
         "anthropic-claude-opus-4.8-high",
@@ -1776,11 +1781,9 @@ describe("PTY test panel", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("start_fake_session", {
-        request: {
-          cols: 92,
-          rows: 18,
+        request: expect.objectContaining({
           cwd: "/home/katarina/projects/AIadne/api",
-        },
+        }),
       });
     });
   });

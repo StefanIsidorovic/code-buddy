@@ -44,7 +44,7 @@
 - The panel exposes Start Fake, Start Codex, Drain, Resize, Stop, and Kill controls.
 - The panel exposes a temporary Workspace section for saving and selecting project folders.
 - The Workspace section now exposes `Initialize Project`, which opens a project-level popup for choosing participating repositories.
-- The Project Initialization lane exposes `Collect Facts` and `Analyze Markdown` after preflight, renders compact fact/finding previews inline, and opens full Facts/Markdown detail modals for dense data.
+- The Project Initialization lane defaults to a compact setup card and expands on Open setup or Initialize; when expanded it exposes `Collect Facts` and `Analyze Markdown` after preflight, renders compact fact/finding previews inline, and opens full Facts/Markdown detail modals for dense data.
 - The Project Initialization lane exposes `Open Interview` after preflight and saves user-authored guardrails from an Interview modal.
 - The Project Initialization lane exposes `Generate Summary` and `View Summary` for the final reviewable project profile phase; approval happens inside the Summary Review modal.
 - The Workspace section exposes `Delete Project` for the selected project and confirms before deletion.
@@ -82,7 +82,7 @@
 - Analyze Markdown invokes analyze_project_initialization_markdown and updates the displayed status to `markdown`.
 - Saving Interview invokes save_project_initialization_guardrails and updates the displayed status to `interview`.
 - Generate Summary invokes generate_project_initialization_summary and updates the displayed status to `summary`; Summary Review modal approval invokes approve_project_initialization_summary and updates the summary status to `approved`.
-- Main content now uses dedicated lanes: Workspace for project/repository controls, Project Initialization for initialize phases/facts/markdown findings, and a far-right Runtime lane for ACP/PTY controls plus Session Output.
+- Main content now uses dedicated lanes: Workspace/sidebar controls, compact-or-expanded Project Initialization, and a far-right Runtime lane for ACP/PTY controls plus Session Output; compact Project Initialization gives Runtime more desktop width.
 - Workspace lane forms and project/repository action buttons stack within the lane width so the lane should not need horizontal scrolling.
 - Project Initialize UI renders a compact one-row no-scroll phase mini-stepper, compact Facts/Markdown digest cards, details modals for full grouped Facts plus Markdown findings, an Interview guardrail card/modal for user-authored rules, and a compact Summary card that opens full draft/approved project profile review in a modal.
 - Markdown findings render with repository, category, title, excerpt, file path, and source anchor.
@@ -165,7 +165,7 @@
 - xterm lifecycle belongs to `features/runtime/usePtyTerminal.ts`; use current-value refs for session/callback changes so PTY mode does not remount the terminal on ordinary renders.
 - Frontend backend calls must cross `lib/tauriGateway.ts`; add new command names to its explicit union and retain exact omitted-args versus payload call shape.
 - PTY control presentation is isolated in `features/runtime/PtyRuntimePanel.tsx`; keep xterm objects, resize effects, Tauri calls and process lifecycle in orchestration/runtime infrastructure.
-- Project Initialization presentation is isolated in `features/initialization/ProjectInitializationPanel.tsx` and composes the separately tested Summary card; keep Tauri calls, persistence and modal orchestration outside both components.
+- Project Initialization presentation is isolated in `features/initialization/ProjectInitializationPanel.tsx`; compact/full presentation and collapse actions are local, Summary remains separately tested, and Tauri calls, persistence and modal orchestration stay outside both components.
 - CSS includes a final product-shell refinement layer after the historical rules; future visual work should consolidate or modify that final layer rather than accidentally overriding it earlier in the file.
 - Output polling interval is currently 400 ms and may feel slow.
 - Every keypress can become a separate Tauri invoke; batching may be needed.

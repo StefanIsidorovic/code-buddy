@@ -207,6 +207,13 @@ textarea:focus {
     linear-gradient(135deg, #f8f4ed 0%, #ede7dc 48%, #f2e7df 100%);
 }
 
+.app-shell[data-initialization-expanded="false"] {
+  grid-template-columns:
+    clamp(244px, 16vw, 304px)
+    minmax(250px, 320px)
+    minmax(620px, 1.35fr);
+}
+
 .intro-panel,
 .control-panel,
 .initialize-lane,
@@ -3242,6 +3249,89 @@ a:hover {
 
 .initialize-results {
   gap: 12px;
+}
+
+.initialize-lane[data-collapsed="true"] {
+  align-self: start;
+  border: 0;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.initialize-compact-card {
+  display: grid;
+  gap: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  padding: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-panel);
+}
+
+.initialize-compact-heading {
+  margin-bottom: 0;
+  padding-bottom: 12px;
+}
+
+.initialize-compact-card h3 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 1.02rem;
+  letter-spacing: -0.025em;
+}
+
+.initialize-compact-card .initialize-run-status {
+  justify-self: start;
+  white-space: normal;
+}
+
+.initialize-progress-list-compact {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding-block: 3px;
+}
+
+.initialize-progress-list-compact::before {
+  display: none;
+}
+
+.initialize-progress-list-compact li {
+  border-radius: 9px;
+  padding: 5px 2px 6px;
+}
+
+.initialize-progress-list-compact span {
+  width: 18px;
+  height: 18px;
+}
+
+.initialize-progress-list-compact strong {
+  font-size: 0.55rem;
+}
+
+.initialize-compact-note {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 10px 11px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.initialize-compact-note strong {
+  color: var(--ink-strong);
+}
+
+.initialize-compact-actions {
+  display: grid;
+  gap: 8px;
 }
 
 .initialize-preflight-summary {

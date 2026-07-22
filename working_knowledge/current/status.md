@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 9b5414f step 29.2: finalize delivery provenance handoff
-- worktree: plan item 30.1 Session History Resume UX complete pending commit; 30.2 compact Project Initialization pending.
+- head: 8c72382 step 30.1: repair session history resume ux
+- worktree: plan item 30.2 compact Project Initialization complete pending commit.
 - relevant files: src/features/runtime/useAcpRecovery.ts; src/features/runtime/useAcpRuntime.ts; src/features/transcripts/SessionHistoryPanel.tsx; src/features/initialization/ProjectInitializationPanel.tsx; src/App.tsx; src/App.css; frontend tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: fix broken Session History Resume UX/colors and make Project Initialization stop permanently occupying the main workspace; borrow the useful Buddy view/sidebar pattern.
 - phase: in_progress
-- active plan step: 30.1 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 98%.
+- active plan step: 30.2 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 98%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: 30.2 frontend gates pass after one review/test-alignment cycle: frontend audit (`App.tsx` 601 lines), typecheck, targeted ProjectInitializationPanel/App tests (44 tests), full Vitest suite (259 tests across 51 files), production build, non-test direct-Tauri boundary check, file-size check (`ProjectInitializationPanel.tsx` 180 lines), and `git diff --check`.
 - 2026-07-23: 30.1 frontend gates pass after review fix: frontend audit (`App.tsx` 597 lines), typecheck, targeted Session History/runtime/App regression tests, full Vitest suite (258 tests across 51 files), production build, non-test direct-Tauri boundary check, file-size check (`SessionHistoryPanel.tsx` 66 lines, `useAcpRecovery.ts` 68 lines, `useAcpRuntime.ts` 250 lines), and `git diff --check`.
 - 2026-07-23: repository state verified at HEAD 9b5414f/29.2 with a clean worktree before planning Session History Resume and Project Initialization UX fixes; current knowledge was repaired from stale "29.2 pending commit" state.
 - 2026-07-23: 29.1 commit 4e838d2 has a verified provenance note; worktree was clean before 29.2 knowledge edits, and the next step remains read-only validation/evidence signals beside delivery readiness.

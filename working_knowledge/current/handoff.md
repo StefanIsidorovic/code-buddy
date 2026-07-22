@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 30.1 is complete pending commit: Session History Resume errors/locks are visible, row colors are repaired, and full frontend gates pass.
+- Plan item 30.2 is complete pending commit: Project Initialization now defaults to a compact setup card, expands on Open setup/Initialize, and reallocates desktop width to Runtime while compact.
+- Plan item 30.1 is committed as 8c72382: Session History Resume errors/locks are visible, row colors are repaired, and full frontend gates pass.
 - Plan item 29.2 is committed as 9b5414f: 29.1 provenance was verified and active knowledge is updated for the next read-only delivery-intelligence slice.
 - Plan item 29.1 is committed as 4e838d2: Activity Delivery readiness now includes read-only Recent provenance history from bounded Git log/notes inspection, and full frontend/Rust gates pass.
 - Plan item 28.3 is committed as 753c6de: delivery-readiness provenance, tracker state, and handoff notes are updated after the 28.2 commit.
@@ -81,7 +82,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 30.1 with a provenance note, then implement 30.2 compact Project Initialization, keeping App as composition/layout state and feature behavior inside the relevant feature modules.
+- Commit plan item 30.2 with a provenance note, then manually test the app layout: compact Project Initialization by default, Open setup expansion, Initialize dialog, Collapse setup, and Session History Resume/lock copy.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

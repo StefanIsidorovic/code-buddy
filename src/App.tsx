@@ -68,6 +68,7 @@ function App() {
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("acp");
   const pushToast = useNotificationStore((state) => state.push);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const [initializationExpanded, setInitializationExpanded] = useState(false);
   const { projects, selectedProjectId, selectedProject, repositories: projectRepositories,
     selectedRepository, workspaceDialogOpen, projectName, projectPath, projectLoading,
     projectFolderPicking, repositoryDialogOpen, repositoryName, repositoryPath, repositoryLoading,
@@ -239,7 +240,8 @@ function App() {
   }
 
   return (
-    <main className="app-shell" aria-label="AIadne agent workspace">
+    <main className="app-shell" data-initialization-expanded={initializationExpanded}
+      aria-label="AIadne agent workspace">
       <section
         className="intro-panel"
         aria-labelledby="runtime-sidebar-title"
@@ -336,11 +338,13 @@ function App() {
         </div>
       </section>
 
-      <ProjectInitializationPanel factGroupsCount={projectInitializationFactGroups.length}
+      <ProjectInitializationPanel expanded={initializationExpanded}
+        factGroupsCount={projectInitializationFactGroups.length}
         factPreviews={projectInitializationFactPreviewGroups} facts={projectInitializationFacts}
         guardrails={projectInitializationGuardrails} initialization={projectInitialization}
         loading={initializeLoading} markdownFindings={projectInitializationMarkdownFindings}
-        markdownPreviews={projectInitializationMarkdownPreview} project={selectedProject}
+        markdownPreviews={projectInitializationMarkdownPreview} onExpandedChange={setInitializationExpanded}
+        project={selectedProject}
         repositoryCount={projectRepositories.length} onAnalyzeMarkdown={() => void analyzeProjectInitializationMarkdown()}
         onCollectFacts={() => void collectProjectInitializationFacts()} onInitialize={openProjectInitializeDialog}
         onOpenInterview={openInterviewDialog} onViewFacts={() => setInitializeDetailsView("facts")}

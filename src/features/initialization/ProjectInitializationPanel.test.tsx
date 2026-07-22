@@ -17,14 +17,26 @@ const guardrail: ProjectInitializationGuardrailInfo = { id: "g1", initialization
   repositoryId: null, repositoryName: null, repositoryPath: null, guardrailIndex: 0, scope: "project",
   kind: "do_not_touch", pathPattern: "gen/**", content: "Generated", source: "interview", createdAt: 1 };
 function props(overrides: Partial<ProjectInitializationPanelProps> = {}): ProjectInitializationPanelProps {
-  return { factGroupsCount: 0, factPreviews: [], facts: [], guardrails: [], initialization: null,
+  return { expanded: true, factGroupsCount: 0, factPreviews: [], facts: [], guardrails: [], initialization: null,
     loading: false, markdownFindings: [], markdownPreviews: [], project: null, repositoryCount: 0,
     summaryProps: { catalog: null, loading: false, profileId: "", selectedProfile: null, summary: null,
       tier: "mid", onChangeProfile: vi.fn(), onChangeTier: vi.fn(), onGenerate: vi.fn(), onView: vi.fn() },
-    onAnalyzeMarkdown: vi.fn(), onCollectFacts: vi.fn(), onInitialize: vi.fn(), onOpenInterview: vi.fn(),
-    onViewFacts: vi.fn(), onViewMarkdown: vi.fn(), ...overrides };
+    onExpandedChange: vi.fn(), onAnalyzeMarkdown: vi.fn(), onCollectFacts: vi.fn(), onInitialize: vi.fn(),
+    onOpenInterview: vi.fn(), onViewFacts: vi.fn(), onViewMarkdown: vi.fn(), ...overrides };
 }
 describe("project initialization panel", () => {
+  it("keeps initialization compact until opened or started", () => {
+    const value = props({ expanded: false, project, repositoryCount: 1 });
+    render(<ProjectInitializationPanel {...value} />);
+    expect(screen.getByRole("heading", { name: "Project Initialization" })).toBeInTheDocument();
+    expect(screen.getByText("Ready to initialize project knowledge")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Project initialization phases")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open setup" }));
+    expect(value.onExpandedChange).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project" }));
+    expect(value.onExpandedChange).toHaveBeenCalledWith(true);
+    expect(value.onInitialize).toHaveBeenCalledOnce();
+  });
   it("renders workspace, repository, and ready prerequisites", () => {
     const { rerender } = render(<ProjectInitializationPanel {...props()} />);
     expect(screen.getByText("Choose a workspace to begin")).toBeInTheDocument();

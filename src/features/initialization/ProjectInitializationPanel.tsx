@@ -9,6 +9,7 @@ import { InitializationSummaryCard, type InitializationSummaryCardProps } from "
 type FactPreviewGroup = { repositoryId: string; repositoryName: string;
   facts: ProjectInitializationFactInfo[]; totalFacts: number };
 export type ProjectInitializationPanelProps = {
+  expanded: boolean;
   factGroupsCount: number;
   factPreviews: FactPreviewGroup[];
   facts: ProjectInitializationFactInfo[];
@@ -20,6 +21,7 @@ export type ProjectInitializationPanelProps = {
   project: ProjectInfo | null;
   repositoryCount: number;
   summaryProps: InitializationSummaryCardProps;
+  onExpandedChange: (expanded: boolean) => void;
   onAnalyzeMarkdown: () => void;
   onCollectFacts: () => void;
   onInitialize: () => void;
@@ -37,13 +39,64 @@ function phaseItems(status: string | null) {
 function statusLabel(status: string) {
   return status.split("_").map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(" ");
 }
+function initializeStatusText(initialization: ProjectInitializationInfo | null, project: ProjectInfo | null) {
+  if (initialization) {
+    const repositoryLabel = initialization.repositoryCount === 1 ? "repository" : "repositories";
+    return `${statusLabel(initialization.status)} · ${initialization.repositoryCount} ${repositoryLabel}`;
+  }
+  return project ? "Ready to start" : "Select workspace";
+}
+function prerequisiteCopy(project: ProjectInfo | null, repositoryCount: number) {
+  if (!project) {
+    return { title: "Choose a workspace to begin",
+      description: "Select or create a workspace from the navigation before starting this workflow." };
+  }
+  if (repositoryCount === 0) {
+    return { title: "Add a repository before initialization",
+      description: "Open repository management and add at least one repository to define the evidence scope." };
+  }
+  return { title: "Ready to initialize project knowledge",
+    description: "Start Initialize to choose repository scope and create the Preflight record." };
+}
 
 export function ProjectInitializationPanel(props: ProjectInitializationPanelProps) {
-  const { factGroupsCount, factPreviews, facts, guardrails, initialization, loading,
+  const { expanded, factGroupsCount, factPreviews, facts, guardrails, initialization, loading,
     markdownFindings, markdownPreviews, project, repositoryCount, summaryProps,
-    onAnalyzeMarkdown, onCollectFacts, onInitialize, onOpenInterview, onViewFacts, onViewMarkdown } = props;
+    onExpandedChange, onAnalyzeMarkdown, onCollectFacts, onInitialize, onOpenInterview, onViewFacts,
+    onViewMarkdown } = props;
   const progress = phaseItems(initialization?.status ?? null);
   const guardrailPreviews = guardrails.slice(0, 3);
+  const prerequisite = prerequisiteCopy(project, repositoryCount);
+  const status = initializeStatusText(initialization, project);
+  function startInitialization() {
+    onExpandedChange(true);
+    onInitialize();
+  }
+  if (!expanded) {
+    return <section className="initialize-lane initialize-lane-compact" data-collapsed="true"
+      aria-labelledby="project-initialize-lane-title">
+      <div className="initialize-compact-card">
+        <div className="section-heading initialize-compact-heading"><p className="eyebrow">Project knowledge</p>
+          <h2 id="project-initialize-lane-title">Project Initialization</h2>
+          <p className="section-description">Keep setup compact until you are actively building context.</p></div>
+        <div className="project-initialize-copy"><span className="section-kicker">Evidence workflow</span>
+          <h3>Build agent-ready context</h3>
+          <p>Open the workflow when you need repository facts, markdown findings, guardrails, or summary approval.</p></div>
+        <span className="initialize-run-status">{status}</span>
+        <ol className="initialize-progress-list initialize-progress-list-compact"
+          aria-label="Project initialization compact phase summary">
+          {progress.map((phase) => <li data-state={phase.state} key={phase.id}>
+            <span>{phase.index}</span><strong>{phase.label}</strong></li>)}</ol>
+        {!initialization ? <p className="initialize-compact-note"><strong>{prerequisite.title}</strong>
+          <span>{prerequisite.description}</span></p> : null}
+        <div className="initialize-compact-actions">
+          <button type="button" onClick={() => onExpandedChange(true)}>Open setup</button>
+          <button className="primary-action" type="button" onClick={startInitialization}
+            disabled={!project || repositoryCount === 0 || loading}>Initialize Project</button>
+        </div>
+      </div>
+    </section>;
+  }
   return <section className="initialize-lane" aria-labelledby="project-initialize-lane-title">
     <div className="section-heading"><p className="eyebrow">Project knowledge</p>
       <h2 id="project-initialize-lane-title">Project Initialization</h2>
@@ -53,10 +106,9 @@ export function ProjectInitializationPanel(props: ProjectInitializationPanelProp
         <span className="section-kicker">Evidence workflow</span>
         <h3 id="project-initialize-title">Build agent-ready context</h3>
         <p>Choose repository scope, collect evidence, add guardrails, and approve the result.</p></div>
-        <span className="initialize-run-status">{initialization
-          ? `${statusLabel(initialization.status)} · ${initialization.repositoryCount} ${initialization.repositoryCount === 1 ? "repository" : "repositories"}`
-          : project ? "Ready to start" : "Select workspace"}</span>
-        <button className="primary-action" type="button" onClick={onInitialize}
+        <span className="initialize-run-status">{status}</span>
+        <button type="button" onClick={() => onExpandedChange(false)}>Collapse setup</button>
+        <button className="primary-action" type="button" onClick={startInitialization}
           disabled={!project || repositoryCount === 0 || loading}>Initialize Project</button></div>
       <ol className="initialize-progress-list" aria-label="Project initialization phases">
         {progress.map((phase) => <li data-state={phase.state} key={phase.id}>
@@ -121,12 +173,8 @@ export function ProjectInitializationPanel(props: ProjectInitializationPanelProp
                 description="Add fragile areas, do-not-touch paths, and review rules in the Interview." />}
           </section>
           <InitializationSummaryCard {...summaryProps} />
-        </div></> : <StateNotice kind="prerequisite"
-          title={!project ? "Choose a workspace to begin" : repositoryCount === 0
-            ? "Add a repository before initialization" : "Ready to initialize project knowledge"}
-          description={!project ? "Select or create a workspace from the navigation before starting this workflow."
-            : repositoryCount === 0 ? "Open repository management and add at least one repository to define the evidence scope."
-              : "Start Initialize to choose repository scope and create the Preflight record."} />}
+        </div></> : <StateNotice kind="prerequisite" title={prerequisite.title}
+          description={prerequisite.description} />}
     </div>
   </section>;
 }

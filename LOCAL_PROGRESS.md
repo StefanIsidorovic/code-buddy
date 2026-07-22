@@ -136,6 +136,7 @@ Najbitnije pravilo: agentov odgovor nije automatski istina i nije automatski Tas
 - Sledeci mali cilj: pored Git/provenance statusa prikazati read-only validation/evidence signale, npr. poslednji poznati test/build rezultat ili receipt, pre bilo kakve prave delivery akcije.
 - Novi UX dug iz realnog testa: Session History Resume mora jasno da kaze kada je zakljucan zbog aktivnog ACP-a ili legacy recovery problema, a Project Initialization treba da bude compact kada nije aktivni fokus, slicnije Buddy-jevom odvojenom Sessions/Project surface modelu.
 - Resen prvi deo tog UX duga: Session History sada ima citljive dark-sidebar kartice, Resume dugme kaze kada je zakljucano, a legacy/recovery greske se vide odmah u History sekciji.
+- Resen i drugi deo: Project Initialization vise nije ogromna stalna radna povrsina; default je compact setup card, `Open setup` siri full workflow, `Initialize Project` takodje otvara workflow, a `Collapse setup` ga vraca nazad da Runtime/Output dobiju vise prostora.
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.
