@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 3e7277b step 27.1: add review brief finding actions
-- worktree: plan item 27.2 final finding-action handoff complete pending commit.
-- relevant files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: a6650b6 step 27.2: finalize finding action handoff
+- worktree: plan item 28.1 backend delivery readiness complete pending commit; plan item 28.2 frontend delivery readiness pending.
+- relevant files: src-tauri/src/delivery.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; working_knowledge/current/*.
 
 ## Current Task
 - request: continue beyond-Conductor work into execution/review harness polish.
 - phase: in_progress
-- active plan step: 27.2 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 97%.
+- active plan step: 28.1 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 97%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,8 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: 28.1 targeted Rust delivery tests pass after fixing porcelain leading-space parsing; full backend gates pass with Rust fmt check, 119 Rust tests, clippy with warnings denied, and `git diff --check`.
+- 2026-07-23: commit a6650b6/27.2 is HEAD with a verified provenance note; current knowledge was repaired from stale "27.2 pending commit" state before committing the delivery-readiness slice.
 - 2026-07-23: provenance note verified for 3e7277b/27.1, worktree checked clean before 27.2 knowledge updates, and the next roadmap slice is scoped to read-only delivery readiness / Git intelligence rather than Git mutation or automatic shipping.
 - 2026-07-23: plan item 27.1 full frontend gates pass: targeted 14 tests, frontend audit, typecheck, 249 frontend tests, production build, no direct Tauri/import boundary check for modified feature/view files, file-size check (`App.tsx` 586 lines, `TaskAgentReportsPanel.tsx` 71 lines, `taskAgentReportBrief.ts` 94 lines, `AcpWorkspaceViews.tsx` 86 lines), and `git diff --check`; review cycle 2 found no remaining Task mutation or backend-coupling issue.
 - 2026-07-23: provenance note verified for af54d8a/26.2; 26.2 is committed and the next execution/review slice is 27.1 Review brief finding follow-up/resolution controls.

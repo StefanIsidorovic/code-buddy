@@ -42,6 +42,7 @@
 - Secondary Activity control boundary: the Activity view may deliberately launch read-only advisor/reviewer runs through `useTaskAgentReports`, but the presentation panel owns no backend workflow and the result is only an immutable report refresh, never executor evidence, phase completion, ACP runtime takeover, or Git mutation.
 - Secondary review brief boundary: Activity may derive a bounded display-only Review brief from exact immutable report lines, but this classification is not persisted evidence, not an approval, and not authority to mutate Task phases, Git state, or ACP runtime.
 - Secondary finding action boundary: Review brief findings may create editable ACP prompt drafts and local resolved/reopened UI state, but drafting never sends ACP automatically and resolving is not persisted evidence, approval, phase completion, report mutation, or Git authority.
+- Delivery readiness boundary: Git delivery intelligence starts as read-only inspection of branch, HEAD, worktree status, and HEAD provenance notes; Ship/Commit/Push controls require a separate explicit plan and must not be implied by readiness display.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

@@ -2,6 +2,7 @@ pub mod acp;
 mod acp_workspace;
 pub mod adapters;
 pub mod commands;
+pub mod delivery;
 pub mod errors;
 pub mod knowledge;
 pub mod models;
@@ -40,6 +41,7 @@ pub fn run() {
             commands::create_project_repository,
             commands::list_project_repositories,
             commands::delete_project_repository,
+            commands::inspect_git_delivery_readiness,
             commands::create_project_initialization,
             commands::list_project_initializations,
             commands::collect_project_initialization_facts,

@@ -6,6 +6,10 @@ use crate::{
         RespondAcpPermissionRequest, SetAcpModelRequest, StartAcpRegistrySessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
+    delivery::{
+        inspect_git_delivery_readiness as inspect_git_delivery_readiness_for_repo,
+        GitDeliveryReadinessInfo,
+    },
     errors::{AppError, AppResult},
     knowledge::{
         select_task_context, select_unified_task_context, TaskContextSelectionInfo,
@@ -179,6 +183,13 @@ pub fn delete_project_repository(
     repository_id: String,
 ) -> AppResult<()> {
     state.delete_project_repository(&repository_id)
+}
+
+#[tauri::command]
+pub fn inspect_git_delivery_readiness(
+    repository_path: PathBuf,
+) -> AppResult<GitDeliveryReadinessInfo> {
+    inspect_git_delivery_readiness_for_repo(repository_path)
 }
 
 #[tauri::command]
