@@ -842,3 +842,9 @@ YYYY-MM-DD
 - Task/Activity imaju viewport-bounded desktop scroll; Task Context Preview moze da se zatvori tokom single-flight context send-a bez prekidanja request-a.
 - `tool_call_update` se odbacuje u Rust normalizeru pre persistence/rendera, meaningful tool_call ostaje, a idle polling je usporen sa 400 ms na 1000 ms.
 - Frontend audit, 215 frontend testova, 98 Rust testova, typecheck, build, fmt i clippy prolaze.
+
+### 2026-07-22 - ACP Permission Deadlock Repair
+
+- `session/request_permission` se sada odvaja od JSON-RPC odgovora, prikazuje kao eksplicitna odluka u Agent view-u i ne moze automatski da odobri alat.
+- Permission polling radi dok je prompt blokiran; graceful Stop salje cancelled outcome, a neuspeo write ostavlja zahtev za retry.
+- End-to-end fake ACP test dokazuje prompt -> permission -> explicit choice -> prompt completion; frontend audit, 216 frontend testova, 100 Rust testova, typecheck, build, fmt i clippy prolaze.

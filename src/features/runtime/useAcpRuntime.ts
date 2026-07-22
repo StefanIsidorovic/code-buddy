@@ -14,6 +14,7 @@ import type {
   TranscriptSessionInfo,
   UnifiedTaskContextSelectionInfo,
 } from "../../types/domain";
+import { useAcpPermissions } from "./useAcpPermissions";
 
 interface TranscriptApi { create: (runtime: string, source: string, title: string) => Promise<TranscriptSessionInfo | null>;
   attachKnowledge: (sessionId: string) => Promise<void>;
@@ -59,15 +60,13 @@ export function useAcpRuntime({
     [candidates, selectedCandidateId],
   );
   const usable = session?.state === "running";
+  const permission = useAcpPermissions(session?.id ?? null, usable, reportError);
   const canStartSelected = !!selectedCandidate && isLaunchable(selectedCandidate) && !usable;
   const statusLabel = session
     ? `${source ?? session.agentName ?? "acp"} · ${session.state} · ${session.agentSessionId ?? "no agent session"}`
     : "not started";
 
-  useEffect(() => {
-    void refreshRegistry();
-  }, []);
-  useEffect(() => {
+  useEffect(() => { void refreshRegistry(); }, []); useEffect(() => {
     if (!usable || !session) return;
     const timer = window.setInterval(() => void drain(session.id), 1000);
     return () => window.clearInterval(timer);
@@ -238,7 +237,8 @@ export function useAcpRuntime({
   return {
     candidates, registryError, registryLoading, selectedCandidateId, session, events, prompt,
     promptResult, promptBusy, expanded, usable, canStartSelected, statusLabel, refreshRegistry,
-    startSelected, changeModel, sendPrompt, sendPhasePrompt, drain, stop, stopAllForDelete,
+    permissions: permission.permissions, respondPermission: permission.respond, startSelected,
+    changeModel, sendPrompt, sendPhasePrompt, drain, stop, stopAllForDelete,
     selectCandidate: setSelectedCandidateId,
     changePrompt: onPromptChange,
     toggleExpanded: () => setExpanded((value) => !value),

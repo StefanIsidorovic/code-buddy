@@ -104,6 +104,36 @@ pub struct AcpPromptResult {
     pub stop_reason: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpPermissionOption {
+    pub option_id: String,
+    pub name: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpPermissionRequest {
+    pub id: String,
+    pub title: String,
+    pub options: Vec<AcpPermissionOption>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RespondAcpPermissionRequest {
+    pub session_id: String,
+    pub permission_id: String,
+    pub option_id: String,
+}
+
+#[derive(Debug, Clone)]
+struct PendingPermission {
+    info: AcpPermissionRequest,
+    rpc_id: Value,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AcpRegistryCandidateStatus {
@@ -397,6 +427,15 @@ impl AcpSessionManager {
         self.session(session_id)?.drain_events()
     }
 
+    pub fn list_permissions(&self, session_id: &str) -> AppResult<Vec<AcpPermissionRequest>> {
+        self.session(session_id)?.list_permissions()
+    }
+
+    pub fn respond_permission(&self, request: RespondAcpPermissionRequest) -> AppResult<()> {
+        self.session(&request.session_id)?
+            .respond_permission(&request.permission_id, &request.option_id)
+    }
+
     pub fn stop_session(&self, session_id: &str, force: bool) -> AppResult<AcpSessionInfo> {
         let session = self.session(session_id)?;
         session.stop(force)?;
@@ -443,6 +482,7 @@ struct AcpSession {
     next_request_id: AtomicU64,
     responses: Arc<ResponseQueue>,
     events: Arc<Mutex<VecDeque<AcpSessionEvent>>>,
+    permissions: Arc<Mutex<VecDeque<PendingPermission>>>,
     metadata: Mutex<AcpMetadata>,
     state: Mutex<AcpRuntimeState>,
     prompt_in_flight: Mutex<bool>,
@@ -522,6 +562,11 @@ impl AcpSession {
         Self::spawn_script(cwd, prompt_exit_fake_acp_script())
     }
 
+    #[cfg(test)]
+    fn spawn_permission_fake(cwd: PathBuf) -> AppResult<Self> {
+        Self::spawn_script(cwd, permission_fake_acp_script())
+    }
+
     fn spawn_script(cwd: PathBuf, script: &str) -> AppResult<Self> {
         let mut command = fake_acp_command(script);
         command.current_dir(&cwd);
@@ -552,8 +597,14 @@ impl AcpSession {
             available: Condvar::new(),
         });
         let events = Arc::new(Mutex::new(VecDeque::new()));
+        let permissions = Arc::new(Mutex::new(VecDeque::new()));
 
-        spawn_stdout_reader(stdout, Arc::clone(&responses), Arc::clone(&events));
+        spawn_stdout_reader(
+            stdout,
+            Arc::clone(&responses),
+            Arc::clone(&events),
+            Arc::clone(&permissions),
+        );
 
         let session = Self {
             id,
@@ -563,6 +614,7 @@ impl AcpSession {
             next_request_id: AtomicU64::new(0),
             responses,
             events,
+            permissions,
             metadata: Mutex::new(AcpMetadata::default()),
             state: Mutex::new(AcpRuntimeState::running()),
             prompt_in_flight: Mutex::new(false),
@@ -745,12 +797,53 @@ impl AcpSession {
         Ok(events.drain(..).collect())
     }
 
+    fn list_permissions(&self) -> AppResult<Vec<AcpPermissionRequest>> {
+        Ok(self
+            .permissions
+            .lock()
+            .map_err(|_| AppError::Acp("acp permission lock poisoned".into()))?
+            .iter()
+            .map(|pending| pending.info.clone())
+            .collect())
+    }
+
+    fn respond_permission(&self, permission_id: &str, option_id: &str) -> AppResult<()> {
+        let permissions = self
+            .permissions
+            .lock()
+            .map_err(|_| AppError::Acp("acp permission lock poisoned".into()))?;
+        let index = permissions
+            .iter()
+            .position(|pending| pending.info.id == permission_id)
+            .ok_or_else(|| AppError::InvalidInput("ACP permission request is missing".into()))?;
+        let pending = permissions.get(index).expect("permission index exists");
+        if !pending
+            .info
+            .options
+            .iter()
+            .any(|option| option.option_id == option_id)
+        {
+            return Err(AppError::InvalidInput(
+                "ACP permission option was not offered".into(),
+            ));
+        }
+        let rpc_id = pending.rpc_id.clone();
+        drop(permissions);
+        self.write_json_line(&json!({"jsonrpc":"2.0","id":rpc_id,"result":{"outcome":{"outcome":"selected","optionId":option_id}}}))?;
+        self.permissions
+            .lock()
+            .map_err(|_| AppError::Acp("acp permission lock poisoned".into()))?
+            .retain(|pending| pending.info.id != permission_id);
+        Ok(())
+    }
+
     fn stop(&self, force: bool) -> AppResult<()> {
         if !self.is_running()? {
             return Ok(());
         }
 
         if !force {
+            self.cancel_pending_permissions()?;
             let _ = self.send_cancel_notification();
             if self.wait_for_exit(ACP_STOP_TIMEOUT)?.is_some() {
                 return Ok(());
@@ -758,6 +851,21 @@ impl AcpSession {
         }
 
         self.force_kill()
+    }
+
+    fn cancel_pending_permissions(&self) -> AppResult<()> {
+        let pending = self
+            .permissions
+            .lock()
+            .map_err(|_| AppError::Acp("acp permission lock poisoned".into()))?
+            .drain(..)
+            .map(|permission| permission.rpc_id)
+            .collect::<Vec<_>>();
+        for rpc_id in pending {
+            self.write_json_line(&json!({"jsonrpc":"2.0","id":rpc_id,
+            "result":{"outcome":{"outcome":"cancelled"}}}))?;
+        }
+        Ok(())
     }
 
     fn info(&self) -> AppResult<AcpSessionInfo> {
@@ -981,13 +1089,14 @@ fn spawn_stdout_reader(
     stdout: impl Read + Send + 'static,
     responses: Arc<ResponseQueue>,
     events: Arc<Mutex<VecDeque<AcpSessionEvent>>>,
+    permissions: Arc<Mutex<VecDeque<PendingPermission>>>,
 ) {
     thread::spawn(move || {
         for line in BufReader::new(stdout).lines() {
             let Ok(line) = line else {
                 break;
             };
-            handle_acp_line(&line, &responses, &events);
+            handle_acp_line(&line, &responses, &events, &permissions);
         }
     });
 }
@@ -996,6 +1105,7 @@ fn handle_acp_line(
     line: &str,
     responses: &Arc<ResponseQueue>,
     events: &Arc<Mutex<VecDeque<AcpSessionEvent>>>,
+    permissions: &Arc<Mutex<VecDeque<PendingPermission>>>,
 ) {
     let value = match serde_json::from_str::<Value>(line) {
         Ok(value) => value,
@@ -1010,6 +1120,15 @@ fn handle_acp_line(
             return;
         }
     };
+
+    if value.get("method").and_then(Value::as_str) == Some("session/request_permission") {
+        if let Some(pending) = permission_from_request(&value) {
+            if let Ok(mut queue) = permissions.lock() {
+                queue.push_back(pending);
+            }
+        }
+        return;
+    }
 
     if let Some(id) = value.get("id").and_then(Value::as_u64) {
         let response = JsonRpcResponse {
@@ -1028,6 +1147,38 @@ fn handle_acp_line(
             append_event(events, event);
         }
     }
+}
+
+fn permission_from_request(value: &Value) -> Option<PendingPermission> {
+    let rpc_id = value.get("id")?.clone();
+    let tool_call = value.pointer("/params/toolCall")?;
+    let options = value
+        .pointer("/params/options")?
+        .as_array()?
+        .iter()
+        .filter_map(|option| {
+            Some(AcpPermissionOption {
+                option_id: option.get("optionId")?.as_str()?.to_string(),
+                name: option.get("name")?.as_str()?.to_string(),
+                kind: option.get("kind")?.as_str()?.to_string(),
+            })
+        })
+        .collect::<Vec<_>>();
+    if options.is_empty() {
+        return None;
+    }
+    Some(PendingPermission {
+        info: AcpPermissionRequest {
+            id: Uuid::new_v4().to_string(),
+            title: tool_call
+                .get("title")
+                .and_then(Value::as_str)
+                .unwrap_or("Agent tool request")
+                .to_string(),
+            options,
+        },
+        rpc_id,
+    })
 }
 
 fn acp_request_timeout(method: &str) -> Duration {
@@ -1253,6 +1404,29 @@ done"#
 }
 
 #[cfg(test)]
+fn permission_fake_acp_script() -> &'static str {
+    r#"while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9][0-9]*\).*/\1/p')
+  case "$line" in
+    *'"method":"initialize"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilities":{},"agentInfo":{"name":"permission-fake","version":"0.1.0"},"authMethods":[]}}\n' "$id"
+      ;;
+    *'"method":"session/new"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"permission-fake-session"}}\n' "$id"
+      ;;
+    *'"method":"session/prompt"'*)
+      prompt_id=$id
+      printf '{"jsonrpc":"2.0","id":900,"method":"session/request_permission","params":{"sessionId":"permission-fake-session","toolCall":{"toolCallId":"tool-1","title":"Write file"},"options":[{"optionId":"allow-once","name":"Allow once","kind":"allow_once"},{"optionId":"reject","name":"Reject","kind":"reject_once"}]}}\n'
+      ;;
+    *'"id":900'*'"optionId":"allow-once"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"stopReason":"end_turn"}}\n' "$prompt_id"
+      ;;
+    *'"method":"session/cancel"'*) exit 0 ;;
+  esac
+done"#
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashMap;
@@ -1273,6 +1447,28 @@ mod tests {
                 content: "Run tests".into()
             })
         );
+    }
+
+    #[test]
+    fn routes_permission_requests_without_poisoning_response_queue() {
+        let responses = Arc::new(ResponseQueue {
+            pending: Mutex::new(HashMap::new()),
+            available: Condvar::new(),
+        });
+        let events = Arc::new(Mutex::new(VecDeque::new()));
+        let permissions = Arc::new(Mutex::new(VecDeque::new()));
+        handle_acp_line(
+            r#"{"jsonrpc":"2.0","id":7,"method":"session/request_permission","params":{"sessionId":"s","toolCall":{"toolCallId":"tool-1","title":"Run tests"},"options":[{"optionId":"once","name":"Allow once","kind":"allow_once"}]}}"#,
+            &responses,
+            &events,
+            &permissions,
+        );
+        assert!(responses.pending.lock().expect("responses lock").is_empty());
+        let permissions = permissions.lock().expect("permissions lock");
+        assert_eq!(permissions.len(), 1);
+        assert_eq!(permissions[0].rpc_id, json!(7));
+        assert_eq!(permissions[0].info.title, "Run tests");
+        assert_eq!(permissions[0].info.options[0].option_id, "once");
     }
 
     #[derive(Default)]
@@ -1415,21 +1611,25 @@ mod tests {
             available: Condvar::new(),
         });
         let events = Arc::new(Mutex::new(VecDeque::new()));
+        let permissions = Arc::new(Mutex::new(VecDeque::new()));
 
         handle_acp_line(
             r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"session_info_update","_meta":{"codex":{"threadStatus":{"type":"active"}}}}}}"#,
             &responses,
             &events,
+            &permissions,
         );
         handle_acp_line(
             r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Hello"}}}}"#,
             &responses,
             &events,
+            &permissions,
         );
         handle_acp_line(
             r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":" there"}}}}"#,
             &responses,
             &events,
+            &permissions,
         );
 
         let events = events.lock().expect("event buffer locks");
@@ -1446,16 +1646,19 @@ mod tests {
             available: Condvar::new(),
         });
         let events = Arc::new(Mutex::new(VecDeque::new()));
+        let permissions = Arc::new(Mutex::new(VecDeque::new()));
 
         handle_acp_line(
             r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_thought_chunk","content":[{"type":"text","text":"Planning "},{"type":"text","text":"response"}]}}}"#,
             &responses,
             &events,
+            &permissions,
         );
         handle_acp_line(
             r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":[{"type":"text","text":"Done"}]}}}"#,
             &responses,
             &events,
+            &permissions,
         );
 
         let events = events.lock().expect("event buffer locks");
@@ -1591,6 +1794,40 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].kind, AcpEventKind::AgentMessage);
         assert_eq!(events[0].content, "fake acp received prompt");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn completes_prompt_after_explicit_permission_response() {
+        let session = Arc::new(
+            AcpSession::spawn_permission_fake(std::env::current_dir().expect("current dir exists"))
+                .expect("permission fake starts"),
+        );
+        let prompt_session = Arc::clone(&session);
+        let prompt = thread::spawn(move || prompt_session.send_prompt("write the file"));
+
+        wait_until(Duration::from_secs(2), || {
+            session
+                .list_permissions()
+                .map(|permissions| !permissions.is_empty())
+                .unwrap_or(false)
+        })
+        .expect("permission request becomes visible");
+        let permission = session.list_permissions().unwrap().remove(0);
+        assert_eq!(permission.title, "Write file");
+        session
+            .respond_permission(&permission.id, "allow-once")
+            .expect("offered permission response is sent");
+
+        assert_eq!(
+            prompt
+                .join()
+                .expect("prompt thread joins")
+                .unwrap()
+                .stop_reason,
+            "end_turn"
+        );
+        assert!(session.list_permissions().unwrap().is_empty());
     }
 
     #[test]

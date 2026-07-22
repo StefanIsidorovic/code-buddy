@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- ACP tool-using prompts no longer deadlock when Codex requests permission: pending requests stay visible in Agent view (even with controls collapsed), and only an explicit offered choice resumes the prompt.
+- Permission polling is independent from the blocked prompt call; graceful Stop returns cancelled outcomes, and failed response writes remain retryable.
 - Task and Activity views now scroll independently inside the desktop viewport, so long evidence/artifact content remains reachable; mobile keeps normal page scrolling.
 - Task Context Preview can close via X, Close, or backdrop while a context send continues single-flight; successful completion still refreshes dispatch history.
 - ACP `tool_call_update` events are dropped before output/transcript persistence, meaningful initial tool calls remain, and idle drain cadence is 1000 ms instead of 400 ms.
@@ -37,6 +39,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
+- Restart AIadne and create a new ACP session before retesting the formerly stuck prompt; the already-running process predates the transport fix.
 - Measure ACP phase-run latency across command wait, event drain, transcript persistence, and provenance linking before deciding whether further speed work belongs in AIadne, the adapter, or model/tool selection.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 

@@ -148,6 +148,7 @@ function App() {
     session: acpSession, events: acpEvents, promptResult: acpPromptResult,
     promptBusy: acpPromptBusy, expanded: acpControlsExpanded, usable: canUseAcpSession,
     canStartSelected: canStartSelectedAcpCandidate, statusLabel: acpStatusLabel,
+    permissions: acpPermissions, respondPermission: respondAcpPermission,
     refreshRegistry: refreshAcpRegistryCandidates, startSelected: startSelectedAcpSession,
     changeModel: changeAcpCodingModel, sendPrompt: sendAcpPrompt, sendPhasePrompt: sendAcpPhasePrompt,
     drain: drainAcpEvents,
@@ -355,6 +356,7 @@ function App() {
             prompt={acpPrompt}
             promptBusy={acpPromptBusy}
             promptResult={acpPromptResult}
+            permissions={acpPermissions}
             session={acpSession}
             showWaiting={showAcpWaiting}
             statusLabel={acpStatusLabel}
@@ -365,6 +367,7 @@ function App() {
             onSendPrompt={() => void sendAcpPrompt()}
             onStartSelected={() => void startSelectedAcpSession()}
             onStop={() => void stopAcpSession(false)}
+            onRespondPermission={(permissionId, optionId) => void respondAcpPermission(permissionId, optionId)}
             onToggleExpanded={toggleAcpControlsExpanded}
           />}
             output={<SessionOutputPanel events={displayAcpEvents} eventsListRef={acpEventsList} output={output}

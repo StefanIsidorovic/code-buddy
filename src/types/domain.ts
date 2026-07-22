@@ -127,6 +127,9 @@ export type AcpPromptResult = {
   stopReason: string;
 };
 
+export type AcpPermissionOption = { optionId: string; name: string; kind: string };
+export type AcpPermissionRequest = { id: string; title: string; options: AcpPermissionOption[] };
+
 export type ProjectInfo = {
   id: string;
   name: string;

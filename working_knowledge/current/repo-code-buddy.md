@@ -46,12 +46,13 @@
 - ACP transcripts are persisted, coalesced for readable replay, filterable, and renameable; continue-from-transcript is not implemented.
 - AIadne is the visible Tauri/window and sidebar identity; internal package/crate names and `com.codebuddy.app` intentionally remain unchanged.
 - The active visual system uses the local AIadne SVG mark, Geist Sans, Ariadne Atelier semantic colors, responsive navigation, accessible state notices, consistent overlays, and reduced-motion-safe transitions.
-- `src/App.tsx` is a 562-line composition root with no backend commands; frontend orchestration modularization is complete.
+- `src/App.tsx` is a 565-line composition root with no backend commands; frontend orchestration modularization is complete.
 - `AcpWorkspaceViews` applies Claude Buddy's single-active-view navigation pattern locally: Agent keeps controls/output together by default, while Task and Activity isolate tall workflow surfaces without global state.
 - Pure prompt, transcript, event, command, path, and error presentation logic now lives in `src/lib/presentation.ts` with direct unit coverage; this is the first seam in the staged `App.tsx` decomposition.
 - Shared notices/icons live under `src/components/ui`; global notifications now use a bounded, timer-safe Zustand store and dedicated viewport under `src/features/notifications`, while workflow-local drafts remain in App pending feature extraction.
 - Frontend Rust/Tauri DTO and domain unions now have one dependency-free source of truth in `src/types/domain.ts`; App consumes them through type-only imports and representative nested contracts have compile-time tests.
 - ACP Controls now lives in `src/features/runtime/AcpRuntimePanel.tsx` behind a typed view-model/callback API; it owns presentation only and imports neither Tauri nor transcript/project orchestration.
+- ACP permissions are queued by the Rust transport and polled by `useAcpPermissions`; the state-free runtime panel renders only agent-offered choices and never auto-allows tool access.
 - Session Output now lives in `src/features/runtime/SessionOutputPanel.tsx`; App retains xterm/event refs, polling, coalescing, scroll effects, transcript selection, and live-view state while the feature owns PTY/ACP output markup.
 - Fake ACP is no longer a frontend control or public Tauri command; selected registry candidates are the only product ACP launch path, while manager-level fake subprocesses remain deterministic Rust protocol fixtures.
 - Responsive workspace/repository context summary and picker controls now live in `src/features/workspace/WorkspaceContextSelector.tsx`; App still owns selected IDs, persistence, modal state, and all mutations.

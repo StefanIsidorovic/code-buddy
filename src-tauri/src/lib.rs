@@ -88,6 +88,8 @@ pub fn run() {
             commands::send_task_phase_prompt,
             commands::set_acp_model,
             commands::drain_acp_events,
+            commands::list_acp_permissions,
+            commands::respond_acp_permission,
             commands::stop_acp_session,
             commands::list_acp_sessions,
             commands::list_acp_registry_candidates,

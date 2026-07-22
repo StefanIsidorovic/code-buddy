@@ -1,8 +1,8 @@
 use crate::{
     acp::{
-        list_acp_registry_candidates as build_acp_registry_candidates, AcpPromptResult,
-        AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
-        SetAcpModelRequest, StartAcpRegistrySessionRequest,
+        list_acp_registry_candidates as build_acp_registry_candidates, AcpPermissionRequest,
+        AcpPromptResult, AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
+        RespondAcpPermissionRequest, SetAcpModelRequest, StartAcpRegistrySessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
@@ -649,6 +649,24 @@ pub async fn drain_acp_events(
 ) -> AppResult<Vec<AcpSessionEvent>> {
     let manager = Arc::clone(state.inner());
     run_acp_task(move || manager.drain_events(&session_id)).await
+}
+
+#[tauri::command]
+pub async fn list_acp_permissions(
+    state: State<'_, Arc<AcpSessionManager>>,
+    session_id: String,
+) -> AppResult<Vec<AcpPermissionRequest>> {
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.list_permissions(&session_id)).await
+}
+
+#[tauri::command]
+pub async fn respond_acp_permission(
+    state: State<'_, Arc<AcpSessionManager>>,
+    request: RespondAcpPermissionRequest,
+) -> AppResult<()> {
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.respond_permission(request)).await
 }
 
 #[tauri::command]

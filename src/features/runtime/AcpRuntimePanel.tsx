@@ -1,22 +1,24 @@
 import { ChevronIcon } from "../../components/ui/icons";
-import type { AcpPromptResult, AcpSessionInfo, TaskInfo } from "../../types/domain";
+import type { AcpPermissionRequest, AcpPromptResult, AcpSessionInfo, TaskInfo } from "../../types/domain";
 
 export type AcpRuntimePanelProps = {
   activeTask: TaskInfo | null; busy: boolean; canPreviewContext: boolean;
   canStartSelectedCandidate: boolean; canUseSession: boolean; expanded: boolean;
   prompt: string; promptBusy: boolean; promptResult: AcpPromptResult | null;
+  permissions: AcpPermissionRequest[];
   session: AcpSessionInfo | null; showWaiting: boolean; statusLabel: string;
   onChangeModel: (modelId: string) => void; onChangePrompt: (prompt: string) => void;
   onDrain: () => void; onPreviewContext: () => void; onSendPrompt: () => void;
   onStartSelected: () => void; onStop: () => void;
+  onRespondPermission: (permissionId: string, optionId: string) => void;
   onToggleExpanded: () => void;
 };
 
 export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
   const { activeTask, busy, canPreviewContext, canStartSelectedCandidate, canUseSession,
-    expanded, prompt, promptBusy, promptResult, session, showWaiting, statusLabel,
+    expanded, prompt, promptBusy, promptResult, permissions, session, showWaiting, statusLabel,
     onChangeModel, onChangePrompt, onDrain, onPreviewContext, onSendPrompt,
-    onStartSelected, onStop, onToggleExpanded } = props;
+    onStartSelected, onStop, onRespondPermission, onToggleExpanded } = props;
   const codingModel = session?.codingModel;
   const modelDescription = codingModel?.options.find(
     (option) => option.value === codingModel.currentValue,
@@ -63,6 +65,13 @@ export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
             disabled={busy || promptBusy || !canUseSession}>Send ACP</button>
         </div>
       </div>
+
+      {permissions.map((permission) => <section className="acp-permission-card" key={permission.id}
+        aria-labelledby={`permission-${permission.id}`}><div><strong id={`permission-${permission.id}`}>
+          Agent needs permission</strong><span>{permission.title}</span></div>
+        <div>{permission.options.map((option) => <button type="button" key={option.optionId}
+          data-kind={option.kind} onClick={() => onRespondPermission(permission.id, option.optionId)}>
+          {option.name}</button>)}</div></section>)}
 
       <div className="acp-controls-content" hidden={!expanded} id="acp-controls-content">
         <div className="acp-coding-model">

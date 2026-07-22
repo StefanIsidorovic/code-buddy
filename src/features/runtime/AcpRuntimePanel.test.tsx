@@ -8,10 +8,11 @@ function props(overrides: Partial<AcpRuntimePanelProps> = {}): AcpRuntimePanelPr
     activeTask: null, busy: false, canPreviewContext: false,
     canStartSelectedCandidate: true, canUseSession: false, expanded: true,
     prompt: "Keep this prompt", promptBusy: false, promptResult: null, session: null,
+    permissions: [],
     showWaiting: false, statusLabel: "not started", onChangeModel: vi.fn(),
     onChangePrompt: vi.fn(), onDrain: vi.fn(), onPreviewContext: vi.fn(),
     onSendPrompt: vi.fn(), onStartSelected: vi.fn(),
-    onStop: vi.fn(), onToggleExpanded: vi.fn(), ...overrides,
+    onStop: vi.fn(), onRespondPermission: vi.fn(), onToggleExpanded: vi.fn(), ...overrides,
   };
 }
 
@@ -81,5 +82,13 @@ describe("ACP runtime panel", () => {
     expect(screen.getByText("User selected")).toBeInTheDocument();
     expect(screen.getByText("Stop reason: end_turn")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Waiting for agent response");
+  });
+
+  it("keeps permission choices visible while controls are collapsed", () => {
+    const value = props({ expanded: false, permissions: [{ id: "permission-1", title: "Run tests",
+      options: [{ optionId: "allow", name: "Allow once", kind: "allow_once" }] }] });
+    render(<AcpRuntimePanel {...value} />); fireEvent.click(screen.getByRole("button", { name: "Allow once" }));
+    expect(screen.getByText("Agent needs permission")).toBeInTheDocument();
+    expect(value.onRespondPermission).toHaveBeenCalledWith("permission-1", "allow");
   });
 });

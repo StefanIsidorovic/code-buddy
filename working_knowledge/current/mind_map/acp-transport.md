@@ -55,6 +55,8 @@
 - Controlled phase Run uses the same single-prompt concurrency boundary, persists its exact instruction as a transcript user event, and rejects a Task/transcript identity mismatch before ACP dispatch.
 - The dedicated phase-run Tauri command persists intent before `session/prompt`, then records stop reason or failure; process uncertainty remains conservatively pending.
 - Pending phase-run recovery checks live ACP manager state before allowing a failed resolution and never manufactures a sent outcome.
+- Agent-to-client `session/request_permission` requests are routed before generic response IDs, held in an opaque per-session queue, and exposed through typed list/respond commands.
+- The Agent view polls pending permissions independently while `session/prompt` blocks; users must select an offered choice, and graceful Stop sends cancelled outcomes.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.
@@ -62,7 +64,7 @@
 - Remote ACP support is still not the first local target; start with stdio.
 - ACP should not be mixed into the existing PTY SessionManager until the boundary is clear.
 - The fake ACP fixture is shell-based for local Linux validation; replace with real ACP agent process validation before claiming support for a real CLI.
-- Client-side ACP requests from agents, such as permission requests, are not implemented yet; the first slice handles responses and session/update notifications only.
+- Only `session/request_permission` client-side ACP requests are implemented; other future agent-to-client methods still require explicit routing and protocol tests.
 - Registry discovery must not run npx or download packages; real adapter launch needs an explicit later step and user approval if network/package install is required.
 - Start Selected ACP is now that explicit launch action; npx candidates may download packages on first launch.
 - Avoid per-agent direct ACP launch buttons unless a later product design explicitly requires them.

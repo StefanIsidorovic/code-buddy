@@ -739,6 +739,17 @@
 - review status: passed after 2 cycles; cycle 1 verified modal single-flight/exit and backend noise filtering, then identified missing parent height containment; cycle 2 added viewport-bounded desktop scroll and found no remaining clipping, modal race, event semantics, polling, accessibility, responsive-layout, regression, security, or patch-hygiene issue.
 - commit: this commit
 
+### 22.20. Handle ACP permission requests without deadlock
+- objective: let tool-using ACP prompts continue by routing agent-to-client permission requests to an explicit user decision instead of misclassifying them as responses.
+- status: complete
+- files: src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/runtime/useAcpRuntime.ts; src/features/runtime/AcpRuntimePanel.tsx; related tests; src/App.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: JSON-RPC reader routing; pending permission queue; permission response validation/write; prompt polling; ACP Controls presentation; cancellation.
+- expected changes: distinguish requests from responses; expose opaque pending permissions and offered choices; require explicit selection; cancel pending requests on Stop; keep prompt single-flight while permissions are answered.
+- acceptance criteria: tool prompts cannot deadlock on unhandled permission; no automatic allow; only agent-offered options are accepted; request RPC IDs never collide with response IDs; restart/new session recovery is documented.
+- required tests: request routing; option validation; selected/cancelled response wire shape; panel choice callback; runtime polling; full frontend/Rust gates.
+- review status: passed after 2 cycles; cycle 1 corrected request/response routing and added explicit user choice without auto-allow, and cycle 2 preserved retryability until a response write succeeds and proved the full prompt-permission-response wire flow.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

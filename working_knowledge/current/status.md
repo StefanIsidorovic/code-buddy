@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: d6febea step 22.18: guide phase completion flow
-- worktree: plan item 22.19 screenshot-confirmed runtime usability repair verified and ready for commit.
+- head: this commit, step 22.20: handle ACP permission requests (parent 7ed3ea6)
+- worktree: plan item 22.20 complete and ready to commit.
 - relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.19 complete
+- active plan step: 22.20 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 216 frontend tests, 100 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, explicit ACP permission UI and full request/response wire-flow coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.20.
 - 2026-07-22: 215 frontend tests, 98 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, modal-send dismissal and ACP tool-update filtering coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.19.
 - 2026-07-22: 215 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, optional/manual evidence and final-review CTA coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.18.
 - 2026-07-22: 211 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale Task/empty linked-response coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.17.
