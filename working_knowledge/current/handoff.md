@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Task Phase shows a compact five-step guide; Run/Prepare are accurately optional, while Save evidence, Review, and Complete expose the authoritative gates and next required action.
+- Completion CTA names the next pending phase or final Task completion; the backend-returned phase renders immediately but still requires its own explicit Start.
 - Task Phase now offers `Prepare completion`, which loads only the latest current-phase sent receipt's linked response events into an editable draft with exact provenance IDs.
 - Missing links produce an actionable error; stale responses after Task changes are ignored, and Add evidence/review/Complete/next Start remain separate explicit gates.
 - Controlled phase runs now persist normalized links from their sent receipt to the exact agent transcript events drained after that run; cross-transcript and user-event links are rejected transactionally.
@@ -32,7 +34,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Improve the Task view into a compact guided completion flow and add a safe explicit `Complete & show next phase` transition without auto-starting the next phase.
+- Begin the next major roadmap boundary: define capability-based multi-agent roles and a bounded planner/executor/reviewer orchestration contract before adding parallel execution UI.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

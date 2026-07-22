@@ -717,6 +717,17 @@
 - review status: passed after 2 cycles; cycle 1 added stale-Task response coverage after validating canonical/empty boundaries, and cycle 2 found no remaining receipt selection, provenance, async identity, explicit-gate, accessibility, architecture, regression, security, or patch-hygiene issue.
 - commit: this commit
 
+### 22.18. Add a guided phase completion flow
+- objective: make the current Task phase understandable as a compact five-step flow while preserving every explicit backend gate.
+- status: complete
+- files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhaseGuide.test.tsx; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: derived phase-workflow presentation; action grouping; completion CTA copy; responsive Task layout.
+- expected changes: render Run, Prepare, Save, Review, Complete progress; identify the next required action; group existing controls by purpose; label completion with the next pending phase or final Task outcome.
+- acceptance criteria: no new persisted/client state; displayed stage follows draft/artifact/review props; completion remains disabled behind existing gates; next phase is shown but never auto-started; mobile remains readable.
+- required tests: empty/draft/artifact/reviewed guide states; intermediate/final completion labels; existing Task panel callbacks; frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 corrected false Run/Prepare completion claims by marking them optional helpers and preserving manual evidence, while cycle 2 added the final-review CTA boundary and found no remaining derived-stage, transition-copy, accessibility, responsive-layout, architecture, regression, or patch-hygiene issue.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

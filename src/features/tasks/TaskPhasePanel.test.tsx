@@ -35,9 +35,9 @@ describe("TaskPhasePanel", () => {
   });
   it("locks completion without an artifact and enables it with persisted evidence", () => {
     const value = props(); const view = render(<TaskPhasePanel {...value} />);
-    expect(screen.getByRole("button", { name: "Complete analysis" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeDisabled();
     view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact], evidenceReviewed: true })} />);
-    expect(screen.getByRole("button", { name: "Complete analysis" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeEnabled();
     expect(screen.getByText("Analysis evidence")).toBeInTheDocument();
   });
   it("offers start only for a pending current phase and surfaces errors", () => {
@@ -76,10 +76,18 @@ describe("TaskPhasePanel", () => {
   it("requires explicit phase-aware evidence review before completion", () => {
     const value = props({ artifacts: [artifact] }); const view = render(<TaskPhasePanel {...value} />);
     expect(screen.getByText("Risks and unknowns are explicit.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Complete analysis" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: /I reviewed the persisted evidence/ }));
     expect(value.onAcknowledgeEvidenceReview).toHaveBeenCalledWith(true);
     view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact], evidenceReviewed: true })} />);
-    expect(screen.getByRole("button", { name: "Complete analysis" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeEnabled();
+  });
+  it("finishes the Task instead of promising a phase after review", () => {
+    const reviewPhase = { ...phases[3], status: "in_progress", startedAt: 2 };
+    const reviewTask = { ...task, currentPhase: "review" as const,
+      phases: phases.map((phase) => phase.phase === "review" ? reviewPhase : phase) };
+    render(<TaskPhasePanel {...props({ task: reviewTask, currentPhase: reviewPhase,
+      artifacts: [{ ...artifact, phase: "review" }], evidenceReviewed: true })} />);
+    expect(screen.getByRole("button", { name: "Complete review & finish task" })).toBeEnabled();
   });
 });

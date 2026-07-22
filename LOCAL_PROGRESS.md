@@ -830,3 +830,9 @@ YYYY-MM-DD
 - Task Phase dobija `Prepare completion`, koji koristi samo linked event-e poslednjeg sent receipt-a trenutne faze i popunjava editabilan draft sa tacnim provenance ID-jevima.
 - Prazan/unlinked rezultat i stale Task odgovor ne mogu proizvesti evidence; Add evidence, review, Complete i sledeci Start ostaju odvojeni eksplicitni gate-ovi.
 - Frontend audit, 211 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje na 562 linije.
+
+### 2026-07-22 - Guided Phase Completion UI
+
+- Task view prikazuje kompaktan Run, Prepare, Save evidence, Review, Complete tok i jednu jasnu sledecu akciju.
+- Run/Prepare su tacno oznaceni kao opcionalni helper-i; completion CTA prikazuje sledecu pending fazu ili zavrsetak Task-a bez auto-starta.
+- Frontend audit, 215 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; novi guide ima 26 linija i nema sopstveno stanje.

@@ -1,6 +1,7 @@
 import type { TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo, TranscriptEventInfo } from "../../types/domain";
 import { buildTaskPhaseExecutionPrompt } from "./taskPhaseExecution";
 import { taskPhaseReviewCriteria } from "./taskPhaseReview";
+import { TaskPhaseGuide } from "./TaskPhaseGuide";
 
 interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPhase: TaskPhaseInfo | null;
   sourceEvents: TranscriptEventInfo[]; selectedSourceIds: string[]; kind: string; content: string;
@@ -18,11 +19,14 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
   const inProgress = currentPhase?.status === "in_progress";
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
+  const nextPhase = task.phases.find(({ phaseIndex }) => phaseIndex === (currentPhase?.phaseIndex ?? -1) + 1)?.phase;
   return <section className="task-phase-panel" aria-labelledby="task-phase-title">
     <div className="doctor-heading"><div><h3 id="task-phase-title">Task phases</h3>
       <span>{task.status} · current: {task.currentPhase}</span></div></div>
     <ol className="task-phase-list">{task.phases.map((phase) => <li key={phase.id}
       data-current={phase.phase === task.currentPhase}><strong>{phase.phase}</strong><span>{phase.status}</span></li>)}</ol>
+    {inProgress ? <TaskPhaseGuide hasDraft={!!content.trim() && selectedSourceIds.length > 0}
+      hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} /> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {currentPhase?.status === "pending" ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
@@ -55,7 +59,8 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           onChange={(event) => onAcknowledgeEvidenceReview(event.target.checked)} />
           I reviewed the persisted evidence against these criteria.</label></fieldset> : null}
       <button className="primary-action" type="button" onClick={onComplete}
-        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed}>Complete {task.currentPhase}</button>
+        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed}>{nextPhase
+          ? `Complete ${task.currentPhase} & show ${nextPhase}` : `Complete ${task.currentPhase} & finish task`}</button>
     </div> : null}
     <div className="task-artifact-list"><strong>Current phase artifacts</strong>
       {phaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{phaseArtifacts.map((artifact) =>
