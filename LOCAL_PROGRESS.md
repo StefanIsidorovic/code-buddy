@@ -896,3 +896,9 @@ YYYY-MM-DD
 - Activity view sada odvaja stare `pending` phase/context receipt-e od rada koji pripada trenutno zivom lokalnom ACP session-u i jasno ih oznacava kao nepotvrdjene, ne kao neuspele ili uspesne.
 - Resume ne pokrece retry niti menja persistence; recovery akcija samo otvara postojecu rucnu `pending -> failed` proveru za tacan receipt.
 - Frontend audit, 233 frontend testa, 108 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 574 linije.
+
+### 2026-07-22 - Process-Level ACP Restart Proof
+
+- Test sada zaista unistava prvi ACP manager, ceka da njegov lokalni PID nestane i zatim kroz potpuno novi manager ucitava isti external session ID.
+- Recovery replay je dostupan tacno jednom, a follow-up prompt nastavlja kroz novi lokalni proces bez zamenskog external identiteta.
+- Frontend audit, 233 frontend testa, 109 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 574 linije.

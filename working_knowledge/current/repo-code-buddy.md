@@ -98,6 +98,7 @@
 - ACP recovery identity is stored separately from generic transcript rows; the manager can now re-spawn the recorded registry candidate, require advertised load support, issue `session/load` without `session/new`, restore replay/model state, and publish the local process only after success.
 - Session History Resume reactivates the existing transcript/Task through a dedicated stale-safe recovery hook; load replay is UI-only to avoid duplicate persistence, later events retain normal transcript affinity, and a workspace switch kills a late recovered process.
 - `TaskRecoveryNotice` is a state-free Activity-view boundary: it treats only pending receipts from a non-current local ACP session as interrupted, and routes the exact receipt to existing manual resolution without retrying or changing persisted state.
+- The ACP process test harness accepts an exact expected external session id and proves recovery across destruction of the original manager/PID, one-shot load replay, and continued prompting through a fresh local process.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

@@ -636,6 +636,7 @@ impl AcpSession {
     #[cfg(test)]
     fn spawn_load_fake(cwd: PathBuf, agent_session_id: &str) -> AppResult<Self> {
         let mut command = fake_acp_command(load_fake_acp_script());
+        command.env("EXPECTED_AGENT_SESSION_ID", agent_session_id);
         command.current_dir(&cwd);
         Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
     }
@@ -1538,8 +1539,8 @@ fn load_fake_acp_script() -> &'static str {
       printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":true},"agentInfo":{"name":"load-fake","version":"1.0.0"}}}\n' "$id"
       ;;
     *'"method":"session/load"'*)
-      if printf '%s' "$line" | grep -q '"sessionId":"saved-agent-session"' && printf '%s' "$line" | grep -q '"cwd":' && printf '%s' "$line" | grep -q '"mcpServers":\[\]'; then
-        printf '{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"saved-agent-session","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"restored history"}}}}\n'
+      if printf '%s' "$line" | grep -Fq "\"sessionId\":\"$EXPECTED_AGENT_SESSION_ID\"" && printf '%s' "$line" | grep -q '"cwd":' && printf '%s' "$line" | grep -q '"mcpServers":\[\]'; then
+        printf '{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"%s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"restored history"}}}}\n' "$EXPECTED_AGENT_SESSION_ID"
         printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"restored-model","options":[{"value":"restored-model","name":"Restored Model"}]}]}}\n' "$id"
       else
         printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32602,"message":"invalid load payload"}}\n' "$id"
@@ -1950,6 +1951,54 @@ mod tests {
             manager
                 .send_prompt(&session.id, "Continue")
                 .expect("prompt sends")
+                .stop_reason,
+            "end_turn"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn continues_external_session_after_local_manager_restart() {
+        let (pid, agent_session_id) = {
+            let first_manager = AcpSessionManager::default();
+            let first = first_manager
+                .start_fake_session(StartFakeAcpSessionRequest { cwd: None })
+                .expect("first ACP session starts");
+            (
+                first.pid.expect("first local pid available"),
+                first
+                    .agent_session_id
+                    .expect("external ACP session id available"),
+            )
+        };
+        wait_until(Duration::from_secs(2), || !process_exists(pid))
+            .expect("first local ACP process stops with its manager");
+
+        let restarted_manager = AcpSessionManager::default();
+        let recovered = restarted_manager
+            .load_fake_session(
+                std::env::current_dir().expect("current dir exists"),
+                &agent_session_id,
+            )
+            .expect("external ACP session loads through a new manager");
+
+        assert_eq!(
+            recovered.agent_session_id.as_deref(),
+            Some(agent_session_id.as_str())
+        );
+        let replay = restarted_manager
+            .drain_events(&recovered.id)
+            .expect("load replay drains");
+        assert_eq!(replay.len(), 1);
+        assert_eq!(replay[0].content, "restored history");
+        assert!(restarted_manager
+            .drain_events(&recovered.id)
+            .expect("replay is consumed once")
+            .is_empty());
+        assert_eq!(
+            restarted_manager
+                .send_prompt(&recovered.id, "Continue after restart")
+                .expect("recovered session accepts a follow-up prompt")
                 .stop_reason,
             "end_turn"
         );

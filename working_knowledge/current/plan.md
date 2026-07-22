@@ -838,6 +838,17 @@
 - review status: passed after 2 cycles; cycle 1 established the conservative boundary between current-session in-flight work and older unconfirmed receipts, while cycle 2 verified exact receipt routing, accessible non-mutating guidance, empty-state behavior, App composition, and found no automatic retry/finalization or backend-policy regression.
 - commit: this commit
 
+### 23.7. Prove ACP continuation across a local process restart
+- objective: validate the recovery contract across destruction of the original local ACP manager/process rather than only loading a saved id in isolation.
+- status: complete
+- files: src-tauri/src/acp.rs; related Rust tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: fake ACP process lifecycle; external session identity handoff; session/load replay and continued prompt path.
+- expected changes: start a first fake ACP session, retain its advertised external session id, destroy its entire manager, create a fresh manager, load that exact external id, consume restored history, and send a follow-up prompt.
+- acceptance criteria: the first local process is stopped before recovery; the recovered session retains the exact external id; load replay is available once; a follow-up prompt succeeds through the replacement local process; no production-only recovery shortcut is introduced.
+- required tests: end-to-end manager restart/load/replay/prompt test; existing load/cleanup tests; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 made the load fake validate and replay an arbitrary exact external session id, while cycle 2 proved original PID termination, fresh-manager recovery, one-shot replay, follow-up prompting, and found no production shortcut, process leak, identity substitution, or regression.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.
