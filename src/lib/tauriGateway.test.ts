@@ -53,4 +53,11 @@ describe("Tauri command gateway", () => {
     await invokeCommand("inspect_git_delivery_readiness", { repositoryPath: "/repo" });
     expect(invoke).toHaveBeenCalledWith("inspect_git_delivery_readiness", { repositoryPath: "/repo" });
   });
+
+  it("forwards read-only Git delivery provenance history through the typed boundary", async () => {
+    invoke.mockResolvedValue([]);
+    await invokeCommand("list_git_delivery_provenance_history", { repositoryPath: "/repo", limit: 5 });
+    expect(invoke).toHaveBeenCalledWith("list_git_delivery_provenance_history",
+      { repositoryPath: "/repo", limit: 5 });
+  });
 });

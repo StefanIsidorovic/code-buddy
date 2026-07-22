@@ -43,6 +43,7 @@
 - Secondary review brief boundary: Activity may derive a bounded display-only Review brief from exact immutable report lines, but this classification is not persisted evidence, not an approval, and not authority to mutate Task phases, Git state, or ACP runtime.
 - Secondary finding action boundary: Review brief findings may create editable ACP prompt drafts and local resolved/reopened UI state, but drafting never sends ACP automatically and resolving is not persisted evidence, approval, phase completion, report mutation, or Git authority.
 - Delivery readiness boundary: Git delivery intelligence starts as read-only inspection of branch, HEAD, worktree status, and HEAD provenance notes; Ship/Commit/Push controls require a separate explicit plan and must not be implied by readiness display.
+- Delivery provenance history boundary: Activity may show bounded recent commit provenance by reading Git log and `refs/notes/provenance`, but it remains inspection-only and does not prove tests, deployment, mergeability, or permission to mutate Git.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

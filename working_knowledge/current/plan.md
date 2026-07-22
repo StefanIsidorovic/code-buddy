@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 29.1. Add read-only delivery provenance history
+- objective: make delivery readiness more useful by showing the recent provenance trail for repository commits without adding Git mutation controls.
+- status: complete pending commit
+- files: src-tauri/src/delivery.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/delivery/*; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Git delivery inspection backend, Tauri command surface, typed frontend gateway/domain contracts, stale-safe delivery hook, Activity Delivery readiness panel, mind map/current knowledge.
+- expected changes: add `list_git_delivery_provenance_history(repositoryPath, limit)` that returns bounded recent commits with optional provenance-note metadata, then render a compact Recent provenance section in Activity beside the existing HEAD readiness.
+- acceptance criteria: history is read-only, capped, and tolerant of commits without notes; no Ship/Commit/Push/Git mutation UI appears; App remains composition-only; stale repository responses are ignored; direct Tauri imports stay limited to the gateway/tests.
+- required tests: Rust delivery tests for noted/unnoted commits and limit clamping; panel tests for recent provenance and unnoted commits; hook/gateway tests for payloads and stale-response behavior; stabilize the existing PTY keyboard App test if it blocks full gates; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; targeted/full Rust delivery checks; `git diff --check`.
+- review status: passed after 1 cycle; verified bounded read-only Git log/note inspection, no shell or Git write command in product code, no Ship/Commit/Push UI, App composition-only wiring, stale repository guard coverage for both readiness/history responses, and stabilized an existing PTY keyboard App test that blocked full frontend gates.
+- commit: pending.
+
 ### 28.1. Add read-only Git delivery readiness backend
 - objective: expose a read-only backend inspection boundary for repository delivery readiness before any future Ship/Git mutation controls.
 - status: complete
@@ -26,14 +37,14 @@
 
 ### 28.3. Finalize delivery-readiness slice
 - objective: validate backend/frontend delivery readiness, commit provenance, and handoff state before continuing toward richer Git delivery intelligence.
-- status: complete pending commit
+- status: complete
 - files: working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: current status, handoff, roadmap tracker, provenance records, final validation notes.
 - expected changes: verify 28.1 and 28.2 provenance, update active knowledge, and record the next slice without adding Git mutation controls.
 - acceptance criteria: worktree is clean, all new plan items have notes under `refs/notes/provenance`, full frontend and Rust gates pass, and the next step remains explicitly read-only unless separately planned.
 - required tests: provenance note checks; `git status --short`; `git diff --check`.
 - review status: passed after 1 cycle; verified notes for ada3525/28.1 and b359052/28.2, confirmed the worktree was clean before 28.3 knowledge edits, preserved the no-mutation boundary, and scoped the next delivery-intelligence slice to read-only validation/evidence signals.
-- commit: pending.
+- commit: 753c6de.
 
 ### 27.1. Add local Review brief follow-up controls
 - objective: let users act on read-only advisor/reviewer Review brief findings without turning them into automatic evidence, approval, ACP sends, or Git changes.

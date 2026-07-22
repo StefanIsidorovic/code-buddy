@@ -405,6 +405,7 @@ function App() {
             onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
             <DeliveryReadinessPanel repositoryPath={selectedRepository?.path ?? null}
             readiness={deliveryReadiness.readiness} loading={deliveryReadiness.loading}
+            provenanceHistory={deliveryReadiness.provenanceHistory}
             error={deliveryReadiness.error} onRefresh={() => void deliveryReadiness.refresh()} />
             <TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
             runningRole={taskAgentReports.runningRole} error={taskAgentReports.error}

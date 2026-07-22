@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 28.3 is complete pending commit: delivery-readiness provenance, tracker state, and handoff notes are updated after the 28.2 commit.
+- Plan item 29.1 is complete pending commit: Activity Delivery readiness now includes read-only Recent provenance history from bounded Git log/notes inspection, and full frontend/Rust gates pass.
+- Plan item 28.3 is committed as 753c6de: delivery-readiness provenance, tracker state, and handoff notes are updated after the 28.2 commit.
 - Plan item 28.2 is committed as b359052: Activity now has a read-only Delivery readiness panel backed by a stale-safe hook and typed gateway command.
 - Plan item 28.1 is committed as ada3525: the backend has a read-only Git delivery readiness inspector for branch/HEAD/status/provenance, with full backend gates passing.
 - Plan item 27.2 is committed as a6650b6: the Review brief finding-action slice is validated, provenance for 27.1 is verified, and the next roadmap step is scoped to read-only delivery readiness / Git intelligence.
@@ -15,7 +16,7 @@
 - Plan item 24.5 is committed: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
 - `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` owns only presentation plus transient local resolved-finding state and a required draft callback.
 - Advisor/reviewer run controls require an active in-progress Task phase, selected ACP candidate, and selected repository/project cwd; a late result after Task change cannot attach reports to the visible Task.
-- `src/App.tsx` remains composition-only at 592 lines and only wires Task, candidate/cwd identity, Review brief prompt drafts, and Delivery readiness state into feature hooks/panels.
+- `src/App.tsx` remains composition-only at 593 lines and only wires Task, candidate/cwd identity, Review brief prompt drafts, and Delivery readiness state into feature hooks/panels.
 - Plan item 24.4 is committed: `run_task_agent_report` validates Task/phase/role before external startup, launches a secondary isolated ACP session, sends a role-scoped instruction, drains output, atomically creates a separate ACP transcript plus immutable report, and removes the secondary session from the manager.
 - Secondary transcript/report publication is transactional: no persisted agent output means no transcript/report commit, and phase changes during the run cause the storage transaction to reject without partial report state.
 - Plan item 24.3 is committed: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
@@ -78,7 +79,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 28.3, then continue with read-only delivery validation signals: surface the latest known validation/test/provenance evidence beside Git readiness before planning any real Ship/Commit/Push controls.
+- Commit plan item 29.1, then continue with read-only validation/evidence signals beside Git readiness before planning any future Ship/Commit/Push controls.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

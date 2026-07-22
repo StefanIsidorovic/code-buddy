@@ -42,6 +42,7 @@ pub fn run() {
             commands::list_project_repositories,
             commands::delete_project_repository,
             commands::inspect_git_delivery_readiness,
+            commands::list_git_delivery_provenance_history,
             commands::create_project_initialization,
             commands::list_project_initializations,
             commands::collect_project_initialization_facts,

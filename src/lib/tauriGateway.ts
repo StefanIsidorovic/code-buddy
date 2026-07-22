@@ -17,6 +17,7 @@ export type TauriCommand =
   | "create_acp_transcript_session"
   | "get_transcript_acp_identity"
   | "inspect_git_delivery_readiness"
+  | "list_git_delivery_provenance_history"
   | "delete_project"
   | "delete_project_repository"
   | "drain_acp_events"

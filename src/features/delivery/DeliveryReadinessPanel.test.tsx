@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { GitDeliveryReadinessInfo } from "../../types/domain";
+import type { GitDeliveryProvenanceHistoryEntry, GitDeliveryReadinessInfo } from "../../types/domain";
 import { DeliveryReadinessPanel } from "./DeliveryReadinessPanel";
 
 const readiness: GitDeliveryReadinessInfo = {
@@ -18,15 +18,39 @@ const readiness: GitDeliveryReadinessInfo = {
     notePreview: "{\"plan_step_id\":\"28.1\"}",
   },
 };
+const provenanceHistory: GitDeliveryProvenanceHistoryEntry[] = [
+  {
+    commitSha: "abc123full",
+    shortSha: "abc123",
+    subject: "step 28.2: add delivery readiness activity",
+    hasProvenance: true,
+    planStepId: "28.2",
+    severity: 3,
+    rationale: "Add read-only Activity delivery readiness UI.",
+    notePreview: "{\"plan_step_id\":\"28.2\"}",
+  },
+  {
+    commitSha: "def456full",
+    shortSha: "def456",
+    subject: "manual experiment",
+    hasProvenance: false,
+    planStepId: null,
+    severity: null,
+    rationale: null,
+    notePreview: null,
+  },
+];
 
 describe("DeliveryReadinessPanel", () => {
   it("renders clean worktree and provenance readiness without offering mutation actions", () => {
     const onRefresh = vi.fn();
     render(<DeliveryReadinessPanel repositoryPath="/repo" readiness={readiness}
-      loading={false} error={null} onRefresh={onRefresh} />);
+      provenanceHistory={provenanceHistory} loading={false} error={null} onRefresh={onRefresh} />);
     expect(screen.getByRole("heading", { name: "Delivery readiness" })).toBeInTheDocument();
     expect(screen.getByText("Ready for delivery review")).toBeInTheDocument();
     expect(screen.getByText("Present · step 28.1")).toBeInTheDocument();
+    expect(screen.getByText("step 28.2 · severity 3")).toBeInTheDocument();
+    expect(screen.getByText("No provenance note")).toBeInTheDocument();
     expect(screen.getByText(/No Git command here mutates files or refs/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ship|commit|push/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
@@ -34,7 +58,7 @@ describe("DeliveryReadinessPanel", () => {
   });
 
   it("shows dirty changed files and missing provenance", () => {
-    render(<DeliveryReadinessPanel repositoryPath="/repo" loading={false} error={null}
+    render(<DeliveryReadinessPanel repositoryPath="/repo" loading={false} error={null} provenanceHistory={[]}
       onRefresh={vi.fn()} readiness={{ ...readiness, worktreeClean: false, changedFileCount: 2,
         changedFiles: [{ status: "M", path: "src/App.tsx" }, { status: "??", path: "TODO.md" }],
         headProvenance: { present: false, refName: "refs/notes/provenance",
@@ -48,11 +72,11 @@ describe("DeliveryReadinessPanel", () => {
 
   it("renders repository, loading, and error states", () => {
     const { rerender } = render(<DeliveryReadinessPanel repositoryPath={null} readiness={null}
-      loading={false} error={null} onRefresh={vi.fn()} />);
+      provenanceHistory={[]} loading={false} error={null} onRefresh={vi.fn()} />);
     expect(screen.getByText("Select a repository to inspect Git readiness.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
     rerender(<DeliveryReadinessPanel repositoryPath="/repo" readiness={null}
-      loading error="git failed" onRefresh={vi.fn()} />);
+      provenanceHistory={[]} loading error="git failed" onRefresh={vi.fn()} />);
     expect(screen.getByText("Loading delivery readiness…")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("git failed");
   });

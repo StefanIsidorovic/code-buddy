@@ -8,7 +8,8 @@ use crate::{
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     delivery::{
         inspect_git_delivery_readiness as inspect_git_delivery_readiness_for_repo,
-        GitDeliveryReadinessInfo,
+        list_git_delivery_provenance_history as list_git_delivery_provenance_history_for_repo,
+        GitDeliveryProvenanceHistoryEntry, GitDeliveryReadinessInfo,
     },
     errors::{AppError, AppResult},
     knowledge::{
@@ -190,6 +191,14 @@ pub fn inspect_git_delivery_readiness(
     repository_path: PathBuf,
 ) -> AppResult<GitDeliveryReadinessInfo> {
     inspect_git_delivery_readiness_for_repo(repository_path)
+}
+
+#[tauri::command]
+pub fn list_git_delivery_provenance_history(
+    repository_path: PathBuf,
+    limit: usize,
+) -> AppResult<Vec<GitDeliveryProvenanceHistoryEntry>> {
+    list_git_delivery_provenance_history_for_repo(repository_path, limit)
 }
 
 #[tauri::command]

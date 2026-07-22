@@ -2054,12 +2054,17 @@ describe("PTY test panel", () => {
         return Promise.resolve([]);
       }
 
+      if (command === "drain_session_output") {
+        return Promise.resolve("");
+      }
+
       return Promise.resolve(undefined);
     });
 
     render(<App />);
 
     await openPtyFallback();
+    await waitFor(() => expect(onTerminalData).toBeTypeOf("function"));
     fireEvent.click(await screen.findByRole("button", { name: "Start Fake" }));
 
     expect(await screen.findAllByText("fake · running · 92x18")).not.toHaveLength(0);

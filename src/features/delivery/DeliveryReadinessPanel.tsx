@@ -1,14 +1,17 @@
-import type { GitDeliveryReadinessInfo } from "../../types/domain";
+import type { GitDeliveryProvenanceHistoryEntry, GitDeliveryReadinessInfo } from "../../types/domain";
 
 interface Props {
   repositoryPath: string | null;
   readiness: GitDeliveryReadinessInfo | null;
+  provenanceHistory: GitDeliveryProvenanceHistoryEntry[];
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
 }
 
-export function DeliveryReadinessPanel({ repositoryPath, readiness, loading, error, onRefresh }: Props) {
+export function DeliveryReadinessPanel({
+  repositoryPath, readiness, provenanceHistory, loading, error, onRefresh,
+}: Props) {
   const ready = readiness?.worktreeClean && readiness.headProvenance.present;
   return <section className="task-dispatch-panel delivery-readiness-panel"
     aria-labelledby="delivery-readiness-title">
@@ -44,6 +47,19 @@ export function DeliveryReadinessPanel({ repositoryPath, readiness, loading, err
         <summary>HEAD provenance note preview</summary>
         <pre>{readiness.headProvenance.notePreview}</pre>
       </details> : null}
+      <div className="delivery-provenance-history">
+        <div><h4>Recent provenance</h4><span>{provenanceHistory.length} commit(s)</span></div>
+        {provenanceHistory.length > 0 ? <ol>
+          {provenanceHistory.map((entry) => <li key={entry.commitSha}
+            data-provenance={entry.hasProvenance}>
+            <div><strong>{entry.shortSha}</strong><span>{entry.subject || "No commit subject"}</span></div>
+            <small>{entry.hasProvenance
+              ? `step ${entry.planStepId ?? "unknown"}${entry.severity === null ? "" : ` · severity ${entry.severity}`}`
+              : "No provenance note"}</small>
+            {entry.rationale ? <p>{entry.rationale}</p> : null}
+          </li>)}
+        </ol> : <p>No recent commits found.</p>}
+      </div>
     </> : null}
   </section>;
 }

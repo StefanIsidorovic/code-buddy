@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: b359052 step 28.2: add delivery readiness activity
-- worktree: plan item 28.3 delivery-readiness handoff complete pending commit.
-- relevant files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 753c6de step 28.3: finalize delivery readiness handoff
+- worktree: plan item 29.1 read-only delivery provenance history complete pending commit.
+- relevant files: src-tauri/src/delivery.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/delivery/*; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: continue beyond-Conductor work into execution/review harness polish.
 - phase: in_progress
-- active plan step: 28.3 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 97%.
+- active plan step: 29.1 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 98%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: 29.1 full gates pass: frontend audit, typecheck, 257 frontend tests across 51 files, production build, delivery/App Tauri boundary check, file-size check (`App.tsx` 593 lines, `DeliveryReadinessPanel.tsx` 71 lines, `useDeliveryReadiness.ts` 57 lines), `git diff --check`, Rust fmt, 121 Rust tests, and clippy with warnings denied. The existing App PTY keyboard test was stabilized after it blocked the first full frontend run.
 - 2026-07-23: 28.2 commit b359052 has a verified provenance note; worktree was clean before 28.3 knowledge edits, and the next slice is scoped to read-only validation/evidence readiness rather than Ship/Commit/Push mutation.
 - 2026-07-23: 28.2 full frontend gates pass with frontend audit, typecheck, 256 frontend tests, production build, no direct Tauri/import boundary check for delivery/App, file-size check (`App.tsx` 592 lines, `DeliveryReadinessPanel.tsx` 55 lines, `useDeliveryReadiness.ts` 50 lines), and `git diff --check`; an existing App test act warning appeared but the suite passed.
 - 2026-07-23: provenance note verified for ada3525/28.1; backend delivery readiness inspector is committed and the frontend Activity readiness UI is ready for commit.

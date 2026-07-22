@@ -452,6 +452,17 @@ export type GitDeliveryReadinessInfo = {
   headProvenance: GitDeliveryProvenanceInfo;
 };
 
+export type GitDeliveryProvenanceHistoryEntry = {
+  commitSha: string;
+  shortSha: string;
+  subject: string;
+  hasProvenance: boolean;
+  planStepId: string | null;
+  severity: number | null;
+  rationale: string | null;
+  notePreview: string | null;
+};
+
 export type KnowledgeItemInfo = {
   id: string;
   projectId: string | null;
