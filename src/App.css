@@ -4687,6 +4687,21 @@ summary:focus-visible {
 }
 
 .task-dispatch-list { display: grid; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.task-agent-brief { display: grid; gap: 0.55rem; padding: 0.75rem; border: 1px solid var(--border-subtle);
+  border-radius: 0.8rem; background: var(--surface-subtle); }
+.task-agent-brief h4, .task-agent-brief p { margin: 0; }
+.task-agent-brief > div { display: grid; gap: 0.15rem; }
+.task-agent-brief small { color: var(--muted); }
+.task-agent-brief ol { display: grid; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+.task-agent-brief li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.2rem 0.5rem;
+  padding: 0.65rem; border: 1px solid var(--border-subtle); border-radius: 0.65rem;
+  background: var(--surface-raised); }
+.task-agent-brief li > span { align-self: start; padding: 0.18rem 0.45rem; border-radius: 999px;
+  background: var(--surface-muted); color: var(--muted); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
+.task-agent-brief li[data-kind="risk"] > span { background: var(--color-danger-soft); color: var(--danger); }
+.task-agent-brief li[data-kind="check"] > span { background: var(--mint-soft); color: var(--mint-strong); }
+.task-agent-brief li[data-kind="suggestion"] > span { background: var(--color-primary-soft); color: var(--color-primary); }
+.task-agent-brief li small { grid-column: 2; }
 .task-agent-report-list { display: grid; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
 .task-agent-report-list > li { display: grid; gap: 0.45rem; padding: 0.75rem;
   border: 1px solid var(--border-subtle); border-radius: 0.75rem; background: var(--surface-muted); }

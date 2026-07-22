@@ -1,8 +1,8 @@
 # Status
 
 ## Session
-- session_id: codex-20260722-aiadne-receipts
-- date_utc: 2026-07-22
+- session_id: codex-20260723-aiadne-execution-review
+- date_utc: 2026-07-23
 - agent_model: codex
 
 ## Target Repositories
@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: current branch HEAD; latest implementation commit is f52e683 step 25.2: add Task operating model guidance.
-- worktree: plan item 25.3 final Task guidance handoff complete pending commit.
-- relevant files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 939aee1 step 25.3: finalize Task guidance handoff
+- worktree: plan item 26.1 actionable secondary-report brief complete pending commit.
+- relevant files: src/features/tasks/*; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
-- request: continue beyond-Conductor work; first add concise real-user Task documentation because the current Task concept is confusing.
+- request: continue beyond-Conductor work into execution/review harness polish.
 - phase: in_progress
-- active plan step: 25.3 complete pending commit; next roadmap family is execution/review harness polish; AIadne-to-beyond-Conductor tracker approximately 95%.
+- active plan step: 26.1 complete pending commit; next is final validation/handoff for this execution-review slice; AIadne-to-beyond-Conductor tracker approximately 96%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,9 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: 26.1 targeted report-brief helper/panel tests pass (6 tests), frontend audit, typecheck, 246 frontend tests, production build, no direct Tauri/import boundary check, file-size check (`taskAgentReportBrief.ts` 82 lines, `TaskAgentReportsPanel.tsx` 46 lines, `App.tsx` 585 lines), and `git diff --check` pass after adding the read-only Review brief.
+- 2026-07-23: repository state rechecked for the next execution/review harness slice; HEAD is 939aee1 and worktree was clean before plan item 26.1.
+- 2026-07-22: commit 939aee1 has a verified provenance note under `refs/notes/provenance` for plan item 25.3.
 - 2026-07-22: plan item 25.3 final validation passed with docs signal check, frontend audit, typecheck, 242 frontend tests, production build, `git diff --check`, and verified provenance notes for 25.1 and 25.2.
 - 2026-07-22: provenance notes verified for 4f0ee18/25.1 and f52e683/25.2; Task guidance docs and in-app disclosure are aligned and no Task automation boundary changed.
 - 2026-07-22: 25.2 targeted TaskPhasePanel test, frontend audit, typecheck, 242 frontend tests, production build, no direct Tauri boundary check for TaskPhasePanel, size check (`TaskPhasePanel.tsx` 78 lines, `App.tsx` 585 lines), and `git diff --check` pass for in-app Task operating-model guidance.

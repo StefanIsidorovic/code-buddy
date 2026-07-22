@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 25.3 is complete pending commit: Task guidance docs and in-app guidance were validated, and provenance notes for 25.1/25.2 were verified.
+- Plan item 26.1 is complete pending commit: Activity advisor/reviewer reports now have a conservative read-only Review brief derived from exact report snippets.
+- Plan item 25.3 is committed as 939aee1: Task guidance docs and in-app guidance were validated, and provenance notes for 25.1/25.2 were verified.
 - Plan item 25.2 is committed as f52e683: `TaskPhasePanel` now has a compact native `How this Task works` disclosure that explains Agent, Task, Run & prepare, and Activity responsibilities.
 - Plan item 25.1 is committed as 4f0ee18: `LOCAL_PROGRESS.md` now explains the real-user Task model before adding more execution/review automation.
 - Plan item 24.6 is committed as f3b83e9: the secondary-agent flow passed full frontend/Rust hardening, provenance notes for 24.3/24.4/24.5 were verified, and no additional code fix was required.
@@ -70,7 +71,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Start the next roadmap family: execution/review harness polish. The first valuable slice should convert advisor/reviewer reports into clearer actionable review findings without granting them Task mutation authority.
+- Commit plan item 26.1 with a provenance note; then finalize the execution/review brief slice in 26.2.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

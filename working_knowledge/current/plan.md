@@ -2,6 +2,28 @@
 
 ## Active Plan
 
+### 26.2. Finalize execution/review brief slice
+- objective: validate the new secondary-report brief, provenance, knowledge state, and handoff before moving to the next execution/review harness capability.
+- status: pending
+- files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: current status, handoff, roadmap tracker, provenance records, final verification notes.
+- expected changes: run the required frontend checks, verify git notes for completed commits, update active knowledge, and create one final provenance-backed commit if knowledge changes are needed.
+- acceptance criteria: worktree is clean, provenance exists for completed plan items, Task guidance/report brief boundaries are documented, and no backend or Task mutation path was introduced.
+- required tests: `git notes --ref=refs/notes/provenance show <sha>`; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
+- review status: pending.
+- commit: pending.
+
+### 26.1. Add an actionable secondary-report brief
+- objective: make advisor/reviewer reports useful as execution/review signals instead of raw read-only blobs.
+- status: complete
+- files: src/features/tasks/taskAgentReportBrief.ts; src/features/tasks/taskAgentReportBrief.test.ts; src/features/tasks/TaskAgentReportsPanel.tsx; src/features/tasks/TaskAgentReportsPanel.test.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Activity report presentation, pure report-line derivation, report panel accessibility, frontend architecture boundaries, current knowledge.
+- expected changes: derive exact report snippets from immutable advisor/reviewer content, classify snippets conservatively as risk/check/suggestion/note for display, render a compact Review brief above the raw reports, and retain the complete immutable report list.
+- acceptance criteria: the brief never invents content, never persists or mutates Task evidence/phases, handles empty/noisy reports, remains state-free, imports no Tauri APIs, and keeps `App.tsx` unchanged.
+- required tests: pure helper extraction/classification/fallback tests; panel tests for Review brief, raw report retention, empty state and run controls; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 found locale-dependent deduplication and an over-broad text assertion, then cycle 2 verified the pure helper, state-free panel rendering, no App/backend changes, exact snippet display, raw report retention, and no Task mutation path.
+- commit: this commit.
+
 ### 25.3. Finalize Task guidance and execution/review UX slice
 - objective: validate documentation, frontend guidance, knowledge state, provenance, and handoff before continuing to the next roadmap family.
 - status: complete

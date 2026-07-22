@@ -128,6 +128,7 @@ Najbitnije pravilo: agentov odgovor nije automatski istina i nije automatski Tas
 - Secondary-agent family je zavrsen i ocvrsnut: sandbox, backend orchestration, Activity UI, report persistence, full gates i provenance audit su prosli bez dodavanja executor mutation puta.
 - Task tab sada ima `How this Task works` disclosure, da user odmah vidi razliku izmedju Agent razgovora, Task evidence/faza, optional Run & prepare pomoci i Activity audita.
 - Task guidance mini-sloj je zatvoren: isti mental model postoji u lokalnom progress docs-u i u samom Task tabu.
+- Activity sada pravi `Review brief` iz advisor/reviewer reporta: kratki exact snippet-i se izdvajaju kao risk/check/suggestion/note za lakse skeniranje, ali ostaju read-only i nisu evidence ili approval.
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.

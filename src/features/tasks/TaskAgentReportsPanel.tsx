@@ -1,5 +1,6 @@
 import { formatTimestamp } from "../../lib/presentation";
 import type { TaskAgentReportInfo, TaskAgentRole } from "../../types/domain";
+import { deriveTaskAgentFindings } from "./taskAgentReportBrief";
 
 interface Props {
   reports: TaskAgentReportInfo[];
@@ -14,6 +15,7 @@ interface Props {
 export function TaskAgentReportsPanel({ reports, loading, runningRole, error, runDisabledReason,
   onRefresh, onRun }: Props) {
   const runLocked = runningRole !== null || runDisabledReason !== null;
+  const findings = deriveTaskAgentFindings(reports);
   return <section className="task-dispatch-panel" aria-labelledby="task-agent-reports-title">
     <div className="doctor-heading"><div><h3 id="task-agent-reports-title">Advisor &amp; reviewer reports</h3>
       <span>{runningRole ? `Running ${runningRole}…` : `${reports.length} report(s) · read-only`}</span></div>
@@ -25,6 +27,14 @@ export function TaskAgentReportsPanel({ reports, loading, runningRole, error, ru
         <button type="button" disabled={loading} onClick={onRefresh}>Refresh</button>
       </div></div>
     {error ? <p className="error-message" role="alert">{error}</p> : null}
+    {findings.length > 0 ? <section className="task-agent-brief" aria-labelledby="task-agent-brief-title">
+      <div><h4 id="task-agent-brief-title">Review brief</h4>
+        <small>Exact snippets from read-only secondary reports. Use them as review prompts, not saved evidence.</small></div>
+      <ol>{findings.map((finding) => <li key={finding.id} data-kind={finding.kind}>
+        <span>{finding.kind}</span><p>{finding.content}</p>
+        <small>{finding.role} · {finding.phase} · transcript {finding.transcriptSessionId}
+          · {finding.provenanceEventCount} provenance event(s)</small></li>)}</ol>
+    </section> : null}
     {reports.length === 0 ? <p>{loading ? "Loading reports…" : "No secondary-agent reports yet."}</p>
       : <ol className="task-agent-report-list">{reports.map((report) => <li key={report.id}>
         <div><strong>#{report.sequence + 1} · {report.role} · {report.phase}</strong>
