@@ -4,24 +4,24 @@
 
 ### 28.1. Add read-only Git delivery readiness backend
 - objective: expose a read-only backend inspection boundary for repository delivery readiness before any future Ship/Git mutation controls.
-- status: complete pending commit
+- status: complete
 - files: src-tauri/src/delivery.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; working_knowledge/current/*.
 - affected units: Tauri command surface, Git command execution boundary, HEAD provenance-note detection, worktree status parsing, Rust test coverage, current knowledge.
 - expected changes: add `inspect_git_delivery_readiness(repositoryPath)` that reads branch, HEAD sha/subject, `git status --porcelain`, and HEAD note under `refs/notes/provenance` without mutating files or refs.
 - acceptance criteria: empty/missing/non-directory/non-Git paths fail safely; dirty files preserve Git porcelain status semantics; missing provenance is reported as data rather than an error; no shell is used; command is registered but performs no Git writes.
 - required tests: Rust unit tests for clean repo with provenance, dirty repo with changed files and missing provenance, non-Git rejection; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`; `git diff --check`.
 - review status: targeted test cycle passed after fixing whole-output trimming that broke leading-space porcelain status; full backend review pending.
-- commit: pending.
+- commit: ada3525.
 
 ### 28.2. Add Activity delivery readiness UI
 - objective: show repository delivery readiness in the Activity view as a read-only Git/provenance signal.
-- status: pending
+- status: complete pending commit
 - files: src/types/domain.ts; src/lib/tauriGateway.ts; src/features/delivery/*; src/App.tsx; src/App.css; frontend tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: typed frontend contract, Tauri gateway union, stale-safe delivery hook, state-free readiness panel, Activity composition, frontend architecture guardrails.
 - expected changes: add a delivery feature hook/panel that refreshes readiness for the selected repository, displays clean/dirty worktree state, HEAD provenance status, changed files, and explicit read-only action policy.
 - acceptance criteria: no Ship/Commit/Push action appears; App remains composition-only; stale repository responses are ignored; no direct Tauri imports outside the gateway/tests; missing repository/error/loading states are accessible.
 - required tests: panel ready/dirty/empty/error tests; hook payload/stale/error tests; gateway boundary test; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
-- review status: not_started.
+- review status: passed after 1 cycle; verified no direct Tauri imports outside the gateway, no Ship/Commit/Push action, stale repository guard coverage, App composition-only wiring, accessible loading/error/empty states, and full frontend gates.
 - commit: pending.
 
 ### 28.3. Finalize delivery-readiness slice

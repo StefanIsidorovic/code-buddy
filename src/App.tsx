@@ -27,6 +27,8 @@ import { TaskContextPreviewDialog } from "./features/knowledge/TaskContextPrevie
 import { KnowledgeCardDialog } from "./features/knowledge/KnowledgeCardDialog";
 import { KnowledgeCardsPanel } from "./features/knowledge/KnowledgeCardsPanel";
 import { useKnowledgeWorkspace } from "./features/knowledge/useKnowledgeWorkspace";
+import { DeliveryReadinessPanel } from "./features/delivery/DeliveryReadinessPanel";
+import { useDeliveryReadiness } from "./features/delivery/useDeliveryReadiness";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
@@ -177,6 +179,7 @@ function App() {
     });
   const taskDispatch = useTaskDispatchHistory(activeTask);
   const taskPhaseRuns = useTaskPhaseRunHistory(activeTask);
+  const deliveryReadiness = useDeliveryReadiness(selectedRepository?.path ?? null);
   const taskAgentReports = useTaskAgentReports(activeTask, {
     candidateId: selectedAcpCandidateId,
     cwd: selectedRepository?.path ?? selectedProject?.path,
@@ -400,6 +403,9 @@ function App() {
             activity={activeTask ? (({ showAgent }) => <><TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
             contextReceipts={taskDispatch.receipts} currentAcpSessionId={canUseAcpSession ? acpSession?.id ?? null : null}
             onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
+            <DeliveryReadinessPanel repositoryPath={selectedRepository?.path ?? null}
+            readiness={deliveryReadiness.readiness} loading={deliveryReadiness.loading}
+            error={deliveryReadiness.error} onRefresh={() => void deliveryReadiness.refresh()} />
             <TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
             runningRole={taskAgentReports.runningRole} error={taskAgentReports.error}
             runDisabledReason={taskAgentReports.runDisabledReason}

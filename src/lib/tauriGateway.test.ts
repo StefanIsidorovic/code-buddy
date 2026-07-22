@@ -47,4 +47,10 @@ describe("Tauri command gateway", () => {
       phase: "analysis", role: "advisor", candidateId: "codex-acp", cwd: "/repo" } });
     expect(invoke).toHaveBeenNthCalledWith(3, "list_task_agent_reports", { taskId: "t1" });
   });
+
+  it("forwards read-only Git delivery readiness inspection through the typed boundary", async () => {
+    invoke.mockResolvedValue({ worktreeClean: true });
+    await invokeCommand("inspect_git_delivery_readiness", { repositoryPath: "/repo" });
+    expect(invoke).toHaveBeenCalledWith("inspect_git_delivery_readiness", { repositoryPath: "/repo" });
+  });
 });

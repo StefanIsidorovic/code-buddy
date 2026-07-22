@@ -1,8 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 28.1 is complete pending commit: the backend now has a read-only Git delivery readiness inspector for branch/HEAD/status/provenance, with targeted Rust tests passing.
-- Plan item 28.2 is pending: next, wire the read-only delivery readiness result into Activity with a stale-safe hook and state-free panel.
+- Plan item 28.2 is complete pending commit: Activity now has a read-only Delivery readiness panel backed by a stale-safe hook and typed gateway command.
+- Plan item 28.1 is committed as ada3525: the backend has a read-only Git delivery readiness inspector for branch/HEAD/status/provenance, with full backend gates passing.
 - Plan item 27.2 is committed as a6650b6: the Review brief finding-action slice is validated, provenance for 27.1 is verified, and the next roadmap step is scoped to read-only delivery readiness / Git intelligence.
 - Plan item 27.1 is committed as 3e7277b: Review brief findings now support editable ACP follow-up drafts and local Mark resolved/Reopen state without sending ACP, persisting Task evidence, completing phases, or mutating Git.
 - Plan item 26.2 is committed as af54d8a: the Review brief slice was validated and scoped the next step to explicit finding follow-up/resolution guidance.
@@ -77,7 +77,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 28.1, then implement and commit 28.2 Activity delivery readiness UI and 28.3 handoff.
+- Commit plan item 28.2, then run 28.3 final validation/handoff for the delivery-readiness slice.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

@@ -429,6 +429,29 @@ export type TaskPhaseRunReceiptInfo = {
 
 export type TaskPhaseRunResultInfo = { promptResult: AcpPromptResult; receipt: TaskPhaseRunReceiptInfo };
 
+export type GitDeliveryChangedFileInfo = {
+  status: string;
+  path: string;
+};
+
+export type GitDeliveryProvenanceInfo = {
+  present: boolean;
+  refName: string;
+  planStepId: string | null;
+  notePreview: string | null;
+};
+
+export type GitDeliveryReadinessInfo = {
+  repositoryPath: string;
+  branch: string | null;
+  headSha: string | null;
+  headSubject: string | null;
+  worktreeClean: boolean;
+  changedFileCount: number;
+  changedFiles: GitDeliveryChangedFileInfo[];
+  headProvenance: GitDeliveryProvenanceInfo;
+};
+
 export type KnowledgeItemInfo = {
   id: string;
   projectId: string | null;
