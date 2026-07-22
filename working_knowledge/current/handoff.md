@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Activity now identifies pending phase/context receipts left by an older ACP process, explains their unconfirmed outcome, and links each receipt to the existing conservative manual resolution gate.
+- Pending work owned by the current running ACP session is never labeled interrupted; Resume triggers no automatic retry, sent claim, failure, evidence creation, or phase transition.
 - Session History now exposes an explicit per-row Resume action for ACP transcripts; it is locked during another live/resuming session and legacy rows fail with an actionable recovery message.
 - Successful Resume activates the existing transcript/Task, resets the workspace to Agent, consumes replay without duplicating SQLite history, and preserves future live persistence; workspace changes invalidate and stop late loads.
 - The backend can now restart a persisted registry adapter and issue ACP `session/load` with its exact stored external session id and repository cwd; successful replay events/model config reuse the normal runtime buffers.
@@ -51,7 +53,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Add restart reconciliation guidance for pending context/phase receipts around a resumed Task, without inferring that interrupted external effects succeeded.
+- Validate Resume plus interrupted-receipt review against a real killed/restarted ACP task, then continue with the next measured recovery/runtime slice.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

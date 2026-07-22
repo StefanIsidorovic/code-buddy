@@ -34,6 +34,7 @@ import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPa
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
+import { TaskRecoveryNotice } from "./features/tasks/TaskRecoveryNotice";
 import { useTaskDispatchHistory } from "./features/tasks/useTaskDispatchHistory";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
@@ -390,7 +391,10 @@ function App() {
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAndPrepare={(instruction) => void taskPhase.runAndPrepare(instruction)} /> : null}
-            activity={activeTask ? <><TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
+            activity={activeTask ? <><TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
+            contextReceipts={taskDispatch.receipts} currentAcpSessionId={canUseAcpSession ? acpSession?.id ?? null : null}
+            onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
+            <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
             loading={taskPhaseRuns.loading} error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}
             onOpenResolution={taskPhaseRuns.openResolution} onChangeResolutionReason={taskPhaseRuns.changeResolutionReason}

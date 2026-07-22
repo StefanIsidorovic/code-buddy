@@ -4669,6 +4669,14 @@ summary:focus-visible {
   .acp-workspace-panel:not(.acp-agent-view) { max-height: calc(100vh - 12rem); }
 }
 
+.task-recovery-notice { display: grid; gap: 0.65rem; border: 1px solid var(--color-warning);
+  border-radius: 10px; padding: 0.8rem; background: var(--waiting-bg); }
+.task-recovery-notice > div:first-child { display: flex; align-items: flex-start; gap: 0.65rem; }
+.task-recovery-notice > div:first-child > span { display: grid; width: 24px; height: 24px;
+  flex: 0 0 auto; place-items: center; border-radius: 999px; background: var(--color-warning); font-weight: 800; }
+.task-recovery-notice h3, .task-recovery-notice p { margin: 0; }
+.task-recovery-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
 .task-dispatch-panel {
   display: grid;
   gap: 0.8rem;

@@ -27,6 +27,7 @@
 - An in-progress phase exposes a deterministic, visible Run instruction. Runtime verifies the exact Task bound to the active transcript and sends one prompt; output does not alter the persisted phase state.
 - Each Run creates an ordered durable receipt only after backend validation confirms the exact current in-progress phase; its ACP outcome finalizes once without advancing the Task.
 - Phase Run History exposes those exact attempts; manual recovery can only mark a stale pending run failed after its ACP session is no longer running.
+- Activity derives interrupted work conservatively: a pending receipt is unconfirmed only when its recorded local ACP session is not the currently running session. The notice opens that exact receipt's existing resolution form and never retries or finalizes it.
 - Evidence drafting may copy the latest persisted agent message/thought and its exact event ID into the editable artifact form; no artifact or completion is automatic.
 - Completion UI requires review against visible phase-specific criteria; this acknowledgment is transient, while the backend persisted-artifact requirement remains authoritative.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.
@@ -45,6 +46,7 @@
 - Agent-driven phase execution and controlled retry semantics over the persisted state machine.
 - Analysis-driven complexity confirmation/reclassification and user-facing profile controls.
 - Automatic receipt reconciliation without external ACP delivery evidence.
+- Real killed-process validation of Resume plus manual interrupted-receipt review.
 
 ## Risks
 - Never replace the transcript with Task state or infer a new Task from every follow-up prompt.

@@ -890,3 +890,9 @@ YYYY-MM-DD
 - Svaki sacuvani ACP transcript sada ima eksplicitni Resume: koristi njegov recovery identitet, aktivira isti transcript i Task, vraca Agent view i ne kreira zamensku istoriju.
 - `session/load` replay se prikazuje bez ponovnog SQLite upisa; kasni load posle promene workspace-a se gasi, a Start/Resume i paralelni Resume pozivi su zakljucani.
 - Frontend audit, 230 frontend testova, 108 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 570, a runtime hook 250 linija.
+
+### 2026-07-22 - Conservative Restart Receipt Guidance
+
+- Activity view sada odvaja stare `pending` phase/context receipt-e od rada koji pripada trenutno zivom lokalnom ACP session-u i jasno ih oznacava kao nepotvrdjene, ne kao neuspele ili uspesne.
+- Resume ne pokrece retry niti menja persistence; recovery akcija samo otvara postojecu rucnu `pending -> failed` proveru za tacan receipt.
+- Frontend audit, 233 frontend testa, 108 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 574 linije.

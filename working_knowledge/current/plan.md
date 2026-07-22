@@ -827,6 +827,17 @@
 - review status: passed after 2 cycles; cycle 1 separated recovery orchestration from presentation and proved exact identity/load/replay behavior without transcript or Task creation, while cycle 2 added workspace-version cleanup, replay-failure tolerance, Start-vs-Resume locking, Agent-view reset, accessible row actions, and found no remaining stale-state, duplicate-persistence, concurrency, or composition regression.
 - commit: this commit
 
+### 23.6. Guide conservative reconciliation after restart
+- objective: distinguish interrupted/unknown receipts from live in-flight work and guide the user to the existing safe resolution gate after Resume.
+- status: complete
+- files: src/features/tasks/TaskRecoveryNotice.tsx; src/App.tsx; src/App.css; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Activity-view receipt derivation; recovery guidance presentation; existing manual resolution entry points.
+- expected changes: derive pending context/phase receipts whose recorded local ACP session differs from the current running session; summarize them as unconfirmed interrupted work; explain that Resume proves neither delivery nor completion; provide non-mutating shortcuts that open the exact existing resolution form.
+- acceptance criteria: current-session pending work is never labeled interrupted; no receipt is retried or finalized automatically; each shortcut targets the exact receipt; no notice appears without interrupted pending work; current resolve backend constraints remain unchanged.
+- required tests: pure interrupted derivation; no-current/current-matching/mixed receipts; shortcut payloads and accessible notice; App wiring; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 established the conservative boundary between current-session in-flight work and older unconfirmed receipts, while cycle 2 verified exact receipt routing, accessible non-mutating guidance, empty-state behavior, App composition, and found no automatic retry/finalization or backend-policy regression.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

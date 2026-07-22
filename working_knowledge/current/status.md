@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 434df7d step 23.3: persist ACP recovery identity
-- worktree: plan item 23.5 explicit transcript Resume UI ready to commit.
+- head: 2c50864 step 23.5: resume saved ACP transcripts
+- worktree: plan item 23.6 conservative restart receipt guidance ready to commit.
 - relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 23.5 complete; next is restart reconciliation/recovery guidance; AIadne-to-beyond-Conductor tracker approximately 80%.
+- active plan step: 23.6 complete; next is recovery validation against real restarted ACP work; AIadne-to-beyond-Conductor tracker approximately 81%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.

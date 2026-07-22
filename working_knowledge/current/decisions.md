@@ -35,6 +35,7 @@
 - Provenance picker boundary: generic text-input sizing must explicitly exclude checkboxes; transcript provenance remains complete but collapsed by default with compact sequence/kind/content rows rather than an unbounded open fieldset.
 - ACP recovery protocol: use stable ACP v1 `session/load` only after `agentCapabilities.loadSession=true`; never substitute `session/new`, infer support, or publish the local process in the manager before load succeeds.
 - ACP replay boundary: `session/load` history is consumed into the resumed live UI exactly once and is not appended again to the existing transcript; only later live events use normal persistence.
+- Restart receipt boundary: only pending receipts not owned by the currently running local ACP session are presented as interrupted/unconfirmed; Resume never proves delivery or completion, and recovery guidance may only open the exact existing manual failed-resolution form.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
