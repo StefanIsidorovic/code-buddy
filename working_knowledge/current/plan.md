@@ -2,6 +2,39 @@
 
 ## Active Plan
 
+### 25.3. Finalize Task guidance and execution/review UX slice
+- objective: validate documentation, frontend guidance, knowledge state, provenance, and handoff before continuing to the next roadmap family.
+- status: pending
+- files: LOCAL_PROGRESS.md; working_knowledge/current/*; src/features/tasks/*; src/App.css.
+- affected units: Task user mental model, Task panel guidance, current knowledge, frontend gates, provenance records.
+- expected changes: run required checks, perform adversarial review, update working knowledge, and commit the completed slice with provenance notes.
+- acceptance criteria: docs and UI describe the same Task workflow; `App.tsx` remains composition-only; provenance exists for completed items; worktree is clean.
+- required tests: `rg` docs/guidance checks; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
+- review status: pending.
+- commit: pending.
+
+### 25.2. Add in-app Task operating model guidance
+- objective: reduce Task UI confusion by showing a compact user-facing operating model directly in the Task phase panel.
+- status: pending
+- files: src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.css; working_knowledge/current/*.
+- affected units: Task phase presentation, accessibility semantics, phase helper copy, frontend architecture guardrails.
+- expected changes: add a small disclosure or guidance panel explaining that Run/Prepare are helpers, Evidence proves work, Review gates completion, and Activity audits attempts/reports.
+- acceptance criteria: guidance is visible and accessible, does not add backend calls or state machine changes, keeps App out of feature logic, and preserves existing phase actions.
+- required tests: TaskPhasePanel behavior test for guidance copy and existing controls; frontend audit/typecheck/test/build; `git diff --check`.
+- review status: pending.
+- commit: pending.
+
+### 25.1. Document the real-user Task workflow
+- objective: make the Task concept understandable from a real user's perspective before adding more execution/review features.
+- status: complete
+- files: LOCAL_PROGRESS.md; working_knowledge/current/status.md; working_knowledge/current/plan.md; working_knowledge/current/handoff.md; working_knowledge/current/repo-code-buddy.md; working_knowledge/current/mind_map/task-lifecycle.md.
+- affected units: local progress docs, current working knowledge, Task lifecycle mental model, stale 24.6 handoff/status text.
+- expected changes: add a concise Task story covering Agent/Task/Activity, analysis/planning/execution/review phases, explicit evidence gates, and read-only advisor/reviewer reports; repair current knowledge to acknowledge committed 24.6.
+- acceptance criteria: docs explain what the user does, what the agent may do, what remains manual, and why Task is not every chat message; current knowledge no longer says 24.6 is pending.
+- required tests: `rg -n "Kako Task treba da radi za realnog usera|agentov odgovor nije automatski|Plan item 24.6 is committed" LOCAL_PROGRESS.md working_knowledge/current/handoff.md`; `git diff --check`.
+- review status: passed after 1 cycle; docs were checked against the current Task state machine and deliberately avoid implying automatic evidence creation, phase completion, Task mutation, or advisor/reviewer write authority.
+- commit: this commit.
+
 ### 24.6. Harden the secondary-agent flow end to end
 - objective: validate the completed secondary-agent workflow across frontend, Rust, recovery boundaries, provenance, and working knowledge before moving to the next roadmap family.
 - status: complete

@@ -33,6 +33,25 @@ Radno pravilo:
 - Kad uvedemo novu tehnologiju, koncept, runtime path, workflow ili arhitekturnu odluku, odmah update-ujemo sve relevantno: Linear taskove, working_knowledge, mind map i ovaj lokalni dnevnik.
 - Kad postoji vise nacina da nesto uradimo, pored stabilnog/default pristupa proverimo i noviji pristup ako ima smisla, pa predlozimo onaj koji stvarno daje vrednost bez nepotrebnog rizika.
 
+## Kako Task treba da radi za realnog usera
+
+Task je jedan stvarni posao koji user zeli da zavrsi, a ne svaka pojedinacna chat poruka. Prvi project-owned ACP prompt otvara Task, a naredni promptovi u istoj sesiji nastavljaju taj isti posao dok ga user ne zavrsi.
+
+User treba da ima tri jasna mesta:
+
+- `Agent`: mesto za razgovor i live output. Tu user salje prompt, gleda odgovor i bira coding model koji aktivni agent stvarno podrzava.
+- `Task`: mesto gde se posao vodi kroz faze `analysis`, `planning`, `execution`, `review`. Agent moze da pomogne kroz `Run & prepare`, ali user eksplicitno cuva evidence, proverava ga i kompletira fazu.
+- `Activity`: mesto za audit. Tu se vide context sends, phase runs, interrupted receipts i secondary advisor/reviewer reporti.
+
+Faze treba da se citaju ovako:
+
+- `analysis`: razumi zahtev, rizike, nepoznanice i sta sme/ne sme da se dira.
+- `planning`: pretvori analysis u konkretan plan sa fajlovima, acceptance kriterijumima i testovima.
+- `execution`: implementiraj plan item po item, uz realne testove i komite.
+- `review`: proveri sta je uradjeno, sta je nauceno, sta se moze ponovo koristiti kao project knowledge i sta je spremno za delivery.
+
+Najbitnije pravilo: agentov odgovor nije automatski istina i nije automatski Task evidence. User ili kontrolisani workflow mora eksplicitno da sacuva evidence, poveze ga sa transcript provenance-om, pregleda checkpoint i tek onda zavrsi fazu. Advisor/reviewer agenti su dodatni par ociju: oni prave read-only report, ne menjaju Task i ne komituju kod.
+
 ## Gde smo sada
 
 - Projekat je resetovan na Tauri + Rust + React + TypeScript + Vite osnovu.

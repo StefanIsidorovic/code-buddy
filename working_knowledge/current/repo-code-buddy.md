@@ -37,6 +37,7 @@
 - `select_project_task_context` deterministically prioritizes mandatory rules, repository/path scope, and lexical matches under an exact character budget; the frontend exposes an auditable preview.
 - Generated selector context is not yet sent to ACP. `Send ACP` continues to inject only explicitly attached manual Knowledge Cards and persists the original user prompt.
 - The first project-owned ACP prompt now creates one persistent Task before transcript/agent side effects; follow-ups reuse it by transcript id, and new Tasks start in ordered analysis, planning, execution, and review phases.
+- User-facing Task model: Agent is for live conversation/output, Task is for phase gates and evidence, and Activity is for audit/reports; agent output helps but becomes Task evidence only after explicit user/workflow save with transcript provenance.
 - Project-less ACP remains a compatibility smoke path without Task persistence; project-owned prompts are blocked if transcript or Task persistence fails.
 - New Tasks receive a versioned deterministic quick/standard/complex assessment in Rust: bounded UI/content work can be quick, ambiguous or bounded two-layer work is standard, and security/payment, migration, three-layer, or explicit vertical work is complex.
 - Task rows retain immutable initial and effective complexity fields for fast reads; `task_complexity_changes` stores append-only system/user history, and validated overrides preserve the initial assessment.

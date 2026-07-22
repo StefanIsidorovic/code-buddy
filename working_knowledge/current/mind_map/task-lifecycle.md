@@ -15,6 +15,8 @@
 - A Task is the persistent user assignment; a transcript is its ordered conversation history and ACP is its runtime transport.
 - One project-owned transcript session may own at most one Task.
 - The immutable original prompt is stored on the Task separately from any future context-enriched ACP payload.
+- User mental model: Agent is the live conversation/output view, Task is the phase/evidence cockpit, and Activity is the audit trail for context sends, phase runs, interrupted receipts, and advisor/reviewer reports.
+- Agent output is assistance, not evidence, until the user or controlled workflow explicitly saves it with transcript provenance.
 
 ## Persistent Lifecycle
 - Task creation atomically inserts the Task and four ordered pending phases: analysis, planning, execution, and review.
