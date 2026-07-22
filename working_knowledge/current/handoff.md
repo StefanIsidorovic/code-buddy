@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 27.1 is complete pending commit: Review brief findings now support editable ACP follow-up drafts and local Mark resolved/Reopen state without sending ACP, persisting Task evidence, completing phases, or mutating Git.
+- Plan item 27.2 is complete pending commit: the Review brief finding-action slice is validated, provenance for 27.1 is verified, and the next roadmap step is scoped to read-only delivery readiness / Git intelligence.
+- Plan item 27.1 is committed as 3e7277b: Review brief findings now support editable ACP follow-up drafts and local Mark resolved/Reopen state without sending ACP, persisting Task evidence, completing phases, or mutating Git.
 - Plan item 26.2 is committed as af54d8a: the Review brief slice was validated and scoped the next step to explicit finding follow-up/resolution guidance.
 - Plan item 26.1 is committed as 2317a46: Activity advisor/reviewer reports now have a conservative read-only Review brief derived from exact report snippets.
 - Plan item 25.3 is committed as 939aee1: Task guidance docs and in-app guidance were validated, and provenance notes for 25.1/25.2 were verified.
@@ -74,7 +75,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 27.1 with a provenance note, then run plan item 27.2 final handoff validation.
+- Start the read-only delivery readiness / Git intelligence slice: surface worktree, validation, review, and provenance readiness for the active Task before any future Ship/Git mutation controls.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

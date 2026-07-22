@@ -4,24 +4,24 @@
 
 ### 27.1. Add local Review brief follow-up controls
 - objective: let users act on read-only advisor/reviewer Review brief findings without turning them into automatic evidence, approval, ACP sends, or Git changes.
-- status: complete pending commit
+- status: complete
 - files: src/features/tasks/taskAgentReportBrief.ts; src/features/tasks/taskAgentReportBrief.test.ts; src/features/tasks/TaskAgentReportsPanel.tsx; src/features/tasks/TaskAgentReportsPanel.test.tsx; src/features/runtime/AcpWorkspaceViews.tsx; src/features/runtime/AcpWorkspaceViews.test.tsx; src/App.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: Activity report presentation, local finding resolution UI state, pure follow-up draft formatting, ACP workspace view navigation, App composition wiring, frontend architecture guardrails.
 - expected changes: add `Draft follow-up` and local `Mark resolved`/`Reopen` actions to each derived finding; draft an editable ACP prompt from the exact finding/provenance; return the user to Agent view; keep raw immutable reports visible.
 - acceptance criteria: drafting only changes the prompt composer and never sends ACP automatically; resolved state is local/transient and not persisted; no backend/Tauri command, Task evidence, phase transition, advisor/reviewer authority, or Git mutation path is introduced; Activity raw reports remain inspectable.
 - required tests: pure draft helper test; panel callback/local resolution test; workspace Activity-to-Agent action test; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; no direct Tauri/import boundary check; file-size check; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 made the draft callback required to avoid a dead UI control, and cycle 2 verified local-only state, editable prompt-only handoff, App composition, no Tauri/backend coupling, no auto-send, raw report retention, and full frontend gates.
-- commit: pending.
+- commit: 3e7277b.
 
 ### 27.2. Finalize finding-action slice
 - objective: validate the 27.1 commit/provenance and leave current knowledge ready for the next beyond-Conductor capability.
-- status: pending
+- status: complete pending commit
 - files: working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: current status, handoff, roadmap tracker, provenance records, final verification notes.
-- expected changes: verify the 27.1 provenance note, update active knowledge after the commit, and record the next explicit follow-up step.
+- expected changes: verify the 27.1 provenance note, update active knowledge after the commit, and record the next explicit follow-up step as read-only delivery readiness / Git intelligence.
 - acceptance criteria: worktree is clean, 27.1 has exactly one provenance note under `refs/notes/provenance`, frontend gates remain recorded, and no durable resolved-state or Task mutation scope is implied.
 - required tests: `git notes --ref=refs/notes/provenance show <sha>`; `git status --short`; `git diff --check`.
-- review status: pending.
+- review status: passed after 1 cycle; 27.1 provenance was verified, worktree was clean before 27.2 knowledge edits, and the next step is scoped to read-only delivery readiness rather than Git mutation or automatic shipping.
 - commit: pending.
 
 ### 26.2. Finalize execution/review brief slice

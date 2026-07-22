@@ -130,7 +130,7 @@ Najbitnije pravilo: agentov odgovor nije automatski istina i nije automatski Tas
 - Task guidance mini-sloj je zatvoren: isti mental model postoji u lokalnom progress docs-u i u samom Task tabu.
 - Activity sada pravi `Review brief` iz advisor/reviewer reporta: kratki exact snippet-i se izdvajaju kao risk/check/suggestion/note za lakse skeniranje, ali ostaju read-only i nisu evidence ili approval.
 - Review brief finding sada moze da napravi editable follow-up draft u Agent promptu ili da se lokalno oznaci kao resolved/reopen u Activity panelu. Draft se ne salje automatski, a resolved nije trajni Task approval/evidence.
-- Sledeci execution/review polish treba da zatvori finalni handoff za ove finding akcije i onda krene ka jacem review/delivery sloju.
+- Sledeci beyond-Conductor korak treba da bude read-only delivery readiness / Git intelligence: da user pre bilo kakvog Ship/Git action-a vidi worktree, test, review i provenance spremnost za aktivni Task.
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.
