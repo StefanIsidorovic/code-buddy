@@ -41,6 +41,7 @@ describe("useAcpRecovery", () => {
       { initialProps: { usable: false } });
     await act(() => result.current.resume(transcript));
     expect(reportError).toHaveBeenCalledWith(expect.stringContaining("predates ACP recovery"));
+    expect(result.current.error).toContain("predates ACP recovery");
     invoke.mockClear(); rerender({ usable: true });
     await act(() => result.current.resume(transcript));
     expect(invoke).not.toHaveBeenCalled();

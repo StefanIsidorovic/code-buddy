@@ -78,6 +78,7 @@
 - The left sidebar Session History panel shows saved ACP transcript sessions with source/runtime/event count.
 - Session History can be filtered by title, source, runtime, session id, short id, or project id.
 - Clicking a Session History row calls list_transcript_events and opens stored events in the output panel.
+- Resume failures from legacy or failed ACP recovery are shown next to Session History, and Resume locks explain whether another ACP session/action must finish first.
 - The selected Session History row can be renamed without changing saved transcript events.
 - Switching Session History rows clears previous stored events immediately and ignores stale earlier load responses.
 - Saved transcript replay coalesces adjacent stored agent/plan chunks so old streamed output reads as one answer.

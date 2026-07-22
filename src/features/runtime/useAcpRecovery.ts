@@ -19,6 +19,7 @@ export type AcpRecoveryResult = {
 
 export function useAcpRecovery({ cwd, scopeKey, sessionUsable, reportError }: Options) {
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const scopeVersion = useRef(0);
   useEffect(() => { scopeVersion.current += 1; }, [cwd, scopeKey]);
@@ -28,6 +29,7 @@ export function useAcpRecovery({ cwd, scopeKey, sessionUsable, reportError }: Op
     inFlight.current = true;
     const version = scopeVersion.current;
     setResumingSessionId(transcript.id);
+    setError(null);
     reportError(null);
     try {
       const identity = await invokeCommand<TranscriptAcpIdentityInfo | null>(
@@ -45,10 +47,16 @@ export function useAcpRecovery({ cwd, scopeKey, sessionUsable, reportError }: Op
       }
       let replay: AcpSessionEvent[] = [];
       try { replay = await invokeCommand<AcpSessionEvent[]>("drain_acp_events", { sessionId: session.id }) ?? []; }
-      catch (reason) { reportError(`Session resumed, but replay could not be loaded: ${errorText(reason)}`); }
+      catch (reason) {
+        const message = `Session resumed, but replay could not be loaded: ${errorText(reason)}`;
+        setError(message);
+        reportError(message);
+      }
       return { identity, replay, session };
     } catch (reason) {
-      reportError(errorText(reason));
+      const message = errorText(reason);
+      setError(message);
+      reportError(message);
       return null;
     } finally {
       inFlight.current = false;
@@ -56,5 +64,5 @@ export function useAcpRecovery({ cwd, scopeKey, sessionUsable, reportError }: Op
     }
   }
 
-  return { resume, resumingSessionId };
+  return { error, resume, resumingSessionId };
 }

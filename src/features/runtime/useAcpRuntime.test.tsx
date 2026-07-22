@@ -132,6 +132,16 @@ describe("useAcpRuntime", () => {
     unmount();
   });
 
+  it("surfaces ACP recovery errors for Session History presentation", async () => {
+    invoke.mockImplementation((command) => command === "list_acp_registry_candidates" ? Promise.resolve([candidate])
+      : command === "get_transcript_acp_identity" ? Promise.resolve(null) : Promise.resolve([]));
+    const { result, reportError, unmount } = setup("p1", task);
+    await act(() => result.current.resumeTranscript(transcriptSession));
+    expect(result.current.resumeError).toContain("predates ACP recovery");
+    expect(reportError).toHaveBeenCalledWith(expect.stringContaining("predates ACP recovery"));
+    unmount();
+  });
+
   it("changes the active coding model and sends a recorded prompt", async () => {
     invoke.mockImplementation((command) => {
       if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);

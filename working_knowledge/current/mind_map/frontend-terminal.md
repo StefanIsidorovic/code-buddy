@@ -34,7 +34,7 @@
 - Task Context Preview is state-free knowledge presentation; App retains selector invocation, prompt, visibility, and async result/error lifecycle.
 - New Knowledge Card dialog is state-free knowledge presentation; App retains create scope, persistence, list/attachment updates, transcript linkage, reset, visibility, loading, and errors.
 - Knowledge Cards sidebar is state-free presentation with its responsive/default-collapsed details boundary; App retains refresh, attachment persistence, transcript linkage, dialog/error policy, and mutations.
-- Session History sidebar is state-free transcript presentation with filtering and the three-row cap; App retains open/rename persistence, stale-response guards, selection, loading, and errors.
+- Session History sidebar is state-free transcript presentation with filtering, the three-row cap, visible Resume lock/recovery messages, and dark-sidebar card rows; App retains open/rename persistence, stale-response guards, selection, loading, and errors.
 - ACP Registry sidebar is state-free agent presentation; App retains discovery, selected ID, errors/loading, and active-session selection policy.
 - Terminal PTY/Agent Doctor sidebar is state-free agent presentation; App retains Doctor discovery, runtime mode, errors/loading, and active-session policy.
 - Initialization Summary phase card is state-free presentation; App retains catalog/selection workflow, provider generation, persistence, loading and errors.

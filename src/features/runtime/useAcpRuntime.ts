@@ -238,7 +238,7 @@ export function useAcpRuntime({
     candidates, registryError, registryLoading, selectedCandidateId, session, events, prompt,
     promptResult, promptBusy, expanded, usable, canStartSelected, statusLabel, refreshRegistry,
     permissions: permission.permissions, respondPermission: permission.respond, startSelected,
-    changeModel, sendPrompt, sendPhasePrompt, resumeTranscript, resumingSessionId: recovery.resumingSessionId, drain,
+    changeModel, sendPrompt, sendPhasePrompt, resumeTranscript, resumeError: recovery.error, resumingSessionId: recovery.resumingSessionId, drain,
     stop, stopAllForDelete,
     selectCandidate: setSelectedCandidateId,
     changePrompt: onPromptChange,

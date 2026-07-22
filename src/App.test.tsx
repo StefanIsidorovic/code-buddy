@@ -1442,9 +1442,11 @@ describe("PTY test panel", () => {
     render(<App />);
 
     expect(await screen.findByText("Older Codex ACP")).toBeInTheDocument();
-    expect(screen.getByText("Codex · acp · 3 events")).toBeInTheDocument();
+    const olderTranscriptButton = screen.getByRole("button", { name: "Open Older Codex ACP transcript" });
+    expect(olderTranscriptButton).toHaveTextContent("Codex · acp");
+    expect(olderTranscriptButton).toHaveTextContent("3 events");
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Older Codex ACP transcript" }));
+    fireEvent.click(olderTranscriptButton);
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("list_transcript_events", {

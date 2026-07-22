@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 4e838d2 step 29.1: add delivery provenance history
-- worktree: plan item 29.2 delivery provenance handoff complete pending commit.
-- relevant files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 9b5414f step 29.2: finalize delivery provenance handoff
+- worktree: plan item 30.1 Session History Resume UX complete pending commit; 30.2 compact Project Initialization pending.
+- relevant files: src/features/runtime/useAcpRecovery.ts; src/features/runtime/useAcpRuntime.ts; src/features/transcripts/SessionHistoryPanel.tsx; src/features/initialization/ProjectInitializationPanel.tsx; src/App.tsx; src/App.css; frontend tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
-- request: continue beyond-Conductor work into execution/review harness polish.
+- request: fix broken Session History Resume UX/colors and make Project Initialization stop permanently occupying the main workspace; borrow the useful Buddy view/sidebar pattern.
 - phase: in_progress
-- active plan step: 29.2 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 98%.
+- active plan step: 30.1 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 98%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,8 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: 30.1 frontend gates pass after review fix: frontend audit (`App.tsx` 597 lines), typecheck, targeted Session History/runtime/App regression tests, full Vitest suite (258 tests across 51 files), production build, non-test direct-Tauri boundary check, file-size check (`SessionHistoryPanel.tsx` 66 lines, `useAcpRecovery.ts` 68 lines, `useAcpRuntime.ts` 250 lines), and `git diff --check`.
+- 2026-07-23: repository state verified at HEAD 9b5414f/29.2 with a clean worktree before planning Session History Resume and Project Initialization UX fixes; current knowledge was repaired from stale "29.2 pending commit" state.
 - 2026-07-23: 29.1 commit 4e838d2 has a verified provenance note; worktree was clean before 29.2 knowledge edits, and the next step remains read-only validation/evidence signals beside delivery readiness.
 - 2026-07-23: 29.1 full gates pass: frontend audit, typecheck, 257 frontend tests across 51 files, production build, delivery/App Tauri boundary check, file-size check (`App.tsx` 593 lines, `DeliveryReadinessPanel.tsx` 71 lines, `useDeliveryReadiness.ts` 57 lines), `git diff --check`, Rust fmt, 121 Rust tests, and clippy with warnings denied. The existing App PTY keyboard test was stabilized after it blocked the first full frontend run.
 - 2026-07-23: 28.2 commit b359052 has a verified provenance note; worktree was clean before 28.3 knowledge edits, and the next slice is scoped to read-only validation/evidence readiness rather than Ship/Commit/Push mutation.

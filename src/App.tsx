@@ -154,7 +154,7 @@ function App() {
     session: acpSession, events: acpEvents, promptResult: acpPromptResult,
     promptBusy: acpPromptBusy, expanded: acpControlsExpanded, usable: canUseAcpSession,
     canStartSelected: canStartSelectedAcpCandidate, statusLabel: acpStatusLabel,
-    permissions: acpPermissions, respondPermission: respondAcpPermission,
+    permissions: acpPermissions, resumeError: acpResumeError, respondPermission: respondAcpPermission,
     refreshRegistry: refreshAcpRegistryCandidates, startSelected: startSelectedAcpSession,
     resumeTranscript: resumeAcpTranscript, resumingSessionId: resumingAcpTranscriptId,
     changeModel: changeAcpCodingModel, sendPrompt: sendAcpPrompt, sendPhasePrompt: sendAcpPhasePrompt,
@@ -213,6 +213,9 @@ function App() {
   );
   const showAcpWaiting = acpPromptBusy && !openedTranscriptSession;
   const activeRuntimeCwd = runtimeMode === "acp" ? acpSession?.cwd : session?.cwd;
+  const resumeDisabledReason = busy
+    ? "Finish the current action before resuming a saved ACP session."
+    : canUseAcpSession ? "Stop the running ACP session before resuming saved history." : null;
   useEffect(() => {
     if (runtimeMode !== "acp" || displayAcpEvents.length === 0) {
       return;
@@ -280,6 +283,7 @@ function App() {
           <SessionHistoryPanel activeSessionTitle={transcriptSession?.title ?? null}
             error={transcriptError} filter={historyFilter} loading={transcriptLoading}
             renameTitle={historyRenameTitle} resumeDisabled={busy || canUseAcpSession}
+            resumeDisabledReason={resumeDisabledReason} resumeError={acpResumeError}
             resumingSessionId={resumingAcpTranscriptId} selectedSessionId={selectedHistorySessionId}
             sessions={transcriptSessions} onChangeFilter={setHistoryFilter}
             onChangeRenameTitle={setHistoryRenameTitle}

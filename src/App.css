@@ -1950,6 +1950,86 @@ dd {
   font-weight: 700;
 }
 
+.sidebar-history .history-resume-message {
+  margin: 0;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: rgb(255 255 255 / 0.045);
+  color: var(--color-sidebar-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.sidebar-history .history-resume-message.error-message {
+  border-color: rgb(210 109 81 / 0.55);
+  color: #f0c5b7;
+  background: rgb(116 42 31 / 0.32);
+}
+
+.sidebar-history .history-list {
+  --history-row-height: auto;
+  gap: 7px;
+}
+
+.sidebar-history .history-list li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border: 1px solid var(--sidebar-border);
+  border-left: 2px solid rgb(255 255 255 / 0.14);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.045);
+  box-shadow: none;
+}
+
+.sidebar-history .history-list li[data-selected="true"] {
+  border-color: var(--color-sidebar-accent-border);
+  border-left-color: var(--color-sidebar-accent);
+  background: rgb(220 231 221 / 0.13);
+}
+
+.sidebar-history .history-list .history-open,
+.sidebar-history .history-list button[aria-pressed="true"] {
+  min-height: 68px;
+  border: 0;
+  padding: 10px 11px;
+  background: transparent;
+  color: var(--color-sidebar-text);
+}
+
+.sidebar-history .history-list .history-open small {
+  order: -1;
+  color: var(--color-sidebar-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-history .history-list .history-open strong {
+  color: var(--color-sidebar-text);
+  font-size: 0.86rem;
+}
+
+.sidebar-history .history-list .history-open span {
+  color: var(--color-sidebar-muted);
+  font-size: 0.75rem;
+}
+
+.sidebar-history .history-list .history-resume {
+  align-self: center;
+  margin: 0 9px 0 0;
+  border-color: rgb(155 192 165 / 0.55);
+  background: rgb(232 246 237 / 0.1);
+  color: #dcefe3;
+}
+
+.sidebar-history .history-list .history-resume:disabled {
+  border-color: rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.035);
+  color: rgb(220 231 221 / 0.42);
+}
+
 .project-actions {
   display: flex;
   gap: 8px;
@@ -2902,6 +2982,15 @@ a:hover {
 .sidebar-knowledge .knowledge-list li[data-selected="true"] {
   border-color: var(--color-sidebar-accent-border);
   background: var(--color-sidebar-accent-soft);
+}
+
+.sidebar-history .history-list li[data-selected="true"] {
+  border-left-color: var(--color-sidebar-accent);
+  background: rgb(220 231 221 / 0.13);
+}
+
+.sidebar-history .history-list button[aria-pressed="true"] {
+  background: transparent;
 }
 
 .sidebar-runtime-info {

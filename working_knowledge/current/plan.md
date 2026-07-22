@@ -2,6 +2,28 @@
 
 ## Active Plan
 
+### 30.1. Repair Session History Resume UX
+- objective: make Resume behavior understandable and fix the broken-looking Session History colors/row layout.
+- status: complete pending commit
+- files: src/features/runtime/useAcpRecovery.ts; src/features/runtime/useAcpRecovery.test.tsx; src/features/runtime/useAcpRuntime.ts; src/features/runtime/useAcpRuntime.test.tsx; src/features/transcripts/SessionHistoryPanel.tsx; src/features/transcripts/SessionHistoryPanel.test.tsx; src/App.tsx; src/App.test.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP recovery state, runtime hook return contract, Session History presentation, sidebar color overrides, App composition wiring, current knowledge.
+- expected changes: expose recovery errors next to Session History, pass a clear Resume disabled reason while another ACP session/action is active, and restyle rows/actions as coherent dark-sidebar cards inspired by Buddy's channel/history rack.
+- acceptance criteria: clicking resumable rows still calls recovery; legacy/recovery failures are visible in Session History; Resume locked by an active ACP session has an explicit explanation; selected rows no longer get the pale split-button color treatment; no new backend command or Git/Task mutation path is added.
+- required tests: useAcpRecovery error exposure test; useAcpRuntime resumeError contract test; SessionHistoryPanel resume lock/error/action tests; App saved transcript/ACP waiting regressions; `npm run test -- --run` targeted files; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
+- review status: passed after 2 cycles; cycle 1 found that the static Resume lock copy used `role=status` and conflicted with live ACP waiting status, and that App's saved-transcript regression still expected the old concatenated row metadata; cycle 2 verified no direct Tauri/backend/Task/Git mutation path, App remains composition-only, recovery errors are surfaced, and row colors no longer inherit the pale split-button treatment.
+- commit: pending.
+
+### 30.2. Compact Project Initialization when not active
+- objective: stop Project Initialization from permanently taking the main workspace when the user is not actively working in that flow.
+- status: pending
+- files: src/features/initialization/ProjectInitializationPanel.tsx; src/features/initialization/ProjectInitializationPanel.test.tsx; src/App.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Project Initialization presentation, app shell layout, responsive layout rules, frontend architecture guardrails, current knowledge.
+- expected changes: add a compact Project Knowledge card with status/progress/open actions, show the full initialization workflow only when opened or when initialization is started, and let the runtime lane take more width while the setup card is compact.
+- acceptance criteria: compact state preserves Initialize/Open actions and prerequisite messaging; full state preserves all existing phase actions/previews; App owns only shell expansion state; ProjectInitializationPanel owns no backend calls; desktop layout reallocates width to Runtime when compact; mobile remains usable.
+- required tests: ProjectInitializationPanel compact/full tests; App smoke/regression tests for initialization start and runtime layout; targeted tests; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
+- review status: pending.
+- commit: pending.
+
 ### 29.1. Add read-only delivery provenance history
 - objective: make delivery readiness more useful by showing the recent provenance trail for repository commits without adding Git mutation controls.
 - status: complete
@@ -15,14 +37,14 @@
 
 ### 29.2. Finalize delivery provenance handoff
 - objective: verify 29.1 provenance and leave active knowledge ready for the next beyond-Conductor delivery-intelligence slice.
-- status: complete pending commit
+- status: complete
 - files: working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: current status, plan, handoff, repository notes, roadmap tracker, provenance records.
 - expected changes: verify the 29.1 provenance note, update active knowledge after the commit, and record the next follow-up as read-only validation/evidence signals beside Git readiness.
 - acceptance criteria: worktree is clean, 29.1 has a provenance note under `refs/notes/provenance`, full gates remain recorded, and no Git mutation/Ship authority is implied.
 - required tests: `git notes --ref=refs/notes/provenance show 4e838d2`; `git status --short`; `git diff --check`.
 - review status: passed after 1 cycle; 29.1 provenance was verified, worktree was clean before 29.2 knowledge edits, and the next step remains scoped to read-only validation/evidence signals.
-- commit: pending.
+- commit: 9b5414f.
 
 ### 28.1. Add read-only Git delivery readiness backend
 - objective: expose a read-only backend inspection boundary for repository delivery readiness before any future Ship/Git mutation controls.
