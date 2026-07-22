@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 939aee1 step 25.3: finalize Task guidance handoff
-- worktree: plan item 26.1 actionable secondary-report brief complete pending commit.
-- relevant files: src/features/tasks/*; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 2317a46 step 26.1: add actionable report brief
+- worktree: plan item 26.2 final execution/review brief handoff complete pending commit.
+- relevant files: working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: continue beyond-Conductor work into execution/review harness polish.
 - phase: in_progress
-- active plan step: 26.1 complete pending commit; next is final validation/handoff for this execution-review slice; AIadne-to-beyond-Conductor tracker approximately 96%.
+- active plan step: 26.2 complete pending commit; next execution/review harness slice is follow-up/resolution guidance for review findings; AIadne-to-beyond-Conductor tracker approximately 96%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: provenance note verified for 2317a46/26.1, worktree checked clean before 26.2 knowledge updates, and next execution/review step scoped to read-only finding follow-up/resolution guidance.
 - 2026-07-23: 26.1 targeted report-brief helper/panel tests pass (6 tests), frontend audit, typecheck, 246 frontend tests, production build, no direct Tauri/import boundary check, file-size check (`taskAgentReportBrief.ts` 82 lines, `TaskAgentReportsPanel.tsx` 46 lines, `App.tsx` 585 lines), and `git diff --check` pass after adding the read-only Review brief.
 - 2026-07-23: repository state rechecked for the next execution/review harness slice; HEAD is 939aee1 and worktree was clean before plan item 26.1.
 - 2026-07-22: commit 939aee1 has a verified provenance note under `refs/notes/provenance` for plan item 25.3.

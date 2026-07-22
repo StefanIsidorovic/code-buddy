@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 26.1 is complete pending commit: Activity advisor/reviewer reports now have a conservative read-only Review brief derived from exact report snippets.
+- Plan item 26.2 is complete pending commit: the Review brief slice is validated and ready for a final provenance-backed handoff commit.
+- Plan item 26.1 is committed as 2317a46: Activity advisor/reviewer reports now have a conservative read-only Review brief derived from exact report snippets.
 - Plan item 25.3 is committed as 939aee1: Task guidance docs and in-app guidance were validated, and provenance notes for 25.1/25.2 were verified.
 - Plan item 25.2 is committed as f52e683: `TaskPhasePanel` now has a compact native `How this Task works` disclosure that explains Agent, Task, Run & prepare, and Activity responsibilities.
 - Plan item 25.1 is committed as 4f0ee18: `LOCAL_PROGRESS.md` now explains the real-user Task model before adding more execution/review automation.
@@ -71,7 +72,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 26.1 with a provenance note; then finalize the execution/review brief slice in 26.2.
+- Start the next execution/review harness slice: let the user turn Review brief findings into explicit follow-up questions or mark them resolved, while still avoiding automatic Task evidence, phase completion, or Git mutation.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

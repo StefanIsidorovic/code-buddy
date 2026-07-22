@@ -4,14 +4,14 @@
 
 ### 26.2. Finalize execution/review brief slice
 - objective: validate the new secondary-report brief, provenance, knowledge state, and handoff before moving to the next execution/review harness capability.
-- status: pending
+- status: complete
 - files: working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: current status, handoff, roadmap tracker, provenance records, final verification notes.
 - expected changes: run the required frontend checks, verify git notes for completed commits, update active knowledge, and create one final provenance-backed commit if knowledge changes are needed.
 - acceptance criteria: worktree is clean, provenance exists for completed plan items, Task guidance/report brief boundaries are documented, and no backend or Task mutation path was introduced.
 - required tests: `git notes --ref=refs/notes/provenance show <sha>`; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
-- review status: pending.
-- commit: pending.
+- review status: passed after 1 cycle; provenance note for 26.1 was verified, worktree was clean before final knowledge updates, and the handoff keeps the next capability scoped to read-only follow-up/review guidance rather than Task mutation.
+- commit: this commit.
 
 ### 26.1. Add an actionable secondary-report brief
 - objective: make advisor/reviewer reports useful as execution/review signals instead of raw read-only blobs.
