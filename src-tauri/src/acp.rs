@@ -490,6 +490,19 @@ impl AcpSessionManager {
         session.info()
     }
 
+    pub fn stop_and_remove_session(
+        &self,
+        session_id: &str,
+        force: bool,
+    ) -> AppResult<AcpSessionInfo> {
+        let session = self
+            .sessions()?
+            .remove(session_id)
+            .ok_or_else(|| AppError::SessionNotFound(session_id.to_string()))?;
+        session.stop(force)?;
+        session.info()
+    }
+
     pub fn list_sessions(&self) -> AppResult<Vec<AcpSessionInfo>> {
         self.sessions()?
             .values()

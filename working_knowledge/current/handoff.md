@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Plan item 24.4 is complete pending commit: `run_task_agent_report` validates Task/phase/role before external startup, launches a secondary isolated ACP session, sends a role-scoped instruction, drains output, atomically creates a separate ACP transcript plus immutable report, and removes the secondary session from the manager.
+- Secondary transcript/report publication is transactional: no persisted agent output means no transcript/report commit, and phase changes during the run cause the storage transaction to reject without partial report state.
 - Plan item 24.3 is complete pending commit: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
 - Ordinary primary ACP registry starts remain unwrapped and keep their existing npx-neutral/binary-project cwd behavior.
 - `src-tauri/src/acp_workspace.rs` owns the snapshot/sandbox boundary and its tests; `src-tauri/src/acp.rs` only carries the optional isolation request through ACP session launch.
@@ -60,7 +62,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Build plan item 24.4: orchestrate one advisor/reviewer run through the isolated ACP launch boundary, persist a separate ACP transcript, turn exact agent output into an immutable Task report, and clean up the secondary session/workspace.
+- Build plan item 24.5: expose Activity-view Run advisor/reviewer controls backed by `run_task_agent_report`, with stale-safe loading/error handling and report refresh.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

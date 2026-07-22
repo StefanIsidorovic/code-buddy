@@ -330,6 +330,26 @@ pub struct CreateTaskAgentReportRequest {
     pub source_transcript_event_ids: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CreateTaskAgentReportTranscriptRequest {
+    pub task_id: String,
+    pub phase: String,
+    pub role: String,
+    pub transcript_source: String,
+    pub transcript_title: Option<String>,
+    pub candidate_id: String,
+    pub agent_session_id: String,
+    pub events: Vec<TranscriptEventInput>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskAgentReportTranscriptInfo {
+    pub transcript_session: TranscriptSessionInfo,
+    pub report: TaskAgentReportInfo,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskAgentReportInfo {
@@ -529,7 +549,7 @@ impl ProjectStore {
     }
 
     #[cfg(test)]
-    fn in_memory() -> AppResult<Self> {
+    pub(crate) fn in_memory() -> AppResult<Self> {
         let store = Self {
             connection: Mutex::new(Connection::open_in_memory().map_err(storage_error)?),
         };
@@ -1862,6 +1882,171 @@ impl ProjectStore {
             content: content.into(),
             source_transcript_event_ids: source_ids,
             created_at,
+        })
+    }
+
+    pub fn create_task_agent_report_transcript(
+        &self,
+        request: CreateTaskAgentReportTranscriptRequest,
+    ) -> AppResult<TaskAgentReportTranscriptInfo> {
+        let task_id = request.task_id.trim();
+        let phase = request.phase.trim().to_lowercase();
+        let role = request.role.trim().to_lowercase();
+        let source = request.transcript_source.trim();
+        let candidate_id = request.candidate_id.trim();
+        let agent_session_id = request.agent_session_id.trim();
+        let content = request.content.trim();
+        if task_id.is_empty()
+            || !TASK_PHASES.contains(&phase.as_str())
+            || !matches!(role.as_str(), "advisor" | "reviewer")
+            || source.is_empty()
+            || candidate_id.is_empty()
+            || agent_session_id.is_empty()
+            || content.is_empty()
+            || request.events.is_empty()
+        {
+            return Err(AppError::InvalidInput(
+                "task agent report transcript requires task, current phase, role, ACP identity, events, and content".into(),
+            ));
+        }
+        let title = request
+            .transcript_title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or(source)
+            .to_string();
+        let mut normalized_events = Vec::with_capacity(request.events.len());
+        for event in request.events {
+            let kind = event.kind.trim();
+            if kind.is_empty() || event.content.trim().is_empty() {
+                return Err(AppError::InvalidInput(
+                    "task agent report transcript events must not be empty".into(),
+                ));
+            }
+            normalized_events.push(TranscriptEventInput {
+                kind: kind.to_string(),
+                content: event.content,
+            });
+        }
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let (project_id, current_phase, task_status): (String, String, String) = transaction
+            .query_row(
+                "SELECT project_id, current_phase, status FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("task not found: {task_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        let phase_status: String = transaction
+            .query_row(
+                "SELECT status FROM task_phases WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, phase],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if phase != current_phase || task_status != "in_progress" || phase_status != "in_progress" {
+            return Err(AppError::InvalidInput(
+                "task agent reports may only target the current in-progress phase".into(),
+            ));
+        }
+
+        let now = unix_timestamp()?;
+        let transcript = TranscriptSessionInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: Some(project_id.clone()),
+            runtime: "acp".to_string(),
+            source: source.to_string(),
+            title,
+            started_at: now,
+            updated_at: now,
+            event_count: normalized_events.len() as i64,
+        };
+        transaction.execute(
+            "INSERT INTO transcript_sessions (id, project_id, runtime, source, title, started_at, updated_at)
+             VALUES (?1, ?2, 'acp', ?3, ?4, ?5, ?6)",
+            params![&transcript.id, transcript.project_id.as_deref(), &transcript.source,
+                &transcript.title, transcript.started_at, transcript.updated_at],
+        ).map_err(storage_error)?;
+        transaction.execute(
+            "INSERT INTO transcript_acp_identities
+             (transcript_session_id, candidate_id, agent_session_id, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![&transcript.id, candidate_id, agent_session_id, now],
+        ).map_err(storage_error)?;
+
+        let mut source_ids = Vec::new();
+        for (offset, event) in normalized_events.into_iter().enumerate() {
+            let event_id = Uuid::new_v4().to_string();
+            let sequence = offset as i64;
+            transaction
+                .execute(
+                    "INSERT INTO transcript_events (id, session_id, sequence, kind, content, created_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![&event_id, &transcript.id, sequence, &event.kind, &event.content, now],
+                )
+                .map_err(storage_error)?;
+            if matches!(event.kind.as_str(), "agent_message" | "agent_thought") {
+                source_ids.push(event_id);
+            }
+        }
+        if source_ids.is_empty() {
+            return Err(AppError::InvalidInput(
+                "task agent report requires persisted agent output".into(),
+            ));
+        }
+
+        let sequence: i64 = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(sequence), -1) + 1 FROM task_agent_reports WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, phase],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let report = TaskAgentReportInfo {
+            id: Uuid::new_v4().to_string(),
+            task_id: task_id.into(),
+            phase,
+            sequence,
+            role,
+            transcript_session_id: transcript.id.clone(),
+            content: content.into(),
+            source_transcript_event_ids: source_ids,
+            created_at: now,
+        };
+        transaction
+            .execute(
+                "INSERT INTO task_agent_reports
+             (id, task_id, phase, sequence, role, transcript_session_id, content, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    &report.id,
+                    &report.task_id,
+                    &report.phase,
+                    report.sequence,
+                    &report.role,
+                    &report.transcript_session_id,
+                    &report.content,
+                    report.created_at
+                ],
+            )
+            .map_err(storage_error)?;
+        for event_id in &report.source_transcript_event_ids {
+            transaction.execute(
+                "INSERT INTO task_agent_report_event_sources (report_id, transcript_event_id) VALUES (?1, ?2)",
+                params![&report.id, event_id],
+            ).map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+
+        Ok(TaskAgentReportTranscriptInfo {
+            transcript_session: transcript,
+            report,
         })
     }
 
@@ -3232,7 +3417,7 @@ impl ProjectStore {
         Ok(())
     }
 
-    fn task(&self, task_id: &str) -> AppResult<TaskInfo> {
+    pub fn task(&self, task_id: &str) -> AppResult<TaskInfo> {
         let connection = self.connection()?;
         let mut task = connection
             .query_row(
@@ -6633,6 +6818,125 @@ mod tests {
                 .expect("no partial reports")
                 .len(),
             2
+        );
+    }
+
+    #[test]
+    fn atomically_creates_secondary_transcript_and_task_agent_report() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".into(),
+                path: temp_project_path("task-agent-report-transcript"),
+            })
+            .expect("project created");
+        let executor = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("executor transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id.clone(),
+                transcript_session_id: executor.id,
+                original_prompt: "Investigate this change".into(),
+            })
+            .expect("task created");
+        let task = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "start".into(),
+            })
+            .expect("analysis started");
+
+        let created = store
+            .create_task_agent_report_transcript(CreateTaskAgentReportTranscriptRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".into(),
+                role: "advisor".into(),
+                transcript_source: "Codex advisor".into(),
+                transcript_title: Some("Advisor run".into()),
+                candidate_id: "codex-acp".into(),
+                agent_session_id: "agent-session-1".into(),
+                events: vec![
+                    TranscriptEventInput {
+                        kind: "user_message".into(),
+                        content: "Review only".into(),
+                    },
+                    TranscriptEventInput {
+                        kind: "agent_thought".into(),
+                        content: "Boundary risk".into(),
+                    },
+                    TranscriptEventInput {
+                        kind: "agent_message".into(),
+                        content: "Add cleanup coverage".into(),
+                    },
+                ],
+                content: "Boundary risk\n\nAdd cleanup coverage".into(),
+            })
+            .expect("secondary transcript report created");
+
+        assert_eq!(
+            created.transcript_session.project_id,
+            Some(project.id.clone())
+        );
+        assert_eq!(created.transcript_session.runtime, "acp");
+        assert_eq!(created.transcript_session.event_count, 3);
+        assert_eq!(created.report.role, "advisor");
+        assert_eq!(created.report.sequence, 0);
+        assert_eq!(created.report.source_transcript_event_ids.len(), 2);
+        assert_eq!(
+            store
+                .transcript_acp_identity(&created.transcript_session.id)
+                .expect("identity loads")
+                .expect("identity exists")
+                .agent_session_id,
+            "agent-session-1"
+        );
+        assert_eq!(
+            store
+                .list_transcript_events(&created.transcript_session.id)
+                .expect("events listed")
+                .len(),
+            3
+        );
+        assert_eq!(
+            store
+                .list_task_agent_reports(&task.id)
+                .expect("reports listed"),
+            vec![created.report]
+        );
+
+        let before_sessions = store
+            .list_transcript_sessions(Some(&project.id))
+            .expect("sessions listed")
+            .len();
+        let error = store
+            .create_task_agent_report_transcript(CreateTaskAgentReportTranscriptRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".into(),
+                role: "reviewer".into(),
+                transcript_source: "Reviewer".into(),
+                transcript_title: None,
+                candidate_id: "codex-acp".into(),
+                agent_session_id: "agent-session-2".into(),
+                events: vec![TranscriptEventInput {
+                    kind: "tool_call".into(),
+                    content: "No reportable output".into(),
+                }],
+                content: "No reportable output".into(),
+            })
+            .expect_err("agent output is required");
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert_eq!(
+            store
+                .list_transcript_sessions(Some(&project.id))
+                .expect("no partial transcript")
+                .len(),
+            before_sessions
         );
     }
 

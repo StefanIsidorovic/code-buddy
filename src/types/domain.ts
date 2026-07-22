@@ -412,6 +412,12 @@ export type TaskAgentReportInfo = {
   createdAt: number;
 };
 
+export type RunTaskAgentReportResultInfo = {
+  promptResult: AcpPromptResult;
+  transcriptSession: TranscriptSessionInfo;
+  report: TaskAgentReportInfo;
+};
+
 export type TaskPhaseTransitionAction = "start" | "complete";
 
 export type TaskPhaseRunReceiptInfo = {

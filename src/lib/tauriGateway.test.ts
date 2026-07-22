@@ -39,8 +39,12 @@ describe("Tauri command gateway", () => {
       transcriptSessionId: "advisor-transcript", content: "Finding", sourceTranscriptEventIds: ["e1"] } };
     invoke.mockResolvedValue({ id: "report-1" });
     await invokeCommand("create_task_agent_report", args);
+    await invokeCommand("run_task_agent_report", { request: { taskId: "t1", phase: "analysis",
+      role: "advisor", candidateId: "codex-acp", cwd: "/repo" } });
     await invokeCommand("list_task_agent_reports", { taskId: "t1" });
     expect(invoke).toHaveBeenNthCalledWith(1, "create_task_agent_report", args);
-    expect(invoke).toHaveBeenNthCalledWith(2, "list_task_agent_reports", { taskId: "t1" });
+    expect(invoke).toHaveBeenNthCalledWith(2, "run_task_agent_report", { request: { taskId: "t1",
+      phase: "analysis", role: "advisor", candidateId: "codex-acp", cwd: "/repo" } });
+    expect(invoke).toHaveBeenNthCalledWith(3, "list_task_agent_reports", { taskId: "t1" });
   });
 });

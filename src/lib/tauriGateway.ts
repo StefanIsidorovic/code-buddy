@@ -50,6 +50,7 @@ export type TauriCommand =
   | "resolve_pending_task_context_dispatch"
   | "resolve_pending_task_phase_run"
   | "respond_acp_permission"
+  | "run_task_agent_report"
   | "save_project_initialization_guardrails"
   | "select_project_task_context"
   | "select_unified_project_task_context"

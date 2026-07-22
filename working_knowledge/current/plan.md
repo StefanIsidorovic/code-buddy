@@ -26,14 +26,14 @@
 
 ### 24.4. Orchestrate secondary advisor/reviewer reports
 - objective: run one isolated secondary ACP role against the current Task phase, persist its transcript output, and convert exact agent output into an immutable report.
-- status: pending
+- status: complete
 - files: src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/storage.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; related tests and current knowledge.
 - affected units: Task/phase validation; secondary ACP start/send/drain/stop; secondary transcript creation; exact event provenance; immutable `task_agent_reports`.
 - expected changes: add a typed command that validates the current in-progress Task, creates an isolated secondary ACP session, creates a separate ACP transcript, sends a role-scoped prompt, persists user and agent events, creates a report from agent output, then stops and cleans up the secondary session/workspace.
 - acceptance criteria: only advisor/reviewer roles are accepted; only the current in-progress phase is targetable; a report requires persisted agent output; executor transcript and Task phase artifacts are untouched; failures do not create partial reports.
 - required tests: fake ACP happy path; invalid role/phase/task rejection; no-agent-output failure; cleanup/stop on failure; exact transcript provenance; full frontend/Rust gates.
-- review status: pending.
-- commit: pending.
+- review status: passed after 2 cycles; cycle 1 moved Task/phase/role validation before external ACP startup, and cycle 2 verified atomic storage, fake ACP orchestration, cleanup, gateway typing, and unchanged Task mutation boundaries.
+- commit: this commit.
 
 ### 24.3. Add isolated secondary ACP workspace foundation
 - objective: create a backend launch boundary that gives secondary agents a writable repository snapshot while keeping the executor repository outside their visible filesystem.

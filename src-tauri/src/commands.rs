@@ -1,9 +1,9 @@
 use crate::{
     acp::{
-        list_acp_registry_candidates as build_acp_registry_candidates, AcpPermissionRequest,
-        AcpPromptResult, AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
-        LoadAcpRegistrySessionRequest, RespondAcpPermissionRequest, SetAcpModelRequest,
-        StartAcpRegistrySessionRequest,
+        list_acp_registry_candidates as build_acp_registry_candidates, AcpEventKind,
+        AcpPermissionRequest, AcpPromptResult, AcpRegistryCandidate, AcpSessionEvent,
+        AcpSessionInfo, AcpSessionManager, AcpWorkspaceIsolation, LoadAcpRegistrySessionRequest,
+        RespondAcpPermissionRequest, SetAcpModelRequest, StartAcpRegistrySessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
@@ -20,23 +20,24 @@ use crate::{
     storage::{
         CreateAcpTranscriptSessionRequest, CreateKnowledgeItemRequest,
         CreateProjectInitializationRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
-        CreateTaskAgentReportRequest, CreateTaskContextDispatchRequest,
-        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskRequest,
-        CreateTranscriptSessionRequest, GenerateProjectInitializationSummaryRequest,
-        KnowledgeItemInfo, KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
-        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
-        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
-        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
-        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
-        ResolveTaskPhaseRunRequest, SaveProjectInitializationGuardrailsRequest,
-        TaskAgentReportInfo, TaskContextDispatchReceiptInfo, TaskInfo, TaskPhaseArtifactInfo,
-        TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo, TranscriptEventInfo,
-        TranscriptEventInput, TranscriptSessionInfo, TransitionTaskPhaseRequest,
-        UpdateTaskComplexityRequest,
+        CreateTaskAgentReportRequest, CreateTaskAgentReportTranscriptRequest,
+        CreateTaskContextDispatchRequest, CreateTaskPhaseArtifactRequest,
+        CreateTaskPhaseRunRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
+        LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
+        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
+        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
+        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
+        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
+        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
+        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tauri::State;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -51,6 +52,24 @@ pub struct TaskContextDispatchResultInfo {
 pub struct TaskPhaseRunResultInfo {
     pub prompt_result: AcpPromptResult,
     pub receipt: TaskPhaseRunReceiptInfo,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunTaskAgentReportRequest {
+    pub task_id: String,
+    pub phase: String,
+    pub role: String,
+    pub candidate_id: String,
+    pub cwd: PathBuf,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunTaskAgentReportResultInfo {
+    pub prompt_result: AcpPromptResult,
+    pub transcript_session: TranscriptSessionInfo,
+    pub report: TaskAgentReportInfo,
 }
 
 #[tauri::command]
@@ -411,6 +430,36 @@ pub fn create_task_agent_report(
 }
 
 #[tauri::command]
+pub async fn run_task_agent_report(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    mut request: RunTaskAgentReportRequest,
+) -> AppResult<RunTaskAgentReportResultInfo> {
+    let candidate_id = request.candidate_id.trim().to_string();
+    if candidate_id.is_empty() {
+        return Err(AppError::InvalidInput(
+            "task agent run requires an ACP candidate".into(),
+        ));
+    }
+    let phase = request.phase.trim().to_lowercase();
+    let role = request.role.trim().to_lowercase();
+    let task = store_state.task(&request.task_id)?;
+    validate_task_agent_report_run(&task, &phase, &role)?;
+    request.candidate_id = candidate_id.clone();
+    request.phase = phase;
+    request.role = role;
+    let manager = Arc::clone(manager_state.inner());
+    let start_request = StartAcpRegistrySessionRequest {
+        candidate_id,
+        cwd: Some(request.cwd.clone()),
+        workspace_isolation: Some(AcpWorkspaceIsolation::SnapshotSandbox),
+    };
+    let start_manager = Arc::clone(&manager);
+    let session = run_acp_task(move || start_manager.start_registry_session(start_request)).await?;
+    run_task_agent_report_against_session(manager, store_state.inner(), request, session).await
+}
+
+#[tauri::command]
 pub fn list_task_agent_reports(
     state: State<'_, ProjectStore>,
     task_id: String,
@@ -736,6 +785,161 @@ pub fn list_acp_registry_candidates() -> Vec<AcpRegistryCandidate> {
     build_acp_registry_candidates()
 }
 
+async fn run_task_agent_report_against_session(
+    manager: Arc<AcpSessionManager>,
+    store: &ProjectStore,
+    request: RunTaskAgentReportRequest,
+    session: AcpSessionInfo,
+) -> AppResult<RunTaskAgentReportResultInfo> {
+    let task = store.task(&request.task_id)?;
+    let phase = request.phase.trim().to_lowercase();
+    let role = request.role.trim().to_lowercase();
+    validate_task_agent_report_run(&task, &phase, &role)?;
+    let instruction = task_agent_report_instruction(&task, &phase, &role);
+    let agent_session_id = session.agent_session_id.clone().ok_or_else(|| {
+        AppError::Acp("secondary ACP session did not return an agent session id".into())
+    })?;
+    let acp_session_id = session.id.clone();
+    let prompt_manager = Arc::clone(&manager);
+    let instruction_for_prompt = instruction.clone();
+    let result = async {
+        let prompt_result = run_acp_task(move || {
+            prompt_manager.send_prompt(&acp_session_id, &instruction_for_prompt)
+        })
+        .await?;
+        let drain_session_id = session.id.clone();
+        let drain_manager = Arc::clone(&manager);
+        let acp_events =
+            run_acp_task(move || drain_manager.drain_events(&drain_session_id)).await?;
+        let transcript_events = task_agent_transcript_events(&instruction, acp_events);
+        let report_content = task_agent_report_content(&transcript_events)?;
+        let TaskAgentReportTranscriptInfo {
+            transcript_session,
+            report,
+        } = store.create_task_agent_report_transcript(CreateTaskAgentReportTranscriptRequest {
+            task_id: task.id.clone(),
+            phase,
+            role,
+            transcript_source: task_agent_transcript_source(&session, &request.role),
+            transcript_title: Some(task_agent_transcript_title(&task, &request.role)),
+            candidate_id: request.candidate_id,
+            agent_session_id,
+            events: transcript_events,
+            content: report_content,
+        })?;
+        Ok(RunTaskAgentReportResultInfo {
+            prompt_result,
+            transcript_session,
+            report,
+        })
+    }
+    .await;
+
+    let cleanup_session_id = session.id;
+    let cleanup_manager = Arc::clone(&manager);
+    let cleanup =
+        run_acp_task(move || cleanup_manager.stop_and_remove_session(&cleanup_session_id, true))
+            .await;
+    if result.is_err() {
+        let _ = cleanup;
+    }
+    result
+}
+
+fn validate_task_agent_report_run(task: &TaskInfo, phase: &str, role: &str) -> AppResult<()> {
+    if !matches!(role, "advisor" | "reviewer") {
+        return Err(AppError::InvalidInput(
+            "task agent role must be advisor or reviewer".into(),
+        ));
+    }
+    let phase_in_progress = task
+        .phases
+        .iter()
+        .any(|item| item.phase == phase && item.status == "in_progress");
+    if task.status != "in_progress" || task.current_phase != phase || !phase_in_progress {
+        return Err(AppError::InvalidInput(
+            "task agent reports may only target the current in-progress phase".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn task_agent_report_instruction(task: &TaskInfo, phase: &str, role: &str) -> String {
+    format!(
+        "Run only as a secondary {role} for this task.\n\
+         Original task: {original}\n\
+         Current phase: {phase}\n\
+         Do not complete the phase, create evidence, change git state, or modify the executor repository.\n\
+         Inspect the snapshot and return a concise report with concrete findings, risks, missing evidence, and recommended next checks.",
+        original = task.original_prompt.trim(),
+    )
+}
+
+fn task_agent_transcript_events(
+    instruction: &str,
+    acp_events: Vec<AcpSessionEvent>,
+) -> Vec<TranscriptEventInput> {
+    let mut events = vec![TranscriptEventInput {
+        kind: "user_message".into(),
+        content: instruction.to_string(),
+    }];
+    events.extend(
+        acp_events
+            .into_iter()
+            .filter_map(acp_event_to_transcript_event),
+    );
+    events
+}
+
+fn acp_event_to_transcript_event(event: AcpSessionEvent) -> Option<TranscriptEventInput> {
+    if event.content.trim().is_empty() {
+        return None;
+    }
+    let kind = match event.kind {
+        AcpEventKind::AgentMessage => "agent_message",
+        AcpEventKind::Plan => "agent_thought",
+        AcpEventKind::UserMessage => "user_message",
+        AcpEventKind::ToolCall => "tool_call",
+        AcpEventKind::Usage => "usage",
+        AcpEventKind::Notice => "notice",
+        AcpEventKind::Error => "error",
+    };
+    Some(TranscriptEventInput {
+        kind: kind.into(),
+        content: event.content,
+    })
+}
+
+fn task_agent_report_content(events: &[TranscriptEventInput]) -> AppResult<String> {
+    let content = events
+        .iter()
+        .filter(|event| matches!(event.kind.as_str(), "agent_message" | "agent_thought"))
+        .map(|event| event.content.trim())
+        .filter(|content| !content.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if content.is_empty() {
+        Err(AppError::InvalidInput(
+            "task agent report requires agent output".into(),
+        ))
+    } else {
+        Ok(content)
+    }
+}
+
+fn task_agent_transcript_source(session: &AcpSessionInfo, role: &str) -> String {
+    let agent = session.agent_name.as_deref().unwrap_or("ACP");
+    format!("{agent} {}", role.trim().to_lowercase())
+}
+
+fn task_agent_transcript_title(task: &TaskInfo, role: &str) -> String {
+    format!(
+        "{} report: {}",
+        role.trim().to_lowercase(),
+        task.current_phase
+    )
+}
+
 async fn run_acp_task<T>(task: impl FnOnce() -> AppResult<T> + Send + 'static) -> AppResult<T>
 where
     T: Send + 'static,
@@ -743,4 +947,103 @@ where
     tauri::async_runtime::spawn_blocking(task)
         .await
         .map_err(|err| AppError::Acp(format!("acp task failed: {err}")))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        acp::StartFakeAcpSessionRequest,
+        storage::{
+            CreateProjectRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+            TransitionTaskPhaseRequest,
+        },
+    };
+    use std::fs;
+    use uuid::Uuid;
+
+    fn temp_command_project_path(label: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!("aiadne-command-{label}-{}", Uuid::new_v4()));
+        fs::create_dir_all(&path).expect("temp command project dir");
+        path
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn run_task_agent_report_persists_fake_agent_output_and_removes_session() {
+        tauri::async_runtime::block_on(async {
+            let store = ProjectStore::in_memory().expect("store opens");
+            let project_path = temp_command_project_path("agent-report");
+            let project = store
+                .create_project(CreateProjectRequest {
+                    name: "AIadne".into(),
+                    path: project_path.clone(),
+                })
+                .expect("project created");
+            let executor = store
+                .create_transcript_session(CreateTranscriptSessionRequest {
+                    project_id: Some(project.id.clone()),
+                    runtime: "acp".into(),
+                    source: "Codex".into(),
+                    title: None,
+                })
+                .expect("executor transcript");
+            let task = store
+                .create_task(CreateTaskRequest {
+                    project_id: project.id,
+                    transcript_session_id: executor.id,
+                    original_prompt: "Review secondary reporting".into(),
+                })
+                .expect("task created");
+            let task = store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id,
+                    action: "start".into(),
+                })
+                .expect("analysis started");
+            let manager = Arc::new(AcpSessionManager::default());
+            let session = manager
+                .start_fake_session(StartFakeAcpSessionRequest {
+                    cwd: Some(project_path.clone()),
+                })
+                .expect("fake secondary starts");
+
+            let result = run_task_agent_report_against_session(
+                Arc::clone(&manager),
+                &store,
+                RunTaskAgentReportRequest {
+                    task_id: task.id.clone(),
+                    phase: "analysis".into(),
+                    role: "advisor".into(),
+                    candidate_id: "fake-acp".into(),
+                    cwd: project_path.clone(),
+                },
+                session,
+            )
+            .await
+            .expect("agent report run succeeds");
+
+            assert!(result.report.content.contains("fake acp received prompt"));
+            assert_eq!(result.report.role, "advisor");
+            assert_eq!(result.transcript_session.event_count, 2);
+            assert_eq!(
+                store
+                    .list_task_agent_reports(&task.id)
+                    .expect("reports listed")
+                    .len(),
+                1
+            );
+            assert_eq!(
+                store
+                    .list_transcript_events(&result.transcript_session.id)
+                    .expect("transcript events listed")
+                    .iter()
+                    .filter(|event| event.kind == "agent_message")
+                    .count(),
+                1
+            );
+            assert!(manager.list_sessions().expect("sessions list").is_empty());
+            let _ = fs::remove_dir_all(project_path);
+        });
+    }
 }

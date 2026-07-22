@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 14ca6f0 step 24.2: show secondary agent reports
-- worktree: plan item 24.3 isolated secondary ACP workspace foundation ready to commit.
-- relevant files: src-tauri/src/acp.rs; src-tauri/src/acp_workspace.rs; src-tauri/src/lib.rs; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 8554eb0 step 24.3: add isolated secondary ACP workspace
+- worktree: plan item 24.4 secondary advisor/reviewer orchestration ready to commit.
+- relevant files: src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/storage.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; src/types/domain.ts; working_knowledge/current/*.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: in_progress
-- active plan step: 24.3 complete pending commit; next is backend advisor/reviewer orchestration into immutable reports; AIadne-to-beyond-Conductor tracker approximately 85%.
+- active plan step: 24.4 complete pending commit; next is Activity UI controls for advisor/reviewer runs; AIadne-to-beyond-Conductor tracker approximately 88%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 239 frontend tests, 116 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, atomic secondary transcript+report storage, fake ACP advisor orchestration, secondary session removal, typed gateway contract, and `git diff --check` pass for plan item 24.4; App remains 579 lines.
 - 2026-07-22: 239 frontend tests, 114 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, isolated snapshot filtering/cleanup, missing-`bwrap` rejection, unwrapped primary launch coverage, sandbox command construction, and `git diff --check` pass for plan item 24.3; App remains 579 lines.
 - 2026-07-22: 239 frontend tests, 110 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale-safe report loading, read-only Activity presentation/count, and `git diff --check` pass for plan item 24.2; App is 579 lines.
 - 2026-07-22: 234 frontend tests, 110 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, legacy migration, exact secondary provenance, active-phase/free-transcript role gates, typed commands, and `git diff --check` pass for plan item 24.1; App remains 574 lines.

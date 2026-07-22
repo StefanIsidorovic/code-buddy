@@ -102,6 +102,7 @@
 - `task_agent_reports` and normalized event sources form the first multi-agent write boundary: advisor/reviewer reports are append-only, phase-ordered, sourced from exact agent events in a free secondary same-project ACP transcript, and cannot reuse any Task executor transcript.
 - `useTaskAgentReports` owns stale-safe report cache loading, while `TaskAgentReportsPanel` is read-only Activity presentation; App only composes it and the Activity tab exposes its count.
 - `src-tauri/src/acp_workspace.rs` owns the secondary ACP snapshot/sandbox boundary: ordinary starts are unwrapped, isolated starts require `bwrap`, create a bounded writable `/work` snapshot, exclude VCS/generated directories and symlinks, and clean the temp workspace on session drop.
+- `run_task_agent_report` is the backend orchestration boundary for deliberate advisor/reviewer runs: it starts isolated ACP only after current-phase validation, persists a separate ACP transcript and report atomically through `create_task_agent_report_transcript`, and removes the secondary local session after the run.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints
