@@ -19,6 +19,7 @@
 - Controlled phase execution: a Run action sends one visible canonical phase instruction only for the exact active Task; ACP output does not create evidence, complete the phase, or advance the state machine automatically.
 - Phase-run audit boundary: persist an ordered `pending` receipt only for the current in-progress phase before ACP dispatch, then finalize once as `sent`/`failed`; interrupted uncertainty remains `pending`.
 - Phase-response provenance: a sent phase-run receipt may link only to persisted agent message/thought events from its exact Task transcript; background drain pauses during prompts so ordinary or later output cannot be misattributed.
+- Completion preparation: derive the editable draft only from the latest sent receipt of the current phase and all its canonical linked events; preparation never persists evidence, acknowledges review, completes a phase, or starts the next one.
 - Phase-run recovery: manual recovery may only mark pending as failed with a bounded reason after the associated ACP session stops; finalized outcomes cannot be rewritten.
 - Evidence draft boundary: the explicit draft action copies only the highest-sequence persisted agent message/thought and selects its real event ID; persistence and phase completion remain separate user actions.
 - Review checkpoint boundary: persisted artifacts remain the backend completion gate; the phase-aware acknowledgment is a transient UI safeguard reset by Task, evidence, or transition changes and must not be represented as a durable audit approval.

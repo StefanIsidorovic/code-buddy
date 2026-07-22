@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Task Phase now offers `Prepare completion`, which loads only the latest current-phase sent receipt's linked response events into an editable draft with exact provenance IDs.
+- Missing links produce an actionable error; stale responses after Task changes are ignored, and Add evidence/review/Complete/next Start remain separate explicit gates.
 - Controlled phase runs now persist normalized links from their sent receipt to the exact agent transcript events drained after that run; cross-transcript and user-event links are rejected transactionally.
 - Background ACP drain pauses while a prompt is in flight, preventing polling from consuming a controlled response before it can be persisted and linked.
 - ACP now opens in a focused Agent view containing both ACP Controls and Session Output; Task and Activity are separate accessible tab views instead of one stacked page.
@@ -30,7 +32,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Expose receipt-linked response events to the Task workflow and implement `Prepare completion` from only that authoritative set; retain editable evidence and explicit review/complete gates.
+- Improve the Task view into a compact guided completion flow and add a safe explicit `Complete & show next phase` transition without auto-starting the next phase.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

@@ -8,12 +8,12 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   canRunAgent: boolean; agentRunning: boolean; evidenceReviewed: boolean;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
-  onRunAgent: (instruction: string) => void; onDraftLatestAgentResponseEvidence: () => void;
+  onRunAgent: (instruction: string) => void; onPrepareCompletion: () => void;
   onAcknowledgeEvidenceReview: (reviewed: boolean) => void }
 
 export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
   kind, content, error, loading, canRunAgent, agentRunning, evidenceReviewed, onChangeKind, onChangeContent,
-  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAgent, onDraftLatestAgentResponseEvidence,
+  onToggleSource, onCreateArtifact, onStart, onComplete, onRunAgent, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
   const inProgress = currentPhase?.status === "in_progress";
@@ -36,8 +36,8 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       <label>Artifact kind<input value={kind} onChange={(event) => onChangeKind(event.target.value)} /></label>
       <label>Phase evidence<textarea rows={3} value={content}
         onChange={(event) => onChangeContent(event.target.value)} /></label>
-      <button type="button" onClick={onDraftLatestAgentResponseEvidence} disabled={loading || !sourceEvents.some((event) =>
-        event.kind === "agent_message" || event.kind === "agent_thought")}>Draft evidence from latest agent response</button>
+      <button type="button" onClick={onPrepareCompletion} disabled={loading}>Prepare completion</button>
+      <small>This prepares an editable draft from the latest linked phase run. It does not save evidence or complete the phase.</small>
       <details className="task-provenance-picker"><summary><span>Transcript provenance</span>
         <small>{selectedSourceIds.length} selected · {sourceEvents.length} persisted event(s)</small></summary>
         {sourceEvents.length === 0 ? <p>No persisted transcript events yet.</p>

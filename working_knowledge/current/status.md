@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 1c996cb step 22.15: add focused ACP workspace views
-- worktree: plan item 22.16 phase-run response provenance verified and ready for commit.
+- head: 5209122 step 22.16: bind phase runs to response events
+- worktree: plan item 22.17 Prepare completion verified and ready for commit.
 - relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 22.16 complete
+- active plan step: 22.17 complete
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 211 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale Task/empty linked-response coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.17.
 - 2026-07-22: 209 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, exact phase-response link coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.16.
 - 2026-07-22: 209 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, keyboard tab behavior, `git diff --check`, and two adversarial review cycles pass for plan item 22.15; `App.tsx` is 562 lines.
 - 2026-07-19: repository, active knowledge, ACP prompt/transcript flow, SQLite schema, storage tests, and task-context selector inspected; no Task aggregate currently exists.

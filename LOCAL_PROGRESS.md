@@ -824,3 +824,9 @@ YYYY-MM-DD
 - Sent phase-run receipt sada se normalizovano vezuje samo za tacne persisted agent message/thought event-e iz istog Task transcript-a.
 - ACP polling pauzira tokom prompta, pa controlled response ne moze biti potrosen ili pomesan sa kasnijim output-om pre persistence/link koraka.
 - Frontend audit, 209 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; runtime hook ostaje na hard ceiling-u od 250 linija.
+
+### 2026-07-22 - Prepare Phase Completion
+
+- Task Phase dobija `Prepare completion`, koji koristi samo linked event-e poslednjeg sent receipt-a trenutne faze i popunjava editabilan draft sa tacnim provenance ID-jevima.
+- Prazan/unlinked rezultat i stale Task odgovor ne mogu proizvesti evidence; Add evidence, review, Complete i sledeci Start ostaju odvojeni eksplicitni gate-ovi.
+- Frontend audit, 211 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje na 562 linije.

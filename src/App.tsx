@@ -376,7 +376,7 @@ function App() {
             error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
             agentRunning={acpPromptBusy} evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
-            onDraftLatestAgentResponseEvidence={taskPhase.draftLatestAgentResponseEvidence}
+            onPrepareCompletion={() => void taskPhase.prepareCompletion()}
             onAcknowledgeEvidenceReview={taskPhase.acknowledgeEvidenceReview}
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}

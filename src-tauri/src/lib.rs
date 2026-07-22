@@ -61,6 +61,7 @@ pub fn run() {
             commands::list_task_phase_artifacts,
             commands::list_task_phase_run_receipts,
             commands::link_task_phase_run_events,
+            commands::latest_task_phase_run_response_events,
             commands::list_task_context_dispatch_receipts,
             commands::resolve_pending_task_context_dispatch,
             commands::resolve_pending_task_phase_run,

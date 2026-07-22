@@ -706,6 +706,17 @@
 - review status: passed after 2 cycles; cycle 1 verified transactional ownership/kind/duplicate boundaries and documented the conservative no-link outcome, while cycle 2 restored the runtime hook hard ceiling and found no remaining polling race, provenance integrity, stale state, regression, security, or patch-hygiene issue.
 - commit: this commit
 
+### 22.17. Prepare phase completion from authoritative run output
+- objective: prepare an editable phase evidence draft only from the latest sent run receipt's exact persisted response events.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; src/features/tasks/useTaskPhaseWorkflow.ts; src/features/tasks/useTaskPhaseWorkflow.test.tsx; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: latest phase-run response query; completion draft action/state; Task phase presentation; stale Task guard.
+- expected changes: expose canonical linked events for the latest sent receipt in the current phase; replace latest-message guessing with async Prepare completion; join linked content and select exact provenance IDs without persistence or transition side effects.
+- acceptance criteria: no linked response yields an actionable error; old Task results are ignored; draft remains editable; Add evidence, review, Complete, and next-phase Start remain explicit separate gates.
+- required tests: canonical linked response; no/mismatched receipt; successful draft; empty response; stale Task result; panel lock/label; full frontend/Rust gates.
+- review status: passed after 2 cycles; cycle 1 added stale-Task response coverage after validating canonical/empty boundaries, and cycle 2 found no remaining receipt selection, provenance, async identity, explicit-gate, accessibility, architecture, regression, security, or patch-hygiene issue.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

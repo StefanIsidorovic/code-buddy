@@ -400,6 +400,14 @@ pub fn link_task_phase_run_events(
 }
 
 #[tauri::command]
+pub fn latest_task_phase_run_response_events(
+    state: State<'_, ProjectStore>,
+    task_id: String,
+) -> AppResult<Vec<TranscriptEventInfo>> {
+    state.latest_task_phase_run_response_events(&task_id)
+}
+
+#[tauri::command]
 pub async fn resolve_pending_task_phase_run(
     store_state: State<'_, ProjectStore>,
     manager_state: State<'_, Arc<AcpSessionManager>>,

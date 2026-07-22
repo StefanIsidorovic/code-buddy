@@ -5,7 +5,7 @@ use crate::models::{
 };
 use crate::synthesis::ProjectInitializationKnowledgeDraft;
 use crate::task::{assess_task_complexity, is_task_complexity_profile};
-use rusqlite::{params, types::Type, Connection};
+use rusqlite::{params, types::Type, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -1816,6 +1816,45 @@ impl ProjectStore {
         }
         transaction.commit().map_err(storage_error)?;
         Ok(())
+    }
+
+    pub fn latest_task_phase_run_response_events(
+        &self,
+        task_id: &str,
+    ) -> AppResult<Vec<TranscriptEventInfo>> {
+        let connection = self.connection()?;
+        let current_phase: String = connection
+            .query_row(
+                "SELECT current_phase FROM tasks WHERE id = ?1",
+                [task_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| AppError::InvalidInput("phase response Task was not found".into()))?;
+        let receipt_id = connection.query_row(
+            "SELECT id FROM task_phase_run_receipts WHERE task_id = ?1 AND phase = ?2 AND status = 'sent' ORDER BY sequence DESC LIMIT 1",
+            params![task_id, current_phase], |row| row.get::<_, String>(0)).optional().map_err(storage_error)?;
+        let Some(receipt_id) = receipt_id else {
+            return Ok(Vec::new());
+        };
+        let mut statement = connection.prepare(
+            "SELECT e.id, e.session_id, e.sequence, e.kind, e.content, e.created_at
+             FROM task_phase_run_response_events r JOIN transcript_events e ON e.id = r.transcript_event_id
+             WHERE r.receipt_id = ?1 ORDER BY e.sequence ASC").map_err(storage_error)?;
+        let events = statement
+            .query_map([receipt_id], |row| {
+                Ok(TranscriptEventInfo {
+                    id: row.get(0)?,
+                    session_id: row.get(1)?,
+                    sequence: row.get(2)?,
+                    kind: row.get(3)?,
+                    content: row.get(4)?,
+                    created_at: row.get(5)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        Ok(events)
     }
 
     pub fn resolve_pending_task_phase_run(
@@ -6319,6 +6358,16 @@ mod tests {
                 transcript_event_ids: vec![response_events[0].id.clone()],
             })
             .expect("duplicate link is idempotent");
+        let linked = store
+            .latest_task_phase_run_response_events(&task.id)
+            .expect("latest linked response listed");
+        assert_eq!(
+            linked
+                .iter()
+                .map(|event| event.id.as_str())
+                .collect::<Vec<_>>(),
+            vec![response_events[0].id.as_str()]
+        );
         let user_link = store
             .link_task_phase_run_events(LinkTaskPhaseRunEventsRequest {
                 task_id: task.id.clone(),

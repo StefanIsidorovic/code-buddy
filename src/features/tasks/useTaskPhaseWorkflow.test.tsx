@@ -52,14 +52,34 @@ describe("useTaskPhaseWorkflow", () => {
     await act(async () => { resolveTransition(task); await transition; });
     expect(upsertTask).not.toHaveBeenCalled();
   });
-  it("selects only the latest persisted agent response as provenance", async () => {
-    invoke.mockResolvedValue([]); const latest = { ...source, id: "e3", sequence: 2, kind: "agent_thought", content: "Final review" };
-    const user = { ...source, id: "e2", sequence: 1, kind: "user_message" };
-    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [latest, user, source], upsertTask: vi.fn() }));
+  it("prepares editable evidence from exact linked phase-run events", async () => {
+    const thought = { ...source, id: "e3", sequence: 2, kind: "agent_thought", content: "Risk check" };
+    invoke.mockImplementation((command) => command === "latest_task_phase_run_response_events"
+      ? Promise.resolve([source, thought]) : Promise.resolve([]));
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: [source, thought], upsertTask: vi.fn() }));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    act(() => result.current.draftLatestAgentResponseEvidence());
-    expect(result.current.sourceIds).toEqual(["e3"]);
-    expect(result.current.content).toBe("Final review");
+    await act(() => result.current.prepareCompletion());
+    expect(invoke).toHaveBeenCalledWith("latest_task_phase_run_response_events", { taskId: "t1" });
+    expect(result.current.sourceIds).toEqual(["e1", "e3"]);
+    expect(result.current.content).toBe("Evidence\n\nRisk check");
+  });
+  it("explains when no linked phase response can prepare completion", async () => {
+    invoke.mockResolvedValue([]); const { result } = renderHook(() => useTaskPhaseWorkflow({ task,
+      sourceEvents: [], upsertTask: vi.fn() })); await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.prepareCompletion());
+    expect(result.current.error).toMatch(/Run the current phase first/);
+  });
+  it("ignores prepared response after the active Task changes", async () => {
+    let finish: (events: TranscriptEventInfo[]) => void = () => undefined;
+    const response = new Promise<TranscriptEventInfo[]>((resolve) => { finish = resolve; });
+    invoke.mockImplementation((command) => command === "latest_task_phase_run_response_events"
+      ? response : Promise.resolve([])); const nextTask = { ...task, id: "t2", transcriptSessionId: "s2" };
+    const { result, rerender } = renderHook(({ value }) => useTaskPhaseWorkflow({ task: value,
+      sourceEvents: [source], upsertTask: vi.fn() }), { initialProps: { value: task } });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => { void result.current.prepareCompletion(); }); rerender({ value: nextTask });
+    await act(async () => { finish([source]); await response; });
+    expect(result.current.content).toBe(""); expect(result.current.sourceIds).toEqual([]);
   });
   it("blocks completion until evidence review is acknowledged and resets it after artifact change", async () => {
     invoke.mockImplementation((command) => command === "list_task_phase_artifacts" ? Promise.resolve([artifact])

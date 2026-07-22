@@ -21,10 +21,14 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask }: Options
       .finally(() => { if (request === requestId.current) setLoading(false); }); }, [task?.id]);
   function toggleSource(id: string, selected: boolean) { setSourceIds((current) => selected
     ? current.includes(id) ? current : [...current, id] : current.filter((value) => value !== id)); }
-  function draftLatestAgentResponseEvidence() { const latest = sourceEvents.filter((event) =>
-    event.kind === "agent_message" || event.kind === "agent_thought")
-    .reduce<TranscriptEventInfo | null>((current, event) => !current || event.sequence > current.sequence ? event : current, null);
-    if (latest) { setContent(latest.content); setSourceIds([latest.id]); } }
+  async function prepareCompletion() { if (!task) return; const taskId = task.id; setLoading(true); setError(null);
+    try { const events = await invokeCommand<TranscriptEventInfo[]>("latest_task_phase_run_response_events", { taskId });
+      if (taskIdRef.current !== taskId) return; if (events.length === 0) {
+        setError("Run the current phase first; no persisted linked response is available."); return; }
+      setContent(events.map(({ content: value }) => value.trim()).filter(Boolean).join("\n\n"));
+      setSourceIds(events.map(({ id }) => id)); setEvidenceReviewed(false); }
+    catch (reason) { if (taskIdRef.current === taskId) setError(errorText(reason)); }
+    finally { if (taskIdRef.current === taskId) setLoading(false); } }
   async function transition(action: "start" | "complete") { if (!task || action === "complete" && !evidenceReviewed) return; setLoading(true); setError(null);
     try { const value = await invokeCommand<TaskInfo>("transition_task_phase", { request: { taskId: task.id, action } });
       if (taskIdRef.current === task.id) { upsertTask(value); setEvidenceReviewed(false); } }
@@ -38,6 +42,6 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask }: Options
     catch (reason) { if (taskIdRef.current === task.id) setError(errorText(reason)); }
     finally { if (taskIdRef.current === task.id) setLoading(false); } }
   return { artifacts, kind, content, sourceIds, sourceEvents, error, loading, currentPhase, evidenceReviewed,
-    changeKind: setKind, changeContent: setContent, toggleSource, draftLatestAgentResponseEvidence, createArtifact,
+    changeKind: setKind, changeContent: setContent, toggleSource, prepareCompletion, createArtifact,
     acknowledgeEvidenceReview: setEvidenceReviewed, start: () => transition("start"), complete: () => transition("complete") };
 }

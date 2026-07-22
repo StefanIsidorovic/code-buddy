@@ -53,3 +53,4 @@
 - Do not treat prompt-only confidence as final truth or silently change historical classifier semantics; introduce new assessment versions when rules materially change.
 - Controlled phase response provenance is normalized from each sent run receipt to exact same-Task transcript agent events; ordinary/user output cannot become phase-run evidence through this link.
 - ACP background drain pauses during prompt operations, then the controlled response is persisted before receipt/event linkage; missing persisted output remains unlinked rather than inferred.
+- Prepare completion reads only the latest sent receipt for the current phase, joins its canonical linked response into an editable draft, and retains explicit artifact/review/complete/next-start gates.

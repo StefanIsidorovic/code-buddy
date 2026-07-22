@@ -34,6 +34,7 @@ export type TauriCommand =
   | "list_task_phase_artifacts"
   | "list_task_phase_run_receipts"
   | "link_task_phase_run_events"
+  | "latest_task_phase_run_response_events"
   | "list_task_context_dispatch_receipts"
   | "list_projects"
   | "list_transcript_events"

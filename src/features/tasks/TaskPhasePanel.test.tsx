@@ -19,7 +19,7 @@ function props(overrides = {}) { return { task, artifacts: [], currentPhase: pha
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
   canRunAgent: true, agentRunning: false, evidenceReviewed: false,
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
-  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), onDraftLatestAgentResponseEvidence: vi.fn(),
+  onStart: vi.fn(), onComplete: vi.fn(), onRunAgent: vi.fn(), onPrepareCompletion: vi.fn(),
   onAcknowledgeEvidenceReview: vi.fn(), ...overrides }; }
 
 describe("TaskPhasePanel", () => {
@@ -58,10 +58,11 @@ describe("TaskPhasePanel", () => {
     expect(screen.getByRole("button", { name: "Run analysis phase" })).toBeDisabled();
     expect(screen.getByText("Start an ACP session to run this phase.")).toBeInTheDocument();
   });
-  it("offers explicit latest persisted agent-response provenance selection", () => {
+  it("offers explicit completion preparation without claiming persistence", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
-    fireEvent.click(screen.getByRole("button", { name: "Draft evidence from latest agent response" }));
-    expect(value.onDraftLatestAgentResponseEvidence).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Prepare completion" }));
+    expect(value.onPrepareCompletion).toHaveBeenCalledOnce();
+    expect(screen.getByText(/does not save evidence or complete the phase/)).toBeInTheDocument();
   });
   it("keeps transcript provenance compact until explicitly opened", () => {
     render(<TaskPhasePanel {...props({ selectedSourceIds: ["e1"] })} />);
