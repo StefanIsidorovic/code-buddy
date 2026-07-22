@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 29.1 is complete pending commit: Activity Delivery readiness now includes read-only Recent provenance history from bounded Git log/notes inspection, and full frontend/Rust gates pass.
+- Plan item 29.2 is complete pending commit: 29.1 provenance was verified and active knowledge is updated for the next read-only delivery-intelligence slice.
+- Plan item 29.1 is committed as 4e838d2: Activity Delivery readiness now includes read-only Recent provenance history from bounded Git log/notes inspection, and full frontend/Rust gates pass.
 - Plan item 28.3 is committed as 753c6de: delivery-readiness provenance, tracker state, and handoff notes are updated after the 28.2 commit.
 - Plan item 28.2 is committed as b359052: Activity now has a read-only Delivery readiness panel backed by a stale-safe hook and typed gateway command.
 - Plan item 28.1 is committed as ada3525: the backend has a read-only Git delivery readiness inspector for branch/HEAD/status/provenance, with full backend gates passing.
@@ -79,7 +80,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Commit plan item 29.1, then continue with read-only validation/evidence signals beside Git readiness before planning any future Ship/Commit/Push controls.
+- Commit plan item 29.2, then continue with read-only validation/evidence signals beside Git readiness before planning any future Ship/Commit/Push controls.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

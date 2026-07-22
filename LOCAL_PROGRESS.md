@@ -133,6 +133,7 @@ Najbitnije pravilo: agentov odgovor nije automatski istina i nije automatski Tas
 - Delivery readiness je krenuo kao read-only Git intelligence: Activity sada moze da prikaze branch/HEAD, clean/dirty worktree, promenjene fajlove i da li HEAD ima provenance note. Nema Ship/Commit/Push dugmeta.
 - Sledeci delivery-intelligence korak treba prvo da doda read-only validation/evidence signale pored Git stanja, pa tek onda da planiramo stvarne Ship/Commit/Push akcije.
 - Delivery readiness sada ima i Recent provenance: user vidi poslednje commit-e i da li imaju `refs/notes/provenance` zapis, bez ikakvih Git mutacija iz UI-ja.
+- Sledeci mali cilj: pored Git/provenance statusa prikazati read-only validation/evidence signale, npr. poslednji poznati test/build rezultat ili receipt, pre bilo kakve prave delivery akcije.
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.

@@ -4,13 +4,24 @@
 
 ### 29.1. Add read-only delivery provenance history
 - objective: make delivery readiness more useful by showing the recent provenance trail for repository commits without adding Git mutation controls.
-- status: complete pending commit
+- status: complete
 - files: src-tauri/src/delivery.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/delivery/*; src/App.tsx; src/App.css; src/App.test.tsx; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: Git delivery inspection backend, Tauri command surface, typed frontend gateway/domain contracts, stale-safe delivery hook, Activity Delivery readiness panel, mind map/current knowledge.
 - expected changes: add `list_git_delivery_provenance_history(repositoryPath, limit)` that returns bounded recent commits with optional provenance-note metadata, then render a compact Recent provenance section in Activity beside the existing HEAD readiness.
 - acceptance criteria: history is read-only, capped, and tolerant of commits without notes; no Ship/Commit/Push/Git mutation UI appears; App remains composition-only; stale repository responses are ignored; direct Tauri imports stay limited to the gateway/tests.
 - required tests: Rust delivery tests for noted/unnoted commits and limit clamping; panel tests for recent provenance and unnoted commits; hook/gateway tests for payloads and stale-response behavior; stabilize the existing PTY keyboard App test if it blocks full gates; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; targeted/full Rust delivery checks; `git diff --check`.
 - review status: passed after 1 cycle; verified bounded read-only Git log/note inspection, no shell or Git write command in product code, no Ship/Commit/Push UI, App composition-only wiring, stale repository guard coverage for both readiness/history responses, and stabilized an existing PTY keyboard App test that blocked full frontend gates.
+- commit: 4e838d2.
+
+### 29.2. Finalize delivery provenance handoff
+- objective: verify 29.1 provenance and leave active knowledge ready for the next beyond-Conductor delivery-intelligence slice.
+- status: complete pending commit
+- files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: current status, plan, handoff, repository notes, roadmap tracker, provenance records.
+- expected changes: verify the 29.1 provenance note, update active knowledge after the commit, and record the next follow-up as read-only validation/evidence signals beside Git readiness.
+- acceptance criteria: worktree is clean, 29.1 has a provenance note under `refs/notes/provenance`, full gates remain recorded, and no Git mutation/Ship authority is implied.
+- required tests: `git notes --ref=refs/notes/provenance show 4e838d2`; `git status --short`; `git diff --check`.
+- review status: passed after 1 cycle; 29.1 provenance was verified, worktree was clean before 29.2 knowledge edits, and the next step remains scoped to read-only validation/evidence signals.
 - commit: pending.
 
 ### 28.1. Add read-only Git delivery readiness backend
