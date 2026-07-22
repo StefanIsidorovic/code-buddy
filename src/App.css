@@ -4687,6 +4687,11 @@ summary:focus-visible {
 }
 
 .task-dispatch-list { display: grid; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.task-agent-report-list { display: grid; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.task-agent-report-list > li { display: grid; gap: 0.45rem; padding: 0.75rem;
+  border: 1px solid var(--border-subtle); border-radius: 0.75rem; background: var(--surface-muted); }
+.task-agent-report-list > li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; }
+.task-agent-report-list p, .task-agent-report-list small { margin: 0; }
 .task-dispatch-list > li { display: grid; gap: 0.45rem; padding: 0.75rem;
   border: 1px solid var(--border-subtle); border-radius: 0.7rem; }
 .task-dispatch-list > li[data-status="pending"] { border-color: var(--color-warning); }

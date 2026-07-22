@@ -35,6 +35,8 @@ import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
 import { TaskRecoveryNotice } from "./features/tasks/TaskRecoveryNotice";
+import { TaskAgentReportsPanel } from "./features/tasks/TaskAgentReportsPanel";
+import { useTaskAgentReports } from "./features/tasks/useTaskAgentReports";
 import { useTaskDispatchHistory } from "./features/tasks/useTaskDispatchHistory";
 import { AcpRegistryPanel } from "./features/agents/AcpRegistryPanel";
 import { TerminalFallbackPanel } from "./features/agents/TerminalFallbackPanel";
@@ -175,6 +177,7 @@ function App() {
     });
   const taskDispatch = useTaskDispatchHistory(activeTask);
   const taskPhaseRuns = useTaskPhaseRunHistory(activeTask);
+  const taskAgentReports = useTaskAgentReports(activeTask);
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
     onRunSettled: taskPhaseRuns.refresh });
@@ -394,6 +397,8 @@ function App() {
             activity={activeTask ? <><TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
             contextReceipts={taskDispatch.receipts} currentAcpSessionId={canUseAcpSession ? acpSession?.id ?? null : null}
             onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
+            <TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
+            error={taskAgentReports.error} onRefresh={() => void taskAgentReports.refresh()} />
             <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
             loading={taskPhaseRuns.loading} error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}
@@ -407,7 +412,7 @@ function App() {
             onCancelResolution={taskDispatch.cancelResolution}
             onResolve={() => void taskDispatch.resolve()} /></> : null}
             currentPhase={activeTask?.currentPhase ?? null} phaseRunCount={taskPhaseRuns.receipts.length}
-            contextDispatchCount={taskDispatch.receipts.length} />
+            contextDispatchCount={taskDispatch.receipts.length} reportCount={taskAgentReports.reports.length} />
         ) : null}
         {error ? (
           <p className="error-message" role="alert">

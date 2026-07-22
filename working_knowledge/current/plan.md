@@ -860,6 +860,17 @@
 - review status: passed after 2 cycles; cycle 1 separated immutable secondary-agent reports from executor artifacts and verified exact same-project ACP provenance, while cycle 2 required an active phase, rejected transcripts already executing any Task, proved legacy migration/transactional failures, and found no Task, phase, artifact, receipt, ACP, Git, type-boundary, or regression escape.
 - commit: this commit
 
+### 24.2. Surface secondary-agent reports as read-only Task activity
+- objective: make advisor/reviewer findings inspectable before enabling any secondary-agent launch action.
+- status: complete
+- files: src/features/tasks/useTaskAgentReports.ts; src/features/tasks/TaskAgentReportsPanel.tsx; src/App.tsx; src/App.css; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: stale-safe Task report loading; state-free Activity presentation; App composition.
+- expected changes: load reports by active Task with stale-response protection; show role, phase, order, content, transcript/provenance counts, loading/empty/error states, and explicit refresh; expose no mutation controls.
+- acceptance criteria: Task changes clear old reports and late results cannot leak across Tasks; the panel is accessible and read-only; report content/provenance identity is visible; App adds composition only and remains below its audit ceiling.
+- required tests: hook load/Task switch/stale/error; panel populated/empty/loading/error/refresh/accessibility; App wiring; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 isolated stale-safe backend state in a feature hook and immutable presentation in a state-free panel, while cycle 2 added report discoverability to the Activity tab, verified Task-switch/error/loading/empty/accessibility behavior, and found no mutation control, global-state leak, stale response, App workflow, or regression.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

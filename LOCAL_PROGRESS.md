@@ -908,3 +908,9 @@ YYYY-MM-DD
 - Prvi multi-agent persistence boundary cuva advisor/reviewer nalaze kao immutable, phase-ordered report-e sa tacnim secondary ACP event provenance-om, odvojeno od executor evidence-a.
 - Backend odbija executor/unknown role, neaktivnu fazu, Task-ov ili drugi zauzet executor transcript, wrong-project/non-ACP transcript i cross-transcript/user provenance bez parcijalnog upisa.
 - Frontend audit, 234 frontend testa, 110 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 574 linije.
+
+### 2026-07-22 - Read-Only Secondary Reports Activity
+
+- Activity view sada prikazuje advisor/reviewer report-e sa ulogom, fazom, redosledom, sadrzajem, transcript identitetom i provenance brojem; nema edit/approve/execute kontrola.
+- Feature hook odbacuje kasne rezultate posle promene Task-a, pokriva refresh/loading/empty/error stanja, a Activity tab pokazuje report count.
+- Frontend audit, 239 frontend testova, 110 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 579 linija.

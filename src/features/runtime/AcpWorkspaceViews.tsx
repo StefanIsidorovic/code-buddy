@@ -10,12 +10,13 @@ interface Props {
   currentPhase: string | null;
   phaseRunCount: number;
   contextDispatchCount: number;
+  reportCount: number;
 }
 
 const views: WorkspaceView[] = ["agent", "task", "activity"];
 
 export function AcpWorkspaceViews({ agent, output, task, activity, currentPhase,
-  phaseRunCount, contextDispatchCount }: Props) {
+  phaseRunCount, contextDispatchCount, reportCount }: Props) {
   const [activeView, setActiveView] = useState<WorkspaceView>("agent");
   const taskAvailable = task !== null;
   const activityAvailable = activity !== null;
@@ -48,7 +49,9 @@ export function AcpWorkspaceViews({ agent, output, task, activity, currentPhase,
     task: { title: "Task", detail: currentPhase ? `Current: ${currentPhase}` : "No active task" },
     activity: {
       title: "Activity",
-      detail: taskAvailable ? `${phaseRunCount} run(s) · ${contextDispatchCount} send(s)` : "No active task",
+      detail: taskAvailable
+        ? `${phaseRunCount} run(s) · ${contextDispatchCount} send(s) · ${reportCount} report(s)`
+        : "No active task",
     },
   };
 

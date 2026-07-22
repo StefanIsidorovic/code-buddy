@@ -29,6 +29,7 @@
 - Phase Run History exposes those exact attempts; manual recovery can only mark a stale pending run failed after its ACP session is no longer running.
 - Activity derives interrupted work conservatively: a pending receipt is unconfirmed only when its recorded local ACP session is not the currently running session. The notice opens that exact receipt's existing resolution form and never retries or finalizes it.
 - Advisor/reviewer findings live in immutable `task_agent_reports`, not executor artifacts. Creation requires the current in-progress phase and exact agent output from a separate free same-project ACP transcript, so secondary agents receive no Task mutation authority.
+- Advisor/reviewer reports are inspectable as read-only Task Activity with exact transcript identity and provenance counts; loading is Task-keyed and stale responses are discarded.
 - Evidence drafting may copy the latest persisted agent message/thought and its exact event ID into the editable artifact form; no artifact or completion is automatic.
 - Completion UI requires review against visible phase-specific criteria; this acknowledgment is transient, while the backend persisted-artifact requirement remains authoritative.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.

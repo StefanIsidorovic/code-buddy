@@ -1,6 +1,7 @@
 # Handoff
 
 ## Current State
+- Activity now exposes a read-only Advisor & Reviewer Reports panel with role/phase/order/content, exact transcript identity, provenance count, refresh, and stale-safe Task switching; the tab summary includes report count.
 - TaskAgentReport now persists ordered immutable advisor/reviewer findings with exact secondary ACP event provenance; only a free same-project ACP transcript and current in-progress phase are accepted.
 - Secondary reports are deliberately separate from executor phase artifacts and expose no transition, evidence, receipt, runtime, or Git mutation authority.
 - A process-level test now destroys the original ACP manager, waits for its PID to exit, loads the exact external session id through a fresh manager, consumes replay once, and proves follow-up prompting still works.
@@ -56,7 +57,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Orchestrate one explicitly requested secondary ACP advisor/reviewer session into the immutable report boundary, with executor concurrency and cleanup locks.
+- Build an isolated secondary-agent workspace/launch boundary, then orchestrate its exact output into the immutable report contract without exposing the executor repository to mutation.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

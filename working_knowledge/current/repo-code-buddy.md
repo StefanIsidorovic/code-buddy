@@ -100,6 +100,7 @@
 - `TaskRecoveryNotice` is a state-free Activity-view boundary: it treats only pending receipts from a non-current local ACP session as interrupted, and routes the exact receipt to existing manual resolution without retrying or changing persisted state.
 - The ACP process test harness accepts an exact expected external session id and proves recovery across destruction of the original manager/PID, one-shot load replay, and continued prompting through a fresh local process.
 - `task_agent_reports` and normalized event sources form the first multi-agent write boundary: advisor/reviewer reports are append-only, phase-ordered, sourced from exact agent events in a free secondary same-project ACP transcript, and cannot reuse any Task executor transcript.
+- `useTaskAgentReports` owns stale-safe report cache loading, while `TaskAgentReportsPanel` is read-only Activity presentation; App only composes it and the Activity tab exposes its count.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints
