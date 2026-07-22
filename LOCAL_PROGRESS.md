@@ -848,3 +848,9 @@ YYYY-MM-DD
 - `session/request_permission` se sada odvaja od JSON-RPC odgovora, prikazuje kao eksplicitna odluka u Agent view-u i ne moze automatski da odobri alat.
 - Permission polling radi dok je prompt blokiran; graceful Stop salje cancelled outcome, a neuspeo write ostavlja zahtev za retry.
 - End-to-end fake ACP test dokazuje prompt -> permission -> explicit choice -> prompt completion; frontend audit, 216 frontend testova, 100 Rust testova, typecheck, build, fmt i clippy prolaze.
+
+### 2026-07-22 - Actionable ACP Startup Errors
+
+- ACP child vise ne guta stderr: cuva samo poslednja 4 KiB i dodaje ih startup/request exit gresci nakon kratke sinhronizacije sa zatvaranjem pipe-a.
+- Strukturisani Tauri AppError se prikazuje kao citljiva poruka umesto raw JSON objekta.
+- Direktni `codex-acp@1.1.0` initialize prolazi; frontend audit, 216 frontend testova, 102 Rust testa, typecheck, build, fmt i clippy prolaze.

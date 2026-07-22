@@ -750,6 +750,17 @@
 - review status: passed after 2 cycles; cycle 1 corrected request/response routing and added explicit user choice without auto-allow, and cycle 2 preserved retryability until a response write succeeds and proved the full prompt-permission-response wire flow.
 - commit: this commit
 
+### 22.21. Surface actionable ACP startup failures
+- objective: replace the opaque initialize exit error with the bounded stderr reason emitted by the selected ACP process and render structured Tauri errors readably.
+- status: complete
+- files: src-tauri/src/acp.rs; src/lib/presentation.ts; src/lib/presentation.test.ts; related Rust tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: child stderr capture; response-wait exit reporting; Tauri error presentation.
+- expected changes: retain only a bounded stderr tail; append it when the child exits during a request; extract serialized AppError messages without exposing raw JSON.
+- acceptance criteria: startup stderr survives the reader thread race; memory remains bounded; successful ACP behavior is unchanged; structured errors display their message; unknown error fallback remains safe.
+- required tests: stderr-on-initialize-exit; tail bound; structured frontend error; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 proved the real adapter accepts AIadne initialize and captured the previously discarded stderr, and cycle 2 bounded memory, waited for pipe closure, preserved unknown-error fallback, and reran the one unrelated async frontend flake to a clean full pass.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

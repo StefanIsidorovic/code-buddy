@@ -24,6 +24,8 @@ const ACP_STOP_TIMEOUT: Duration = Duration::from_millis(750);
 const ACP_WAIT_POLL_INTERVAL: Duration = Duration::from_millis(25);
 const ACP_RESPONSE_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const ACP_EVENT_BUFFER_LIMIT: usize = 512;
+const ACP_STDERR_TAIL_LIMIT: usize = 4_096;
+const ACP_STDERR_CLOSE_WAIT: Duration = Duration::from_millis(100);
 const ACP_PROTOCOL_VERSION: u64 = 1;
 
 pub type AcpSessionId = String;
@@ -483,6 +485,7 @@ struct AcpSession {
     responses: Arc<ResponseQueue>,
     events: Arc<Mutex<VecDeque<AcpSessionEvent>>>,
     permissions: Arc<Mutex<VecDeque<PendingPermission>>>,
+    stderr: Arc<StderrCapture>,
     metadata: Mutex<AcpMetadata>,
     state: Mutex<AcpRuntimeState>,
     prompt_in_flight: Mutex<bool>,
@@ -515,6 +518,18 @@ impl AcpRuntimeState {
 struct ResponseQueue {
     pending: Mutex<HashMap<u64, JsonRpcResponse>>,
     available: Condvar,
+}
+
+#[derive(Default)]
+struct StderrCapture {
+    state: Mutex<StderrState>,
+    finished: Condvar,
+}
+
+#[derive(Default)]
+struct StderrState {
+    tail: String,
+    closed: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -567,6 +582,11 @@ impl AcpSession {
         Self::spawn_script(cwd, permission_fake_acp_script())
     }
 
+    #[cfg(test)]
+    fn spawn_startup_error_fake(cwd: PathBuf) -> AppResult<Self> {
+        Self::spawn_script(cwd, startup_error_fake_acp_script())
+    }
+
     fn spawn_script(cwd: PathBuf, script: &str) -> AppResult<Self> {
         let mut command = fake_acp_command(script);
         command.current_dir(&cwd);
@@ -588,8 +608,9 @@ impl AcpSession {
             .stdout
             .take()
             .ok_or_else(|| AppError::Acp("acp child stdout unavailable".to_string()))?;
+        let stderr_capture = Arc::new(StderrCapture::default());
         if let Some(stderr) = child.stderr.take() {
-            drain_stderr(stderr);
+            capture_stderr(stderr, Arc::clone(&stderr_capture));
         }
 
         let responses = Arc::new(ResponseQueue {
@@ -615,6 +636,7 @@ impl AcpSession {
             responses,
             events,
             permissions,
+            stderr: stderr_capture,
             metadata: Mutex::new(AcpMetadata::default()),
             state: Mutex::new(AcpRuntimeState::running()),
             prompt_in_flight: Mutex::new(false),
@@ -944,8 +966,14 @@ impl AcpSession {
             }
 
             if let Some(exit_code) = self.try_record_exit()? {
+                let detail = self.stderr.tail_after_exit();
+                let stderr = if detail.is_empty() {
+                    String::new()
+                } else {
+                    format!("; stderr={detail}")
+                };
                 return Err(AppError::Acp(format!(
-                    "acp process exited while waiting for response id {request_id}; exit_code={exit_code:?}"
+                    "acp process exited while waiting for response id {request_id}; exit_code={exit_code:?}{stderr}"
                 )));
             }
 
@@ -1283,18 +1311,51 @@ fn append_event(events: &Arc<Mutex<VecDeque<AcpSessionEvent>>>, event: AcpSessio
     events.push_back(event);
 }
 
-fn drain_stderr(stderr: impl Read + Send + 'static) {
+impl StderrCapture {
+    fn append(&self, text: &str) {
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+        state.tail.push_str(text);
+        if state.tail.len() > ACP_STDERR_TAIL_LIMIT {
+            let mut start = state.tail.len() - ACP_STDERR_TAIL_LIMIT;
+            while !state.tail.is_char_boundary(start) {
+                start += 1;
+            }
+            state.tail.drain(..start);
+        }
+    }
+
+    fn close(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            state.closed = true;
+            self.finished.notify_all();
+        }
+    }
+
+    fn tail_after_exit(&self) -> String {
+        let Ok(state) = self.state.lock() else {
+            return String::new();
+        };
+        let (state, _) = self
+            .finished
+            .wait_timeout_while(state, ACP_STDERR_CLOSE_WAIT, |state| !state.closed)
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.tail.trim().to_string()
+    }
+}
+
+fn capture_stderr(mut stderr: impl Read + Send + 'static, capture: Arc<StderrCapture>) {
     thread::spawn(move || {
-        let mut reader = BufReader::new(stderr);
-        let mut buffer = String::new();
+        let mut buffer = [0_u8; 1_024];
         loop {
-            buffer.clear();
-            match reader.read_line(&mut buffer) {
+            match stderr.read(&mut buffer) {
                 Ok(0) => break,
-                Ok(_) => {}
+                Ok(read) => capture.append(&String::from_utf8_lossy(&buffer[..read])),
                 Err(_) => break,
             }
         }
+        capture.close();
     });
 }
 
@@ -1424,6 +1485,13 @@ fn permission_fake_acp_script() -> &'static str {
     *'"method":"session/cancel"'*) exit 0 ;;
   esac
 done"#
+}
+
+#[cfg(test)]
+fn startup_error_fake_acp_script() -> &'static str {
+    r#"sleep 0.05
+printf 'Codex authentication missing; run codex login\n' >&2
+exit 1"#
 }
 
 #[cfg(test)]
@@ -1860,6 +1928,36 @@ mod tests {
             .expect_err("prompt exit is reported");
 
         assert!(error.to_string().contains("process exited"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn startup_exit_reports_bounded_stderr_reason() {
+        let error = AcpSession::spawn_startup_error_fake(
+            std::env::current_dir().expect("current dir exists"),
+        )
+        .err()
+        .expect("startup exit is reported");
+
+        assert!(
+            error.to_string().contains("exit_code=1"),
+            "unexpected error: {error}"
+        );
+        assert!(error
+            .to_string()
+            .contains("Codex authentication missing; run codex login"));
+    }
+
+    #[test]
+    fn stderr_capture_retains_only_the_bounded_tail() {
+        let capture = StderrCapture::default();
+        capture.append(&"a".repeat(ACP_STDERR_TAIL_LIMIT));
+        capture.append("final reason");
+        capture.close();
+
+        let tail = capture.tail_after_exit();
+        assert!(tail.len() <= ACP_STDERR_TAIL_LIMIT);
+        assert!(tail.ends_with("final reason"));
     }
 
     #[test]

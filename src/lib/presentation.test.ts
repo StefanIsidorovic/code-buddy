@@ -47,6 +47,7 @@ describe("presentation helpers", () => {
     expect(folderNameFromPath("C:\\work\\AIadne\\")).toBe("AIadne");
     expect(folderNameFromPath("///")).toBe("Project");
     expect(errorText(new Error("broken"))).toBe("broken");
+    expect(errorText({ code: "acp", message: "login required" })).toBe("login required");
     expect(uniqueIds(["a", "a", "b"])).toEqual(["a", "b"]);
   });
 
