@@ -21,14 +21,15 @@ use crate::{
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskContextDispatchRequest,
         CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskRequest,
         CreateTranscriptSessionRequest, GenerateProjectInitializationSummaryRequest,
-        KnowledgeItemInfo, KnowledgeUnitInfo, ProjectInfo, ProjectInitializationFactInfo,
-        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
-        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
-        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
-        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
-        SaveProjectInitializationGuardrailsRequest, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptEventInfo, TranscriptEventInput,
-        TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        KnowledgeItemInfo, KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
+        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
+        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
+        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
+        ResolveTaskPhaseRunRequest, SaveProjectInitializationGuardrailsRequest,
+        TaskContextDispatchReceiptInfo, TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo,
+        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -388,6 +389,14 @@ pub fn list_task_phase_run_receipts(
     task_id: String,
 ) -> AppResult<Vec<TaskPhaseRunReceiptInfo>> {
     state.list_task_phase_run_receipts(&task_id)
+}
+
+#[tauri::command]
+pub fn link_task_phase_run_events(
+    state: State<'_, ProjectStore>,
+    request: LinkTaskPhaseRunEventsRequest,
+) -> AppResult<()> {
+    state.link_task_phase_run_events(request)
 }
 
 #[tauri::command]

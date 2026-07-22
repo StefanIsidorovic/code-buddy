@@ -70,10 +70,11 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
   }
   function showLive() { ++openRequest.current; onShowAcp(); setOpenedSession(null); setOpenedEvents([]); }
   async function record(transcriptId: string | null | undefined, events: AcpSessionEvent[]) {
-    if (!transcriptId) return; const clean = coalesceTranscriptEvents(events.map(({ kind, content }) => ({ kind, content }))
-      .filter(({ content }) => content.trim().length > 0)); if (clean.length === 0) return; setError(null);
-    try { touch(transcriptId, await invokeCommand<TranscriptEventInfo[]>("append_transcript_events",
-      { sessionId: transcriptId, events: clean })); } catch (reason) { setError(errorText(reason)); }
+    if (!transcriptId) return []; const clean = coalesceTranscriptEvents(events.map(({ kind, content }) => ({ kind, content }))
+      .filter(({ content }) => content.trim().length > 0)); if (clean.length === 0) return []; setError(null);
+    try { const inserted = await invokeCommand<TranscriptEventInfo[]>("append_transcript_events",
+      { sessionId: transcriptId, events: clean }); touch(transcriptId, inserted); return inserted;
+    } catch (reason) { setError(errorText(reason)); return []; }
   }
   function touch(id: string, inserted: TranscriptEventInfo[]) {
     if (inserted.length === 0) return; const updatedAt = inserted[inserted.length - 1].createdAt;

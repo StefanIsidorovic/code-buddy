@@ -818,3 +818,9 @@ YYYY-MM-DD
 - ACP se otvara u Agent view-u koji drzi ACP Controls i Session Output zajedno; Task faze i receipt istorije su odvojeni Task i Activity view-i.
 - Pristupacni tabovi podrzavaju klik, Arrow/Home/End navigaciju, disabled no-Task stanje i bezbedan povratak na Agent kada Task nestane.
 - Frontend audit, 209 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 562 linije.
+
+### 2026-07-22 - Phase-Run Response Provenance
+
+- Sent phase-run receipt sada se normalizovano vezuje samo za tacne persisted agent message/thought event-e iz istog Task transcript-a.
+- ACP polling pauzira tokom prompta, pa controlled response ne moze biti potrosen ili pomesan sa kasnijim output-om pre persistence/link koraka.
+- Frontend audit, 209 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; runtime hook ostaje na hard ceiling-u od 250 linija.

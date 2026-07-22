@@ -60,6 +60,7 @@ pub fn run() {
             commands::create_task_phase_artifact,
             commands::list_task_phase_artifacts,
             commands::list_task_phase_run_receipts,
+            commands::link_task_phase_run_events,
             commands::list_task_context_dispatch_receipts,
             commands::resolve_pending_task_context_dispatch,
             commands::resolve_pending_task_phase_run,

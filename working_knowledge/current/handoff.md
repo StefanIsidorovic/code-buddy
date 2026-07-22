@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Controlled phase runs now persist normalized links from their sent receipt to the exact agent transcript events drained after that run; cross-transcript and user-event links are rejected transactionally.
+- Background ACP drain pauses while a prompt is in flight, preventing polling from consuming a controlled response before it can be persisted and linked.
 - ACP now opens in a focused Agent view containing both ACP Controls and Session Output; Task and Activity are separate accessible tab views instead of one stacked page.
 - View tabs support click and Arrow/Home/End keyboard navigation, disable Task-owned views without an active Task, and return safely to Agent when the Task disappears.
 - Transcript provenance is now collapsed by default with selected/event counts, normalized 16px checkboxes, compact event metadata, two-line previews and a bounded scroll area.
@@ -28,7 +30,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Manually exercise the new Agent/Task/Activity navigation in the Tauri window, then design the first safe two-step phase continuation using persisted receipts/artifacts.
+- Expose receipt-linked response events to the Task workflow and implement `Prepare completion` from only that authoritative set; retain editable evidence and explicit review/complete gates.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

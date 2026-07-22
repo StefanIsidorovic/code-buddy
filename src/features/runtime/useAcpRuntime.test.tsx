@@ -69,7 +69,7 @@ function setup(projectId: string | null = null, activeTask: TaskInfo | null = nu
     getActiveId: vi.fn(() => "t1"),
     getTask: vi.fn(() => activeTask),
     upsertTask: vi.fn(),
-    record: vi.fn().mockResolvedValue(undefined),
+    record: vi.fn().mockResolvedValue([]),
   };
   const runAction = vi.fn(async (action: () => Promise<void>) => action());
   const reportError = vi.fn();
@@ -186,10 +186,16 @@ describe("useAcpRuntime", () => {
     invoke.mockImplementation((command) => {
       if (command === "list_acp_registry_candidates") return Promise.resolve([candidate]);
       if (command === "start_acp_registry_session") return Promise.resolve(session);
-      if (command === "send_acp_prompt") return Promise.resolve({ sessionId: "acp1", stopReason: "end_turn" });
+      if (command === "send_task_phase_prompt") return Promise.resolve({
+        promptResult: { sessionId: "acp1", stopReason: "end_turn" }, receipt: { id: "run1" },
+      });
+      if (command === "drain_acp_events") return Promise.resolve([{ kind: "agent_message", content: "Analysis result" }]);
       return Promise.resolve([]);
     });
     const { result, transcript, unmount } = setup("p1", task);
+    transcript.record.mockImplementation(async (_id, events) => events[0]?.kind === "agent_message"
+      ? [{ id: "event1", sessionId: "t1", sequence: 1, kind: "agent_message", content: "Analysis result", createdAt: 2 }]
+      : []);
     await waitFor(() => expect(result.current.canStartSelected).toBe(true));
     await act(() => result.current.startSelected());
     await act(() => result.current.sendPhasePrompt("task1", "Run only analysis"));
@@ -200,6 +206,9 @@ describe("useAcpRuntime", () => {
     expect(transcript.record).toHaveBeenCalledWith("t1", [
       { kind: "user_message", content: "Run only analysis" },
     ]);
+    expect(invoke).toHaveBeenCalledWith("link_task_phase_run_events", { request: {
+      taskId: "task1", receiptId: "run1", transcriptEventIds: ["event1"],
+    } });
     expect(result.current.prompt).toBe("Explain this change");
     unmount();
   });

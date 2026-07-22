@@ -318,6 +318,14 @@ pub struct ResolveTaskPhaseRunRequest {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkTaskPhaseRunEventsRequest {
+    pub task_id: String,
+    pub receipt_id: String,
+    pub transcript_event_ids: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPhaseRunReceiptInfo {
@@ -1776,6 +1784,40 @@ impl ProjectStore {
             .collect()
     }
 
+    pub fn link_task_phase_run_events(
+        &self,
+        request: LinkTaskPhaseRunEventsRequest,
+    ) -> AppResult<()> {
+        if request.task_id.trim().is_empty()
+            || request.receipt_id.trim().is_empty()
+            || request.transcript_event_ids.is_empty()
+        {
+            return Err(AppError::InvalidInput(
+                "phase run response provenance is incomplete".into(),
+            ));
+        }
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let transcript_id: String = transaction.query_row(
+            "SELECT transcript_session_id FROM task_phase_run_receipts WHERE id = ?1 AND task_id = ?2 AND status = 'sent'",
+            params![request.receipt_id, request.task_id], |row| row.get(0))
+            .map_err(|_| AppError::InvalidInput("sent phase run receipt was not found".into()))?;
+        for event_id in &request.transcript_event_ids {
+            let valid: i64 = transaction.query_row(
+                "SELECT COUNT(*) FROM transcript_events WHERE id = ?1 AND session_id = ?2 AND kind IN ('agent_message', 'agent_thought')",
+                params![event_id, transcript_id], |row| row.get(0)).map_err(storage_error)?;
+            if valid != 1 {
+                return Err(AppError::InvalidInput(
+                    "phase run provenance must be agent events from its Task transcript".into(),
+                ));
+            }
+            transaction.execute("INSERT OR IGNORE INTO task_phase_run_response_events (receipt_id, transcript_event_id) VALUES (?1, ?2)",
+                params![request.receipt_id, event_id]).map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+        Ok(())
+    }
+
     pub fn resolve_pending_task_phase_run(
         &self,
         request: ResolveTaskPhaseRunRequest,
@@ -2616,6 +2658,13 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_task_phase_run_receipts_task_sequence
                     ON task_phase_run_receipts(task_id, sequence);
+
+                CREATE TABLE IF NOT EXISTS task_phase_run_response_events (
+                    receipt_id TEXT NOT NULL REFERENCES task_phase_run_receipts(id) ON DELETE CASCADE,
+                    transcript_event_id TEXT NOT NULL REFERENCES transcript_events(id) ON DELETE RESTRICT,
+                    PRIMARY KEY(receipt_id, transcript_event_id),
+                    UNIQUE(transcript_event_id)
+                );
 
                 CREATE TABLE IF NOT EXISTS task_complexity_changes (
                     id TEXT PRIMARY KEY,
@@ -6241,6 +6290,43 @@ mod tests {
             .expect("run finalized");
         assert_eq!(sent.status, "sent");
         assert_eq!(sent.stop_reason.as_deref(), Some("end_turn"));
+        let response_events = store
+            .append_transcript_events(
+                &transcript.id,
+                vec![
+                    TranscriptEventInput {
+                        kind: "agent_message".into(),
+                        content: "Analysis result".into(),
+                    },
+                    TranscriptEventInput {
+                        kind: "user_message".into(),
+                        content: "Follow-up".into(),
+                    },
+                ],
+            )
+            .expect("response events persisted");
+        store
+            .link_task_phase_run_events(LinkTaskPhaseRunEventsRequest {
+                task_id: task.id.clone(),
+                receipt_id: first.id.clone(),
+                transcript_event_ids: vec![response_events[0].id.clone()],
+            })
+            .expect("agent response linked");
+        store
+            .link_task_phase_run_events(LinkTaskPhaseRunEventsRequest {
+                task_id: task.id.clone(),
+                receipt_id: first.id.clone(),
+                transcript_event_ids: vec![response_events[0].id.clone()],
+            })
+            .expect("duplicate link is idempotent");
+        let user_link = store
+            .link_task_phase_run_events(LinkTaskPhaseRunEventsRequest {
+                task_id: task.id.clone(),
+                receipt_id: first.id.clone(),
+                transcript_event_ids: vec![response_events[1].id.clone()],
+            })
+            .expect_err("user response provenance rejected");
+        assert!(matches!(user_link, AppError::InvalidInput(_)));
         let second = store
             .begin_task_phase_run(CreateTaskPhaseRunRequest {
                 task_id: task.id.clone(),

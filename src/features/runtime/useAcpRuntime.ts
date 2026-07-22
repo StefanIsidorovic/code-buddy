@@ -10,21 +10,20 @@ import type {
   TaskContextDispatchResultInfo,
   TaskInfo,
   TaskPhaseRunResultInfo,
+  TranscriptEventInfo,
   TranscriptSessionInfo,
   UnifiedTaskContextSelectionInfo,
 } from "../../types/domain";
 
-interface TranscriptApi {
-  create: (runtime: string, source: string, title: string) => Promise<TranscriptSessionInfo | null>;
+interface TranscriptApi { create: (runtime: string, source: string, title: string) => Promise<TranscriptSessionInfo | null>;
   attachKnowledge: (sessionId: string) => Promise<void>;
   showLive: () => void;
   getActiveId: () => string | null;
   getTask: (id: string) => TaskInfo | null;
   upsertTask: (task: TaskInfo) => void;
-  record: (id: string | null | undefined, events: AcpSessionEvent[]) => Promise<void>;
+  record: (id: string | null | undefined, events: AcpSessionEvent[]) => Promise<TranscriptEventInfo[]>;
 }
-interface Options {
-  projectId: string | null;
+interface Options { projectId: string | null;
   cwd?: string;
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -155,7 +154,7 @@ export function useAcpRuntime({
         setPromptResult(dispatched.promptResult);
       }
       setPromptBusy(false);
-      await drain(session.id, transcriptId);
+      await drain(session.id, transcriptId, true);
       return true;
     } catch (reason) {
       reportError(errorText(reason));
@@ -185,7 +184,12 @@ export function useAcpRuntime({
           acpSessionId: session.id, instruction },
       });
       setPromptResult(result.promptResult);
-      await drain(session.id, transcriptId);
+      const responseEvents = await drain(session.id, transcriptId, true);
+      const responseEventIds = responseEvents.filter(({ kind }) =>
+        kind === "agent_message" || kind === "agent_thought").map(({ id }) => id);
+      if (responseEventIds.length > 0) await invokeCommand<void>("link_task_phase_run_events", {
+        request: { taskId, receiptId: result.receipt.id, transcriptEventIds: responseEventIds },
+      });
       return true;
     } catch (reason) {
       reportError(errorText(reason));
@@ -195,13 +199,14 @@ export function useAcpRuntime({
       setPromptBusy(false);
     }
   }
-  async function drain(sessionId = session?.id, transcriptId = transcript.getActiveId()) {
-    if (!sessionId) return;
+  async function drain(sessionId = session?.id, transcriptId = transcript.getActiveId(), allowDuringPrompt = false) {
+    if (!sessionId || promptInFlight.current && !allowDuringPrompt) return [];
     const next = await invokeCommand<AcpSessionEvent[]>("drain_acp_events", { sessionId });
     if (next.length > 0) {
       setEvents((current) => [...current, ...next]);
-      await transcript.record(transcriptId, next);
+      return await transcript.record(transcriptId, next);
     }
+    return [];
   }
   async function stop(force: boolean) {
     if (!session) return;

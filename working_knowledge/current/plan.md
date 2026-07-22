@@ -695,6 +695,17 @@
 - review status: passed after 2 cycles; cycle 1 added complete ARIA tab keyboard navigation and restored the App.tsx size ceiling, while cycle 2 found no remaining view-state, task-removal, PTY, accessibility, responsive-layout, architecture, regression, performance, security, or patch-hygiene issue.
 - commit: this commit
 
+### 22.16. Bind phase-run receipts to persisted response events
+- objective: establish an authoritative provenance link between each controlled phase run and the exact persisted agent transcript events produced by that run.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/runtime/useAcpRuntime.ts; src/features/runtime/useAcpRuntime.test.tsx; src/features/transcripts/useTranscriptWorkspace.ts; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: phase-run receipt schema/DTO; response-event ownership validation; ACP drain/persist ordering; transcript record return contract; receipt refresh.
+- expected changes: persist normalized receipt/event links; accept only agent message/thought events from the receipt's Task transcript; pause background drain during prompt operations; persist and link the controlled response before returning success.
+- acceptance criteria: later prompts cannot be mistaken for phase evidence; cross-transcript/user/duplicate links fail or deduplicate safely; ordinary prompts retain behavior; uncertain linkage never manufactures provenance.
+- required tests: valid and invalid storage links; duplicate handling; prompt polling race; exact link command payload; frontend audit/typecheck/tests/build; Rust tests/fmt/clippy; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 verified transactional ownership/kind/duplicate boundaries and documented the conservative no-link outcome, while cycle 2 restored the runtime hook hard ceiling and found no remaining polling race, provenance integrity, stale state, regression, security, or patch-hygiene issue.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.
