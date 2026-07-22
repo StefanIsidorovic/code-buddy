@@ -30,6 +30,17 @@ describe("AcpWorkspaceViews", () => {
       "aria-selected", "true");
   });
 
+  it("lets Activity content return the user to Agent view", () => {
+    render(<AcpWorkspaceViews agent={<div>ACP Controls body</div>}
+      output={<div>Session Output body</div>} task={<div>Task phase body</div>}
+      activity={({ showAgent }) => <button type="button" onClick={showAgent}>Draft into Agent</button>}
+      currentPhase="analysis" phaseRunCount={0} contextDispatchCount={0} reportCount={1} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Activity/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Draft into Agent" }));
+    expect(screen.getByRole("tab", { name: /Agent/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Session Output body")).toBeInTheDocument();
+  });
+
   it("supports arrow-key navigation between available views", () => {
     renderWorkspace(true);
     const agentTab = screen.getByRole("tab", { name: /Agent/ });

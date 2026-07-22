@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TaskAgentReportInfo } from "../../types/domain";
-import { deriveTaskAgentFindings } from "./taskAgentReportBrief";
+import { buildTaskAgentFindingFollowUpPrompt, deriveTaskAgentFindings } from "./taskAgentReportBrief";
 
 function report(overrides: Partial<TaskAgentReportInfo> = {}): TaskAgentReportInfo {
   return {
@@ -55,5 +55,14 @@ describe("deriveTaskAgentFindings", () => {
       "Review the tests",
       "Risk: stale task",
     ]);
+  });
+
+  it("drafts a bounded follow-up prompt without claiming evidence or mutation authority", () => {
+    const [finding] = deriveTaskAgentFindings([report({ content: "Risk: stale task ownership" })]);
+    const draft = buildTaskAgentFindingFollowUpPrompt(finding);
+    expect(draft).toContain("Follow up on this advisor risk from the analysis review brief:");
+    expect(draft).toContain("Risk: stale task ownership");
+    expect(draft).toContain("Source: transcript advisor-transcript, 1 provenance event(s).");
+    expect(draft).toContain("Do not save Task evidence, complete phases, or change files unless I explicitly ask.");
   });
 });

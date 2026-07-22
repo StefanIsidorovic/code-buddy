@@ -1,16 +1,17 @@
 # Handoff
 
 ## Current State
-- Plan item 26.2 is complete pending commit: the Review brief slice is validated and ready for a final provenance-backed handoff commit.
+- Plan item 27.1 is complete pending commit: Review brief findings now support editable ACP follow-up drafts and local Mark resolved/Reopen state without sending ACP, persisting Task evidence, completing phases, or mutating Git.
+- Plan item 26.2 is committed as af54d8a: the Review brief slice was validated and scoped the next step to explicit finding follow-up/resolution guidance.
 - Plan item 26.1 is committed as 2317a46: Activity advisor/reviewer reports now have a conservative read-only Review brief derived from exact report snippets.
 - Plan item 25.3 is committed as 939aee1: Task guidance docs and in-app guidance were validated, and provenance notes for 25.1/25.2 were verified.
 - Plan item 25.2 is committed as f52e683: `TaskPhasePanel` now has a compact native `How this Task works` disclosure that explains Agent, Task, Run & prepare, and Activity responsibilities.
 - Plan item 25.1 is committed as 4f0ee18: `LOCAL_PROGRESS.md` now explains the real-user Task model before adding more execution/review automation.
 - Plan item 24.6 is committed as f3b83e9: the secondary-agent flow passed full frontend/Rust hardening, provenance notes for 24.3/24.4/24.5 were verified, and no additional code fix was required.
 - Plan item 24.5 is committed: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
-- `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` remains state-free presentation.
+- `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` owns only presentation plus transient local resolved-finding state and a required draft callback.
 - Advisor/reviewer run controls require an active in-progress Task phase, selected ACP candidate, and selected repository/project cwd; a late result after Task change cannot attach reports to the visible Task.
-- `src/App.tsx` remains composition-only at 585 lines and only wires Task, candidate and cwd identity into the feature hook/panel.
+- `src/App.tsx` remains composition-only at 586 lines and only wires Task, candidate/cwd identity and Review brief prompt drafts into the feature hook/panel.
 - Plan item 24.4 is committed: `run_task_agent_report` validates Task/phase/role before external startup, launches a secondary isolated ACP session, sends a role-scoped instruction, drains output, atomically creates a separate ACP transcript plus immutable report, and removes the secondary session from the manager.
 - Secondary transcript/report publication is transactional: no persisted agent output means no transcript/report commit, and phase changes during the run cause the storage transaction to reject without partial report state.
 - Plan item 24.3 is committed: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
@@ -19,6 +20,7 @@
 - Activity now exposes a read-only Advisor & Reviewer Reports panel with role/phase/order/content, exact transcript identity, provenance count, refresh, and stale-safe Task switching; the tab summary includes report count.
 - TaskAgentReport now persists ordered immutable advisor/reviewer findings with exact secondary ACP event provenance; only a free same-project ACP transcript and current in-progress phase are accepted.
 - Secondary reports are deliberately separate from executor phase artifacts and expose no transition, evidence, receipt, runtime, or Git mutation authority.
+- Review brief finding actions are local-only: Draft follow-up fills the existing ACP prompt and returns to Agent view for user review; Mark resolved/Reopen only changes the visible Activity panel state for the current render.
 - A process-level test now destroys the original ACP manager, waits for its PID to exit, loads the exact external session id through a fresh manager, consumes replay once, and proves follow-up prompting still works.
 - Activity now identifies pending phase/context receipts left by an older ACP process, explains their unconfirmed outcome, and links each receipt to the existing conservative manual resolution gate.
 - Pending work owned by the current running ACP session is never labeled interrupted; Resume triggers no automatic retry, sent claim, failure, evidence creation, or phase transition.
@@ -72,7 +74,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Start the next execution/review harness slice: let the user turn Review brief findings into explicit follow-up questions or mark them resolved, while still avoiding automatic Task evidence, phase completion, or Git mutation.
+- Commit plan item 27.1 with a provenance note, then run plan item 27.2 final handoff validation.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

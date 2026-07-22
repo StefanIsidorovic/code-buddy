@@ -1,12 +1,14 @@
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 
 type WorkspaceView = "agent" | "task" | "activity";
+interface WorkspaceActions { showAgent: () => void; }
+type ActivityContent = ReactNode | ((actions: WorkspaceActions) => ReactNode);
 
 interface Props {
   agent: ReactNode;
   output: ReactNode;
   task: ReactNode | null;
-  activity: ReactNode | null;
+  activity: ActivityContent | null;
   currentPhase: string | null;
   phaseRunCount: number;
   contextDispatchCount: number;
@@ -44,6 +46,10 @@ export function AcpWorkspaceViews({ agent, output, task, activity, currentPhase,
     }
   }, [activeView, activityAvailable, taskAvailable]);
 
+  const renderedActivity = typeof activity === "function"
+    ? activity({ showAgent: () => setActiveView("agent") })
+    : activity;
+
   const labels: Record<WorkspaceView, { title: string; detail: string }> = {
     agent: { title: "Agent", detail: "Controls & output" },
     task: { title: "Task", detail: currentPhase ? `Current: ${currentPhase}` : "No active task" },
@@ -73,8 +79,8 @@ export function AcpWorkspaceViews({ agent, output, task, activity, currentPhase,
       role="tabpanel" aria-labelledby="acp-agent-tab">{agent}{output}</div> : null}
     {activeView === "task" && task ? <div id="acp-task-panel" className="acp-workspace-panel"
       role="tabpanel" aria-labelledby="acp-task-tab">{task}</div> : null}
-    {activeView === "activity" && activity ? <div id="acp-activity-panel"
+    {activeView === "activity" && renderedActivity ? <div id="acp-activity-panel"
       className="acp-workspace-panel acp-activity-view" role="tabpanel"
-      aria-labelledby="acp-activity-tab">{activity}</div> : null}
+      aria-labelledby="acp-activity-tab">{renderedActivity}</div> : null}
   </section>;
 }

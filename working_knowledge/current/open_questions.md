@@ -7,6 +7,7 @@
 - Should task knowledge artifacts store only curated outputs or also bounded intermediate reasoning summaries?
 - May a future Task span multiple ACP sessions, or should continuation always create a new linked session?
 - Which measured Task outcomes should later calibrate classifier weights and confidence without silently changing historical assessments?
+- Should Review brief finding resolution later persist per Task/user, or remain a transient Activity-panel aid?
 
 ## Resolved
 - Should ACP Controls, Task phases, receipt histories, and Output remain one stacked page?: No; Agent is the default focused view with controls/output, while Task and Activity are separate local views.

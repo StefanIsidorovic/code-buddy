@@ -41,6 +41,7 @@
 - Secondary report orchestration boundary: `run_task_agent_report` validates Task/phase/role before external startup, then publishes the secondary ACP transcript, exact agent events, and immutable report in one storage transaction; missing agent output or stale phase state leaves no partial report transcript.
 - Secondary Activity control boundary: the Activity view may deliberately launch read-only advisor/reviewer runs through `useTaskAgentReports`, but the presentation panel owns no backend workflow and the result is only an immutable report refresh, never executor evidence, phase completion, ACP runtime takeover, or Git mutation.
 - Secondary review brief boundary: Activity may derive a bounded display-only Review brief from exact immutable report lines, but this classification is not persisted evidence, not an approval, and not authority to mutate Task phases, Git state, or ACP runtime.
+- Secondary finding action boundary: Review brief findings may create editable ACP prompt drafts and local resolved/reopened UI state, but drafting never sends ACP automatically and resolving is not persisted evidence, approval, phase completion, report mutation, or Git authority.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
@@ -48,3 +49,4 @@
 - Automatic reconciliation of pending receipts: defer until external ACP delivery evidence exists; never infer `sent` from age or session shutdown alone.
 - Structured evidence curation: raw agent output can now seed a draft, but automated summarization/validation of evidence remains deferred.
 - Durable review approval: persist reviewer identity/time/criteria only if a future compliance or multi-user workflow requires an auditable approval record.
+- Durable finding resolution: keep Review brief resolved state local until there is a user/account/task-level persistence model for review decisions.

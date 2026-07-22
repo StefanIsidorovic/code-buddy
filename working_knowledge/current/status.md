@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 2317a46 step 26.1: add actionable report brief
-- worktree: plan item 26.2 final execution/review brief handoff complete pending commit.
-- relevant files: working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: af54d8a step 26.2: finalize report brief handoff
+- worktree: plan item 27.1 Review brief finding follow-up/resolution controls complete pending commit.
+- relevant files: src/features/tasks/taskAgentReportBrief.ts; src/features/tasks/TaskAgentReportsPanel.tsx; src/features/runtime/AcpWorkspaceViews.tsx; src/App.tsx; src/App.css; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: continue beyond-Conductor work into execution/review harness polish.
 - phase: in_progress
-- active plan step: 26.2 complete pending commit; next execution/review harness slice is follow-up/resolution guidance for review findings; AIadne-to-beyond-Conductor tracker approximately 96%.
+- active plan step: 27.1 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 96%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,8 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-23: plan item 27.1 full frontend gates pass: targeted 14 tests, frontend audit, typecheck, 249 frontend tests, production build, no direct Tauri/import boundary check for modified feature/view files, file-size check (`App.tsx` 586 lines, `TaskAgentReportsPanel.tsx` 71 lines, `taskAgentReportBrief.ts` 94 lines, `AcpWorkspaceViews.tsx` 86 lines), and `git diff --check`; review cycle 2 found no remaining Task mutation or backend-coupling issue.
+- 2026-07-23: provenance note verified for af54d8a/26.2; 26.2 is committed and the next execution/review slice is 27.1 Review brief finding follow-up/resolution controls.
 - 2026-07-23: provenance note verified for 2317a46/26.1, worktree checked clean before 26.2 knowledge updates, and next execution/review step scoped to read-only finding follow-up/resolution guidance.
 - 2026-07-23: 26.1 targeted report-brief helper/panel tests pass (6 tests), frontend audit, typecheck, 246 frontend tests, production build, no direct Tauri/import boundary check, file-size check (`taskAgentReportBrief.ts` 82 lines, `TaskAgentReportsPanel.tsx` 46 lines, `App.tsx` 585 lines), and `git diff --check` pass after adding the read-only Review brief.
 - 2026-07-23: repository state rechecked for the next execution/review harness slice; HEAD is 939aee1 and worktree was clean before plan item 26.1.

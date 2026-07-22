@@ -397,12 +397,13 @@ function App() {
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAndPrepare={(instruction) => void taskPhase.runAndPrepare(instruction)} /> : null}
-            activity={activeTask ? <><TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
+            activity={activeTask ? (({ showAgent }) => <><TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
             contextReceipts={taskDispatch.receipts} currentAcpSessionId={canUseAcpSession ? acpSession?.id ?? null : null}
             onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
             <TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
             runningRole={taskAgentReports.runningRole} error={taskAgentReports.error}
             runDisabledReason={taskAgentReports.runDisabledReason}
+            onDraftFollowUp={(draft) => { setAcpPromptFromRuntime(draft); showAgent(); }}
             onRun={(role) => void taskAgentReports.run(role)}
             onRefresh={() => void taskAgentReports.refresh()} />
             <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
@@ -416,7 +417,7 @@ function App() {
             onRefresh={() => void taskDispatch.refresh()} onOpenResolution={taskDispatch.openResolution}
             onChangeResolutionReason={taskDispatch.changeResolutionReason}
             onCancelResolution={taskDispatch.cancelResolution}
-            onResolve={() => void taskDispatch.resolve()} /></> : null}
+            onResolve={() => void taskDispatch.resolve()} /></>) : null}
             currentPhase={activeTask?.currentPhase ?? null} phaseRunCount={taskPhaseRuns.receipts.length}
             contextDispatchCount={taskDispatch.receipts.length} reportCount={taskAgentReports.reports.length} />
         ) : null}

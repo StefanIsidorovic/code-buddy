@@ -13,6 +13,18 @@ export interface TaskAgentFinding {
   provenanceEventCount: number;
 }
 
+export function buildTaskAgentFindingFollowUpPrompt(finding: TaskAgentFinding) {
+  return [
+    `Follow up on this ${finding.role} ${finding.kind} from the ${finding.phase} review brief:`,
+    "",
+    finding.content,
+    "",
+    `Source: transcript ${finding.transcriptSessionId}, ${finding.provenanceEventCount} provenance event(s).`,
+    "",
+    "Inspect only this finding and report whether it is still relevant. Do not save Task evidence, complete phases, or change files unless I explicitly ask.",
+  ].join("\n");
+}
+
 const MAX_FINDINGS = 6;
 const MAX_LINES_PER_REPORT = 3;
 const MAX_CONTENT_LENGTH = 220;

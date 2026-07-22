@@ -4696,12 +4696,14 @@ summary:focus-visible {
 .task-agent-brief li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.2rem 0.5rem;
   padding: 0.65rem; border: 1px solid var(--border-subtle); border-radius: 0.65rem;
   background: var(--surface-raised); }
+.task-agent-brief li[data-resolved="true"] { opacity: 0.72; }
 .task-agent-brief li > span { align-self: start; padding: 0.18rem 0.45rem; border-radius: 999px;
   background: var(--surface-muted); color: var(--muted); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
 .task-agent-brief li[data-kind="risk"] > span { background: var(--color-danger-soft); color: var(--danger); }
 .task-agent-brief li[data-kind="check"] > span { background: var(--mint-soft); color: var(--mint-strong); }
 .task-agent-brief li[data-kind="suggestion"] > span { background: var(--color-primary-soft); color: var(--color-primary); }
-.task-agent-brief li small { grid-column: 2; }
+.task-agent-brief-copy { min-width: 0; display: grid; gap: 0.35rem; }
+.task-agent-brief-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .task-agent-report-list { display: grid; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
 .task-agent-report-list > li { display: grid; gap: 0.45rem; padding: 0.75rem;
   border: 1px solid var(--border-subtle); border-radius: 0.75rem; background: var(--surface-muted); }

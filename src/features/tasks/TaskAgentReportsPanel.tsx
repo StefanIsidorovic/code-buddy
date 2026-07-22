@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { formatTimestamp } from "../../lib/presentation";
 import type { TaskAgentReportInfo, TaskAgentRole } from "../../types/domain";
-import { deriveTaskAgentFindings } from "./taskAgentReportBrief";
+import { buildTaskAgentFindingFollowUpPrompt, deriveTaskAgentFindings } from "./taskAgentReportBrief";
 
 interface Props {
   reports: TaskAgentReportInfo[];
@@ -10,12 +11,22 @@ interface Props {
   runDisabledReason: string | null;
   onRefresh: () => void;
   onRun: (role: TaskAgentRole) => void;
+  onDraftFollowUp: (draft: string) => void;
 }
 
 export function TaskAgentReportsPanel({ reports, loading, runningRole, error, runDisabledReason,
-  onRefresh, onRun }: Props) {
+  onRefresh, onRun, onDraftFollowUp }: Props) {
+  const [resolvedFindingIds, setResolvedFindingIds] = useState<ReadonlySet<string>>(() => new Set());
   const runLocked = runningRole !== null || runDisabledReason !== null;
   const findings = deriveTaskAgentFindings(reports);
+  function toggleResolved(findingId: string) {
+    setResolvedFindingIds((current) => {
+      const next = new Set(current);
+      if (next.has(findingId)) next.delete(findingId);
+      else next.add(findingId);
+      return next;
+    });
+  }
   return <section className="task-dispatch-panel" aria-labelledby="task-agent-reports-title">
     <div className="doctor-heading"><div><h3 id="task-agent-reports-title">Advisor &amp; reviewer reports</h3>
       <span>{runningRole ? `Running ${runningRole}…` : `${reports.length} report(s) · read-only`}</span></div>
@@ -29,11 +40,25 @@ export function TaskAgentReportsPanel({ reports, loading, runningRole, error, ru
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {findings.length > 0 ? <section className="task-agent-brief" aria-labelledby="task-agent-brief-title">
       <div><h4 id="task-agent-brief-title">Review brief</h4>
-        <small>Exact snippets from read-only secondary reports. Use them as review prompts, not saved evidence.</small></div>
-      <ol>{findings.map((finding) => <li key={finding.id} data-kind={finding.kind}>
-        <span>{finding.kind}</span><p>{finding.content}</p>
-        <small>{finding.role} · {finding.phase} · transcript {finding.transcriptSessionId}
-          · {finding.provenanceEventCount} provenance event(s)</small></li>)}</ol>
+        <small>Exact snippets from read-only secondary reports. Drafting and resolving are local only.</small></div>
+      <ol>{findings.map((finding) => {
+        const resolved = resolvedFindingIds.has(finding.id);
+        return <li key={finding.id} data-kind={finding.kind} data-resolved={resolved}>
+          <span>{finding.kind}</span><div className="task-agent-brief-copy">
+            <p>{finding.content}</p>
+            <small>{finding.role} · {finding.phase} · transcript {finding.transcriptSessionId}
+              · {finding.provenanceEventCount} provenance event(s)
+              {resolved ? " · locally resolved" : ""}</small>
+            <div className="task-agent-brief-actions">
+              <button type="button" onClick={() => onDraftFollowUp(
+                buildTaskAgentFindingFollowUpPrompt(finding),
+              )}>Draft follow-up</button>
+              <button type="button" aria-pressed={resolved} onClick={() => toggleResolved(finding.id)}>
+                {resolved ? "Reopen" : "Mark resolved"}
+              </button>
+            </div>
+          </div></li>;
+      })}</ol>
     </section> : null}
     {reports.length === 0 ? <p>{loading ? "Loading reports…" : "No secondary-agent reports yet."}</p>
       : <ol className="task-agent-report-list">{reports.map((report) => <li key={report.id}>

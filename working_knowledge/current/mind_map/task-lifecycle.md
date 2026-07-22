@@ -34,6 +34,7 @@
 - Advisor/reviewer findings live in immutable `task_agent_reports`, not executor artifacts. Creation requires the current in-progress phase and exact agent output from a separate free same-project ACP transcript, so secondary agents receive no Task mutation authority.
 - Advisor/reviewer reports are inspectable as read-only Task Activity with exact transcript identity and provenance counts; loading is Task-keyed and stale responses are discarded.
 - Activity derives a bounded Review brief from exact advisor/reviewer report lines so findings are easier to scan, but the derived labels are display-only and do not become persisted evidence or approval.
+- Review brief findings can draft an editable follow-up prompt into the Agent composer or be marked locally resolved/reopened in Activity; neither action sends ACP, persists evidence, completes phases, mutates reports, or changes Git.
 - Evidence drafting may copy the latest persisted agent message/thought and its exact event ID into the editable artifact form; no artifact or completion is automatic.
 - Completion UI requires review against visible phase-specific criteria; this acknowledgment is transient, while the backend persisted-artifact requirement remains authoritative.
 - Follow-up prompts reuse the transcript-bound Task; stale project loads and new transcript ids cannot reuse a different session's Task.
@@ -64,3 +65,4 @@
 - ACP background drain pauses during prompt operations, then the controlled response is persisted before receipt/event linkage; missing persisted output remains unlinked rather than inferred.
 - Prepare completion reads only the latest sent receipt for the current phase, joins its canonical linked response into an editable draft, and retains explicit artifact/review/complete/next-start gates.
 - The guided Task UI marks Run/Prepare as optional helpers, identifies the next authoritative Save/Review/Complete gate, and names the next pending phase without auto-starting it.
+- Review brief resolved state is intentionally transient until a durable per-Task/user review-decision model exists.
