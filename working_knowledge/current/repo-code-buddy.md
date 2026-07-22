@@ -26,7 +26,7 @@
 ## Tests
 - `src/App.test.tsx` contains mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, Task creation/reuse/failure isolation and assessment rendering, PTY, and responsive product-shell contracts.
 - Frontend coverage is 256 tests across 51 files, including stale-safe secondary report loading/running, Review brief derivation/actions, delivery readiness, and Activity presentation controls.
-- Rust has 116 unit/integration tests across PTY/ACP lifecycle and model configuration, adapters, storage, synthesis, model catalog, deterministic context selection, Task persistence, complexity classification, overrides, audit history, secondary ACP isolation/orchestration, and migration.
+- Rust has 119 unit/integration tests across PTY/ACP lifecycle and model configuration, adapters, storage, synthesis, model catalog, deterministic context selection, Task persistence, complexity classification, overrides, audit history, secondary ACP isolation/orchestration, delivery readiness, and migration.
 - Current validation commands: `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`.
 
 ## Current Findings

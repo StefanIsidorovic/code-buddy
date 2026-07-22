@@ -15,24 +15,24 @@
 
 ### 28.2. Add Activity delivery readiness UI
 - objective: show repository delivery readiness in the Activity view as a read-only Git/provenance signal.
-- status: complete pending commit
+- status: complete
 - files: src/types/domain.ts; src/lib/tauriGateway.ts; src/features/delivery/*; src/App.tsx; src/App.css; frontend tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: typed frontend contract, Tauri gateway union, stale-safe delivery hook, state-free readiness panel, Activity composition, frontend architecture guardrails.
 - expected changes: add a delivery feature hook/panel that refreshes readiness for the selected repository, displays clean/dirty worktree state, HEAD provenance status, changed files, and explicit read-only action policy.
 - acceptance criteria: no Ship/Commit/Push action appears; App remains composition-only; stale repository responses are ignored; no direct Tauri imports outside the gateway/tests; missing repository/error/loading states are accessible.
 - required tests: panel ready/dirty/empty/error tests; hook payload/stale/error tests; gateway boundary test; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
 - review status: passed after 1 cycle; verified no direct Tauri imports outside the gateway, no Ship/Commit/Push action, stale repository guard coverage, App composition-only wiring, accessible loading/error/empty states, and full frontend gates.
-- commit: pending.
+- commit: b359052.
 
 ### 28.3. Finalize delivery-readiness slice
 - objective: validate backend/frontend delivery readiness, commit provenance, and handoff state before continuing toward richer Git delivery intelligence.
-- status: pending
+- status: complete pending commit
 - files: working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: current status, handoff, roadmap tracker, provenance records, final validation notes.
 - expected changes: verify 28.1 and 28.2 provenance, update active knowledge, and record the next slice without adding Git mutation controls.
 - acceptance criteria: worktree is clean, all new plan items have notes under `refs/notes/provenance`, full frontend and Rust gates pass, and the next step remains explicitly read-only unless separately planned.
 - required tests: provenance note checks; `git status --short`; `git diff --check`.
-- review status: pending.
+- review status: passed after 1 cycle; verified notes for ada3525/28.1 and b359052/28.2, confirmed the worktree was clean before 28.3 knowledge edits, preserved the no-mutation boundary, and scoped the next delivery-intelligence slice to read-only validation/evidence signals.
 - commit: pending.
 
 ### 27.1. Add local Review brief follow-up controls
