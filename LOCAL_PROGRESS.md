@@ -866,3 +866,9 @@ YYYY-MM-DD
 - Task faza sada jednim `Run & prepare` klikom izvrsava auditovani phase prompt, osvezava receipt-e originalnog Task-a i priprema editabilni draft samo iz tacno linked response event-a.
 - Failed/stale run ne moze pripremiti evidence; Save, Review, Complete i sledeci Start ostaju eksplicitni odvojeni gate-ovi.
 - Frontend audit, 218 frontend testova, 103 Rust testa, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 565 linija.
+
+### 2026-07-22 - Safe Live ACP Output
+
+- Agent message/thought output se sada vidi i persistira dok je prompt jos pending, umesto tek na kraju.
+- Novi mali drain koordinator serijalizuje pollove, vezuje output za originalni transcript i akumulira/deduplikuje live i final provenance ID-jeve za phase receipt.
+- Frontend audit, 222 frontend testa, 103 Rust testa, typecheck, build, fmt i clippy prolaze; runtime hook ostaje na 249 linija.

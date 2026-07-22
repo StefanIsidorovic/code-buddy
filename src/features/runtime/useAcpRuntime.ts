@@ -15,6 +15,7 @@ import type {
   UnifiedTaskContextSelectionInfo,
 } from "../../types/domain";
 import { useAcpPermissions } from "./useAcpPermissions";
+import { useAcpEventDrain } from "./useAcpEventDrain";
 
 interface TranscriptApi { create: (runtime: string, source: string, title: string) => Promise<TranscriptSessionInfo | null>;
   attachKnowledge: (sessionId: string) => Promise<void>;
@@ -54,6 +55,8 @@ export function useAcpRuntime({
   const [promptResult, setPromptResult] = useState<AcpPromptResult | null>(null);
   const [promptBusy, setPromptBusy] = useState(false);
   const promptInFlight = useRef(false);
+  const eventDrain = useAcpEventDrain({ append: (next) => setEvents((current) => [...current, ...next]),
+    getActiveTranscriptId: transcript.getActiveId, record: transcript.record });
   const [expanded, setExpanded] = useState(true);
   const selectedCandidate = useMemo(
     () => candidates.find(({ id }) => id === selectedCandidateId) ?? null,
@@ -68,7 +71,7 @@ export function useAcpRuntime({
 
   useEffect(() => { void refreshRegistry(); }, []); useEffect(() => {
     if (!usable || !session) return;
-    const timer = window.setInterval(() => void drain(session.id), 1000);
+    const timer = window.setInterval(() => void eventDrain.drain(session.id), 1000);
     return () => window.clearInterval(timer);
   }, [session?.id, usable]);
 
@@ -104,7 +107,7 @@ export function useAcpRuntime({
       if (transcriptSession) {
         await transcript.attachKnowledge(transcriptSession.id);
       }
-      await drain(next.id, transcriptSession?.id ?? null);
+      await eventDrain.drain(next.id, transcriptSession?.id ?? null);
     });
   }
   async function changeModel(modelId: string) {
@@ -133,6 +136,7 @@ export function useAcpRuntime({
           });
         transcript.upsertTask(activeTask);
       }
+      eventDrain.beginPrompt(transcriptId);
       const userEvent: AcpSessionEvent = { kind: "user_message", content: prompt };
       setEvents((current) => [...current, userEvent]);
       await transcript.record(transcriptId, [userEvent]);
@@ -153,12 +157,13 @@ export function useAcpRuntime({
         setPromptResult(dispatched.promptResult);
       }
       setPromptBusy(false);
-      await drain(session.id, transcriptId, true);
+      await eventDrain.drain(session.id, transcriptId, true);
       return true;
     } catch (reason) {
       reportError(errorText(reason));
       return false;
     } finally {
+      eventDrain.endPrompt();
       promptInFlight.current = false;
       setPromptBusy(false);
     }
@@ -175,6 +180,7 @@ export function useAcpRuntime({
       if (!transcriptId || activeTask?.id !== taskId) {
         throw new Error("A controlled phase run requires the active Task transcript.");
       }
+      eventDrain.beginPrompt(transcriptId, true);
       const userEvent: AcpSessionEvent = { kind: "user_message", content: instruction };
       setEvents((current) => [...current, userEvent]);
       await transcript.record(transcriptId, [userEvent]);
@@ -183,9 +189,8 @@ export function useAcpRuntime({
           acpSessionId: session.id, instruction },
       });
       setPromptResult(result.promptResult);
-      const responseEvents = await drain(session.id, transcriptId, true);
-      const responseEventIds = responseEvents.filter(({ kind }) =>
-        kind === "agent_message" || kind === "agent_thought").map(({ id }) => id);
+      await eventDrain.drain(session.id, transcriptId, true);
+      const responseEventIds = eventDrain.capturedPhaseEventIds();
       if (responseEventIds.length > 0) await invokeCommand<void>("link_task_phase_run_events", {
         request: { taskId, receiptId: result.receipt.id, transcriptEventIds: responseEventIds },
       });
@@ -194,19 +199,13 @@ export function useAcpRuntime({
       reportError(errorText(reason));
       return false;
     } finally {
+      eventDrain.endPrompt();
       promptInFlight.current = false;
       setPromptBusy(false);
     }
   }
-  async function drain(sessionId = session?.id, transcriptId = transcript.getActiveId(), allowDuringPrompt = false) {
-    if (!sessionId || promptInFlight.current && !allowDuringPrompt) return [];
-    const next = await invokeCommand<AcpSessionEvent[]>("drain_acp_events", { sessionId });
-    if (next.length > 0) {
-      setEvents((current) => [...current, ...next]);
-      return await transcript.record(transcriptId, next);
-    }
-    return [];
-  }
+  const drain = (sessionId = session?.id, transcriptId = transcript.getActiveId()) =>
+    eventDrain.drain(sessionId, transcriptId);
   async function stop(force: boolean) {
     if (!session) return;
     await runAction(async () => {

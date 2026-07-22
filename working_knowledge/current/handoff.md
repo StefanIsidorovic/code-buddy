@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- ACP output now appears and persists during long ordinary and controlled prompts instead of waiting for prompt completion.
+- `useAcpEventDrain` serializes overlapping polls, pins output to the prompt's starting transcript, and captures live plus final persisted agent IDs for exact phase receipt linkage.
 - The current phase now offers `Run & prepare <phase>`: it sends one audited controlled prompt, refreshes the originating Task's run receipts, and fills the editable draft from exact linked events only after success.
 - Failed or stale runs never prepare evidence; standalone Prepare, Add evidence, Review, Complete, and next-phase Start remain separate explicit gates.
 - npx ACP adapters now bootstrap from the neutral OS temporary directory, preventing a selected project's invalid `devEngines`/npm metadata from exiting before initialize; `session/new` still targets the selected repository.
@@ -45,7 +47,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Add safe live ACP output during long prompts without allowing background drain to break exact phase-run provenance linking.
+- Add explicit Task recovery/resume guidance for app restart or interrupted ACP sessions, using conservative pending receipt semantics rather than inferring success.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

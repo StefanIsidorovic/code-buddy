@@ -783,6 +783,17 @@
 - review status: passed after 2 cycles; cycle 1 kept orchestration in the feature hook and proved run-refresh-prepare ordering plus failed-run isolation, and cycle 2 bound receipt refresh to the originating Task id and found no remaining stale-task, double-submit, gate, accessibility, architecture, or regression issue.
 - commit: this commit
 
+### 23.2. Stream ACP output without losing phase provenance
+- objective: show and persist agent output during long prompts while retaining exact controlled-run event linkage.
+- status: complete
+- files: src/features/runtime/useAcpEventDrain.ts; src/features/runtime/useAcpRuntime.ts; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: serialized event draining; prompt transcript affinity; phase-run event capture; final flush/link.
+- expected changes: allow polling during prompts; serialize drain requests; pin each prompt to its starting transcript; collect persisted agent IDs across live and final drains.
+- acceptance criteria: live output appears before prompt completion; no overlapping drain persistence; view/Task changes cannot redirect output; phase receipt links every exact agent message/thought once; ordinary prompt behavior remains compatible.
+- required tests: pending-prompt live drain; final exact link set; transcript affinity; duplicate/overlap protection; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 extracted serialized prompt-affine draining and proved overlap/duplicate boundaries, and cycle 2 added a pending-prompt integration test proving live visibility plus complete deduplicated phase linkage with no stale-transcript or gate regression.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.
