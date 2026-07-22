@@ -4,14 +4,14 @@
 
 ### 24.6. Harden the secondary-agent flow end to end
 - objective: validate the completed secondary-agent workflow across frontend, Rust, recovery boundaries, provenance, and working knowledge before moving to the next roadmap family.
-- status: in_progress
+- status: complete
 - files: src-tauri/src/*; src/features/tasks/*; src/features/runtime/*; src/types/domain.ts; src/lib/tauriGateway.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: secondary-agent workspace creation, ACP orchestration, report persistence, Activity UI, runtime cleanup, test gates.
 - expected changes: run the full frontend/Rust quality gates; perform explicit adversarial review; update tracker and active knowledge; create one commit with a verified provenance note for the final hardening slice if additional fixes are required.
 - acceptance criteria: all implemented secondary-agent pieces compile, tests pass, working knowledge matches HEAD, each completed step has one provenance note, and no executor Task mutation path is introduced.
 - required tests: `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`; `git diff --check`.
-- review status: pending.
-- commit: pending.
+- review status: passed after 1 cycle; full frontend/Rust gates passed, App/feature boundaries remained within audit ceilings, provenance notes were verified for 24.3, 24.4 and 24.5, and no additional code fix was required.
+- commit: this commit.
 
 ### 24.5. Add Activity controls for secondary advisor/reviewer runs
 - objective: expose deliberate user-started advisor/reviewer runs from the Activity view without turning secondary agents into Task executors.

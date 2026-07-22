@@ -1,7 +1,8 @@
 # Handoff
 
 ## Current State
-- Plan item 24.5 is complete pending commit: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
+- Plan item 24.6 is complete pending commit: the secondary-agent flow passed full frontend/Rust hardening, provenance notes for 24.3/24.4/24.5 were verified, and no additional code fix was required.
+- Plan item 24.5 is committed: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
 - `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` remains state-free presentation.
 - Advisor/reviewer run controls require an active in-progress Task phase, selected ACP candidate, and selected repository/project cwd; a late result after Task change cannot attach reports to the visible Task.
 - `src/App.tsx` remains composition-only at 585 lines and only wires Task, candidate and cwd identity into the feature hook/panel.
@@ -66,10 +67,14 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Complete plan item 24.6: final secondary-agent hardening, full gate rerun, provenance audit, and clean handoff before moving to the next roadmap family.
+- Pick the next roadmap family beyond Conductor: likely execution/review harness polish, measured learning from completed Tasks, or Git delivery intelligence, now that secondary advisor/reviewer foundations are hardened.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run
+- `npm run frontend:audit`: enforce the project-local frontend architecture guardrails.
+- `npm run typecheck`: validate TypeScript contracts.
+- `npm run test -- --run`: validate frontend regressions.
+- `npm run build`: validate production bundle output.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.
 - `cargo test --manifest-path src-tauri/Cargo.toml`: validate storage and backend regressions.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`: validate Rust quality.

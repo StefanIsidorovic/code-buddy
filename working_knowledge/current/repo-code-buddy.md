@@ -104,6 +104,7 @@
 - `useTaskAgentReports` owns stale-safe secondary report cache loading and deliberate advisor/reviewer run orchestration; `TaskAgentReportsPanel` is state-free Activity presentation with run/refresh controls, while App only composes Task, ACP candidate, cwd and report counts.
 - `src-tauri/src/acp_workspace.rs` owns the secondary ACP snapshot/sandbox boundary: ordinary starts are unwrapped, isolated starts require `bwrap`, create a bounded writable `/work` snapshot, exclude VCS/generated directories and symlinks, and clean the temp workspace on session drop.
 - `run_task_agent_report` is the backend orchestration boundary for deliberate advisor/reviewer runs: it starts isolated ACP only after current-phase validation, persists a separate ACP transcript and report atomically through `create_task_agent_report_transcript`, and removes the secondary local session after the run.
+- The secondary-agent family is hardened through Activity controls: snapshot isolation, backend orchestration, immutable report persistence, stale-safe UI run controls, full gate rerun, and verified provenance notes are complete without introducing an executor mutation path.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints
