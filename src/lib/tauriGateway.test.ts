@@ -33,4 +33,14 @@ describe("Tauri command gateway", () => {
     await invokeCommand("load_acp_registry_session", args);
     expect(invoke).toHaveBeenCalledWith("load_acp_registry_session", args);
   });
+
+  it("forwards immutable task agent report commands through the typed boundary", async () => {
+    const args = { request: { taskId: "t1", phase: "analysis", role: "advisor",
+      transcriptSessionId: "advisor-transcript", content: "Finding", sourceTranscriptEventIds: ["e1"] } };
+    invoke.mockResolvedValue({ id: "report-1" });
+    await invokeCommand("create_task_agent_report", args);
+    await invokeCommand("list_task_agent_reports", { taskId: "t1" });
+    expect(invoke).toHaveBeenNthCalledWith(1, "create_task_agent_report", args);
+    expect(invoke).toHaveBeenNthCalledWith(2, "list_task_agent_reports", { taskId: "t1" });
+  });
 });

@@ -849,6 +849,17 @@
 - review status: passed after 2 cycles; cycle 1 made the load fake validate and replay an arbitrary exact external session id, while cycle 2 proved original PID termination, fresh-manager recovery, one-shot replay, follow-up prompting, and found no production shortcut, process leak, identity substitution, or regression.
 - commit: this commit
 
+### 24.1. Establish immutable advisor/reviewer reports
+- objective: introduce the first deliberate multi-agent persistence boundary without granting a secondary agent execution authority.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; related Rust/frontend gateway tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: Task schema migration; secondary ACP transcript ownership; advisor/reviewer provenance validation; typed command surface.
+- expected changes: persist immutable reports for advisor/reviewer roles against the current Task phase, sourced only from agent message/thought events in a separate same-project ACP transcript; expose typed create/list commands.
+- acceptance criteria: executor/unknown roles are rejected; the Task's own executor transcript is rejected; wrong-project/non-ACP transcripts and cross-transcript/user events are rejected transactionally; reports are ordered and immutable; creation cannot change Task, phase, artifact, receipt, ACP, or Git state.
+- required tests: migration; valid advisor and reviewer reports; role/transcript/project/runtime/phase/provenance rejection; stable ordering/listing; command registration and frontend gateway/type coverage; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 separated immutable secondary-agent reports from executor artifacts and verified exact same-project ACP provenance, while cycle 2 required an active phase, rejected transcripts already executing any Task, proved legacy migration/transactional failures, and found no Task, phase, artifact, receipt, ACP, Git, type-boundary, or regression escape.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

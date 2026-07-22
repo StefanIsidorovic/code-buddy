@@ -398,6 +398,20 @@ export type TaskPhaseArtifactInfo = {
   createdAt: number;
 };
 
+export type TaskAgentRole = "advisor" | "reviewer";
+
+export type TaskAgentReportInfo = {
+  id: string;
+  taskId: string;
+  phase: TaskPhaseInfo["phase"];
+  sequence: number;
+  role: TaskAgentRole;
+  transcriptSessionId: string;
+  content: string;
+  sourceTranscriptEventIds: string[];
+  createdAt: number;
+};
+
 export type TaskPhaseTransitionAction = "start" | "complete";
 
 export type TaskPhaseRunReceiptInfo = {

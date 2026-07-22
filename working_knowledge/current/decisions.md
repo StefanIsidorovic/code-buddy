@@ -36,6 +36,7 @@
 - ACP recovery protocol: use stable ACP v1 `session/load` only after `agentCapabilities.loadSession=true`; never substitute `session/new`, infer support, or publish the local process in the manager before load succeeds.
 - ACP replay boundary: `session/load` history is consumed into the resumed live UI exactly once and is not appended again to the existing transcript; only later live events use normal persistence.
 - Restart receipt boundary: only pending receipts not owned by the currently running local ACP session are presented as interrupted/unconfirmed; Resume never proves delivery or completion, and recovery guidance may only open the exact existing manual failed-resolution form.
+- Secondary-agent authority boundary: advisor/reviewer output is an immutable Task report sourced only from agent output in a separate, otherwise unassigned, same-project ACP transcript during the current in-progress phase; it cannot become executor evidence or mutate Task, phase, receipt, ACP, or Git state.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

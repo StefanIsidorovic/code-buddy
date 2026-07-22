@@ -902,3 +902,9 @@ YYYY-MM-DD
 - Test sada zaista unistava prvi ACP manager, ceka da njegov lokalni PID nestane i zatim kroz potpuno novi manager ucitava isti external session ID.
 - Recovery replay je dostupan tacno jednom, a follow-up prompt nastavlja kroz novi lokalni proces bez zamenskog external identiteta.
 - Frontend audit, 233 frontend testa, 109 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 574 linije.
+
+### 2026-07-22 - Immutable Advisor And Reviewer Reports
+
+- Prvi multi-agent persistence boundary cuva advisor/reviewer nalaze kao immutable, phase-ordered report-e sa tacnim secondary ACP event provenance-om, odvojeno od executor evidence-a.
+- Backend odbija executor/unknown role, neaktivnu fazu, Task-ov ili drugi zauzet executor transcript, wrong-project/non-ACP transcript i cross-transcript/user provenance bez parcijalnog upisa.
+- Frontend audit, 234 frontend testa, 110 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 574 linije.

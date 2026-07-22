@@ -321,6 +321,31 @@ pub struct TaskPhaseArtifactInfo {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CreateTaskAgentReportRequest {
+    pub task_id: String,
+    pub phase: String,
+    pub role: String,
+    pub transcript_session_id: String,
+    pub content: String,
+    pub source_transcript_event_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskAgentReportInfo {
+    pub id: String,
+    pub task_id: String,
+    pub phase: String,
+    pub sequence: i64,
+    pub role: String,
+    pub transcript_session_id: String,
+    pub content: String,
+    pub source_transcript_event_ids: Vec<String>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTaskPhaseRunRequest {
     pub task_id: String,
     pub transcript_session_id: String,
@@ -1681,6 +1706,207 @@ impl ProjectStore {
         Ok(artifacts)
     }
 
+    pub fn create_task_agent_report(
+        &self,
+        request: CreateTaskAgentReportRequest,
+    ) -> AppResult<TaskAgentReportInfo> {
+        let task_id = request.task_id.trim();
+        let phase = request.phase.trim().to_lowercase();
+        let role = request.role.trim().to_lowercase();
+        let transcript_session_id = request.transcript_session_id.trim();
+        let content = request.content.trim();
+        if task_id.is_empty()
+            || !TASK_PHASES.contains(&phase.as_str())
+            || !matches!(role.as_str(), "advisor" | "reviewer")
+            || transcript_session_id.is_empty()
+            || content.is_empty()
+        {
+            return Err(AppError::InvalidInput(
+                "task agent report requires a task, current phase, advisor/reviewer role, ACP transcript, and content".into(),
+            ));
+        }
+        let mut source_ids = Vec::new();
+        for source_id in request.source_transcript_event_ids {
+            let source_id = source_id.trim().to_string();
+            if !source_ids.contains(&source_id) {
+                source_ids.push(source_id);
+            }
+        }
+        if source_ids.is_empty() || source_ids.iter().any(String::is_empty) {
+            return Err(AppError::InvalidInput(
+                "task agent report requires transcript event provenance".into(),
+            ));
+        }
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let (project_id, task_transcript_id, current_phase, task_status):
+            (String, String, String, String) = transaction
+            .query_row(
+                "SELECT project_id, transcript_session_id, current_phase, status FROM tasks WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("task not found: {task_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        let phase_status: String = transaction
+            .query_row(
+                "SELECT status FROM task_phases WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, phase],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if phase != current_phase || task_status != "in_progress" || phase_status != "in_progress" {
+            return Err(AppError::InvalidInput(
+                "task agent reports may only target the current in-progress phase".into(),
+            ));
+        }
+        let (report_project_id, runtime): (Option<String>, String) = transaction
+            .query_row(
+                "SELECT project_id, runtime FROM transcript_sessions WHERE id = ?1",
+                params![transcript_session_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput("task agent transcript not found".into())
+                }
+                other => storage_error(other),
+            })?;
+        let transcript_owns_task: bool = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM tasks WHERE transcript_session_id = ?1)",
+                params![transcript_session_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if transcript_session_id == task_transcript_id
+            || transcript_owns_task
+            || report_project_id.as_deref() != Some(project_id.as_str())
+            || runtime != "acp"
+        {
+            return Err(AppError::InvalidInput(
+                "task agent reports require a separate same-project ACP transcript".into(),
+            ));
+        }
+        let mut sourced_events = Vec::new();
+        for event_id in &source_ids {
+            let (event_session_id, event_sequence, event_kind): (String, i64, String) = transaction
+                .query_row(
+                    "SELECT session_id, sequence, kind FROM transcript_events WHERE id = ?1",
+                    params![event_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .map_err(|error| match error {
+                    rusqlite::Error::QueryReturnedNoRows => {
+                        AppError::InvalidInput(format!("transcript event not found: {event_id}"))
+                    }
+                    other => storage_error(other),
+                })?;
+            if event_session_id != transcript_session_id
+                || !matches!(event_kind.as_str(), "agent_message" | "agent_thought")
+            {
+                return Err(AppError::InvalidInput(
+                    "task agent report provenance must be agent output from its exact transcript"
+                        .into(),
+                ));
+            }
+            sourced_events.push((event_id.clone(), event_sequence));
+        }
+        sourced_events.sort_by_key(|(_, sequence)| *sequence);
+        source_ids = sourced_events.into_iter().map(|(id, _)| id).collect();
+        let sequence: i64 = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(sequence), -1) + 1 FROM task_agent_reports WHERE task_id = ?1 AND phase = ?2",
+                params![task_id, phase],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let id = Uuid::new_v4().to_string();
+        let created_at = unix_timestamp()?;
+        transaction
+            .execute(
+                "INSERT INTO task_agent_reports
+             (id, task_id, phase, sequence, role, transcript_session_id, content, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    id,
+                    task_id,
+                    phase,
+                    sequence,
+                    role,
+                    transcript_session_id,
+                    content,
+                    created_at
+                ],
+            )
+            .map_err(storage_error)?;
+        for event_id in &source_ids {
+            transaction.execute(
+                "INSERT INTO task_agent_report_event_sources (report_id, transcript_event_id) VALUES (?1, ?2)",
+                params![id, event_id],
+            ).map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+        Ok(TaskAgentReportInfo {
+            id,
+            task_id: task_id.into(),
+            phase,
+            sequence,
+            role,
+            transcript_session_id: transcript_session_id.into(),
+            content: content.into(),
+            source_transcript_event_ids: source_ids,
+            created_at,
+        })
+    }
+
+    pub fn list_task_agent_reports(&self, task_id: &str) -> AppResult<Vec<TaskAgentReportInfo>> {
+        self.task(task_id)?;
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, task_id, phase, sequence, role, transcript_session_id, content, created_at
+             FROM task_agent_reports WHERE task_id = ?1 ORDER BY CASE phase
+             WHEN 'analysis' THEN 0 WHEN 'planning' THEN 1 WHEN 'execution' THEN 2 ELSE 3 END,
+             sequence ASC",
+        ).map_err(storage_error)?;
+        let mut reports = statement
+            .query_map(params![task_id], |row| {
+                Ok(TaskAgentReportInfo {
+                    id: row.get(0)?,
+                    task_id: row.get(1)?,
+                    phase: row.get(2)?,
+                    sequence: row.get(3)?,
+                    role: row.get(4)?,
+                    transcript_session_id: row.get(5)?,
+                    content: row.get(6)?,
+                    source_transcript_event_ids: Vec::new(),
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        drop(statement);
+        for report in &mut reports {
+            let mut sources = connection.prepare(
+                "SELECT sources.transcript_event_id FROM task_agent_report_event_sources sources
+                 JOIN transcript_events events ON events.id = sources.transcript_event_id
+                 WHERE sources.report_id = ?1 ORDER BY events.sequence ASC",
+            ).map_err(storage_error)?;
+            report.source_transcript_event_ids = sources
+                .query_map(params![report.id], |row| row.get(0))
+                .map_err(storage_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?;
+        }
+        Ok(reports)
+    }
+
     pub fn begin_task_context_dispatch(
         &self,
         request: CreateTaskContextDispatchRequest,
@@ -2759,6 +2985,27 @@ impl ProjectStore {
                     artifact_id TEXT NOT NULL REFERENCES task_phase_artifacts(id) ON DELETE CASCADE,
                     transcript_event_id TEXT NOT NULL REFERENCES transcript_events(id) ON DELETE RESTRICT,
                     PRIMARY KEY (artifact_id, transcript_event_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS task_agent_reports (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    phase TEXT NOT NULL CHECK(phase IN ('analysis', 'planning', 'execution', 'review')),
+                    sequence INTEGER NOT NULL,
+                    role TEXT NOT NULL CHECK(role IN ('advisor', 'reviewer')),
+                    transcript_session_id TEXT NOT NULL REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    content TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    UNIQUE(task_id, phase, sequence)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_agent_reports_task_phase_sequence
+                    ON task_agent_reports(task_id, phase, sequence);
+
+                CREATE TABLE IF NOT EXISTS task_agent_report_event_sources (
+                    report_id TEXT NOT NULL REFERENCES task_agent_reports(id) ON DELETE CASCADE,
+                    transcript_event_id TEXT NOT NULL REFERENCES transcript_events(id) ON DELETE RESTRICT,
+                    PRIMARY KEY (report_id, transcript_event_id)
                 );
 
                 CREATE TABLE IF NOT EXISTS task_context_dispatch_receipts (
@@ -6180,6 +6427,216 @@ mod tests {
     }
 
     #[test]
+    fn persists_read_only_task_agent_reports_with_exact_secondary_provenance() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".into(),
+                path: temp_project_path("task-agent-reports"),
+            })
+            .expect("project created");
+        let executor = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("executor transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id.clone(),
+                transcript_session_id: executor.id.clone(),
+                original_prompt: "Review this safely".into(),
+            })
+            .expect("task created");
+        let task = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "start".into(),
+            })
+            .expect("analysis started");
+        let advisor = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Claude".into(),
+                title: None,
+            })
+            .expect("advisor transcript created");
+        let events = store
+            .append_transcript_events(
+                &advisor.id,
+                vec![
+                    TranscriptEventInput {
+                        kind: "user_message".into(),
+                        content: "Inspect only".into(),
+                    },
+                    TranscriptEventInput {
+                        kind: "agent_thought".into(),
+                        content: "Risk found".into(),
+                    },
+                    TranscriptEventInput {
+                        kind: "agent_message".into(),
+                        content: "Add a guard".into(),
+                    },
+                ],
+            )
+            .expect("advisor events created");
+
+        let first = store
+            .create_task_agent_report(CreateTaskAgentReportRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".into(),
+                role: "advisor".into(),
+                transcript_session_id: advisor.id.clone(),
+                content: "  Check the boundary  ".into(),
+                source_transcript_event_ids: vec![events[2].id.clone(), events[1].id.clone()],
+            })
+            .expect("advisor report created");
+        let second = store
+            .create_task_agent_report(CreateTaskAgentReportRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".into(),
+                role: "reviewer".into(),
+                transcript_session_id: advisor.id.clone(),
+                content: "No mutation approved".into(),
+                source_transcript_event_ids: vec![events[2].id.clone()],
+            })
+            .expect("reviewer report created");
+        assert_eq!(first.sequence, 0);
+        assert_eq!(first.content, "Check the boundary");
+        assert_eq!(
+            first.source_transcript_event_ids,
+            vec![events[1].id.clone(), events[2].id.clone()]
+        );
+        assert_eq!(second.sequence, 1);
+        assert_eq!(
+            store
+                .list_task_agent_reports(&task.id)
+                .expect("reports listed"),
+            vec![first, second]
+        );
+        assert_eq!(
+            store
+                .list_project_tasks(&project.id)
+                .expect("task remains unchanged"),
+            vec![task.clone()]
+        );
+
+        let other_project = store
+            .create_project(CreateProjectRequest {
+                name: "Other".into(),
+                path: temp_project_path("task-agent-reports-other"),
+            })
+            .expect("other project created");
+        let wrong_project = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(other_project.id),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("wrong-project transcript created");
+        let pty = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "pty".into(),
+                source: "Shell".into(),
+                title: None,
+            })
+            .expect("pty transcript created");
+        let other_executor = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Gemini".into(),
+                title: None,
+            })
+            .expect("other executor transcript created");
+        let pending_task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id.clone(),
+                transcript_session_id: other_executor.id.clone(),
+                original_prompt: "Other work".into(),
+            })
+            .expect("other task created");
+        assert!(store
+            .create_task_agent_report(CreateTaskAgentReportRequest {
+                task_id: pending_task.id,
+                phase: "analysis".into(),
+                role: "advisor".into(),
+                transcript_session_id: advisor.id.clone(),
+                content: "Too early".into(),
+                source_transcript_event_ids: vec![events[2].id.clone()],
+            })
+            .is_err());
+        for (role, phase, transcript_session_id, source_ids) in [
+            (
+                "executor",
+                "analysis",
+                advisor.id.as_str(),
+                vec![events[2].id.clone()],
+            ),
+            (
+                "advisor",
+                "planning",
+                advisor.id.as_str(),
+                vec![events[2].id.clone()],
+            ),
+            (
+                "advisor",
+                "analysis",
+                executor.id.as_str(),
+                vec![events[2].id.clone()],
+            ),
+            (
+                "advisor",
+                "analysis",
+                wrong_project.id.as_str(),
+                vec![events[2].id.clone()],
+            ),
+            (
+                "advisor",
+                "analysis",
+                pty.id.as_str(),
+                vec![events[2].id.clone()],
+            ),
+            (
+                "advisor",
+                "analysis",
+                other_executor.id.as_str(),
+                vec![events[2].id.clone()],
+            ),
+            (
+                "advisor",
+                "analysis",
+                advisor.id.as_str(),
+                vec![events[0].id.clone()],
+            ),
+        ] {
+            let error = store
+                .create_task_agent_report(CreateTaskAgentReportRequest {
+                    task_id: task.id.clone(),
+                    phase: phase.into(),
+                    role: role.into(),
+                    transcript_session_id: transcript_session_id.into(),
+                    content: "Invalid".into(),
+                    source_transcript_event_ids: source_ids,
+                })
+                .expect_err("invalid report rejected");
+            assert!(matches!(error, AppError::InvalidInput(_)));
+        }
+        assert_eq!(
+            store
+                .list_task_agent_reports(&task.id)
+                .expect("no partial reports")
+                .len(),
+            2
+        );
+    }
+
+    #[test]
     fn persists_ordered_task_phase_artifacts_with_same_transcript_provenance() {
         let store = ProjectStore::in_memory().expect("store opens");
         let project = store
@@ -6857,6 +7314,10 @@ mod tests {
                 .expect("recovery table migrated"),
             None
         );
+        assert!(store
+            .list_task_agent_reports("task-1")
+            .expect("task agent report tables migrated")
+            .is_empty());
 
         drop(store);
         fs::remove_dir_all(database_directory).expect("temporary database removed");

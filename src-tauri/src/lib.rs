@@ -61,6 +61,8 @@ pub fn run() {
             commands::update_task_complexity,
             commands::create_task_phase_artifact,
             commands::list_task_phase_artifacts,
+            commands::create_task_agent_report,
+            commands::list_task_agent_reports,
             commands::list_task_phase_run_receipts,
             commands::link_task_phase_run_events,
             commands::latest_task_phase_run_response_events,

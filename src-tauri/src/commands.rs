@@ -20,18 +20,19 @@ use crate::{
     storage::{
         CreateAcpTranscriptSessionRequest, CreateKnowledgeItemRequest,
         CreateProjectInitializationRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
-        CreateTaskContextDispatchRequest, CreateTaskPhaseArtifactRequest,
-        CreateTaskPhaseRunRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
-        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
-        LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
-        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
-        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
-        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
-        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
-        SaveProjectInitializationGuardrailsRequest, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
-        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
-        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        CreateTaskAgentReportRequest, CreateTaskContextDispatchRequest,
+        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskRequest,
+        CreateTranscriptSessionRequest, GenerateProjectInitializationSummaryRequest,
+        KnowledgeItemInfo, KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
+        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
+        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
+        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
+        ResolveTaskPhaseRunRequest, SaveProjectInitializationGuardrailsRequest,
+        TaskAgentReportInfo, TaskContextDispatchReceiptInfo, TaskInfo, TaskPhaseArtifactInfo,
+        TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo, TranscriptEventInfo,
+        TranscriptEventInput, TranscriptSessionInfo, TransitionTaskPhaseRequest,
+        UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -399,6 +400,22 @@ pub fn list_task_phase_artifacts(
     task_id: String,
 ) -> AppResult<Vec<TaskPhaseArtifactInfo>> {
     state.list_task_phase_artifacts(&task_id)
+}
+
+#[tauri::command]
+pub fn create_task_agent_report(
+    state: State<'_, ProjectStore>,
+    request: CreateTaskAgentReportRequest,
+) -> AppResult<TaskAgentReportInfo> {
+    state.create_task_agent_report(request)
+}
+
+#[tauri::command]
+pub fn list_task_agent_reports(
+    state: State<'_, ProjectStore>,
+    task_id: String,
+) -> AppResult<Vec<TaskAgentReportInfo>> {
+    state.list_task_agent_reports(&task_id)
 }
 
 #[tauri::command]

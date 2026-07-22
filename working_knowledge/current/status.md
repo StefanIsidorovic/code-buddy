@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: a4f87ac step 23.6: guide interrupted receipt recovery
-- worktree: plan item 23.7 process-level ACP restart validation ready to commit.
+- head: 857cc14 step 23.7: prove ACP process restart recovery
+- worktree: plan item 24.1 immutable advisor/reviewer report boundary ready to commit.
 - relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 23.7 complete; next is the first deliberate advisor/reviewer role boundary; AIadne-to-beyond-Conductor tracker approximately 82%.
+- active plan step: 24.1 complete; next is guarded secondary-agent orchestration into this report boundary; AIadne-to-beyond-Conductor tracker approximately 83%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 234 frontend tests, 110 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, legacy migration, exact secondary provenance, active-phase/free-transcript role gates, typed commands, and `git diff --check` pass for plan item 24.1; App remains 574 lines.
 - 2026-07-22: 233 frontend tests, 109 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, old-PID termination, fresh-manager exact-id load, one-shot replay, follow-up prompt, and `git diff --check` pass for plan item 23.7; App remains 574 lines.
 - 2026-07-22: 230 frontend tests, 108 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, Resume identity/load/App wiring, replay non-persistence, stale-workspace cleanup and concurrency locks pass for plan item 23.5; App is 570 lines and runtime remains at its 250-line ceiling.
 - 2026-07-22: 224 frontend tests, 108 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, exact ACP `session/load`/no-`session/new` coverage, capability/cleanup validation, and `git diff --check` pass for plan item 23.4; App remains 565 lines.
