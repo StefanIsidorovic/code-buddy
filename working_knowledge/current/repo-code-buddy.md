@@ -24,9 +24,10 @@
 - `src-tauri/src/commands.rs`: frontend/backend command boundary.
 
 ## Tests
-- `src/App.test.tsx` contains 38 mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, Task creation/reuse/failure isolation and assessment rendering, PTY, and responsive product-shell contracts.
-- Rust has 97 unit/integration tests across PTY/ACP lifecycle and model configuration, adapters, storage, synthesis, model catalog, deterministic context selection, Task persistence, complexity classification, overrides, audit history, and migration.
-- Current validation commands: `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`.
+- `src/App.test.tsx` contains mocked integration-style frontend tests covering workspace, repositories, initialization, summaries, Knowledge Units, selector preview, transcripts, Knowledge Cards, ACP, Task creation/reuse/failure isolation and assessment rendering, PTY, and responsive product-shell contracts.
+- Frontend coverage is 241 tests across 48 files, including stale-safe secondary report loading/running and Activity presentation controls.
+- Rust has 116 unit/integration tests across PTY/ACP lifecycle and model configuration, adapters, storage, synthesis, model catalog, deterministic context selection, Task persistence, complexity classification, overrides, audit history, secondary ACP isolation/orchestration, and migration.
+- Current validation commands: `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`.
 
 ## Current Findings
 - Workspace projects own repositories; the selected repository path is passed as PTY/ACP cwd.
@@ -100,7 +101,7 @@
 - `TaskRecoveryNotice` is a state-free Activity-view boundary: it treats only pending receipts from a non-current local ACP session as interrupted, and routes the exact receipt to existing manual resolution without retrying or changing persisted state.
 - The ACP process test harness accepts an exact expected external session id and proves recovery across destruction of the original manager/PID, one-shot load replay, and continued prompting through a fresh local process.
 - `task_agent_reports` and normalized event sources form the first multi-agent write boundary: advisor/reviewer reports are append-only, phase-ordered, sourced from exact agent events in a free secondary same-project ACP transcript, and cannot reuse any Task executor transcript.
-- `useTaskAgentReports` owns stale-safe report cache loading, while `TaskAgentReportsPanel` is read-only Activity presentation; App only composes it and the Activity tab exposes its count.
+- `useTaskAgentReports` owns stale-safe secondary report cache loading and deliberate advisor/reviewer run orchestration; `TaskAgentReportsPanel` is state-free Activity presentation with run/refresh controls, while App only composes Task, ACP candidate, cwd and report counts.
 - `src-tauri/src/acp_workspace.rs` owns the secondary ACP snapshot/sandbox boundary: ordinary starts are unwrapped, isolated starts require `bwrap`, create a bounded writable `/work` snapshot, exclude VCS/generated directories and symlinks, and clean the temp workspace on session drop.
 - `run_task_agent_report` is the backend orchestration boundary for deliberate advisor/reviewer runs: it starts isolated ACP only after current-phase validation, persists a separate ACP transcript and report atomically through `create_task_agent_report_transcript`, and removes the secondary local session after the run.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.

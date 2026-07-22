@@ -39,6 +39,7 @@
 - Secondary-agent authority boundary: advisor/reviewer output is an immutable Task report sourced only from agent output in a separate, otherwise unassigned, same-project ACP transcript during the current in-progress phase; it cannot become executor evidence or mutate Task, phase, receipt, ACP, or Git state.
 - Secondary workspace boundary: secondary ACP runs use an explicit snapshot sandbox mode with a writable `/work` copy and `bwrap` process wrapper; the selected executor repository path is mounted to that snapshot, generated directories and VCS metadata are excluded, and ordinary primary ACP startup remains unwrapped.
 - Secondary report orchestration boundary: `run_task_agent_report` validates Task/phase/role before external startup, then publishes the secondary ACP transcript, exact agent events, and immutable report in one storage transaction; missing agent output or stale phase state leaves no partial report transcript.
+- Secondary Activity control boundary: the Activity view may deliberately launch read-only advisor/reviewer runs through `useTaskAgentReports`, but the presentation panel owns no backend workflow and the result is only an immutable report refresh, never executor evidence, phase completion, ACP runtime takeover, or Git mutation.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

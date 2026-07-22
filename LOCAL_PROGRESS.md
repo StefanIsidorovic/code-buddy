@@ -104,6 +104,8 @@ Radno pravilo:
 - Backend sada ima persistentni Task vezan za projekat i jednu ACP transcript sesiju, sa analysis, planning, execution i review fazama koje nastaju atomicki.
 - Prvi project-owned ACP prompt kreira Task pre transcript/agent side effect-a, a naredni promptovi u istoj sesiji koriste isti Task.
 - Svaki novi Task dobija explainable `quick`, `standard` ili `complex` predlog; initial rezultat ostaje sacuvan, a user override dobija razlog i append-only audit zapis.
+- Activity sada prikazuje i pokrece izolovane secondary advisor/reviewer report run-ove: oni rade u snapshot sandbox-u, cuvaju poseban transcript/report i ne mogu da menjaju executor Task faze ili evidence.
+- `Run advisor` i `Run reviewer` su dostupni samo kada postoji aktivan in-progress Task, aktivna faza, izabran ACP kandidat i repository/project cwd; zakasneli rezultat posle promene Task-a se ignorise u UI-ju.
 - ACP Controls sada prikazuje read-only Active Task karticu sa profilom, fazom, razlozima, confidence/source i classifier verzijom.
 - Summary model i Coding model su sada odvojeni izbori: ACP Controls ucitava modele koje aktivni agent stvarno podrzava i menja model samo za tu coding sesiju.
 - Coding model izbor ne menja `~/.codex/config.toml`; agent bez model capability-ja ostaje upotrebljiv i UI to jasno prikazuje.

@@ -177,7 +177,10 @@ function App() {
     });
   const taskDispatch = useTaskDispatchHistory(activeTask);
   const taskPhaseRuns = useTaskPhaseRunHistory(activeTask);
-  const taskAgentReports = useTaskAgentReports(activeTask);
+  const taskAgentReports = useTaskAgentReports(activeTask, {
+    candidateId: selectedAcpCandidateId,
+    cwd: selectedRepository?.path ?? selectedProject?.path,
+  });
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
     onRunSettled: taskPhaseRuns.refresh });
@@ -398,7 +401,10 @@ function App() {
             contextReceipts={taskDispatch.receipts} currentAcpSessionId={canUseAcpSession ? acpSession?.id ?? null : null}
             onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
             <TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
-            error={taskAgentReports.error} onRefresh={() => void taskAgentReports.refresh()} />
+            runningRole={taskAgentReports.runningRole} error={taskAgentReports.error}
+            runDisabledReason={taskAgentReports.runDisabledReason}
+            onRun={(role) => void taskAgentReports.run(role)}
+            onRefresh={() => void taskAgentReports.refresh()} />
             <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
             loading={taskPhaseRuns.loading} error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}

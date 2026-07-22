@@ -1,9 +1,13 @@
 # Handoff
 
 ## Current State
-- Plan item 24.4 is complete pending commit: `run_task_agent_report` validates Task/phase/role before external startup, launches a secondary isolated ACP session, sends a role-scoped instruction, drains output, atomically creates a separate ACP transcript plus immutable report, and removes the secondary session from the manager.
+- Plan item 24.5 is complete pending commit: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
+- `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` remains state-free presentation.
+- Advisor/reviewer run controls require an active in-progress Task phase, selected ACP candidate, and selected repository/project cwd; a late result after Task change cannot attach reports to the visible Task.
+- `src/App.tsx` remains composition-only at 585 lines and only wires Task, candidate and cwd identity into the feature hook/panel.
+- Plan item 24.4 is committed: `run_task_agent_report` validates Task/phase/role before external startup, launches a secondary isolated ACP session, sends a role-scoped instruction, drains output, atomically creates a separate ACP transcript plus immutable report, and removes the secondary session from the manager.
 - Secondary transcript/report publication is transactional: no persisted agent output means no transcript/report commit, and phase changes during the run cause the storage transaction to reject without partial report state.
-- Plan item 24.3 is complete pending commit: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
+- Plan item 24.3 is committed: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
 - Ordinary primary ACP registry starts remain unwrapped and keep their existing npx-neutral/binary-project cwd behavior.
 - `src-tauri/src/acp_workspace.rs` owns the snapshot/sandbox boundary and its tests; `src-tauri/src/acp.rs` only carries the optional isolation request through ACP session launch.
 - Activity now exposes a read-only Advisor & Reviewer Reports panel with role/phase/order/content, exact transcript identity, provenance count, refresh, and stale-safe Task switching; the tab summary includes report count.
@@ -62,7 +66,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Build plan item 24.5: expose Activity-view Run advisor/reviewer controls backed by `run_task_agent_report`, with stale-safe loading/error handling and report refresh.
+- Complete plan item 24.6: final secondary-agent hardening, full gate rerun, provenance audit, and clean handoff before moving to the next roadmap family.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

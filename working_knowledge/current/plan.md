@@ -4,7 +4,7 @@
 
 ### 24.6. Harden the secondary-agent flow end to end
 - objective: validate the completed secondary-agent workflow across frontend, Rust, recovery boundaries, provenance, and working knowledge before moving to the next roadmap family.
-- status: pending
+- status: in_progress
 - files: src-tauri/src/*; src/features/tasks/*; src/features/runtime/*; src/types/domain.ts; src/lib/tauriGateway.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: secondary-agent workspace creation, ACP orchestration, report persistence, Activity UI, runtime cleanup, test gates.
 - expected changes: run the full frontend/Rust quality gates; perform explicit adversarial review; update tracker and active knowledge; create one commit with a verified provenance note for the final hardening slice if additional fixes are required.
@@ -15,14 +15,14 @@
 
 ### 24.5. Add Activity controls for secondary advisor/reviewer runs
 - objective: expose deliberate user-started advisor/reviewer runs from the Activity view without turning secondary agents into Task executors.
-- status: pending
+- status: complete
 - files: src/App.tsx; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/useTaskAgentReports.ts; src/features/tasks/TaskAgentReportsPanel.tsx; related tests and current knowledge.
 - affected units: read-only report panel actions; stale-safe feature orchestration; typed Tauri command boundary; Activity tab report refresh and loading/error states.
 - expected changes: add role actions for the current in-progress Task phase; disable them without an active Task, active ACP candidate, selected repository, or while a run is in flight; refresh reports after success and surface actionable errors.
 - acceptance criteria: the UI clearly separates secondary reports from phase evidence; stale Task changes cannot attach a late report to the visible Task; no direct Tauri import or backend workflow enters presentation.
 - required tests: action disabled states; exact command payload; loading/error display; stale Task guard; successful refresh; full frontend/Rust gates.
-- review status: pending.
-- commit: pending.
+- review status: passed after 2 cycles; cycle 1 verified stale-safe hook orchestration, disabled/running/error states, exact gateway payload and report refresh, and cycle 2 reran full frontend/Rust gates plus direct boundary checks for App composition and no Tauri imports in the feature.
+- commit: this commit.
 
 ### 24.4. Orchestrate secondary advisor/reviewer reports
 - objective: run one isolated secondary ACP role against the current Task phase, persist its transcript output, and convert exact agent output into an immutable report.
