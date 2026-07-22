@@ -61,6 +61,7 @@
 - npx-based adapters bootstrap from the OS temporary directory rather than repository cwd, isolating npm from project `package.json`; the selected repository remains authoritative in `session/new.cwd`, while binary adapters retain process cwd compatibility.
 - Frontend ACP drains continue during pending prompts through a serialized coordinator; transcript affinity is fixed at prompt start so view changes cannot redirect persisted output.
 - Controlled phase capture spans every live drain and the final flush, then deduplicates persisted agent message/thought IDs before linking the run receipt.
+- Persisted ACP transcripts retain a separate candidate/external-session recovery identity; backend recovery initializes that adapter, requires `agentCapabilities.loadSession`, sends `session/load` with the saved id and repository cwd, and reuses normal replay/model/prompt handling without creating a replacement conversation.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.

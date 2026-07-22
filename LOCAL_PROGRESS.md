@@ -878,3 +878,9 @@ YYYY-MM-DD
 - ACP transcript i njegov stabilni registry candidate/agent session identitet sada se upisuju atomicki u SQLite, kroz namensku 1:1 recovery tabelu koja ne zagadjuje genericki transcript model.
 - Postojece baze automatski dobijaju novu tabelu, legacy transcript-i ostaju bez lazno izvedenog recovery identiteta, a prazni identifikatori se odbijaju pre upisa.
 - Frontend audit, 223 frontend testa, 105 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 565 linija.
+
+### 2026-07-22 - Real ACP Session Load
+
+- Backend sada ponovo pokrece sacuvani registry adapter, proverava `agentCapabilities.loadSession` i salje `session/load` sa tacnim eksternim session ID-em i repository cwd-om, bez kreiranja zamenske konverzacije.
+- Replay dogadjaji i model konfiguracija koriste postojeci runtime tok; prazni ID-jevi, nepodrzani adapteri i neuspesan load se ne objavljuju u manageru, a child proces se cisti.
+- Frontend audit, 224 frontend testa, 108 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 565 linija.

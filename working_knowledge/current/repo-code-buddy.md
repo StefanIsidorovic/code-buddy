@@ -95,6 +95,7 @@
 - `src/features/tasks/` owns the stale-safe artifact/transition workflow and state-free phase panel; live transcript persistence retains backend event IDs solely for valid provenance selection.
 - Task-phase orchestration can chain a successful controlled run into an editable exact-provenance draft; App only wires runtime/history dependencies and does not own the workflow.
 - `useAcpEventDrain` owns serialized live drain/persistence, prompt transcript affinity and controlled-run event capture; `useAcpRuntime` remains below its 250-line ceiling.
+- ACP recovery identity is stored separately from generic transcript rows; the manager can now re-spawn the recorded registry candidate, require advertised load support, issue `session/load` without `session/new`, restore replay/model state, and publish the local process only after success.
 - `docs/product-roadmap.md` defines the frontend modularization, evidence-aware Task workflow, multi-agent runtime, execution/review harness, Git delivery intelligence, and measured-learning sequence beyond Conductor.
 
 ## Constraints

@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- The backend can now restart a persisted registry adapter and issue ACP `session/load` with its exact stored external session id and repository cwd; successful replay events/model config reuse the normal runtime buffers.
+- Unsupported adapters, blank recovery identifiers, and failed loads never become managed sessions; failed child processes are killed by the session Drop boundary.
 - ACP output now appears and persists during long ordinary and controlled prompts instead of waiting for prompt completion.
 - `useAcpEventDrain` serializes overlapping polls, pins output to the prompt's starting transcript, and captures live plus final persisted agent IDs for exact phase receipt linkage.
 - The current phase now offers `Run & prepare <phase>`: it sends one audited controlled prompt, refreshes the originating Task's run receipts, and fills the editable draft from exact linked events only after success.
@@ -47,7 +49,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Add explicit Task recovery/resume guidance for app restart or interrupted ACP sessions, using conservative pending receipt semantics rather than inferring success.
+- Add an explicit Resume action for a selected saved ACP transcript: fetch its stored recovery identity, call the proven load command, switch to live Agent view, and prevent resume while another ACP session is active.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

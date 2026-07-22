@@ -805,6 +805,17 @@
 - review status: passed after 2 cycles; cycle 1 separated ACP recovery identity from generic transcript DTOs and proved atomic persistence/migration, while cycle 2 verified exact runtime identifiers, rejected incomplete identity, updated App integration mocks, and found no remaining schema, stale-state, runtime-boundary, or architecture regression.
 - commit: this commit
 
+### 23.4. Load persisted ACP sessions through the adapter
+- objective: re-establish a local ACP process around a persisted external agent session without creating a replacement conversation.
+- status: complete
+- files: src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; related Rust/frontend gateway tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP initialize capability negotiation; registry process launch mode; session/load request; Tauri command surface.
+- expected changes: add a validated load request carrying candidate, cwd, and external session id; initialize the selected adapter, require `agentCapabilities.loadSession`, call `session/load`, retain the exact existing id and returned model configuration, then publish the local session only after success.
+- acceptance criteria: load never calls session/new; unsupported adapters fail clearly and are not inserted into the manager; blank recovery ids are rejected before spawn; failed loads do not leak a managed session; successful loads preserve candidate cwd/session identity and can receive prompts.
+- required tests: exact initialize/load wire request and no session/new; unsupported capability; blank id validation; manager publication/prompt after load; command registration/gateway union; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 verified capability negotiation, exact load payload, no session/new, replay/model restoration and prompt reuse, while cycle 2 verified blank-id rejection before spawn, unsupported/failed-load child cleanup, manager publication only after success, async command registration and gateway fidelity.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

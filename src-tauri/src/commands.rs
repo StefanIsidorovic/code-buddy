@@ -2,7 +2,8 @@ use crate::{
     acp::{
         list_acp_registry_candidates as build_acp_registry_candidates, AcpPermissionRequest,
         AcpPromptResult, AcpRegistryCandidate, AcpSessionEvent, AcpSessionInfo, AcpSessionManager,
-        RespondAcpPermissionRequest, SetAcpModelRequest, StartAcpRegistrySessionRequest,
+        LoadAcpRegistrySessionRequest, RespondAcpPermissionRequest, SetAcpModelRequest,
+        StartAcpRegistrySessionRequest,
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     errors::{AppError, AppResult},
@@ -565,6 +566,15 @@ pub async fn start_acp_registry_session(
 ) -> AppResult<AcpSessionInfo> {
     let manager = Arc::clone(state.inner());
     run_acp_task(move || manager.start_registry_session(request)).await
+}
+
+#[tauri::command]
+pub async fn load_acp_registry_session(
+    state: State<'_, Arc<AcpSessionManager>>,
+    request: LoadAcpRegistrySessionRequest,
+) -> AppResult<AcpSessionInfo> {
+    let manager = Arc::clone(state.inner());
+    run_acp_task(move || manager.load_registry_session(request)).await
 }
 
 #[tauri::command]

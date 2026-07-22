@@ -25,6 +25,7 @@ export type TauriCommand =
   | "list_acp_permissions"
   | "list_agent_doctor_reports"
   | "list_knowledge_items"
+  | "load_acp_registry_session"
   | "list_model_catalog"
   | "list_project_initialization_facts"
   | "list_project_initialization_guardrails"

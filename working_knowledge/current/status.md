@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 9fb7d70 step 23.2: stream ACP output safely
-- worktree: plan item 23.3 ACP recovery identity persistence ready to commit.
+- head: 434df7d step 23.3: persist ACP recovery identity
+- worktree: plan item 23.4 ACP session load backend ready to commit.
 - relevant files: src/App.tsx; src/App.css; src/features/runtime/*; src/features/tasks/*; working_knowledge/current/*; LOCAL_PROGRESS.md.
 
 ## Current Task
 - request: commit the current work, define a roadmap beyond Conductor, begin implementation, and decompose the oversized frontend coordinator.
 - phase: complete
-- active plan step: 23.3 complete; next is 23.4 ACP session load/resume; AIadne-to-beyond-Conductor tracker approximately 78%.
+- active plan step: 23.4 complete; next is 23.5 explicit transcript Resume UI; AIadne-to-beyond-Conductor tracker approximately 79%.
 
 ## Risks And Constraints
 - Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
@@ -30,6 +30,7 @@
 - ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
 
 ## Last Verification
+- 2026-07-22: 224 frontend tests, 108 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, exact ACP `session/load`/no-`session/new` coverage, capability/cleanup validation, and `git diff --check` pass for plan item 23.4; App remains 565 lines.
 - 2026-07-22: 223 frontend tests, 105 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, legacy migration, atomic ACP transcript/recovery identity persistence, and `git diff --check` pass for plan item 23.3; App remains 565 lines.
 - 2026-07-22: 222 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, pending-prompt live visibility, serialized persistence and complete phase-link coverage, and `git diff --check` pass for plan item 23.2; runtime hook remains 249 lines.
 - 2026-07-22: 218 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, ordered run-refresh-prepare and failed-run coverage, and `git diff --check` pass for plan item 23.1; App remains 565 lines.

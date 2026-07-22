@@ -33,6 +33,7 @@
 - Runtime layout boundary: ACP uses one active local workspace view—Agent for controls/output, Task for phase work, and Activity for receipts—while PTY retains its dedicated controls/output flow.
 - Workspace state boundary: focused ACP view selection is transient state owned by `AcpWorkspaceViews`; it does not justify shared Zustand state or backend persistence.
 - Provenance picker boundary: generic text-input sizing must explicitly exclude checkboxes; transcript provenance remains complete but collapsed by default with compact sequence/kind/content rows rather than an unbounded open fieldset.
+- ACP recovery protocol: use stable ACP v1 `session/load` only after `agentCapabilities.loadSession=true`; never substitute `session/new`, infer support, or publish the local process in the manager before load succeeds.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

@@ -26,4 +26,11 @@ describe("Tauri command gateway", () => {
     invoke.mockImplementationOnce(() => { throw error; });
     expect(() => invokeCommand("list_model_catalog")).toThrow(error);
   });
+
+  it("forwards the exact ACP recovery identity to the load command", async () => {
+    invoke.mockResolvedValue({ id: "local-session", agentSessionId: "saved-agent-session" });
+    const args = { request: { candidateId: "codex-acp", agentSessionId: "saved-agent-session", cwd: "/repo" } };
+    await invokeCommand("load_acp_registry_session", args);
+    expect(invoke).toHaveBeenCalledWith("load_acp_registry_session", args);
+  });
 });

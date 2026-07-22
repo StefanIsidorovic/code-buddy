@@ -45,6 +45,14 @@ pub struct StartAcpRegistrySessionRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LoadAcpRegistrySessionRequest {
+    pub candidate_id: String,
+    pub agent_session_id: String,
+    pub cwd: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SetAcpModelRequest {
     pub session_id: AcpSessionId,
     pub model_id: String,
@@ -402,6 +410,14 @@ impl AcpSessionManager {
         Ok(info)
     }
 
+    #[cfg(test)]
+    fn load_fake_session(&self, cwd: PathBuf, agent_session_id: &str) -> AppResult<AcpSessionInfo> {
+        let session = Arc::new(AcpSession::spawn_load_fake(cwd, agent_session_id)?);
+        let info = session.info()?;
+        self.sessions()?.insert(info.id.clone(), session);
+        Ok(info)
+    }
+
     pub fn start_registry_session(
         &self,
         request: StartAcpRegistrySessionRequest,
@@ -414,6 +430,29 @@ impl AcpSessionManager {
         )?);
         let info = session.info()?;
 
+        self.sessions()?.insert(info.id.clone(), session);
+        Ok(info)
+    }
+
+    pub fn load_registry_session(
+        &self,
+        request: LoadAcpRegistrySessionRequest,
+    ) -> AppResult<AcpSessionInfo> {
+        let candidate_id = request.candidate_id.trim();
+        let agent_session_id = request.agent_session_id.trim();
+        if candidate_id.is_empty() || agent_session_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "ACP candidate and agent session ids must not be empty".to_string(),
+            ));
+        }
+        let cwd = resolve_cwd(request.cwd)?;
+        let session = Arc::new(AcpSession::load_registry_candidate(
+            candidate_id,
+            agent_session_id,
+            cwd,
+            &SystemAcpCommandResolver,
+        )?);
+        let info = session.info()?;
         self.sessions()?.insert(info.id.clone(), session);
         Ok(info)
     }
@@ -501,6 +540,12 @@ struct AcpMetadata {
     agent_name: Option<String>,
     agent_version: Option<String>,
     coding_model: Option<AcpModelState>,
+    can_load_session: bool,
+}
+
+enum AcpSessionBootstrap<'a> {
+    New,
+    Load(&'a str),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -567,12 +612,39 @@ impl AcpSession {
         let mut command = Command::new(&launch.program);
         command.args(&launch.args);
         command.current_dir(acp_process_cwd(launch.distribution, &cwd));
-        Self::spawn_command(command, cwd)
+        Self::spawn_command(command, cwd, AcpSessionBootstrap::New)
+    }
+
+    fn load_registry_candidate(
+        candidate_id: &str,
+        agent_session_id: &str,
+        cwd: PathBuf,
+        resolver: &dyn AcpCommandResolver,
+    ) -> AppResult<Self> {
+        let launch = acp_registry_launch_command(candidate_id, resolver)?;
+        let mut command = Command::new(&launch.program);
+        command.args(&launch.args);
+        command.current_dir(acp_process_cwd(launch.distribution, &cwd));
+        Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
     }
 
     #[cfg(test)]
     fn spawn_malformed_fake(cwd: PathBuf) -> AppResult<Self> {
         Self::spawn_script(cwd, malformed_fake_acp_script())
+    }
+
+    #[cfg(test)]
+    fn spawn_load_fake(cwd: PathBuf, agent_session_id: &str) -> AppResult<Self> {
+        let mut command = fake_acp_command(load_fake_acp_script());
+        command.current_dir(&cwd);
+        Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
+    }
+
+    #[cfg(test)]
+    fn spawn_unsupported_load_fake(cwd: PathBuf, agent_session_id: &str) -> AppResult<Self> {
+        let mut command = fake_acp_command(fake_acp_script());
+        command.current_dir(&cwd);
+        Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
     }
 
     #[cfg(test)]
@@ -593,10 +665,14 @@ impl AcpSession {
     fn spawn_script(cwd: PathBuf, script: &str) -> AppResult<Self> {
         let mut command = fake_acp_command(script);
         command.current_dir(&cwd);
-        Self::spawn_command(command, cwd)
+        Self::spawn_command(command, cwd, AcpSessionBootstrap::New)
     }
 
-    fn spawn_command(mut command: Command, cwd: PathBuf) -> AppResult<Self> {
+    fn spawn_command(
+        mut command: Command,
+        cwd: PathBuf,
+        bootstrap: AcpSessionBootstrap<'_>,
+    ) -> AppResult<Self> {
         let id = Uuid::new_v4().to_string();
         command.stdin(Stdio::piped());
         command.stdout(Stdio::piped());
@@ -646,7 +722,12 @@ impl AcpSession {
         };
 
         session.initialize()?;
-        session.create_agent_session(&cwd)?;
+        match bootstrap {
+            AcpSessionBootstrap::New => session.create_agent_session(&cwd)?,
+            AcpSessionBootstrap::Load(agent_session_id) => {
+                session.load_agent_session(&cwd, agent_session_id)?
+            }
+        }
         Ok(session)
     }
 
@@ -686,6 +767,10 @@ impl AcpSession {
             .pointer("/agentInfo/version")
             .and_then(Value::as_str)
             .map(ToString::to_string);
+        metadata.can_load_session = result
+            .pointer("/agentCapabilities/loadSession")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         Ok(())
     }
 
@@ -707,6 +792,26 @@ impl AcpSession {
         let mut metadata = self.metadata()?;
         metadata.agent_session_id = Some(agent_session_id);
         metadata.coding_model = coding_model;
+        Ok(())
+    }
+
+    fn load_agent_session(&self, cwd: &Path, agent_session_id: &str) -> AppResult<()> {
+        if !self.metadata()?.can_load_session {
+            return Err(AppError::Acp(
+                "selected ACP agent does not support loading existing sessions".to_string(),
+            ));
+        }
+        let result = self.send_request(
+            "session/load",
+            json!({
+                "sessionId": agent_session_id,
+                "cwd": cwd.to_string_lossy(),
+                "mcpServers": []
+            }),
+        )?;
+        let mut metadata = self.metadata()?;
+        metadata.agent_session_id = Some(agent_session_id.to_string());
+        metadata.coding_model = parse_model_state(&result);
         Ok(())
     }
 
@@ -1425,6 +1530,33 @@ done"#
 }
 
 #[cfg(test)]
+fn load_fake_acp_script() -> &'static str {
+    r#"while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9][0-9]*\).*/\1/p')
+  case "$line" in
+    *'"method":"initialize"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":true},"agentInfo":{"name":"load-fake","version":"1.0.0"}}}\n' "$id"
+      ;;
+    *'"method":"session/load"'*)
+      if printf '%s' "$line" | grep -q '"sessionId":"saved-agent-session"' && printf '%s' "$line" | grep -q '"cwd":' && printf '%s' "$line" | grep -q '"mcpServers":\[\]'; then
+        printf '{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"saved-agent-session","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"restored history"}}}}\n'
+        printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"restored-model","options":[{"value":"restored-model","name":"Restored Model"}]}]}}\n' "$id"
+      else
+        printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32602,"message":"invalid load payload"}}\n' "$id"
+      fi
+      ;;
+    *'"method":"session/new"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32601,"message":"session/new must not be called"}}\n' "$id"
+      ;;
+    *'"method":"session/prompt"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"stopReason":"end_turn"}}\n' "$id"
+      ;;
+    *'"method":"session/cancel"'*) exit 0 ;;
+  esac
+done"#
+}
+
+#[cfg(test)]
 fn malformed_fake_acp_script() -> &'static str {
     r#"printf 'not-json\n'
 while IFS= read -r line; do
@@ -1786,6 +1918,71 @@ mod tests {
             Some("fake-code-fast")
         );
         assert_eq!(session.coding_model.as_ref().unwrap().options.len(), 2);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn loads_existing_agent_session_without_creating_a_replacement() {
+        let manager = AcpSessionManager::default();
+        let cwd = std::env::current_dir().expect("current dir exists");
+        let session = manager
+            .load_fake_session(cwd, "saved-agent-session")
+            .expect("existing ACP session loads");
+
+        assert_eq!(
+            session.agent_session_id.as_deref(),
+            Some("saved-agent-session")
+        );
+        assert_eq!(session.agent_name.as_deref(), Some("load-fake"));
+        assert_eq!(
+            session
+                .coding_model
+                .as_ref()
+                .map(|model| model.current_value.as_str()),
+            Some("restored-model")
+        );
+        assert_eq!(manager.list_sessions().expect("sessions list").len(), 1);
+        assert_eq!(
+            manager.drain_events(&session.id).expect("history drains")[0].content,
+            "restored history"
+        );
+        assert_eq!(
+            manager
+                .send_prompt(&session.id, "Continue")
+                .expect("prompt sends")
+                .stop_reason,
+            "end_turn"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn rejects_loading_when_agent_does_not_advertise_capability() {
+        let result = AcpSession::spawn_unsupported_load_fake(
+            std::env::current_dir().expect("current dir exists"),
+            "saved-agent-session",
+        );
+        let error = match result {
+            Ok(_) => panic!("unsupported load accepted"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("does not support loading"));
+    }
+
+    #[test]
+    fn rejects_blank_agent_session_id_before_registry_launch() {
+        let manager = AcpSessionManager::default();
+        for (candidate_id, agent_session_id) in [(" ", "saved"), ("codex-acp", " ")] {
+            let error = manager
+                .load_registry_session(LoadAcpRegistrySessionRequest {
+                    candidate_id: candidate_id.to_string(),
+                    agent_session_id: agent_session_id.to_string(),
+                    cwd: None,
+                })
+                .expect_err("blank recovery id rejected");
+            assert!(matches!(error, AppError::InvalidInput(_)));
+        }
+        assert!(manager.list_sessions().expect("sessions list").is_empty());
     }
 
     #[test]
