@@ -1,4 +1,6 @@
+pub use crate::acp_workspace::AcpWorkspaceIsolation;
 use crate::{
+    acp_workspace::{AcpLaunchContext, IsolatedAcpWorkspace},
     errors::{AppError, AppResult},
     session::SessionState,
 };
@@ -41,6 +43,7 @@ pub struct StartFakeAcpSessionRequest {
 pub struct StartAcpRegistrySessionRequest {
     pub candidate_id: String,
     pub cwd: Option<PathBuf>,
+    pub workspace_isolation: Option<AcpWorkspaceIsolation>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -426,6 +429,7 @@ impl AcpSessionManager {
         let session = Arc::new(AcpSession::spawn_registry_candidate(
             &request.candidate_id,
             cwd,
+            request.workspace_isolation,
             &SystemAcpCommandResolver,
         )?);
         let info = session.info()?;
@@ -521,6 +525,7 @@ impl Drop for AcpSessionManager {
 struct AcpSession {
     id: AcpSessionId,
     cwd: PathBuf,
+    _workspace: Option<IsolatedAcpWorkspace>,
     stdin: Mutex<ChildStdin>,
     child: Mutex<Child>,
     next_request_id: AtomicU64,
@@ -606,13 +611,19 @@ impl AcpSession {
     fn spawn_registry_candidate(
         candidate_id: &str,
         cwd: PathBuf,
+        isolation: Option<AcpWorkspaceIsolation>,
         resolver: &dyn AcpCommandResolver,
     ) -> AppResult<Self> {
         let launch = acp_registry_launch_command(candidate_id, resolver)?;
-        let mut command = Command::new(&launch.program);
-        command.args(&launch.args);
-        command.current_dir(acp_process_cwd(launch.distribution, &cwd));
-        Self::spawn_command(command, cwd, AcpSessionBootstrap::New)
+        let launch_context = AcpLaunchContext::new(launch.distribution, cwd, isolation)?;
+        let command = launch_context.command(&launch.program, &launch.args);
+        let session_cwd = launch_context.session_cwd();
+        Self::spawn_command(
+            command,
+            session_cwd,
+            AcpSessionBootstrap::New,
+            launch_context.into_workspace(),
+        )
     }
 
     fn load_registry_candidate(
@@ -625,7 +636,12 @@ impl AcpSession {
         let mut command = Command::new(&launch.program);
         command.args(&launch.args);
         command.current_dir(acp_process_cwd(launch.distribution, &cwd));
-        Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
+        Self::spawn_command(
+            command,
+            cwd,
+            AcpSessionBootstrap::Load(agent_session_id),
+            None,
+        )
     }
 
     #[cfg(test)]
@@ -638,14 +654,24 @@ impl AcpSession {
         let mut command = fake_acp_command(load_fake_acp_script());
         command.env("EXPECTED_AGENT_SESSION_ID", agent_session_id);
         command.current_dir(&cwd);
-        Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
+        Self::spawn_command(
+            command,
+            cwd,
+            AcpSessionBootstrap::Load(agent_session_id),
+            None,
+        )
     }
 
     #[cfg(test)]
     fn spawn_unsupported_load_fake(cwd: PathBuf, agent_session_id: &str) -> AppResult<Self> {
         let mut command = fake_acp_command(fake_acp_script());
         command.current_dir(&cwd);
-        Self::spawn_command(command, cwd, AcpSessionBootstrap::Load(agent_session_id))
+        Self::spawn_command(
+            command,
+            cwd,
+            AcpSessionBootstrap::Load(agent_session_id),
+            None,
+        )
     }
 
     #[cfg(test)]
@@ -666,13 +692,14 @@ impl AcpSession {
     fn spawn_script(cwd: PathBuf, script: &str) -> AppResult<Self> {
         let mut command = fake_acp_command(script);
         command.current_dir(&cwd);
-        Self::spawn_command(command, cwd, AcpSessionBootstrap::New)
+        Self::spawn_command(command, cwd, AcpSessionBootstrap::New, None)
     }
 
     fn spawn_command(
         mut command: Command,
         cwd: PathBuf,
         bootstrap: AcpSessionBootstrap<'_>,
+        workspace: Option<IsolatedAcpWorkspace>,
     ) -> AppResult<Self> {
         let id = Uuid::new_v4().to_string();
         command.stdin(Stdio::piped());
@@ -710,6 +737,7 @@ impl AcpSession {
         let session = Self {
             id,
             cwd: cwd.clone(),
+            _workspace: workspace,
             stdin: Mutex::new(stdin),
             child: Mutex::new(child),
             next_request_id: AtomicU64::new(0),

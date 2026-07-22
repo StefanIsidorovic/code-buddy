@@ -1,4 +1,5 @@
 pub mod acp;
+mod acp_workspace;
 pub mod adapters;
 pub mod commands;
 pub mod errors;

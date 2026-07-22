@@ -2,6 +2,50 @@
 
 ## Active Plan
 
+### 24.6. Harden the secondary-agent flow end to end
+- objective: validate the completed secondary-agent workflow across frontend, Rust, recovery boundaries, provenance, and working knowledge before moving to the next roadmap family.
+- status: pending
+- files: src-tauri/src/*; src/features/tasks/*; src/features/runtime/*; src/types/domain.ts; src/lib/tauriGateway.ts; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: secondary-agent workspace creation, ACP orchestration, report persistence, Activity UI, runtime cleanup, test gates.
+- expected changes: run the full frontend/Rust quality gates; perform explicit adversarial review; update tracker and active knowledge; create one commit with a verified provenance note for the final hardening slice if additional fixes are required.
+- acceptance criteria: all implemented secondary-agent pieces compile, tests pass, working knowledge matches HEAD, each completed step has one provenance note, and no executor Task mutation path is introduced.
+- required tests: `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `cargo fmt --manifest-path src-tauri/Cargo.toml --check`; `cargo test --manifest-path src-tauri/Cargo.toml`; `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`; `git diff --check`.
+- review status: pending.
+- commit: pending.
+
+### 24.5. Add Activity controls for secondary advisor/reviewer runs
+- objective: expose deliberate user-started advisor/reviewer runs from the Activity view without turning secondary agents into Task executors.
+- status: pending
+- files: src/App.tsx; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/useTaskAgentReports.ts; src/features/tasks/TaskAgentReportsPanel.tsx; related tests and current knowledge.
+- affected units: read-only report panel actions; stale-safe feature orchestration; typed Tauri command boundary; Activity tab report refresh and loading/error states.
+- expected changes: add role actions for the current in-progress Task phase; disable them without an active Task, active ACP candidate, selected repository, or while a run is in flight; refresh reports after success and surface actionable errors.
+- acceptance criteria: the UI clearly separates secondary reports from phase evidence; stale Task changes cannot attach a late report to the visible Task; no direct Tauri import or backend workflow enters presentation.
+- required tests: action disabled states; exact command payload; loading/error display; stale Task guard; successful refresh; full frontend/Rust gates.
+- review status: pending.
+- commit: pending.
+
+### 24.4. Orchestrate secondary advisor/reviewer reports
+- objective: run one isolated secondary ACP role against the current Task phase, persist its transcript output, and convert exact agent output into an immutable report.
+- status: pending
+- files: src-tauri/src/acp.rs; src-tauri/src/commands.rs; src-tauri/src/storage.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; related tests and current knowledge.
+- affected units: Task/phase validation; secondary ACP start/send/drain/stop; secondary transcript creation; exact event provenance; immutable `task_agent_reports`.
+- expected changes: add a typed command that validates the current in-progress Task, creates an isolated secondary ACP session, creates a separate ACP transcript, sends a role-scoped prompt, persists user and agent events, creates a report from agent output, then stops and cleans up the secondary session/workspace.
+- acceptance criteria: only advisor/reviewer roles are accepted; only the current in-progress phase is targetable; a report requires persisted agent output; executor transcript and Task phase artifacts are untouched; failures do not create partial reports.
+- required tests: fake ACP happy path; invalid role/phase/task rejection; no-agent-output failure; cleanup/stop on failure; exact transcript provenance; full frontend/Rust gates.
+- review status: pending.
+- commit: pending.
+
+### 24.3. Add isolated secondary ACP workspace foundation
+- objective: create a backend launch boundary that gives secondary agents a writable repository snapshot while keeping the executor repository outside their visible filesystem.
+- status: complete
+- files: src-tauri/src/acp.rs; related Rust tests; working_knowledge/current/*.
+- affected units: ACP registry session start request; process command construction; repository snapshot creation; sandbox capability detection; cleanup lifecycle.
+- expected changes: extend ACP start internals with an explicit isolated workspace mode; copy a bounded snapshot that excludes `.git` and common generated directories; wrap registry adapter processes with `bwrap` when isolation is requested; report the snapshot cwd as the session cwd.
+- acceptance criteria: ordinary ACP startup remains unchanged; isolated startup refuses to run without `bwrap`; `session/new.cwd` points at the snapshot, not the original repository; `.git`, `node_modules`, `target`, and `dist` are not copied; the snapshot is removed when the ACP session drops.
+- required tests: snapshot filtering; sandbox command construction; isolated fake/registry launch uses snapshot cwd; no-isolation path remains unchanged; full Rust/frontend gates before commit.
+- review status: passed after 2 cycles; cycle 1 added direct missing-`bwrap` coverage and cycle 2 moved snapshot/sandbox logic out of `acp.rs` into `acp_workspace.rs`, then fixed the cleanup test to be parallel-safe.
+- commit: this commit.
+
 ### 22.14. Repair transcript provenance picker UX
 - objective: fix the screenshot-confirmed oversized/misaligned checkbox layout and keep long transcript provenance inspectable without dominating the Task workflow.
 - status: complete

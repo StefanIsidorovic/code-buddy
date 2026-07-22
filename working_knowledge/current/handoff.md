@@ -1,6 +1,9 @@
 # Handoff
 
 ## Current State
+- Plan item 24.3 is complete pending commit: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
+- Ordinary primary ACP registry starts remain unwrapped and keep their existing npx-neutral/binary-project cwd behavior.
+- `src-tauri/src/acp_workspace.rs` owns the snapshot/sandbox boundary and its tests; `src-tauri/src/acp.rs` only carries the optional isolation request through ACP session launch.
 - Activity now exposes a read-only Advisor & Reviewer Reports panel with role/phase/order/content, exact transcript identity, provenance count, refresh, and stale-safe Task switching; the tab summary includes report count.
 - TaskAgentReport now persists ordered immutable advisor/reviewer findings with exact secondary ACP event provenance; only a free same-project ACP transcript and current in-progress phase are accepted.
 - Secondary reports are deliberately separate from executor phase artifacts and expose no transition, evidence, receipt, runtime, or Git mutation authority.
@@ -57,7 +60,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Build an isolated secondary-agent workspace/launch boundary, then orchestrate its exact output into the immutable report contract without exposing the executor repository to mutation.
+- Build plan item 24.4: orchestrate one advisor/reviewer run through the isolated ACP launch boundary, persist a separate ACP transcript, turn exact agent output into an immutable Task report, and clean up the secondary session/workspace.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run
