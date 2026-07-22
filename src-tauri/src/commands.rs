@@ -17,17 +17,18 @@ use crate::{
         StartFakeSessionRequest,
     },
     storage::{
-        CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
-        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskContextDispatchRequest,
-        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskRequest,
-        CreateTranscriptSessionRequest, GenerateProjectInitializationSummaryRequest,
-        KnowledgeItemInfo, KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
-        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
-        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
-        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
-        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
-        ResolveTaskPhaseRunRequest, SaveProjectInitializationGuardrailsRequest,
-        TaskContextDispatchReceiptInfo, TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo,
+        CreateAcpTranscriptSessionRequest, CreateKnowledgeItemRequest,
+        CreateProjectInitializationRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
+        CreateTaskContextDispatchRequest, CreateTaskPhaseArtifactRequest,
+        CreateTaskPhaseRunRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
+        LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
+        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
+        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
+        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
+        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskContextDispatchReceiptInfo, TaskInfo,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
         TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
         TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
@@ -341,6 +342,22 @@ pub fn create_transcript_session(
     request: CreateTranscriptSessionRequest,
 ) -> AppResult<TranscriptSessionInfo> {
     state.create_transcript_session(request)
+}
+
+#[tauri::command]
+pub fn create_acp_transcript_session(
+    state: State<'_, ProjectStore>,
+    request: CreateAcpTranscriptSessionRequest,
+) -> AppResult<TranscriptSessionInfo> {
+    state.create_acp_transcript_session(request)
+}
+
+#[tauri::command]
+pub fn get_transcript_acp_identity(
+    state: State<'_, ProjectStore>,
+    transcript_session_id: String,
+) -> AppResult<Option<TranscriptAcpIdentityInfo>> {
+    state.transcript_acp_identity(&transcript_session_id)
 }
 
 #[tauri::command]

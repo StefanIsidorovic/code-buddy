@@ -80,7 +80,7 @@ function App() {
     liveEvents: liveTranscriptEvents,
     error: transcriptError, loading: transcriptLoading, filter: historyFilter,
     renameTitle: historyRenameTitle, selectedId: selectedHistorySessionId, activeTask,
-    refresh: refreshTranscriptSessions, create: createTranscriptSession,
+    refresh: refreshTranscriptSessions, createAcp: createAcpTranscriptSession,
     openSaved: openTranscriptSession, renameSelected: renameSelectedTranscriptSession,
     showLive: showLiveAcpEvents, record: recordTranscriptEvents,
     changeFilter: setHistoryFilter, changeRenameTitle: setHistoryRenameTitle,
@@ -157,7 +157,7 @@ function App() {
     toggleExpanded: toggleAcpControlsExpanded } = useAcpRuntime({
       projectId: selectedProjectId, cwd: selectedRepository?.path ?? selectedProject?.path,
       prompt: acpPrompt, onPromptChange: setAcpPrompt, attachedKnowledge: attachedKnowledgeItems,
-      transcript: { create: createTranscriptSession, attachKnowledge: attachSelectedKnowledgeToTranscript,
+      transcript: { createAcp: createAcpTranscriptSession, attachKnowledge: attachSelectedKnowledgeToTranscript,
         showLive: showLiveAcpEvents, getActiveId: getActiveSessionId, getTask: getTranscriptTask,
         upsertTask: upsertTranscriptTask, record: recordTranscriptEvents },
       runAction, reportError: setError,

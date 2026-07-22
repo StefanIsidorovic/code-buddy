@@ -794,6 +794,17 @@
 - review status: passed after 2 cycles; cycle 1 extracted serialized prompt-affine draining and proved overlap/duplicate boundaries, and cycle 2 added a pending-prompt integration test proving live visibility plus complete deduplicated phase linkage with no stale-transcript or gate regression.
 - commit: this commit
 
+### 23.3. Persist ACP recovery identity with transcripts
+- objective: retain the stable adapter and external agent session identifiers required for truthful post-restart resume.
+- status: complete
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; src/types/domain.ts; src/features/transcripts/useTranscriptWorkspace.ts; src/features/runtime/useAcpRuntime.ts; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: dedicated transcript-to-ACP recovery identity; atomic ACP transcript creation; ACP runtime-to-transcript boundary.
+- expected changes: add a separate one-to-one recovery table and create ACP transcripts with their candidate/session identity in one storage transaction; expose explicit identity lookup without polluting generic transcript DTOs.
+- acceptance criteria: existing databases gain the recovery table without rewriting transcript rows; identifiers must be non-empty; only ACP transcript creation can persist ACP identity; current starts persist exact IDs atomically; legacy transcripts have no inferred recovery identity.
+- required tests: migration; validation; create/list round trip; exact frontend create payload; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 separated ACP recovery identity from generic transcript DTOs and proved atomic persistence/migration, while cycle 2 verified exact runtime identifiers, rejected incomplete identity, updated App integration mocks, and found no remaining schema, stale-state, runtime-boundary, or architecture regression.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

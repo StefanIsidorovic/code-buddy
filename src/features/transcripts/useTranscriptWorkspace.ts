@@ -49,6 +49,15 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
       setSessions((current) => [value, ...current.filter(({ id }) => id !== value.id)]); return value;
     } catch (reason) { sessionRef.current = null; setSession(null); setError(errorText(reason)); return null; }
   }
+  async function createAcp(source: string, title: string, candidateId: string, agentSessionId: string) {
+    setError(null);
+    try { const value = await invokeCommand<TranscriptSessionInfo | null>("create_acp_transcript_session",
+      { request: { projectId, source, title, candidateId, agentSessionId } });
+      sessionRef.current = value; setSession(value);
+      if (!value) return null; setOpenedSession(null); setOpenedEvents([]); setLiveEvents([]);
+      setSessions((current) => [value, ...current.filter(({ id }) => id !== value.id)]); return value;
+    } catch (reason) { sessionRef.current = null; setSession(null); setError(errorText(reason)); return null; }
+  }
   async function openSaved(value: TranscriptSessionInfo) {
     const request = ++openRequest.current; onShowAcp(); setOpenedSession(value); setOpenedEvents([]); setLoading(true); setError(null);
     try { const events = await invokeCommand<TranscriptEventInfo[]>("list_transcript_events", { sessionId: value.id }) ?? [];
@@ -87,7 +96,7 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
   function upsertTask(task: TaskInfo) { tasksRef.current = { ...tasksRef.current, [task.transcriptSessionId]: task };
     setTasks((current) => ({ ...current, [task.transcriptSessionId]: task })); }
   return { session, sessions, openedSession, openedEvents, liveEvents, error, loading, filter, renameTitle, selectedId,
-    activeTask, refresh, create, openSaved, renameSelected, showLive, record,
+    activeTask, refresh, create, createAcp, openSaved, renameSelected, showLive, record,
     changeFilter: setFilter, changeRenameTitle: setRenameTitle, getActiveSessionId: () => sessionRef.current?.id ?? null,
     getTask: (id: string) => tasksRef.current[id] ?? null, upsertTask };
 }

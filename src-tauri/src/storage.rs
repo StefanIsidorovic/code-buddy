@@ -219,6 +219,25 @@ pub struct CreateTranscriptSessionRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CreateAcpTranscriptSessionRequest {
+    pub project_id: Option<String>,
+    pub source: String,
+    pub title: Option<String>,
+    pub candidate_id: String,
+    pub agent_session_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptAcpIdentityInfo {
+    pub transcript_session_id: String,
+    pub candidate_id: String,
+    pub agent_session_id: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TranscriptEventInput {
     pub kind: String,
     pub content: String,
@@ -1204,6 +1223,83 @@ impl ProjectStore {
         .map_err(storage_error)?;
 
         Ok(session)
+    }
+
+    pub fn create_acp_transcript_session(
+        &self,
+        request: CreateAcpTranscriptSessionRequest,
+    ) -> AppResult<TranscriptSessionInfo> {
+        let source = request.source.trim();
+        let candidate_id = request.candidate_id.trim();
+        let agent_session_id = request.agent_session_id.trim();
+        if source.is_empty() || candidate_id.is_empty() || agent_session_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "ACP source, candidate id, and agent session id must not be empty".into(),
+            ));
+        }
+        if let Some(project_id) = request.project_id.as_deref() {
+            self.require_project(project_id)?;
+        }
+        let now = unix_timestamp()?;
+        let session = TranscriptSessionInfo {
+            id: Uuid::new_v4().to_string(),
+            project_id: request.project_id,
+            runtime: "acp".to_string(),
+            source: source.to_string(),
+            title: request
+                .title
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or(source)
+                .to_string(),
+            started_at: now,
+            updated_at: now,
+            event_count: 0,
+        };
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        transaction.execute(
+            "INSERT INTO transcript_sessions (id, project_id, runtime, source, title, started_at, updated_at)
+             VALUES (?1, ?2, 'acp', ?3, ?4, ?5, ?6)",
+            params![&session.id, session.project_id.as_deref(), &session.source, &session.title,
+                session.started_at, session.updated_at],
+        ).map_err(storage_error)?;
+        transaction.execute(
+            "INSERT INTO transcript_acp_identities
+             (transcript_session_id, candidate_id, agent_session_id, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![&session.id, candidate_id, agent_session_id, now],
+        ).map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        Ok(session)
+    }
+
+    pub fn transcript_acp_identity(
+        &self,
+        transcript_session_id: &str,
+    ) -> AppResult<Option<TranscriptAcpIdentityInfo>> {
+        let transcript_session_id = transcript_session_id.trim();
+        if transcript_session_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "transcript session id must not be empty".into(),
+            ));
+        }
+        self.connection()?
+            .query_row(
+                "SELECT transcript_session_id, candidate_id, agent_session_id, created_at
+             FROM transcript_acp_identities WHERE transcript_session_id = ?1",
+                params![transcript_session_id],
+                |row| {
+                    Ok(TranscriptAcpIdentityInfo {
+                        transcript_session_id: row.get(0)?,
+                        candidate_id: row.get(1)?,
+                        agent_session_id: row.get(2)?,
+                        created_at: row.get(3)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(storage_error)
     }
 
     pub fn create_task(&self, request: CreateTaskRequest) -> AppResult<TaskInfo> {
@@ -2587,6 +2683,13 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_transcript_sessions_project_updated
                     ON transcript_sessions(project_id, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS transcript_acp_identities (
+                    transcript_session_id TEXT PRIMARY KEY REFERENCES transcript_sessions(id) ON DELETE CASCADE,
+                    candidate_id TEXT NOT NULL,
+                    agent_session_id TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
 
                 CREATE TABLE IF NOT EXISTS transcript_events (
                     id TEXT PRIMARY KEY,
@@ -6748,6 +6851,12 @@ mod tests {
         assert_eq!(task.complexity_assessment_version, "legacy_v0");
         assert_eq!(task.complexity_changes.len(), 1);
         assert_eq!(task.complexity_changes[0].assessment_version, "legacy_v0");
+        assert_eq!(
+            store
+                .transcript_acp_identity("transcript-1")
+                .expect("recovery table migrated"),
+            None
+        );
 
         drop(store);
         fs::remove_dir_all(database_directory).expect("temporary database removed");
@@ -7141,5 +7250,50 @@ mod tests {
             "git command failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    #[test]
+    fn creates_acp_transcript_with_recovery_identity_atomically() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let session = store
+            .create_acp_transcript_session(CreateAcpTranscriptSessionRequest {
+                project_id: None,
+                source: "Codex".to_string(),
+                title: Some("Recovery".to_string()),
+                candidate_id: "codex-acp".to_string(),
+                agent_session_id: "agent-123".to_string(),
+            })
+            .expect("ACP transcript created");
+        assert_eq!(session.runtime, "acp");
+        assert_eq!(
+            store
+                .transcript_acp_identity(&session.id)
+                .expect("identity queried"),
+            Some(TranscriptAcpIdentityInfo {
+                transcript_session_id: session.id,
+                candidate_id: "codex-acp".to_string(),
+                agent_session_id: "agent-123".to_string(),
+                created_at: session.started_at
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_incomplete_acp_recovery_identity_without_creating_transcript() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let error = store
+            .create_acp_transcript_session(CreateAcpTranscriptSessionRequest {
+                project_id: None,
+                source: "Codex".to_string(),
+                title: None,
+                candidate_id: "codex-acp".to_string(),
+                agent_session_id: " ".to_string(),
+            })
+            .expect_err("empty agent session rejected");
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert!(store
+            .list_transcript_sessions(None)
+            .expect("sessions listed")
+            .is_empty());
     }
 }

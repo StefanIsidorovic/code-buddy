@@ -64,7 +64,7 @@ const preview: UnifiedTaskContextSelectionInfo = { initializationId: "init1", ch
 
 function setup(projectId: string | null = null, activeTask: TaskInfo | null = null) {
   const transcript = {
-    create: vi.fn().mockResolvedValue(transcriptSession),
+    createAcp: vi.fn().mockResolvedValue(transcriptSession),
     attachKnowledge: vi.fn().mockResolvedValue(undefined),
     showLive: vi.fn(),
     getActiveId: vi.fn(() => "t1"),
@@ -110,7 +110,7 @@ describe("useAcpRuntime", () => {
     expect(invoke).toHaveBeenCalledWith("start_acp_registry_session", {
       request: { candidateId: candidate.id, cwd: "/repo" },
     });
-    expect(transcript.create).toHaveBeenCalledWith("acp", "Codex", "Codex ACP");
+    expect(transcript.createAcp).toHaveBeenCalledWith("Codex", "Codex ACP", "codex-acp", "agent1");
     expect(transcript.attachKnowledge).toHaveBeenCalledWith("t1");
     expect(result.current.session?.id).toBe("acp1");
     unmount();

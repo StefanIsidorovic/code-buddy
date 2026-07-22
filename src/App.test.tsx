@@ -99,7 +99,7 @@ beforeEach(() => {
       return Promise.resolve([]);
     }
 
-    if (command === "create_transcript_session") {
+    if (command === "create_acp_transcript_session") {
       return Promise.resolve(defaultTranscriptSession());
     }
 
@@ -2125,7 +2125,7 @@ describe("PTY test panel", () => {
         });
       }
 
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(defaultTranscriptSession());
       }
 
@@ -2171,10 +2171,11 @@ describe("PTY test panel", () => {
     await startSelectedAcp();
     expect(await screen.findAllByText("Codex · running · fake-acp-session"))
       .not.toHaveLength(0);
-    expect(invokeMock).toHaveBeenCalledWith("create_transcript_session", {
+    expect(invokeMock).toHaveBeenCalledWith("create_acp_transcript_session", {
       request: {
         projectId: null,
-        runtime: "acp",
+        candidateId: "codex-acp",
+        agentSessionId: "fake-acp-session",
         source: "Codex",
         title: "Codex ACP",
       },
@@ -2260,7 +2261,7 @@ describe("PTY test panel", () => {
         });
       }
 
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(defaultTranscriptSession());
       }
 
@@ -2368,7 +2369,7 @@ describe("PTY test panel", () => {
       if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
       }
       if (command === "create_task") {
@@ -2446,7 +2447,7 @@ describe("PTY test panel", () => {
       if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
       }
       if (command === "create_task") {
@@ -2493,7 +2494,7 @@ describe("PTY test panel", () => {
       if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
       }
       if (command === "create_task") {
@@ -2550,7 +2551,7 @@ describe("PTY test panel", () => {
       if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(defaultTranscriptSession({ projectId: defaultProject().id }));
       }
       if (command === "drain_acp_events") {
@@ -2588,7 +2589,7 @@ describe("PTY test panel", () => {
       if (command === "start_acp_registry_session") {
         return Promise.resolve(defaultAcpSession());
       }
-      if (command === "create_transcript_session") {
+      if (command === "create_acp_transcript_session") {
         return Promise.resolve(null);
       }
       if (command === "drain_acp_events") {

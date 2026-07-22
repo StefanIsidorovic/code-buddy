@@ -341,6 +341,13 @@ export type TranscriptSessionInfo = {
   eventCount: number;
 };
 
+export type TranscriptAcpIdentityInfo = {
+  transcriptSessionId: string;
+  candidateId: string;
+  agentSessionId: string;
+  createdAt: number;
+};
+
 export type TranscriptEventInfo = {
   id: string;
   sessionId: string;

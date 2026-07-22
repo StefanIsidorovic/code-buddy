@@ -13,6 +13,8 @@ export type TauriCommand =
   | "create_task"
   | "create_task_phase_artifact"
   | "create_transcript_session"
+  | "create_acp_transcript_session"
+  | "get_transcript_acp_identity"
   | "delete_project"
   | "delete_project_repository"
   | "drain_acp_events"

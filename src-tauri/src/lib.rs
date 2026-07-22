@@ -54,6 +54,8 @@ pub fn run() {
             commands::select_unified_project_task_context,
             commands::approve_project_initialization_summary,
             commands::create_transcript_session,
+            commands::create_acp_transcript_session,
+            commands::get_transcript_acp_identity,
             commands::create_task,
             commands::list_project_tasks,
             commands::update_task_complexity,

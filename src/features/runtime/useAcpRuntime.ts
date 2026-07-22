@@ -16,8 +16,7 @@ import type {
 } from "../../types/domain";
 import { useAcpPermissions } from "./useAcpPermissions";
 import { useAcpEventDrain } from "./useAcpEventDrain";
-
-interface TranscriptApi { create: (runtime: string, source: string, title: string) => Promise<TranscriptSessionInfo | null>;
+interface TranscriptApi { createAcp: (source: string, title: string, candidateId: string, agentSessionId: string) => Promise<TranscriptSessionInfo | null>;
   attachKnowledge: (sessionId: string) => Promise<void>;
   showLive: () => void;
   getActiveId: () => string | null;
@@ -103,10 +102,10 @@ export function useAcpRuntime({
       setSource(selectedCandidate.name);
       setEvents([]);
       setPromptResult(null);
-      const transcriptSession = await transcript.create("acp", selectedCandidate.name, `${selectedCandidate.name} ACP`);
-      if (transcriptSession) {
-        await transcript.attachKnowledge(transcriptSession.id);
-      }
+      if (!next.agentSessionId) throw new Error("ACP agent did not return a resumable session id.");
+      const transcriptSession = await transcript.createAcp(selectedCandidate.name, `${selectedCandidate.name} ACP`,
+        selectedCandidate.id, next.agentSessionId);
+      if (transcriptSession) await transcript.attachKnowledge(transcriptSession.id);
       await eventDrain.drain(next.id, transcriptSession?.id ?? null);
     });
   }

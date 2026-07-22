@@ -35,6 +35,17 @@ describe("useTranscriptWorkspace", () => {
       { request: { projectId: "p1", runtime: "acp", source: "Codex", title: "Codex ACP" } });
   });
 
+  it("creates an ACP transcript with its exact recovery identity", async () => {
+    invoke.mockImplementation((command) => command === "create_acp_transcript_session"
+      ? Promise.resolve(session("t2")) : Promise.resolve([]));
+    const { result } = renderHook(() => useTranscriptWorkspace({ projectId: "p1", onShowAcp }));
+    await act(() => result.current.createAcp("Codex", "Codex ACP", "codex-acp", "agent1"));
+    expect(result.current.getActiveSessionId()).toBe("t2");
+    expect(invoke).toHaveBeenCalledWith("create_acp_transcript_session", { request: {
+      projectId: "p1", source: "Codex", title: "Codex ACP", candidateId: "codex-acp", agentSessionId: "agent1",
+    } });
+  });
+
   it("ignores stale saved-session events after a newer session is opened", async () => {
     let resolveFirst: (value: TranscriptEventInfo[]) => void = () => undefined;
     const first = new Promise<TranscriptEventInfo[]>((resolve) => { resolveFirst = resolve; });

@@ -872,3 +872,9 @@ YYYY-MM-DD
 - Agent message/thought output se sada vidi i persistira dok je prompt jos pending, umesto tek na kraju.
 - Novi mali drain koordinator serijalizuje pollove, vezuje output za originalni transcript i akumulira/deduplikuje live i final provenance ID-jeve za phase receipt.
 - Frontend audit, 222 frontend testa, 103 Rust testa, typecheck, build, fmt i clippy prolaze; runtime hook ostaje na 249 linija.
+
+### 2026-07-22 - Durable ACP Recovery Identity
+
+- ACP transcript i njegov stabilni registry candidate/agent session identitet sada se upisuju atomicki u SQLite, kroz namensku 1:1 recovery tabelu koja ne zagadjuje genericki transcript model.
+- Postojece baze automatski dobijaju novu tabelu, legacy transcript-i ostaju bez lazno izvedenog recovery identiteta, a prazni identifikatori se odbijaju pre upisa.
+- Frontend audit, 223 frontend testa, 105 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 565 linija.
