@@ -836,3 +836,9 @@ YYYY-MM-DD
 - Task view prikazuje kompaktan Run, Prepare, Save evidence, Review, Complete tok i jednu jasnu sledecu akciju.
 - Run/Prepare su tacno oznaceni kao opcionalni helper-i; completion CTA prikazuje sledecu pending fazu ili zavrsetak Task-a bez auto-starta.
 - Frontend audit, 215 frontend testova, 97 Rust testova, typecheck, build, fmt i clippy prolaze; novi guide ima 26 linija i nema sopstveno stanje.
+
+### 2026-07-22 - Runtime Usability and ACP Noise Repair
+
+- Task/Activity imaju viewport-bounded desktop scroll; Task Context Preview moze da se zatvori tokom single-flight context send-a bez prekidanja request-a.
+- `tool_call_update` se odbacuje u Rust normalizeru pre persistence/rendera, meaningful tool_call ostaje, a idle polling je usporen sa 400 ms na 1000 ms.
+- Frontend audit, 215 frontend testova, 98 Rust testova, typecheck, build, fmt i clippy prolaze.

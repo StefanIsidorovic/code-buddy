@@ -728,6 +728,17 @@
 - review status: passed after 2 cycles; cycle 1 corrected false Run/Prepare completion claims by marking them optional helpers and preserving manual evidence, while cycle 2 added the final-review CTA boundary and found no remaining derived-stage, transition-copy, accessibility, responsive-layout, architecture, regression, or patch-hygiene issue.
 - commit: this commit
 
+### 22.19. Repair Task scrolling, modal dismissal, and ACP noise
+- objective: resolve screenshot-confirmed Task clipping, blocked context-preview dismissal, redundant ACP tool updates, and unnecessary idle polling overhead.
+- status: complete
+- files: src/App.css; src/features/knowledge/TaskContextPreviewDialog.tsx; src/features/knowledge/TaskContextPreviewDialog.test.tsx; src/features/runtime/useAcpRuntime.ts; src-tauri/src/acp.rs; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: ACP workspace scroll containment; context-preview visibility lifecycle; ACP session-update normalization; idle drain cadence.
+- expected changes: make Task/Activity tabpanels independently scrollable; allow dismissal while context send continues; discard all tool_call_update events before persistence; retain meaningful initial tool calls; poll idle ACP at one-second cadence.
+- acceptance criteria: full Task content is reachable; sending cannot be duplicated but modal exits remain available; literal tool_call_update never reaches output/transcript; meaningful tool_call remains; model/network latency is not misrepresented as fixed.
+- required tests: sending close/cancel/backdrop; tool update filtering and meaningful tool call; frontend/Rust suites, audit/typecheck/build/fmt/clippy, diff hygiene.
+- review status: passed after 2 cycles; cycle 1 verified modal single-flight/exit and backend noise filtering, then identified missing parent height containment; cycle 2 added viewport-bounded desktop scroll and found no remaining clipping, modal race, event semantics, polling, accessibility, responsive-layout, regression, security, or patch-hygiene issue.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

@@ -1074,7 +1074,8 @@ fn event_from_session_update(value: &Value) -> Option<AcpSessionEvent> {
         "available_commands_update" | "session_info_update" | "usage_update" => {
             return None;
         }
-        "tool_call" | "tool_call_update" => (
+        "tool_call_update" => return None,
+        "tool_call" => (
             AcpEventKind::ToolCall,
             update
                 .get("title")
@@ -1255,6 +1256,24 @@ done"#
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    #[test]
+    fn filters_tool_updates_but_keeps_meaningful_tool_calls() {
+        let update = json!({ "params": { "update": {
+            "sessionUpdate": "tool_call_update", "title": "noisy progress"
+        } } });
+        assert_eq!(event_from_session_update(&update), None);
+        let call = json!({ "params": { "update": {
+            "sessionUpdate": "tool_call", "title": "Run tests"
+        } } });
+        assert_eq!(
+            event_from_session_update(&call),
+            Some(AcpSessionEvent {
+                kind: AcpEventKind::ToolCall,
+                content: "Run tests".into()
+            })
+        );
+    }
 
     #[derive(Default)]
     struct FakeCommandResolver {

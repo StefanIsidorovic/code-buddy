@@ -15,14 +15,14 @@ export type TaskContextPreviewDialogProps = {
 export function TaskContextPreviewDialog({ error, loading, sending, canSend, preview, onClose, onSend }:
   TaskContextPreviewDialogProps) {
   return <div className="modal-backdrop" onMouseDown={(event) => {
-    if (event.target === event.currentTarget && !loading && !sending) onClose();
+    if (event.target === event.currentTarget && !loading) onClose();
   }}>
     <section role="dialog" aria-modal="true" aria-labelledby="task-context-preview-title"
       className="knowledge-modal task-context-preview-modal">
       <div className="modal-heading"><div><span>Knowledge selector</span>
         <h2 id="task-context-preview-title">Task Context Preview</h2></div>
         <button type="button" aria-label="Close task context preview" className="icon-button"
-          onClick={onClose} disabled={loading || sending}><CloseIcon /></button>
+          onClick={onClose} disabled={loading}><CloseIcon /></button>
       </div>
       {loading ? <StateNotice kind="loading" title="Selecting minimal task context…"
         description="Ranking project knowledge, attached cards, and Task artifacts against one character budget." />
@@ -56,7 +56,7 @@ export function TaskContextPreviewDialog({ error, loading, sending, canSend, pre
           <p className="field-hint">Your original prompt stays unchanged. This exact context is sent only
             when you choose the action below.</p>
           <div className="modal-actions">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={sending}>Cancel</button>
+            <button type="button" className="secondary-button" onClick={onClose}>Close</button>
             <button type="button" onClick={onSend}
               disabled={!canSend || sending || preview.renderedContext.trim().length === 0}>
               {sending ? "Sending context…" : "Send with this context"}

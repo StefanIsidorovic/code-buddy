@@ -1,6 +1,9 @@
 # Handoff
 
 ## Current State
+- Task and Activity views now scroll independently inside the desktop viewport, so long evidence/artifact content remains reachable; mobile keeps normal page scrolling.
+- Task Context Preview can close via X, Close, or backdrop while a context send continues single-flight; successful completion still refreshes dispatch history.
+- ACP `tool_call_update` events are dropped before output/transcript persistence, meaningful initial tool calls remain, and idle drain cadence is 1000 ms instead of 400 ms.
 - Task Phase shows a compact five-step guide; Run/Prepare are accurately optional, while Save evidence, Review, and Complete expose the authoritative gates and next required action.
 - Completion CTA names the next pending phase or final Task completion; the backend-returned phase renders immediately but still requires its own explicit Start.
 - Task Phase now offers `Prepare completion`, which loads only the latest current-phase sent receipt's linked response events into an editable draft with exact provenance IDs.
@@ -34,7 +37,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Begin the next major roadmap boundary: define capability-based multi-agent roles and a bounded planner/executor/reviewer orchestration contract before adding parallel execution UI.
+- Measure ACP phase-run latency across command wait, event drain, transcript persistence, and provenance linking before deciding whether further speed work belongs in AIadne, the adapter, or model/tool selection.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

@@ -69,7 +69,7 @@ export function useAcpRuntime({
   }, []);
   useEffect(() => {
     if (!usable || !session) return;
-    const timer = window.setInterval(() => void drain(session.id), 400);
+    const timer = window.setInterval(() => void drain(session.id), 1000);
     return () => window.clearInterval(timer);
   }, [session?.id, usable]);
 

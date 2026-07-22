@@ -54,16 +54,17 @@ describe("task context preview dialog", () => {
     expect(value.onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("sends only an available preview and locks every exit while sending", () => {
+  it("locks duplicate sending but allows every exit while the request continues", () => {
     const value = props({ preview });
     const { container, rerender } = render(<TaskContextPreviewDialog {...value} />);
     fireEvent.click(screen.getByRole("button", { name: "Send with this context" }));
     expect(value.onSend).toHaveBeenCalledOnce();
     rerender(<TaskContextPreviewDialog {...props({ preview, sending: true, onClose: value.onClose })} />);
     expect(screen.getByRole("button", { name: "Sending context…" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Close task context preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.mouseDown(container.querySelector(".modal-backdrop")!);
-    expect(value.onClose).not.toHaveBeenCalled();
+    expect(value.onClose).toHaveBeenCalledTimes(3);
   });
 
   it("disables sending when ACP is unavailable or rendered context is empty", () => {
