@@ -34,6 +34,7 @@
 - Workspace state boundary: focused ACP view selection is transient state owned by `AcpWorkspaceViews`; it does not justify shared Zustand state or backend persistence.
 - Provenance picker boundary: generic text-input sizing must explicitly exclude checkboxes; transcript provenance remains complete but collapsed by default with compact sequence/kind/content rows rather than an unbounded open fieldset.
 - ACP recovery protocol: use stable ACP v1 `session/load` only after `agentCapabilities.loadSession=true`; never substitute `session/new`, infer support, or publish the local process in the manager before load succeeds.
+- ACP replay boundary: `session/load` history is consumed into the resumed live UI exactly once and is not appended again to the existing transcript; only later live events use normal persistence.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

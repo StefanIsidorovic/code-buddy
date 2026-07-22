@@ -62,6 +62,7 @@
 - Frontend ACP drains continue during pending prompts through a serialized coordinator; transcript affinity is fixed at prompt start so view changes cannot redirect persisted output.
 - Controlled phase capture spans every live drain and the final flush, then deduplicates persisted agent message/thought IDs before linking the run receipt.
 - Persisted ACP transcripts retain a separate candidate/external-session recovery identity; backend recovery initializes that adapter, requires `agentCapabilities.loadSession`, sends `session/load` with the saved id and repository cwd, and reuses normal replay/model/prompt handling without creating a replacement conversation.
+- Session History exposes explicit Resume; the recovery hook guards active/concurrent/stale loads, consumes historical replay into UI without re-appending it, activates the existing transcript/Task, and lets only subsequent events return to normal persistence.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.

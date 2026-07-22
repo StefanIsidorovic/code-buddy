@@ -78,6 +78,10 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
     if (sessionRef.current?.id === value.id) sessionRef.current = value;
   }
   function showLive() { ++openRequest.current; onShowAcp(); setOpenedSession(null); setOpenedEvents([]); }
+  function activateSaved(value: TranscriptSessionInfo) {
+    ++openRequest.current; onShowAcp(); sessionRef.current = value; setSession(value);
+    setOpenedSession(null); setOpenedEvents([]); setLiveEvents([]);
+  }
   async function record(transcriptId: string | null | undefined, events: AcpSessionEvent[]) {
     if (!transcriptId) return []; const clean = coalesceTranscriptEvents(events.map(({ kind, content }) => ({ kind, content }))
       .filter(({ content }) => content.trim().length > 0)); if (clean.length === 0) return []; setError(null);
@@ -96,7 +100,7 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
   function upsertTask(task: TaskInfo) { tasksRef.current = { ...tasksRef.current, [task.transcriptSessionId]: task };
     setTasks((current) => ({ ...current, [task.transcriptSessionId]: task })); }
   return { session, sessions, openedSession, openedEvents, liveEvents, error, loading, filter, renameTitle, selectedId,
-    activeTask, refresh, create, createAcp, openSaved, renameSelected, showLive, record,
+    activeTask, refresh, create, createAcp, openSaved, activateSaved, renameSelected, showLive, record,
     changeFilter: setFilter, changeRenameTitle: setRenameTitle, getActiveSessionId: () => sessionRef.current?.id ?? null,
     getTask: (id: string) => tasksRef.current[id] ?? null, upsertTask };
 }

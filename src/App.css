@@ -1883,6 +1883,8 @@ dd {
 }
 
 .history-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   border: 1px solid var(--border);
   border-left: 4px solid var(--border-strong);
   border-radius: 8px;
@@ -1908,8 +1910,23 @@ dd {
   text-align: left;
 }
 
-.sidebar-history .history-list button {
+.sidebar-history .history-list .history-open {
   min-height: var(--history-row-height);
+}
+
+.sidebar-history .history-list .history-resume {
+  width: auto;
+  min-height: 32px;
+  align-self: center;
+  margin-right: 8px;
+  border: 1px solid var(--mint);
+  border-radius: 7px;
+  padding: 6px 9px;
+  background: var(--answer-bg);
+  color: var(--mint-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .history-list button[aria-pressed="true"] {

@@ -7,6 +7,8 @@ export type SessionHistoryPanelProps = {
   filter: string;
   loading: boolean;
   renameTitle: string;
+  resumeDisabled: boolean;
+  resumingSessionId: string | null;
   selectedSessionId: string | null;
   sessions: TranscriptSessionInfo[];
   onChangeFilter: (filter: string) => void;
@@ -14,11 +16,13 @@ export type SessionHistoryPanelProps = {
   onOpen: (session: TranscriptSessionInfo) => void;
   onRefresh: () => void;
   onRename: () => void;
+  onResume: (session: TranscriptSessionInfo) => void;
 };
 
 export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
-  const { activeSessionTitle, error, filter, loading, renameTitle, selectedSessionId, sessions,
-    onChangeFilter, onChangeRenameTitle, onOpen, onRefresh, onRename } = props;
+  const { activeSessionTitle, error, filter, loading, renameTitle, resumeDisabled, resumingSessionId,
+    selectedSessionId, sessions, onChangeFilter, onChangeRenameTitle, onOpen, onRefresh, onRename,
+    onResume } = props;
   const filtered = filterTranscriptSessions(sessions, filter);
   const visible = filtered.slice(0, 3);
   const selected = sessions.find((session) => session.id === selectedSessionId) ?? null;
@@ -41,11 +45,14 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
         {sessions.length === 0 ? <li>No saved sessions yet.</li>
           : filtered.length === 0 ? <li>No sessions match this filter.</li>
           : visible.map((session) => <li data-selected={session.id === selectedSessionId} key={session.id}>
-            <button type="button" aria-label={`Open ${session.title} transcript`}
+            <button className="history-open" type="button" aria-label={`Open ${session.title} transcript`}
               aria-pressed={session.id === selectedSessionId} onClick={() => onOpen(session)} disabled={loading}>
               <strong>{session.title}</strong><span>{session.source} · {session.runtime} · {session.eventCount} events</span>
               <small>{formatTimestamp(session.updatedAt)} · {shortId(session.id)}</small>
-            </button></li>)}
+            </button>{session.runtime === "acp" ? <button className="history-resume" type="button"
+              aria-label={`Resume ${session.title} session`} onClick={() => onResume(session)}
+              disabled={loading || resumeDisabled || resumingSessionId !== null}>
+              {resumingSessionId === session.id ? "Resuming…" : "Resume"}</button> : null}</li>)}
       </ul>
     </div>
   </details>;

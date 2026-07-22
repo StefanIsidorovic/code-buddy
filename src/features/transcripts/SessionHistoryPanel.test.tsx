@@ -9,8 +9,9 @@ const sessions: TranscriptSessionInfo[] = Array.from({ length: 4 }, (_, index) =
 }));
 function props(overrides: Partial<SessionHistoryPanelProps> = {}): SessionHistoryPanelProps {
   return { activeSessionTitle: null, error: null, filter: "", loading: false, renameTitle: "",
-    selectedSessionId: null, sessions: [], onChangeFilter: vi.fn(), onChangeRenameTitle: vi.fn(),
-    onOpen: vi.fn(), onRefresh: vi.fn(), onRename: vi.fn(), ...overrides };
+    resumeDisabled: false, resumingSessionId: null, selectedSessionId: null, sessions: [],
+    onChangeFilter: vi.fn(), onChangeRenameTitle: vi.fn(), onOpen: vi.fn(), onRefresh: vi.fn(),
+    onRename: vi.fn(), onResume: vi.fn(), ...overrides };
 }
 describe("session history panel", () => {
   it("renders a collapsed filtered/total summary and caps visible rows at three", () => {
@@ -35,11 +36,13 @@ describe("session history panel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     fireEvent.click(screen.getByRole("button", { name: "Open Task 0 transcript" }));
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: "Resume Task 0 session" }));
     expect(value.onChangeFilter).toHaveBeenCalledWith("Codex");
     expect(value.onChangeRenameTitle).toHaveBeenCalledWith("Next");
     expect(value.onRefresh).toHaveBeenCalledOnce();
     expect(value.onOpen).toHaveBeenCalledWith(sessions[0]);
     expect(value.onRename).toHaveBeenCalledOnce();
+    expect(value.onResume).toHaveBeenCalledWith(sessions[0]);
   });
   it("enforces rename validation and loading locks", () => {
     const { rerender } = render(<SessionHistoryPanel {...props({ sessions,
@@ -50,5 +53,12 @@ describe("session history panel", () => {
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Rename" })).toBeDisabled();
     expect(screen.getAllByRole("button", { name: /Open Task/ })[0]).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: /Resume Task/ })[0]).toBeDisabled();
+  });
+  it("locks every Resume action while one row is resuming or an ACP session is active", () => {
+    render(<SessionHistoryPanel {...props({ sessions, resumingSessionId: sessions[1].id })} />);
+    expect(screen.getByRole("button", { name: "Resume Task 1 session" })).toHaveTextContent("Resuming…");
+    expect(screen.getAllByRole("button", { name: /Resume Task/ })
+      .every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
   });
 });

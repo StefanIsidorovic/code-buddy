@@ -60,6 +60,17 @@ describe("useTranscriptWorkspace", () => {
     expect(result.current.openedSession?.id).toBe("t2"); expect(result.current.openedEvents[0]?.content).toBe("new");
   });
 
+  it("activates an existing transcript synchronously for resumed live persistence", async () => {
+    invoke.mockResolvedValue([]);
+    const { result } = renderHook(() => useTranscriptWorkspace({ projectId: "p1", onShowAcp }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.activateSaved(session("t1")));
+    expect(result.current.session?.id).toBe("t1");
+    expect(result.current.getActiveSessionId()).toBe("t1");
+    expect(result.current.openedSession).toBeNull();
+    expect(onShowAcp).toHaveBeenCalledOnce();
+  });
+
   it("coalesces and persists non-empty events while updating session metadata", async () => {
     const inserted: TranscriptEventInfo[] = [{ id: "e1", sessionId: "t1", sequence: 0,
       kind: "assistant_message", content: "answer", createdAt: 5 }];

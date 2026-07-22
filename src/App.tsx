@@ -81,7 +81,8 @@ function App() {
     error: transcriptError, loading: transcriptLoading, filter: historyFilter,
     renameTitle: historyRenameTitle, selectedId: selectedHistorySessionId, activeTask,
     refresh: refreshTranscriptSessions, createAcp: createAcpTranscriptSession,
-    openSaved: openTranscriptSession, renameSelected: renameSelectedTranscriptSession,
+    openSaved: openTranscriptSession, activateSaved: activateSavedTranscript,
+    renameSelected: renameSelectedTranscriptSession,
     showLive: showLiveAcpEvents, record: recordTranscriptEvents,
     changeFilter: setHistoryFilter, changeRenameTitle: setHistoryRenameTitle,
     getActiveSessionId, getTask: getTranscriptTask, upsertTask: upsertTranscriptTask } =
@@ -150,6 +151,7 @@ function App() {
     canStartSelected: canStartSelectedAcpCandidate, statusLabel: acpStatusLabel,
     permissions: acpPermissions, respondPermission: respondAcpPermission,
     refreshRegistry: refreshAcpRegistryCandidates, startSelected: startSelectedAcpSession,
+    resumeTranscript: resumeAcpTranscript, resumingSessionId: resumingAcpTranscriptId,
     changeModel: changeAcpCodingModel, sendPrompt: sendAcpPrompt, sendPhasePrompt: sendAcpPhasePrompt,
     drain: drainAcpEvents,
     stop: stopAcpSession, stopAllForDelete: stopRunningAcpSessionsForProjectDelete,
@@ -157,7 +159,8 @@ function App() {
     toggleExpanded: toggleAcpControlsExpanded } = useAcpRuntime({
       projectId: selectedProjectId, cwd: selectedRepository?.path ?? selectedProject?.path,
       prompt: acpPrompt, onPromptChange: setAcpPrompt, attachedKnowledge: attachedKnowledgeItems,
-      transcript: { createAcp: createAcpTranscriptSession, attachKnowledge: attachSelectedKnowledgeToTranscript,
+      transcript: { createAcp: createAcpTranscriptSession, activateSaved: activateSavedTranscript,
+        attachKnowledge: attachSelectedKnowledgeToTranscript,
         showLive: showLiveAcpEvents, getActiveId: getActiveSessionId, getTask: getTranscriptTask,
         upsertTask: upsertTranscriptTask, record: recordTranscriptEvents },
       runAction, reportError: setError,
@@ -266,12 +269,14 @@ function App() {
 
           <SessionHistoryPanel activeSessionTitle={transcriptSession?.title ?? null}
             error={transcriptError} filter={historyFilter} loading={transcriptLoading}
-            renameTitle={historyRenameTitle} selectedSessionId={selectedHistorySessionId}
+            renameTitle={historyRenameTitle} resumeDisabled={busy || canUseAcpSession}
+            resumingSessionId={resumingAcpTranscriptId} selectedSessionId={selectedHistorySessionId}
             sessions={transcriptSessions} onChangeFilter={setHistoryFilter}
             onChangeRenameTitle={setHistoryRenameTitle}
             onOpen={(session) => void openTranscriptSession(session)}
             onRefresh={() => void refreshTranscriptSessions()}
-            onRename={() => void renameSelectedTranscriptSession()} />
+            onRename={() => void renameSelectedTranscriptSession()}
+            onResume={(session) => void resumeAcpTranscript(session)} />
 
           <KnowledgeCardsPanel attachedCount={attachedKnowledgeItems.length}
             attachedIds={attachedKnowledgeIds} error={knowledgeDialogOpen ? null : knowledgeError}
@@ -342,7 +347,7 @@ function App() {
             onStop={(force) => void stopSession(force)} onUseAcp={() => setRuntimeMode("acp")} />
         ) : null}
         {runtimeMode === "acp" ? (
-          <AcpWorkspaceViews
+          <AcpWorkspaceViews key={acpSession?.id ?? "no-acp-session"}
             agent={<AcpRuntimePanel
             activeTask={activeTask}
             busy={busy}

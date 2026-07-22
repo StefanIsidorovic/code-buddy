@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- Session History now exposes an explicit per-row Resume action for ACP transcripts; it is locked during another live/resuming session and legacy rows fail with an actionable recovery message.
+- Successful Resume activates the existing transcript/Task, resets the workspace to Agent, consumes replay without duplicating SQLite history, and preserves future live persistence; workspace changes invalidate and stop late loads.
 - The backend can now restart a persisted registry adapter and issue ACP `session/load` with its exact stored external session id and repository cwd; successful replay events/model config reuse the normal runtime buffers.
 - Unsupported adapters, blank recovery identifiers, and failed loads never become managed sessions; failed child processes are killed by the session Drop boundary.
 - ACP output now appears and persists during long ordinary and controlled prompts instead of waiting for prompt completion.
@@ -49,7 +51,7 @@
 - ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
 
 ## Next Step
-- Add an explicit Resume action for a selected saved ACP transcript: fetch its stored recovery identity, call the proven load command, switch to live Agent view, and prevent resume while another ACP session is active.
+- Add restart reconciliation guidance for pending context/phase receipts around a resumed Task, without inferring that interrupted external effects succeeded.
 - Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
 
 ## Commands To Re-Run

@@ -16,8 +16,9 @@ import type {
 } from "../../types/domain";
 import { useAcpPermissions } from "./useAcpPermissions";
 import { useAcpEventDrain } from "./useAcpEventDrain";
+import { useAcpRecovery } from "./useAcpRecovery";
 interface TranscriptApi { createAcp: (source: string, title: string, candidateId: string, agentSessionId: string) => Promise<TranscriptSessionInfo | null>;
-  attachKnowledge: (sessionId: string) => Promise<void>;
+  activateSaved: (session: TranscriptSessionInfo) => void; attachKnowledge: (sessionId: string) => Promise<void>;
   showLive: () => void;
   getActiveId: () => string | null;
   getTask: (id: string) => TaskInfo | null;
@@ -33,7 +34,6 @@ interface Options { projectId: string | null;
   runAction: (action: () => Promise<void>) => Promise<void>;
   reportError: (message: string | null) => void;
 }
-
 export function useAcpRuntime({
   projectId,
   cwd,
@@ -63,17 +63,16 @@ export function useAcpRuntime({
   );
   const usable = session?.state === "running";
   const permission = useAcpPermissions(session?.id ?? null, usable, reportError);
-  const canStartSelected = !!selectedCandidate && isLaunchable(selectedCandidate) && !usable;
+  const recovery = useAcpRecovery({ cwd, scopeKey: projectId, sessionUsable: usable, reportError });
+  const canStartSelected = !!selectedCandidate && isLaunchable(selectedCandidate) && !usable && !recovery.resumingSessionId;
   const statusLabel = session
     ? `${source ?? session.agentName ?? "acp"} · ${session.state} · ${session.agentSessionId ?? "no agent session"}`
     : "not started";
-
   useEffect(() => { void refreshRegistry(); }, []); useEffect(() => {
     if (!usable || !session) return;
     const timer = window.setInterval(() => void eventDrain.drain(session.id), 1000);
     return () => window.clearInterval(timer);
   }, [session?.id, usable]);
-
   async function refreshRegistry() {
     setRegistryLoading(true);
     setRegistryError(null);
@@ -89,7 +88,7 @@ export function useAcpRuntime({
       setRegistryLoading(false);
     }
   }
-  async function startSelected() {
+  async function startSelected() { if (recovery.resumingSessionId) return;
     if (!selectedCandidate || !isLaunchable(selectedCandidate)) {
       reportError(selectedCandidate?.installHint ?? "Select an ACP candidate first.");
       return;
@@ -103,8 +102,7 @@ export function useAcpRuntime({
       setEvents([]);
       setPromptResult(null);
       if (!next.agentSessionId) throw new Error("ACP agent did not return a resumable session id.");
-      const transcriptSession = await transcript.createAcp(selectedCandidate.name, `${selectedCandidate.name} ACP`,
-        selectedCandidate.id, next.agentSessionId);
+      const transcriptSession = await transcript.createAcp(selectedCandidate.name, `${selectedCandidate.name} ACP`, selectedCandidate.id, next.agentSessionId);
       if (transcriptSession) await transcript.attachKnowledge(transcriptSession.id);
       await eventDrain.drain(next.id, transcriptSession?.id ?? null);
     });
@@ -118,6 +116,10 @@ export function useAcpRuntime({
         }),
       );
     });
+  }
+  async function resumeTranscript(value: TranscriptSessionInfo) { const recovered = await recovery.resume(value); if (!recovered) return false;
+    transcript.activateSaved(value); setSelectedCandidateId(recovered.identity.candidateId); setSession(recovered.session);
+    setSource(value.source); setEvents(recovered.replay); setPromptResult(null); return true;
   }
   async function sendPrompt(selectedTaskContext?: UnifiedTaskContextSelectionInfo) {
     if (!usable || !session || promptInFlight.current) return false;
@@ -236,13 +238,13 @@ export function useAcpRuntime({
     candidates, registryError, registryLoading, selectedCandidateId, session, events, prompt,
     promptResult, promptBusy, expanded, usable, canStartSelected, statusLabel, refreshRegistry,
     permissions: permission.permissions, respondPermission: permission.respond, startSelected,
-    changeModel, sendPrompt, sendPhasePrompt, drain, stop, stopAllForDelete,
+    changeModel, sendPrompt, sendPhasePrompt, resumeTranscript, resumingSessionId: recovery.resumingSessionId, drain,
+    stop, stopAllForDelete,
     selectCandidate: setSelectedCandidateId,
     changePrompt: onPromptChange,
     toggleExpanded: () => setExpanded((value) => !value),
   };
 }
-
 function isLaunchable(candidate: AcpRegistryCandidate) {
   return candidate.status === "ready" || candidate.status === "installable";
 }

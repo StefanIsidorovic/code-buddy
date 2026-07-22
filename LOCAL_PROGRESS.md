@@ -884,3 +884,9 @@ YYYY-MM-DD
 - Backend sada ponovo pokrece sacuvani registry adapter, proverava `agentCapabilities.loadSession` i salje `session/load` sa tacnim eksternim session ID-em i repository cwd-om, bez kreiranja zamenske konverzacije.
 - Replay dogadjaji i model konfiguracija koriste postojeci runtime tok; prazni ID-jevi, nepodrzani adapteri i neuspesan load se ne objavljuju u manageru, a child proces se cisti.
 - Frontend audit, 224 frontend testa, 108 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ostaje 565 linija.
+
+### 2026-07-22 - Session History Resume
+
+- Svaki sacuvani ACP transcript sada ima eksplicitni Resume: koristi njegov recovery identitet, aktivira isti transcript i Task, vraca Agent view i ne kreira zamensku istoriju.
+- `session/load` replay se prikazuje bez ponovnog SQLite upisa; kasni load posle promene workspace-a se gasi, a Start/Resume i paralelni Resume pozivi su zakljucani.
+- Frontend audit, 230 frontend testova, 108 Rust testova, typecheck, build, fmt i clippy prolaze; `App.tsx` ima 570, a runtime hook 250 linija.

@@ -1406,6 +1406,16 @@ describe("PTY test panel", () => {
         ]);
       }
 
+      if (command === "get_transcript_acp_identity") {
+        return Promise.resolve({ transcriptSessionId: "transcript-old", candidateId: "codex-acp",
+          agentSessionId: "saved-agent-session", createdAt: 1_785_000_001 });
+      }
+
+      if (command === "load_acp_registry_session") {
+        return Promise.resolve({ ...defaultAcpSession(), id: "resumed-local",
+          agentSessionId: "saved-agent-session" });
+      }
+
       if (command === "list_agent_doctor_reports") {
         return Promise.resolve(defaultDoctorReports());
       }
@@ -1450,6 +1460,13 @@ describe("PTY test panel", () => {
       .toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Open Newer Codex ACP transcript" }))
       .toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume Older Codex ACP session" }));
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("load_acp_registry_session", {
+      request: { candidateId: "codex-acp", agentSessionId: "saved-agent-session" },
+    }));
+    expect(await screen.findAllByText("Codex · running · saved-agent-session")).not.toHaveLength(0);
+    expect(screen.getByRole("tab", { name: /Agent/ })).toHaveAttribute("aria-selected", "true");
 
     invokeMock.mockImplementation((command, args) => {
       if (command === "list_transcript_events") {

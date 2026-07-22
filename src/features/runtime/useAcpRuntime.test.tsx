@@ -65,6 +65,7 @@ const preview: UnifiedTaskContextSelectionInfo = { initializationId: "init1", ch
 function setup(projectId: string | null = null, activeTask: TaskInfo | null = null) {
   const transcript = {
     createAcp: vi.fn().mockResolvedValue(transcriptSession),
+    activateSaved: vi.fn(),
     attachKnowledge: vi.fn().mockResolvedValue(undefined),
     showLive: vi.fn(),
     getActiveId: vi.fn(() => "t1"),
@@ -113,6 +114,21 @@ describe("useAcpRuntime", () => {
     expect(transcript.createAcp).toHaveBeenCalledWith("Codex", "Codex ACP", "codex-acp", "agent1");
     expect(transcript.attachKnowledge).toHaveBeenCalledWith("t1");
     expect(result.current.session?.id).toBe("acp1");
+    unmount();
+  });
+
+  it("activates the existing transcript after successful ACP recovery", async () => {
+    invoke.mockImplementation((command) => command === "list_acp_registry_candidates" ? Promise.resolve([candidate])
+      : command === "get_transcript_acp_identity" ? Promise.resolve({ transcriptSessionId: "t1",
+        candidateId: "codex-acp", agentSessionId: "agent1", createdAt: 1 })
+      : command === "load_acp_registry_session" ? Promise.resolve(session)
+      : command === "drain_acp_events" ? Promise.resolve([{ kind: "agent_message", content: "restored" }])
+      : Promise.resolve([]));
+    const { result, transcript, unmount } = setup("p1", task);
+    await act(() => result.current.resumeTranscript(transcriptSession));
+    expect(transcript.activateSaved).toHaveBeenCalledWith(transcriptSession);
+    expect(result.current.events).toEqual([{ kind: "agent_message", content: "restored" }]);
+    expect(transcript.createAcp).not.toHaveBeenCalled();
     unmount();
   });
 

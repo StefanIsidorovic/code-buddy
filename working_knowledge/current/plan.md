@@ -816,6 +816,17 @@
 - review status: passed after 2 cycles; cycle 1 verified capability negotiation, exact load payload, no session/new, replay/model restoration and prompt reuse, while cycle 2 verified blank-id rejection before spawn, unsupported/failed-load child cleanup, manager publication only after success, async command registration and gateway fidelity.
 - commit: this commit
 
+### 23.5. Resume a saved ACP transcript from Session History
+- objective: let the user explicitly turn a recoverable saved transcript back into the one live ACP/Task workspace.
+- status: complete
+- files: src/features/runtime/useAcpRuntime.ts; src/features/transcripts/useTranscriptWorkspace.ts; src/features/transcripts/SessionHistoryPanel.tsx; src/App.tsx; src/App.css; related tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: transcript activation; recovery identity lookup; ACP load orchestration; replay-only drain; Session History action policy.
+- expected changes: show Resume for ACP history rows; lock it during another live/action state; fetch the row's recovery identity, load its adapter with current repository cwd, activate the existing transcript/Task, consume load replay into live UI without re-persisting it, and switch to Agent view.
+- acceptance criteria: resume creates no transcript or Task; legacy rows report no recovery identity; replay does not call append_transcript_events; exact candidate/session/cwd reach backend; failed/stale actions do not replace the active transcript; active sessions lock all Resume actions.
+- required tests: panel action/lock/accessibility; exact successful orchestration and replay non-persistence; missing identity; active-session lock; transcript activation; App wiring; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 separated recovery orchestration from presentation and proved exact identity/load/replay behavior without transcript or Task creation, while cycle 2 added workspace-version cleanup, replay-failure tolerance, Start-vs-Resume locking, Agent-view reset, accessible row actions, and found no remaining stale-state, duplicate-persistence, concurrency, or composition regression.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.
