@@ -854,3 +854,9 @@ YYYY-MM-DD
 - ACP child vise ne guta stderr: cuva samo poslednja 4 KiB i dodaje ih startup/request exit gresci nakon kratke sinhronizacije sa zatvaranjem pipe-a.
 - Strukturisani Tauri AppError se prikazuje kao citljiva poruka umesto raw JSON objekta.
 - Direktni `codex-acp@1.1.0` initialize prolazi; frontend audit, 216 frontend testova, 102 Rust testa, typecheck, build, fmt i clippy prolaze.
+
+### 2026-07-22 - Isolated npx ACP Bootstrap
+
+- Root cause je bio npm koji je pre ACP starta citao projektni `package.json` i padao na invalid `devEngines.node`.
+- npx adapteri sada startuju iz neutralnog OS temp direktorijuma; binary adapteri zadrzavaju project cwd, a `session/new.cwd` i dalje usmerava Codex na pravi repository.
+- Realni Codex initialize/session-new za `/home/katarina/projects/super`, 216 frontend testova i 103 Rust testa prolaze uz sve audit/build/fmt/clippy gate-ove.

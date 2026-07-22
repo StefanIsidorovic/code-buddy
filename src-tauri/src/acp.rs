@@ -205,6 +205,7 @@ enum AcpRegistryDistribution {
 struct AcpRegistryLaunchCommand {
     program: String,
     args: Vec<String>,
+    distribution: AcpRegistryDistributionKind,
 }
 
 pub fn list_acp_registry_candidates() -> Vec<AcpRegistryCandidate> {
@@ -315,6 +316,7 @@ impl AcpRegistrySpec {
                 Ok(AcpRegistryLaunchCommand {
                     program: runner_path.display().to_string(),
                     args: launch_args,
+                    distribution: AcpRegistryDistributionKind::Npx,
                 })
             }
             AcpRegistryDistribution::Binary { executable, args } => {
@@ -328,6 +330,7 @@ impl AcpRegistrySpec {
                 Ok(AcpRegistryLaunchCommand {
                     program: runner_path.display().to_string(),
                     args: args.iter().map(|arg| (*arg).to_string()).collect(),
+                    distribution: AcpRegistryDistributionKind::Binary,
                 })
             }
         }
@@ -563,7 +566,7 @@ impl AcpSession {
         let launch = acp_registry_launch_command(candidate_id, resolver)?;
         let mut command = Command::new(&launch.program);
         command.args(&launch.args);
-        command.current_dir(&cwd);
+        command.current_dir(acp_process_cwd(launch.distribution, &cwd));
         Self::spawn_command(command, cwd)
     }
 
@@ -1068,6 +1071,13 @@ impl AcpSession {
         self.state
             .lock()
             .map_err(|_| AppError::Acp("acp runtime state lock poisoned".to_string()))
+    }
+}
+
+fn acp_process_cwd(distribution: AcpRegistryDistributionKind, project_cwd: &Path) -> PathBuf {
+    match distribution {
+        AcpRegistryDistributionKind::Npx => std::env::temp_dir(),
+        AcpRegistryDistributionKind::Binary => project_cwd.to_path_buf(),
     }
 }
 
@@ -1643,9 +1653,24 @@ mod tests {
             acp_registry_launch_command("codex-acp", &resolver).expect("launch command exists");
 
         assert_eq!(command.program, "/usr/bin/npx");
+        assert_eq!(command.distribution, AcpRegistryDistributionKind::Npx);
         assert_eq!(
             command.args,
             vec!["-y", "@agentclientprotocol/codex-acp@1.1.0"]
+        );
+    }
+
+    #[test]
+    fn npx_launch_is_neutral_while_binary_launch_keeps_project_cwd() {
+        let project_cwd = PathBuf::from("/project/with/package-metadata");
+
+        assert_eq!(
+            acp_process_cwd(AcpRegistryDistributionKind::Npx, &project_cwd),
+            std::env::temp_dir()
+        );
+        assert_eq!(
+            acp_process_cwd(AcpRegistryDistributionKind::Binary, &project_cwd),
+            project_cwd
         );
     }
 

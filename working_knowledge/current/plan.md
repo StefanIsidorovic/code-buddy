@@ -761,6 +761,17 @@
 - review status: passed after 2 cycles; cycle 1 proved the real adapter accepts AIadne initialize and captured the previously discarded stderr, and cycle 2 bounded memory, waited for pipe closure, preserved unknown-error fallback, and reran the one unrelated async frontend flake to a clean full pass.
 - commit: this commit
 
+### 22.22. Isolate npx ACP launch from project package metadata
+- objective: prevent selected-project `package.json` and npm configuration from terminating npx before the ACP adapter starts.
+- status: complete
+- files: src-tauri/src/acp.rs; related Rust tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- affected units: registry launch descriptor; ACP child process cwd; session/new repository cwd.
+- expected changes: launch npx distributions from the OS neutral temporary directory; retain project cwd for binary distributions and for the ACP session payload.
+- acceptance criteria: broken project npm metadata cannot affect npx bootstrap; agents still receive the selected repository path; binary candidate behavior remains unchanged; no project files are modified.
+- required tests: npx/binary launch-cwd policy; launch descriptor regression; full frontend/Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 traced npm's `devEngines.node` failure to project-cwd bootstrap and separated adapter process cwd from ACP session cwd, and cycle 2 proved real initialize/session-new against the affected repository plus unchanged binary policy and full regressions.
+- commit: this commit
+
 ## Plan Assumptions
 - One Task maps to one project-owned ACP transcript session, and the first user prompt is its immutable original prompt; project-less ACP remains a compatibility smoke path without Task persistence.
 - The four canonical phases are ordered analysis, planning, execution, and review; Task creation itself provides intake/framing, and review owns final learning capture.

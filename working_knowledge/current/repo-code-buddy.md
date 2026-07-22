@@ -54,6 +54,7 @@
 - ACP Controls now lives in `src/features/runtime/AcpRuntimePanel.tsx` behind a typed view-model/callback API; it owns presentation only and imports neither Tauri nor transcript/project orchestration.
 - ACP permissions are queued by the Rust transport and polled by `useAcpPermissions`; the state-free runtime panel renders only agent-offered choices and never auto-allows tool access.
 - ACP process stderr is retained as a bounded diagnostic tail and attached to failed request exits; shared frontend presentation unwraps serialized AppError messages for readable notices.
+- Registry launch separates package bootstrap from agent workspace: npx candidates use a neutral process cwd, binary candidates use project cwd, and ACP `session/new` always receives the selected repository.
 - Session Output now lives in `src/features/runtime/SessionOutputPanel.tsx`; App retains xterm/event refs, polling, coalescing, scroll effects, transcript selection, and live-view state while the feature owns PTY/ACP output markup.
 - Fake ACP is no longer a frontend control or public Tauri command; selected registry candidates are the only product ACP launch path, while manager-level fake subprocesses remain deterministic Rust protocol fixtures.
 - Responsive workspace/repository context summary and picker controls now live in `src/features/workspace/WorkspaceContextSelector.tsx`; App still owns selected IDs, persistence, modal state, and all mutations.

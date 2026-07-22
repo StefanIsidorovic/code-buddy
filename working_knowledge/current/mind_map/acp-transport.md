@@ -58,6 +58,7 @@
 - Agent-to-client `session/request_permission` requests are routed before generic response IDs, held in an opaque per-session queue, and exposed through typed list/respond commands.
 - The Agent view polls pending permissions independently while `session/prompt` blocks; users must select an offered choice, and graceful Stop sends cancelled outcomes.
 - Each child keeps only a 4 KiB stderr tail; request-exit errors briefly synchronize with pipe closure and include that tail so npx/auth/runtime startup failures are actionable without unbounded logging.
+- npx-based adapters bootstrap from the OS temporary directory rather than repository cwd, isolating npm from project `package.json`; the selected repository remains authoritative in `session/new.cwd`, while binary adapters retain process cwd compatibility.
 
 ## Watchouts
 - ACP stdout must contain only valid ACP JSON-RPC messages; logs belong on stderr.

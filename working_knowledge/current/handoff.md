@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current State
+- npx ACP adapters now bootstrap from the neutral OS temporary directory, preventing a selected project's invalid `devEngines`/npm metadata from exiting before initialize; `session/new` still targets the selected repository.
+- A real Codex ACP smoke test completed initialize and session creation for `/home/katarina/projects/super`; binary ACP launch cwd behavior is unchanged.
 - ACP child startup failures now include a bounded stderr reason and structured Tauri errors render as readable messages instead of raw `{code,message}` JSON.
 - Direct `codex-acp@1.1.0` initialize succeeds with AIadne's payload; the screenshot's exact child failure cannot be classified further because the old build discarded its stderr, so the next Start attempt is the authoritative diagnostic.
 - ACP tool-using prompts no longer deadlock when Codex requests permission: pending requests stay visible in Agent view (even with controls collapsed), and only an explicit offered choice resumes the prompt.
