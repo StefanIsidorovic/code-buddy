@@ -5467,3 +5467,13 @@ summary:focus-visible {
     grid-column: 1;
   }
 }
+.summary-claim-review-list { margin-top: 1rem; }
+.summary-claim-review-list > ul { display: grid; gap: .75rem; list-style: none; margin: .75rem 0 0; padding: 0; }
+.summary-claim-review { border: 1px solid var(--border); border-radius: 12px; display: grid; gap: .65rem; padding: .85rem; }
+.summary-claim-review.accepted { border-color: var(--mint); }
+.summary-claim-review.rejected { opacity: .72; }
+.summary-claim-heading, .summary-claim-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; }
+.summary-claim-heading span { font-size: .75rem; text-transform: uppercase; }
+.summary-claim-review label { display: grid; gap: .35rem; font-size: .78rem; font-weight: 600; }
+.summary-claim-review textarea { min-height: 5rem; resize: vertical; }
+.summary-claim-actions { justify-content: flex-end; }

@@ -46,6 +46,17 @@
 - review status: passed after 2 cycles; cycle 1 found stale tests that bypassed the new review boundary; cycle 2 verified migration compatibility, validation, deterministic identities, accepted-only publication, typed command exposure, and full gates.
 - commit: pending.
 
+#### 30.3.2. Add interactive Summary claim review
+- objective: let users edit and explicitly accept, reject, or defer each generated claim before approval.
+- status: complete pending commit.
+- files: src/features/initialization/InitializationDetailsDialog.tsx; useProjectInitializationWorkflow.ts; App.tsx; App.css; related tests; working_knowledge/current/plan.md.
+- affected units: typed review orchestration, stale-summary guard, claim editor, rejection reason, approval preview and lock.
+- expected changes: persist individual decisions through the 30.3.1 command; show publishable/pending counts; keep deferred decisions revisitable; prevent approval while claims remain pending or no publishable claim is accepted.
+- acceptance criteria: edits and decisions send exact typed payloads; rejected claims require a reason; late results cannot replace a different Summary; approval preview matches the backend publication boundary.
+- required tests: hook payload/update; claim editing/rejection lock; approval lock; App wiring; frontend audit/typecheck/full tests/build; Rust gates; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 found deferred claims could not be revisited; cycle 2 restored deferred-to-final actions and verified presentation/orchestration ownership, accessibility labels, loading locks and targeted regressions.
+- commit: pending.
+
 ### 30.4. Align Summary generation citation validation with approval
 - objective: prevent generated Summary drafts from passing synthesis validation and then failing approval because an individual knowledge line is uncited.
 - status: complete pending commit

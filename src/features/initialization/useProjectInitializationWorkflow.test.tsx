@@ -88,4 +88,19 @@ describe("useProjectInitializationWorkflow", () => {
     await act(async () => { resolveSummary(summary); await generation; });
     expect(result.current.summaryGenerating).toBe(false);
   });
+
+  it("persists a typed claim review and refreshes the current Summary", async () => {
+    const reviewed = { ...summary, claims: [{ id: "c1", section: "project_purpose", claimIndex: 0,
+      originalContent: "Purpose", content: "Edited [source: README.md]", status: "accepted" as const,
+      rejectionReason: null }] };
+    invoke.mockResolvedValueOnce(reviewed);
+    const { result, evidence } = setup();
+    await act(() => result.current.reviewSummaryClaim("c1", "accepted",
+      "Edited [source: README.md]", null));
+    expect(invoke).toHaveBeenCalledWith("review_project_initialization_summary_claim", {
+      request: { summaryId: "s1", claimId: "c1", status: "accepted",
+        content: "Edited [source: README.md]", rejectionReason: null },
+    });
+    expect(evidence.setSummary).toHaveBeenCalledWith("i1", reviewed);
+  });
 });

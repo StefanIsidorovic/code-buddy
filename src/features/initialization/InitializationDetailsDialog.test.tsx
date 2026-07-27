@@ -17,7 +17,9 @@ const finding: ProjectInitializationMarkdownFindingInfo = { id: "m1", initializa
 const summary: ProjectInitializationSummaryInfo = { id: "s1", initializationId: "i1",
   status: "draft", projectPurpose: "Agent workspace", repositoryMap: "core", repositoryRoles: "runtime",
   buildTestMatrix: "cargo test", fragileAreas: "storage", doNotTouchRules: "generated",
-  agentWorkingRules: "review", openQuestions: "none", claims: [], factCount: 1, markdownFindingCount: 1,
+  agentWorkingRules: "review", openQuestions: "none", claims: [{ id: "c1", section: "project_purpose",
+    claimIndex: 0, originalContent: "Agent workspace", content: "Agent workspace",
+    status: "accepted", rejectionReason: null }], factCount: 1, markdownFindingCount: 1,
   guardrailCount: 1, requestedModelProfileId: "profile", requestedModelProviderId: "openai",
   requestedModelId: "gpt", requestedModelTier: "mid", requestedModelParameters: [],
   modelCatalogSchemaVersion: 1, knowledgeSchemaVersion: 1, generationEngine: "openai_responses_v1",
@@ -30,7 +32,7 @@ const unit: KnowledgeUnitInfo = { id: "u1", projectId: "p1", initializationId: "
 function props(overrides: Partial<InitializationDetailsDialogProps> = {}): InitializationDetailsDialogProps {
   return { factGroups: [], initializeLoading: false, knowledgeUnits: [], knowledgeUnitsError: null,
     knowledgeUnitsLoading: false, markdownFindings: [], summary: null, view: "facts",
-    onApproveSummary: vi.fn(), onClose: vi.fn(), ...overrides };
+    onApproveSummary: vi.fn(), onReviewSummaryClaim: vi.fn(), onClose: vi.fn(), ...overrides };
 }
 
 describe("initialization details dialog", () => {
@@ -62,6 +64,21 @@ describe("initialization details dialog", () => {
     expect(value.onApproveSummary).toHaveBeenCalledOnce();
     rerender(<InitializationDetailsDialog {...value} initializeLoading />);
     expect(screen.getByRole("button", { name: "Approve Summary" })).toBeDisabled();
+  });
+
+  it("reviews an edited claim and requires a rejection reason", () => {
+    const pending = { ...summary, claims: [{ ...summary.claims[0], status: "pending" as const }] };
+    const value = props({ view: "summary", summary: pending });
+    render(<InitializationDetailsDialog {...value} />);
+    expect(screen.getByRole("button", { name: "Approve Summary" })).toBeDisabled();
+    const claim = screen.getByRole("textbox", { name: "Claim" });
+    fireEvent.change(claim, { target: { value: "Edited purpose [source: README.md]" } });
+    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Rejection reason" }),
+      { target: { value: "Incorrect scope" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+    expect(value.onReviewSummaryClaim).toHaveBeenCalledWith("c1", "rejected",
+      "Edited purpose [source: README.md]", "Incorrect scope");
   });
 
   it("orders approved Knowledge Unit loading, error, empty, and populated states", () => {

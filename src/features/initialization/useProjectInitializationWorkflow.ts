@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { errorText, uniqueIds } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
 import type { InitializeDetailsView, InterviewScope, ModelProfileInfo, ProjectInfo,
@@ -35,7 +35,9 @@ export function useProjectInitializationWorkflow(options: Options) {
   const [kind, setKind] = useState<ProjectInitializationGuardrailKind>("fragile");
   const [pathPattern, setPathPattern] = useState(""); const [content, setContent] = useState("");
   const [drafts, setDrafts] = useState<ProjectInitializationGuardrailInput[]>([]);
+  const summaryIdRef = useRef(summary?.id ?? null);
 
+  useEffect(() => { summaryIdRef.current = summary?.id ?? null; }, [summary?.id]);
   useEffect(() => { if (!initialization) { setDetailsView(null); setInterviewOpen(false); } }, [initialization]);
   function openDialog() { if (!project) { setError("Select a project before initializing it."); return; }
     setError(null); setRepositoryIds(repositories.map(({ id }) => id)); setDialogOpen(true); }
@@ -105,11 +107,25 @@ export function useProjectInitializationWorkflow(options: Options) {
       await evidence.refreshUnits(value.initializationId); notify("success", "Summary approved as active project profile.");
     } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
   }
+  async function reviewSummaryClaim(claimId: string, status: "accepted" | "rejected" | "deferred",
+    claimContent: string, rejectionReason: string | null) {
+    if (!summary) { notify("error", "Generate a summary before reviewing its claims."); return; }
+    const summaryId = summary.id;
+    setLoading(true);
+    try {
+      const value = await invokeCommand<ProjectInitializationSummaryInfo>(
+        "review_project_initialization_summary_claim", { request: {
+          summaryId, claimId, status, content: claimContent, rejectionReason,
+        } });
+      if (summaryIdRef.current !== summaryId) return;
+      evidence.setSummary(value.initializationId, value);
+    } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
+  }
   return { dialogOpen, repositoryIds, loading, summaryGenerating, error, detailsView, interviewOpen, interviewError,
     scope, repositoryId, kind, pathPattern, content, drafts, openDialog, closeDialog, toggleRepository,
     createInitialization, collectFacts, analyzeMarkdown, openInterview, closeInterview, addGuardrail,
     removeGuardrail: (index: number) => setDrafts((current) => current.filter((_, item) => item !== index)),
-    saveGuardrails, generateSummary, approveSummary, setDetailsView, changeScope: setScope,
+    saveGuardrails, generateSummary, approveSummary, reviewSummaryClaim, setDetailsView, changeScope: setScope,
     changeRepositoryId: setRepositoryId, changeKind: setKind, changePathPattern: setPathPattern, changeContent: setContent };
 }
 function toInput(value: ProjectInitializationGuardrailInfo): ProjectInitializationGuardrailInput {

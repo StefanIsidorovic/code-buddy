@@ -127,7 +127,9 @@ function App() {
     addGuardrail: addInterviewGuardrail, removeGuardrail: removeInterviewGuardrail,
     saveGuardrails: saveProjectInitializationGuardrails,
     generateSummary: generateProjectInitializationSummary,
-    approveSummary: approveProjectInitializationSummary, setDetailsView: setInitializeDetailsView,
+    approveSummary: approveProjectInitializationSummary,
+    reviewSummaryClaim: reviewProjectInitializationSummaryClaim,
+    setDetailsView: setInitializeDetailsView,
     changeScope: setInterviewScope, changeRepositoryId: setInterviewRepositoryId,
     changeKind: setInterviewKind, changePathPattern: setInterviewPathPattern,
     changeContent: setInterviewContent } = useProjectInitializationWorkflow({
@@ -524,6 +526,8 @@ function App() {
           summary={projectInitializationSummary}
           view={initializeDetailsView}
           onApproveSummary={() => void approveProjectInitializationSummary()}
+          onReviewSummaryClaim={(claimId, status, content, reason) =>
+            void reviewProjectInitializationSummaryClaim(claimId, status, content, reason)}
           onClose={() => setInitializeDetailsView(null)}
         />
       ) : null}

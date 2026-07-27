@@ -4,6 +4,7 @@ import { formatMarkdownCategory, markdownCategoryClassName } from "../../lib/pre
 import type {
   InitializeDetailsView, KnowledgeUnitInfo, ProjectInitializationFactInfo,
   ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
+  ProjectInitializationSummaryClaimInfo,
 } from "../../types/domain";
 
 export type InitializationFactGroup = {
@@ -22,8 +23,37 @@ export type InitializationDetailsDialogProps = {
   summary: ProjectInitializationSummaryInfo | null;
   view: InitializeDetailsView;
   onApproveSummary: () => void;
+  onReviewSummaryClaim: (claimId: string, status: "accepted" | "rejected" | "deferred",
+    content: string, rejectionReason: string | null) => void;
   onClose: () => void;
 };
+
+function SummaryClaimReview({ claim, loading, onReview }: {
+  claim: ProjectInitializationSummaryClaimInfo; loading: boolean;
+  onReview: InitializationDetailsDialogProps["onReviewSummaryClaim"];
+}) {
+  const [content, setContent] = useState(claim.content);
+  const [reason, setReason] = useState(claim.rejectionReason ?? "");
+  const locked = loading || claim.status === "accepted" || claim.status === "rejected";
+  return <li className={`summary-claim-review ${claim.status}`}>
+    <div className="summary-claim-heading"><strong>{claim.section.replace(/_/g, " ")}</strong>
+      <span>{claim.status}</span></div>
+    <label>Claim<textarea value={content} disabled={locked}
+      onChange={(event) => setContent(event.target.value)} /></label>
+    {claim.status !== "accepted" ? <label>Rejection reason
+      <input value={reason} disabled={loading || claim.status === "rejected"}
+        onChange={(event) => setReason(event.target.value)} /></label> : null}
+    {claim.status === "pending" || claim.status === "deferred" ? <div className="summary-claim-actions">
+      <button type="button" disabled={loading || !content.trim()}
+        onClick={() => onReview(claim.id, "accepted", content, null)}>Accept</button>
+      <button type="button" disabled={loading || !content.trim()}
+        onClick={() => onReview(claim.id, "deferred", content, null)}>Defer</button>
+      <button type="button" disabled={loading || !content.trim() || !reason.trim()}
+        onClick={() => onReview(claim.id, "rejected", content, reason)}>Reject</button>
+    </div> : null}
+    {claim.rejectionReason ? <small>Reason: {claim.rejectionReason}</small> : null}
+  </li>;
+}
 
 function FactsDetails({ groups }: { groups: InitializationFactGroup[] }) {
   if (groups.length === 0) return <StateNotice kind="prerequisite"
@@ -88,7 +118,7 @@ function PublishedUnits(props: Pick<InitializationDetailsDialogProps,
 }
 
 function SummaryDetails(props: InitializationDetailsDialogProps) {
-  const { summary, initializeLoading, onApproveSummary, onClose } = props;
+  const { summary, initializeLoading, onApproveSummary, onReviewSummaryClaim, onClose } = props;
   if (!summary) return <StateNotice kind="prerequisite" title="No summary available for review"
     description="Generate a Summary draft before opening the detailed review." />;
   const sections = [
@@ -97,6 +127,10 @@ function SummaryDetails(props: InitializationDetailsDialogProps) {
     ["Fragile Areas", summary.fragileAreas], ["Do Not Touch", summary.doNotTouchRules],
     ["Agent Rules", summary.agentWorkingRules], ["Open Questions", summary.openQuestions],
   ];
+  const claims = summary.claims ?? [];
+  const pendingCount = claims.filter((claim) => claim.status === "pending").length;
+  const acceptedCount = claims.filter((claim) =>
+    claim.status === "accepted" && claim.section !== "open_questions").length;
   return <>
     <div className="summary-details" aria-label="Project initialization summary">
       <div className="initialize-metric-grid" aria-label="Summary source counts">
@@ -115,11 +149,19 @@ function SummaryDetails(props: InitializationDetailsDialogProps) {
       </dl>
       <dl className="summary-section-list details-summary-list">{sections.map(([label, value]) =>
         <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+      <section className="summary-claim-review-list" aria-label="Summary claim review">
+        <div className="knowledge-unit-preview-heading"><div><span>Approval preview</span>
+          <h3>{acceptedCount} claim(s) will be published</h3></div>
+          <strong>{pendingCount} pending</strong></div>
+        <ul>{claims.map((claim) => <SummaryClaimReview key={claim.id}
+          claim={claim} loading={initializeLoading} onReview={onReviewSummaryClaim} />)}</ul>
+      </section>
       <PublishedUnits {...props} />
     </div>
     <div className="modal-actions"><button type="button" onClick={onClose}>Close</button>
       <button type="button" onClick={onApproveSummary}
-        disabled={initializeLoading || summary.status === "approved"}>Approve Summary</button></div>
+        disabled={initializeLoading || summary.status === "approved" ||
+          pendingCount > 0 || acceptedCount === 0}>Approve Summary</button></div>
   </>;
 }
 
@@ -140,3 +182,4 @@ export function InitializationDetailsDialog(props: InitializationDetailsDialogPr
       : <SummaryDetails {...props} />}
   </section></div>;
 }
+import { useState } from "react";
