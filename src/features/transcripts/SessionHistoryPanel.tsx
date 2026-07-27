@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { CloseIcon } from "../../components/ui/icons";
 import { filterTranscriptSessions, formatTimestamp, shortId } from "../../lib/presentation";
 import type { TranscriptSessionInfo } from "../../types/domain";
 
@@ -22,20 +25,35 @@ export type SessionHistoryPanelProps = {
 };
 
 export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
+  const [open, setOpen] = useState(false);
   const { activeSessionTitle, error, filter, loading, renameTitle, resumeDisabled,
     resumeDisabledReason, resumeError, resumingSessionId, selectedSessionId, sessions,
     onChangeFilter, onChangeRenameTitle, onOpen, onRefresh, onRename, onResume } = props;
   const filtered = filterTranscriptSessions(sessions, filter);
-  const visible = filtered.slice(0, 3);
   const selected = sessions.find((session) => session.id === selectedSessionId) ?? null;
   const resumeLocked = loading || resumeDisabled || resumingSessionId !== null;
   const resumeLockReason = resumeDisabledReason ?? (resumeDisabled ? "Resume is unavailable right now." : null);
-  return <details className="agent-accordion sidebar-history">
-    <summary><span>Session History</span><strong>{filtered.length}/{sessions.length} saved</strong></summary>
-    <div className="accordion-body">
-      <div className="doctor-heading"><h3 id="history-title">Session History</h3>
-        <span>{activeSessionTitle ?? "none active"}</span>
-        <button type="button" onClick={onRefresh} disabled={loading}>Refresh</button></div>
+  return <>
+    <button className="sidebar-modal-trigger sidebar-history" type="button"
+      aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <span><strong>Session History</strong><small>{activeSessionTitle ?? "No active session"}</small></span>
+      <span><strong>{filtered.length}/{sessions.length} saved</strong><b aria-hidden="true">›</b></span>
+    </button>
+    {open ? createPortal(<div className="modal-backdrop sidebar-modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) setOpen(false);
+    }}>
+      <section aria-labelledby="history-title" aria-modal="true"
+        className="knowledge-modal sidebar-management-modal session-history-modal" role="dialog">
+        <div className="modal-heading">
+          <div><p className="eyebrow">Saved work</p><h2 id="history-title">Session History</h2>
+            <span>{activeSessionTitle ?? "No active session"}</span></div>
+          <button aria-label="Close Session History" className="icon-button"
+            type="button" onClick={() => setOpen(false)}><CloseIcon /></button>
+        </div>
+        <div className="sidebar-modal-toolbar">
+          <strong>{filtered.length}/{sessions.length} saved</strong>
+          <button type="button" onClick={onRefresh} disabled={loading}>Refresh</button>
+        </div>
       <label className="history-filter"><span>Filter</span><input aria-label="Filter session history"
         onChange={(event) => onChangeFilter(event.target.value)}
         placeholder="Search title, agent, id..." value={filter} /></label>
@@ -50,7 +68,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
       <ul className="history-list" aria-label="Session history">
         {sessions.length === 0 ? <li>No saved sessions yet.</li>
           : filtered.length === 0 ? <li>No sessions match this filter.</li>
-          : visible.map((session) => <li data-selected={session.id === selectedSessionId} key={session.id}>
+          : filtered.map((session) => <li data-selected={session.id === selectedSessionId} key={session.id}>
             <button className="history-open" type="button" aria-label={`Open ${session.title} transcript`}
               aria-pressed={session.id === selectedSessionId} onClick={() => onOpen(session)} disabled={loading}>
               <small>{session.source} · {session.runtime}</small><strong>{session.title}</strong>
@@ -61,6 +79,7 @@ export function SessionHistoryPanel(props: SessionHistoryPanelProps) {
               disabled={resumeLocked}>
               {resumingSessionId === session.id ? "Resuming…" : resumeLocked ? "Locked" : "Resume"}</button> : null}</li>)}
       </ul>
-    </div>
-  </details>;
+      </section>
+    </div>, document.body) : null}
+  </>;
 }

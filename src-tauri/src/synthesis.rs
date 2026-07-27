@@ -143,19 +143,24 @@ fn validate_source_references(
         .collect::<HashSet<_>>();
 
     for (field, value) in draft.sections() {
-        let sources = extract_source_references(field, value)?;
-        if sources.is_empty() && !is_explicit_uncertainty(value) {
-            return Err(AppError::Synthesis(format!(
-                "model returned an uncited {field} section without an explicit uncertainty statement"
-            )));
-        }
-        if let Some(source) = sources
-            .iter()
-            .find(|source| !allowed_sources.contains(source.as_str()))
+        for line in value
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !is_markdown_heading(line))
         {
-            return Err(AppError::Synthesis(format!(
-                "model cited unknown source in {field}: {source}"
-            )));
+            let sources = extract_source_references(field, line)?;
+            if sources.is_empty() && !is_explicit_uncertainty(line) {
+                return Err(AppError::Synthesis(format!(
+                    "model returned an uncited knowledge unit in {field}"
+                )));
+            }
+            if let Some(source) = sources
+                .iter()
+                .find(|source| !allowed_sources.contains(source.as_str()))
+            {
+                return Err(AppError::Synthesis(format!(
+                    "model cited unknown source in {field}: {source}"
+                )));
+            }
         }
     }
     Ok(())
@@ -209,6 +214,19 @@ fn is_explicit_uncertainty(value: &str) -> bool {
     normalized.contains("needs confirmation:")
         || normalized.contains("no evidence")
         || (normalized.contains("no ") && normalized.contains(" supplied"))
+}
+
+fn is_markdown_heading(value: &str) -> bool {
+    let value = value.trim_start_matches(' ').trim_end();
+    let marker_count = value
+        .chars()
+        .take_while(|character| *character == '#')
+        .count();
+    (1..=6).contains(&marker_count)
+        && value[marker_count..]
+            .chars()
+            .next()
+            .is_none_or(char::is_whitespace)
 }
 
 impl ProjectInitializationKnowledgeDraft {
@@ -793,12 +811,40 @@ mod tests {
         uncited.project_purpose = "AIadne is an agent control surface.".to_string();
         assert!(matches!(
             validate_source_references(&uncited, &synthesis_context),
-            Err(AppError::Synthesis(message)) if message.contains("uncited project_purpose")
+            Err(AppError::Synthesis(message))
+                if message.contains("uncited knowledge unit in project_purpose")
         ));
 
         uncited.project_purpose = "No evidence was supplied for the project purpose.".to_string();
         validate_source_references(&uncited, &synthesis_context)
             .expect("explicit no-evidence text passes");
+    }
+
+    #[test]
+    fn rejects_an_uncited_line_inside_an_otherwise_cited_section() {
+        let synthesis_context = context("openai-gpt-5.6-terra-medium");
+        let mut mixed = draft();
+        mixed.build_test_matrix = [
+            "## Build and test",
+            "- Run the documented checks [source: README.md#purpose]",
+            "- Run an invented uncited command",
+        ]
+        .join("\n");
+
+        assert!(matches!(
+            validate_source_references(&mixed, &synthesis_context),
+            Err(AppError::Synthesis(message))
+                if message.contains("uncited knowledge unit in build_test_matrix")
+        ));
+
+        mixed.build_test_matrix = [
+            "## Build and test",
+            "- Run the documented checks [source: README.md#purpose]",
+            "- Needs confirmation: canonical package test command.",
+        ]
+        .join("\n");
+        validate_source_references(&mixed, &synthesis_context)
+            .expect("cited claims and explicit uncertainty lines pass");
     }
 
     #[test]

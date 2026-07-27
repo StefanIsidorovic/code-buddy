@@ -77,4 +77,15 @@ describe("useProjectInitializationWorkflow", () => {
     expect(evidence.setSummary).toHaveBeenLastCalledWith("i1", approved);
     expect(evidence.refreshUnits).toHaveBeenCalledWith("i1");
   });
+
+  it("exposes a Summary-specific loading state while synthesis is pending", async () => {
+    let resolveSummary: (value: ProjectInitializationSummaryInfo) => void = () => undefined;
+    invoke.mockImplementationOnce(() => new Promise((resolve) => { resolveSummary = resolve; }));
+    const { result } = setup();
+    let generation: Promise<void> = Promise.resolve();
+    act(() => { generation = result.current.generateSummary(); });
+    expect(result.current.summaryGenerating).toBe(true);
+    await act(async () => { resolveSummary(summary); await generation; });
+    expect(result.current.summaryGenerating).toBe(false);
+  });
 });

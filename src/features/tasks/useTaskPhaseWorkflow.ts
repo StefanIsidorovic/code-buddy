@@ -22,6 +22,9 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent,
       .finally(() => { if (request === requestId.current) setLoading(false); }); }, [task?.id]);
   function toggleSource(id: string, selected: boolean) { setSourceIds((current) => selected
     ? current.includes(id) ? current : [...current, id] : current.filter((value) => value !== id)); }
+  function toggleAllSources(selected: boolean) {
+    setSourceIds(selected ? sourceEvents.map(({ id }) => id) : []);
+  }
   async function prepareCompletion() { if (!task) return; const taskId = task.id; setLoading(true); setError(null);
     try { const events = await invokeCommand<TranscriptEventInfo[]>("latest_task_phase_run_response_events", { taskId });
       if (taskIdRef.current !== taskId) return; if (events.length === 0) {
@@ -46,6 +49,7 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent,
     catch (reason) { if (taskIdRef.current === task.id) setError(errorText(reason)); }
     finally { if (taskIdRef.current === task.id) setLoading(false); } }
   return { artifacts, kind, content, sourceIds, sourceEvents, error, loading, currentPhase, evidenceReviewed,
-    changeKind: setKind, changeContent: setContent, toggleSource, prepareCompletion, runAndPrepare, createArtifact,
+    changeKind: setKind, changeContent: setContent, toggleSource, toggleAllSources,
+    prepareCompletion, runAndPrepare, createArtifact,
     acknowledgeEvidenceReview: setEvidenceReviewed, start: () => transition("start"), complete: () => transition("complete") };
 }

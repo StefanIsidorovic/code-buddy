@@ -14,15 +14,21 @@ function props(overrides: Partial<SessionHistoryPanelProps> = {}): SessionHistor
     onOpen: vi.fn(), onRefresh: vi.fn(), onRename: vi.fn(), onResume: vi.fn(), ...overrides };
 }
 describe("session history panel", () => {
-  it("renders a collapsed filtered/total summary and caps visible rows at three", () => {
-    const { container } = render(<SessionHistoryPanel {...props({ sessions, filter: "Task" })} />);
-    expect(container.querySelector("details")).not.toHaveAttribute("open");
+  function openModal() {
+    fireEvent.click(screen.getByRole("button", { name: /Session History/ }));
+  }
+  it("renders a compact summary and opens every matching row in a modal", () => {
+    render(<SessionHistoryPanel {...props({ sessions, filter: "Task" })} />);
+    expect(screen.queryByRole("dialog", { name: "Session History" })).not.toBeInTheDocument();
     expect(screen.getByText("4/4 saved")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Open Task/ })).toHaveLength(3);
+    openModal();
+    expect(screen.getByRole("dialog", { name: "Session History" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Open Task/ })).toHaveLength(4);
   });
   it("renders empty, no-match, and error states", () => {
     const { rerender } = render(<SessionHistoryPanel {...props({ error: "offline",
       resumeError: "legacy transcript" })} />);
+    openModal();
     expect(screen.getByText("No saved sessions yet.")).toBeInTheDocument();
     expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual([
       "offline", "legacy transcript",
@@ -34,6 +40,7 @@ describe("session history panel", () => {
     const value = props({ sessions, selectedSessionId: sessions[0].id,
       renameTitle: "Renamed", activeSessionTitle: "Live" });
     render(<SessionHistoryPanel {...value} />);
+    openModal();
     fireEvent.change(screen.getByLabelText("Filter session history"), { target: { value: "Codex" } });
     fireEvent.change(screen.getByLabelText("Selected session name"), { target: { value: "Next" } });
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
@@ -50,6 +57,7 @@ describe("session history panel", () => {
   it("enforces rename validation and loading locks", () => {
     const { rerender } = render(<SessionHistoryPanel {...props({ sessions,
       selectedSessionId: sessions[0].id, renameTitle: sessions[0].title })} />);
+    openModal();
     expect(screen.getByRole("button", { name: "Rename" })).toBeDisabled();
     rerender(<SessionHistoryPanel {...props({ sessions, selectedSessionId: sessions[0].id,
       renameTitle: "Next", loading: true })} />);
@@ -61,6 +69,7 @@ describe("session history panel", () => {
   it("locks every Resume action while one row is resuming or an ACP session is active", () => {
     const { rerender } = render(<SessionHistoryPanel {...props({ sessions,
       resumingSessionId: sessions[1].id })} />);
+    openModal();
     expect(screen.getByRole("button", { name: "Resume Task 1 session" })).toHaveTextContent("Resuming…");
     expect(screen.getAllByRole("button", { name: /Resume Task/ })
       .every((button) => (button as HTMLButtonElement).disabled)).toBe(true);

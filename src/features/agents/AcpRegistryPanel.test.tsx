@@ -16,20 +16,28 @@ function props(overrides: Partial<AcpRegistryPanelProps> = {}): AcpRegistryPanel
     sessionLocked: false, onRefresh: vi.fn(), onSelect: vi.fn(), ...overrides };
 }
 describe("ACP registry panel", () => {
-  it("renders a default-collapsed empty selection summary", () => {
-    const { container } = render(<AcpRegistryPanel {...props()} />);
-    expect(container.querySelector("details")).not.toHaveAttribute("open");
-    expect(screen.getByText("none selected")).toBeInTheDocument();
+  function openModal() {
+    fireEvent.click(screen.getByRole("button", { name: /ACP Agents/ }));
+  }
+  it("renders a compact trigger and opens the registry as a modal", () => {
+    render(<AcpRegistryPanel {...props()} />);
+    expect(screen.queryByRole("dialog", { name: "ACP Agents" })).not.toBeInTheDocument();
+    expect(screen.getByText("None selected")).toBeInTheDocument();
+    openModal();
+    expect(screen.getByRole("dialog", { name: "ACP Agents" })).toBeInTheDocument();
   });
   it("renders statuses, metadata, formatted command, and selected summary", () => {
     render(<AcpRegistryPanel {...props({ candidates, selectedCandidateId: "codex" })} />);
+    openModal();
     expect(screen.getByText("Ready", { selector: ".doctor-status" })).toBeInTheDocument();
     expect(screen.getByText("Missing runner")).toBeInTheDocument();
-    expect(screen.getAllByText('npx "codex acp"')).toHaveLength(2);
+    expect(screen.getByText('npx "codex acp"').closest('[role="tooltip"]')).toBeInTheDocument();
+    expect(screen.getByLabelText("Show Codex launch command")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select Codex ACP candidate" })).toHaveAttribute("aria-pressed", "true");
   });
   it("forwards refresh and candidate selection", () => {
     const value = props({ candidates }); render(<AcpRegistryPanel {...value} />);
+    openModal();
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Claude ACP candidate" }));
     expect(value.onRefresh).toHaveBeenCalledOnce();
@@ -37,6 +45,7 @@ describe("ACP registry panel", () => {
   });
   it("renders errors and preserves loading, busy, and session locks", () => {
     const { rerender } = render(<AcpRegistryPanel {...props({ candidates, error: "offline", loading: true })} />);
+    openModal();
     expect(screen.getByRole("alert")).toHaveTextContent("offline");
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
     rerender(<AcpRegistryPanel {...props({ candidates, busy: true })} />);

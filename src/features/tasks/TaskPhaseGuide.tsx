@@ -1,13 +1,13 @@
 type StepStatus = "complete" | "current" | "optional" | "pending";
 
-interface Props { hasDraft: boolean; hasEvidence: boolean; reviewed: boolean }
+interface Props { hasRun: boolean; hasDraft: boolean; hasEvidence: boolean; reviewed: boolean }
 
 const labels = ["Run", "Prepare", "Save evidence", "Review", "Complete"];
 
-export function TaskPhaseGuide({ hasDraft, hasEvidence, reviewed }: Props) {
+export function TaskPhaseGuide({ hasRun, hasDraft, hasEvidence, reviewed }: Props) {
   const statuses: StepStatus[] = [
-    "optional",
-    "optional",
+    hasRun ? "complete" : "optional",
+    hasDraft ? "complete" : hasRun ? "current" : "optional",
     hasEvidence ? "complete" : "current",
     reviewed ? "complete" : hasEvidence ? "current" : "pending",
     reviewed ? "current" : "pending",

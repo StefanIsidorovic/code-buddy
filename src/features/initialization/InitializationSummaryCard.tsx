@@ -51,9 +51,11 @@ export function InitializationSummaryCard(props: InitializationSummaryCardProps)
         ? <p className="model-availability-note" role="status">{selectedProfile.unavailableReason}</p>
         : null}</> : null}
     </div>
-    <div className="initialize-card-actions"><button className="primary-action" type="button"
-      onClick={onGenerate} disabled={loading || !selectedProfile || selectedProfile.status !== "selectable"}>
-      Generate Summary</button><button type="button" onClick={onView} disabled={!summary}>View Summary</button></div>
+    <div className="initialize-card-actions"><button className="primary-action summary-generate-action" type="button"
+      onClick={onGenerate} disabled={loading || !selectedProfile || selectedProfile.status !== "selectable"}
+      aria-busy={loading}>
+      {loading ? <><span className="button-spinner" aria-hidden="true" />Generating Summary…</> : "Generate Summary"}
+    </button><button type="button" onClick={onView} disabled={!summary}>View Summary</button></div>
     {summary ? <div className="summary-preview" aria-label="Project initialization summary preview">
       <div className="initialize-metric-grid" aria-label="Summary source counts">
         <div><span>Facts</span><strong>{summary.factCount}</strong></div>

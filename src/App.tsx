@@ -10,12 +10,14 @@ import { useInitializationEvidence } from "./features/initialization/useInitiali
 import { useProjectInitializationWorkflow } from "./features/initialization/useProjectInitializationWorkflow";
 import { AcpRuntimePanel } from "./features/runtime/AcpRuntimePanel";
 import { AcpWorkspaceViews } from "./features/runtime/AcpWorkspaceViews";
+import { WorkspaceNavigation } from "./features/runtime/WorkspaceNavigation";
+import { useWorkspaceNavigation } from "./features/runtime/useWorkspaceNavigation";
 import { PtyRuntimePanel } from "./features/runtime/PtyRuntimePanel";
 import { SessionOutputPanel } from "./features/runtime/SessionOutputPanel";
 import { usePtyRuntime } from "./features/runtime/usePtyRuntime";
 import { useAcpRuntime } from "./features/runtime/useAcpRuntime";
 import {
-  WorkspaceContextSelector,
+  WorkspaceContextFooterActions,
   WorkspaceContextSummary,
 } from "./features/workspace/WorkspaceContextSelector";
 import { RepositoryDialog } from "./features/workspace/RepositoryDialog";
@@ -114,7 +116,7 @@ function App() {
   const knowledgeUnitsLoading = initializationEvidence.unitsLoading;
   const knowledgeUnitsError = initializationEvidence.unitsError;
   const { dialogOpen: initializeDialogOpen, repositoryIds: initializeRepositoryIds,
-    loading: initializeLoading, error: initializeError, detailsView: initializeDetailsView,
+    loading: initializeLoading, summaryGenerating, error: initializeError, detailsView: initializeDetailsView,
     interviewOpen: interviewDialogOpen, interviewError, scope: interviewScope,
     repositoryId: interviewRepositoryId, kind: interviewKind, pathPattern: interviewPathPattern,
     content: interviewContent, drafts: interviewDraftGuardrails,
@@ -188,6 +190,7 @@ function App() {
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
     onRunSettled: taskPhaseRuns.refresh });
+  const workspaceNavigation = useWorkspaceNavigation();
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
     [projectInitializationFacts],
@@ -213,7 +216,6 @@ function App() {
     [acpEvents, openedTranscriptEvents, openedTranscriptSession],
   );
   const showAcpWaiting = acpPromptBusy && !openedTranscriptSession;
-  const activeRuntimeCwd = runtimeMode === "acp" ? acpSession?.cwd : session?.cwd;
   const resumeDisabledReason = busy
     ? "Finish the current action before resuming a saved ACP session."
     : canUseAcpSession ? "Stop the running ACP session before resuming saved history." : null;
@@ -269,14 +271,15 @@ function App() {
         <WorkspaceContextSummary project={selectedProject} repository={selectedRepository} />
 
         <div className="mobile-sidebar-content" id="mobile-sidebar-navigation">
-        <WorkspaceContextSelector
-          project={selectedProject}
-          repository={selectedRepository}
-          onOpenRepository={openRepositoryDialog}
-          onOpenWorkspace={openWorkspaceDialog}
-        />
-
         <div className="sidebar-scroll">
+          <WorkspaceNavigation activeView={workspaceNavigation.activeView}
+            currentPhase={activeTask?.currentPhase ?? null}
+            initializationStatus={projectInitialization?.status ?? null}
+            pendingPermissionCount={acpPermissions.length}
+            onChangeView={(view) => {
+              setRuntimeMode("acp"); workspaceNavigation.changeView(view); setMobileNavigationOpen(false);
+            }} />
+
           <AcpRegistryPanel busy={busy} candidates={acpRegistryCandidates} error={acpRegistryError}
             loading={acpRegistryLoading} selectedCandidateId={selectedAcpCandidateId}
             sessionLocked={canUseAcpSession} onRefresh={() => void refreshAcpRegistryCandidates()}
@@ -305,6 +308,7 @@ function App() {
             onToggleMode={() => setRuntimeMode(runtimeMode === "pty" ? "acp" : "pty")} />
         </div>
 
+        <footer className="sidebar-footer">
         <dl className="runtime-info-card sidebar-runtime-info" aria-label="Runtime info">
           <div>
             <dt>Status</dt>
@@ -322,39 +326,12 @@ function App() {
             <dt>PID</dt>
             <dd>{runtimeMode === "acp" ? acpSession?.pid ?? "none" : session?.pid ?? "none"}</dd>
           </div>
-          <div>
-            <dt>Workspace</dt>
-            <dd>{selectedProject?.name ?? "none"}</dd>
-          </div>
-          <div>
-            <dt>Repository</dt>
-            <dd>{selectedRepository?.name ?? (selectedProject ? "default path" : "none")}</dd>
-          </div>
-          <div>
-            <dt>Active Folder</dt>
-            <dd>{activeRuntimeCwd ?? "none"}</dd>
-          </div>
+          <WorkspaceContextFooterActions project={selectedProject} repository={selectedRepository}
+            onOpenRepository={openRepositoryDialog} onOpenWorkspace={openWorkspaceDialog} />
         </dl>
+        </footer>
         </div>
       </section>
-
-      <ProjectInitializationPanel expanded={initializationExpanded}
-        factGroupsCount={projectInitializationFactGroups.length}
-        factPreviews={projectInitializationFactPreviewGroups} facts={projectInitializationFacts}
-        guardrails={projectInitializationGuardrails} initialization={projectInitialization}
-        loading={initializeLoading} markdownFindings={projectInitializationMarkdownFindings}
-        markdownPreviews={projectInitializationMarkdownPreview} onExpandedChange={setInitializationExpanded}
-        project={selectedProject}
-        repositoryCount={projectRepositories.length} onAnalyzeMarkdown={() => void analyzeProjectInitializationMarkdown()}
-        onCollectFacts={() => void collectProjectInitializationFacts()} onInitialize={openProjectInitializeDialog}
-        onOpenInterview={openInterviewDialog} onViewFacts={() => setInitializeDetailsView("facts")}
-        onViewMarkdown={() => setInitializeDetailsView("markdown")} summaryProps={{
-          catalog: modelCatalog, loading: initializeLoading, profileId: synthesisModelProfileId,
-          selectedProfile: selectedSynthesisModelProfile, summary: projectInitializationSummary,
-          tier: synthesisTier, onChangeProfile: setSynthesisModelProfileId,
-          onChangeTier: selectSynthesisTier, onGenerate: () => void generateProjectInitializationSummary(),
-          onView: () => setInitializeDetailsView("summary"),
-        }} />
 
       <section className="runtime-lane" aria-label="Runtime lane">
         {runtimeMode === "pty" ? (
@@ -366,6 +343,7 @@ function App() {
         ) : null}
         {runtimeMode === "acp" ? (
           <AcpWorkspaceViews key={acpSession?.id ?? "no-acp-session"}
+            activeView={workspaceNavigation.activeView}
             agent={<AcpRuntimePanel
             activeTask={activeTask}
             busy={busy}
@@ -394,15 +372,39 @@ function App() {
             onRespondPermission={(permissionId, optionId) => void respondAcpPermission(permissionId, optionId)}
             onToggleExpanded={toggleAcpControlsExpanded}
           />}
+            knowledge={<ProjectInitializationPanel expanded={initializationExpanded}
+            factGroupsCount={projectInitializationFactGroups.length}
+            factPreviews={projectInitializationFactPreviewGroups} facts={projectInitializationFacts}
+            guardrails={projectInitializationGuardrails} initialization={projectInitialization}
+            loading={initializeLoading} markdownFindings={projectInitializationMarkdownFindings}
+            markdownPreviews={projectInitializationMarkdownPreview} onExpandedChange={setInitializationExpanded}
+            project={selectedProject} repositoryCount={projectRepositories.length}
+            onAnalyzeMarkdown={() => void analyzeProjectInitializationMarkdown()}
+            onCollectFacts={() => void collectProjectInitializationFacts()}
+            onInitialize={openProjectInitializeDialog} onOpenInterview={openInterviewDialog}
+            onViewFacts={() => setInitializeDetailsView("facts")}
+            onViewMarkdown={() => setInitializeDetailsView("markdown")} summaryProps={{
+              catalog: modelCatalog, loading: summaryGenerating, profileId: synthesisModelProfileId,
+              selectedProfile: selectedSynthesisModelProfile, summary: projectInitializationSummary,
+              tier: synthesisTier, onChangeProfile: setSynthesisModelProfileId,
+              onChangeTier: selectSynthesisTier,
+              onGenerate: () => void generateProjectInitializationSummary(),
+              onView: () => setInitializeDetailsView("summary"),
+            }} />}
             output={<SessionOutputPanel events={displayAcpEvents} eventsListRef={acpEventsList} output={output}
               openedTranscript={openedTranscriptSession} runtimeMode={runtimeMode} showWaiting={showAcpWaiting}
               terminalElementRef={terminalElement} onFocusTerminal={focusTerminal} onShowLiveEvents={showLiveAcpEvents} />}
             task={activeTask ? <TaskPhasePanel task={activeTask} artifacts={taskPhase.artifacts}
             currentPhase={taskPhase.currentPhase} sourceEvents={taskPhase.sourceEvents} kind={taskPhase.kind}
             selectedSourceIds={taskPhase.sourceIds} content={taskPhase.content}
-            error={taskPhase.error} loading={taskPhase.loading} canRunAgent={canUseAcpSession}
-            agentRunning={acpPromptBusy} evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
+            error={taskPhase.error} loading={taskPhase.loading || taskPhaseRuns.loading}
+            canRunAgent={canUseAcpSession}
+            agentRunning={acpPromptBusy}
+            hasPhaseRun={taskPhaseRuns.receipts.some((receipt) =>
+              receipt.phase === activeTask.currentPhase && receipt.status === "sent")}
+            evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
+            onToggleAllSources={taskPhase.toggleAllSources}
             onPrepareCompletion={() => void taskPhase.prepareCompletion()}
             onAcknowledgeEvidenceReview={taskPhase.acknowledgeEvidenceReview}
             onCreateArtifact={() => void taskPhase.createArtifact()}
@@ -433,8 +435,12 @@ function App() {
             onChangeResolutionReason={taskDispatch.changeResolutionReason}
             onCancelResolution={taskDispatch.cancelResolution}
             onResolve={() => void taskDispatch.resolve()} /></>) : null}
-            currentPhase={activeTask?.currentPhase ?? null} phaseRunCount={taskPhaseRuns.receipts.length}
-            contextDispatchCount={taskDispatch.receipts.length} reportCount={taskAgentReports.reports.length} />
+            currentPhase={activeTask?.currentPhase ?? null}
+            phaseRunCount={taskPhaseRuns.receipts.length}
+            contextDispatchCount={taskDispatch.receipts.length}
+            reportCount={taskAgentReports.reports.length}
+            pendingPermissionCount={acpPermissions.length}
+            onChangeView={workspaceNavigation.changeView} />
         ) : null}
         {error ? (
           <p className="error-message" role="alert">

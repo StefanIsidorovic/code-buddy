@@ -2,6 +2,9 @@
 
 Fresh foundation for the AIadne multi-agent coding desktop app.
 
+Korisničko uputstvo na srpskom, sa slikama i objašnjenjima:
+[docs/KORISNICKA_DOKUMENTACIJA.md](docs/KORISNICKA_DOKUMENTACIJA.md).
+
 ## Current State
 
 This repository is intentionally early-stage. It keeps the desktop app

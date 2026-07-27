@@ -46,6 +46,10 @@ describe("initialization summary card", () => {
     rerender(<InitializationSummaryCard {...props({ selectedProfile: unavailable })} />);
     expect(screen.getByRole("status")).toHaveTextContent("Adapter missing");
     expect(screen.getByRole("button", { name: "Generate Summary" })).toBeDisabled();
+    rerender(<InitializationSummaryCard {...props({ loading: true })} />);
+    const generating = screen.getByRole("button", { name: "Generating Summary…" });
+    expect(generating).toBeDisabled();
+    expect(generating).toHaveAttribute("aria-busy", "true");
   });
   it("forwards generate/view and renders draft and approved previews", () => {
     const value = props({ summary }); const { rerender } = render(<InitializationSummaryCard {...value} />);

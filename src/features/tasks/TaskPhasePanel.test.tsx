@@ -17,8 +17,9 @@ const artifact: TaskPhaseArtifactInfo = { id: "a1", taskId: "t1", phase: "analys
   kind: "summary", content: "Analysis evidence", sourceTranscriptEventIds: ["e1"], createdAt: 1 };
 function props(overrides = {}) { return { task, artifacts: [], currentPhase: phases[0], sourceEvents: [event],
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
-  canRunAgent: true, agentRunning: false, evidenceReviewed: false,
+  canRunAgent: true, agentRunning: false, hasPhaseRun: false, evidenceReviewed: false,
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
+  onToggleAllSources: vi.fn(),
   onStart: vi.fn(), onComplete: vi.fn(), onRunAndPrepare: vi.fn(), onPrepareCompletion: vi.fn(),
   onAcknowledgeEvidenceReview: vi.fn(), ...overrides }; }
 
@@ -26,17 +27,19 @@ describe("TaskPhasePanel", () => {
   it("renders phase state and forwards evidence form changes", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     expect(screen.getByRole("heading", { name: "Task phases" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Artifact kind"), { target: { value: "risk" } });
-    fireEvent.change(screen.getByLabelText("Phase evidence"), { target: { value: "Risk found" } });
+    fireEvent.change(screen.getByLabelText(/Evidence type/), { target: { value: "risk" } });
+    fireEvent.change(screen.getByLabelText(/^Phase evidence/), { target: { value: "Risk found" } });
     fireEvent.click(screen.getByText("Transcript provenance"));
     fireEvent.click(screen.getByRole("checkbox", { name: /Found the boundary/ }));
     expect(value.onChangeKind).toHaveBeenCalledWith("risk"); expect(value.onChangeContent).toHaveBeenCalledWith("Risk found");
     expect(value.onToggleSource).toHaveBeenCalledWith("e1", true);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all persisted events" }));
+    expect(value.onToggleAllSources).toHaveBeenCalledWith(true);
   });
   it("explains the Task operating model without implying automatic completion", () => {
     render(<TaskPhasePanel {...props()} />);
     fireEvent.click(screen.getByText("How this Task works"));
-    expect(screen.getByText("Chat and live output happen in the Agent view.")).toBeInTheDocument();
+    expect(screen.getByText(/output stays visible beside every view/)).toBeInTheDocument();
     expect(screen.getByText("Use this view to save evidence, review it, and complete one phase at a time.")).toBeInTheDocument();
     expect(screen.getByText("Optional helper: it drafts evidence, but never saves or completes the phase.")).toBeInTheDocument();
     expect(screen.getByText(/read-only advisor\/reviewer reports/)).toBeInTheDocument();
@@ -67,10 +70,12 @@ describe("TaskPhasePanel", () => {
     expect(screen.getByText("Start an ACP session to run this phase.")).toBeInTheDocument();
   });
   it("offers explicit completion preparation without claiming persistence", () => {
-    const value = props(); render(<TaskPhasePanel {...value} />);
-    fireEvent.click(screen.getByRole("button", { name: "Prepare completion" }));
+    const value = props(); const view = render(<TaskPhasePanel {...value} />);
+    expect(screen.getByRole("button", { name: "Prepare evidence from latest run" })).toBeDisabled();
+    view.rerender(<TaskPhasePanel {...value} hasPhaseRun />);
+    fireEvent.click(screen.getByRole("button", { name: "Prepare evidence from latest run" }));
     expect(value.onPrepareCompletion).toHaveBeenCalledOnce();
-    expect(screen.getByText(/does not save evidence or complete the phase/)).toBeInTheDocument();
+    expect(screen.getByText(/Reloads the latest linked agent response/)).toBeInTheDocument();
   });
   it("keeps transcript provenance compact until explicitly opened", () => {
     render(<TaskPhasePanel {...props({ selectedSourceIds: ["e1"] })} />);
@@ -97,5 +102,9 @@ describe("TaskPhasePanel", () => {
     render(<TaskPhasePanel {...props({ task: reviewTask, currentPhase: reviewPhase,
       artifacts: [{ ...artifact, phase: "review" }], evidenceReviewed: true })} />);
     expect(screen.getByRole("button", { name: "Complete review & finish task" })).toBeEnabled();
+  });
+  it("locks a repeated phase run after a successful receipt", () => {
+    render(<TaskPhasePanel {...props({ hasPhaseRun: true })} />);
+    expect(screen.getByRole("button", { name: "analysis run finished" })).toBeDisabled();
   });
 });

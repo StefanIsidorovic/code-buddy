@@ -28,6 +28,7 @@ export function useProjectInitializationWorkflow(options: Options) {
     modelProfile, evidence, notify } = options;
   const [dialogOpen, setDialogOpen] = useState(false); const [repositoryIds, setRepositoryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false); const [error, setError] = useState<string | null>(null);
+  const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [detailsView, setDetailsView] = useState<InitializeDetailsView | null>(null);
   const [interviewOpen, setInterviewOpen] = useState(false); const [interviewError, setInterviewError] = useState<string | null>(null);
   const [scope, setScope] = useState<InterviewScope>("project"); const [repositoryId, setRepositoryId] = useState("");
@@ -92,10 +93,10 @@ export function useProjectInitializationWorkflow(options: Options) {
   async function generateSummary() {
     if (!initialization) { notify("error", "Start Project Initialize before generating a summary."); return; }
     if (!modelProfile || modelProfile.status !== "selectable") { notify("error", "Choose an available synthesis model before generating a summary."); return; }
-    setLoading(true); try { const value = await invokeCommand<ProjectInitializationSummaryInfo>(
+    setLoading(true); setSummaryGenerating(true); try { const value = await invokeCommand<ProjectInitializationSummaryInfo>(
       "generate_project_initialization_summary", { request: { initializationId: initialization.id, modelProfileId: modelProfile.id } });
       evidence.setSummary(initialization.id, value); evidence.advanceStatus(initialization, "summary"); notify("success", "Summary draft generated.");
-    } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
+    } catch (reason) { notify("error", errorText(reason)); } finally { setSummaryGenerating(false); setLoading(false); }
   }
   async function approveSummary() {
     if (!summary) { notify("error", "Generate a summary before approving it."); return; }
@@ -104,7 +105,7 @@ export function useProjectInitializationWorkflow(options: Options) {
       await evidence.refreshUnits(value.initializationId); notify("success", "Summary approved as active project profile.");
     } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
   }
-  return { dialogOpen, repositoryIds, loading, error, detailsView, interviewOpen, interviewError,
+  return { dialogOpen, repositoryIds, loading, summaryGenerating, error, detailsView, interviewOpen, interviewError,
     scope, repositoryId, kind, pathPattern, content, drafts, openDialog, closeDialog, toggleRepository,
     createInitialization, collectFacts, analyzeMarkdown, openInterview, closeInterview, addGuardrail,
     removeGuardrail: (index: number) => setDrafts((current) => current.filter((_, item) => item !== index)),
