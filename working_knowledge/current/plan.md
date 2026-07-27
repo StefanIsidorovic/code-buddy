@@ -26,13 +26,24 @@
 
 ### 30.3. Add granular Summary review before approval
 - objective: let users correct, reject, or defer individual generated Summary claims instead of approving an all-or-nothing synthesis.
-- status: planned
+- status: in progress; backend foundation committed separately as 30.3.1.
 - files: src-tauri/src/initialization.rs; src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/initialization/InitializationDetailsDialog.tsx; src/features/initialization/useProjectInitializationWorkflow.ts; related frontend/Rust tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: generated Summary structure, claim/section review state, regeneration inputs, approval and knowledge-unit publication boundary, Summary dialog UX, typed Tauri contracts.
 - expected changes: represent Summary claims as reviewable units; allow editing a claim, rejecting it with a reason, and regenerating one section; keep Open Questions distinct from accepted facts; publish only explicitly accepted knowledge units when Summary approval is confirmed.
 - acceptance criteria: no rejected or unresolved claim is published as knowledge; edits and rejection reasons remain auditable; section regeneration does not discard already reviewed unrelated sections; Open Questions remain unresolved inputs rather than approved knowledge; whole-Summary approval clearly shows exactly what will be published.
 - required tests: backend claim-state and partial-publication tests; rejected/open-question exclusion tests; section-regeneration preservation tests; dialog edit/reject/regenerate/approval-preview tests; stale-response guards; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; Rust fmt/test/clippy; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 verified the two-level navigation model, accessible Task-local tabs, persistent output, permission routing, and existing App workflows; cycle 2 passed the frontend audit, typecheck, all 264 frontend tests, production build, and diff hygiene with no remaining navigation, responsive-layout, or composition regression.
+- commit: pending.
+
+#### 30.3.1. Persist granular Summary claim review
+- objective: establish the authoritative backend review boundary before adding interactive review controls.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; affected frontend fixtures.
+- affected units: Summary storage migration, stable per-line claims, typed review command, approval validation, Knowledge Unit publication.
+- expected changes: persist pending/accepted/rejected/deferred claim decisions and edits; require rejection reasons; block pending approval; publish accepted non-question claims only; derive pending claims for legacy drafts.
+- acceptance criteria: review decisions survive reads; invalid review state is rejected; pending claims block approval; rejected/deferred/Open Question claims are excluded from publication.
+- required tests: pending approval rejection; rejection-reason validation; accepted/deferred flow; accepted-only unit publication; full frontend and Rust gates.
+- review status: passed after 2 cycles; cycle 1 found stale tests that bypassed the new review boundary; cycle 2 verified migration compatibility, validation, deterministic identities, accepted-only publication, typed command exposure, and full gates.
 - commit: pending.
 
 ### 30.4. Align Summary generation citation validation with approval

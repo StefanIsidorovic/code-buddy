@@ -18,7 +18,7 @@ const profile: ModelProfileInfo = { id: "m1", providerId: "openai", modelId: "gp
   unavailableReason: null };
 const summary: ProjectInitializationSummaryInfo = { id: "s1", initializationId: "i1", status: "draft",
   projectPurpose: "Purpose", repositoryMap: "Map", repositoryRoles: "Roles", buildTestMatrix: "Tests",
-  fragileAreas: "Fragile", doNotTouchRules: "Rules", agentWorkingRules: "Work", openQuestions: "None",
+  fragileAreas: "Fragile", doNotTouchRules: "Rules", agentWorkingRules: "Work", openQuestions: "None", claims: [],
   factCount: 1, markdownFindingCount: 1, guardrailCount: 1, requestedModelProfileId: "m1",
   requestedModelProviderId: "openai", requestedModelId: "gpt", requestedModelTier: "mid",
   requestedModelParameters: [], modelCatalogSchemaVersion: 1, knowledgeSchemaVersion: 1,

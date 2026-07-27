@@ -17,7 +17,7 @@ const finding: ProjectInitializationMarkdownFindingInfo = { id: "m1", initializa
 const summary: ProjectInitializationSummaryInfo = { id: "s1", initializationId: "i1",
   status: "draft", projectPurpose: "Agent workspace", repositoryMap: "core", repositoryRoles: "runtime",
   buildTestMatrix: "cargo test", fragileAreas: "storage", doNotTouchRules: "generated",
-  agentWorkingRules: "review", openQuestions: "none", factCount: 1, markdownFindingCount: 1,
+  agentWorkingRules: "review", openQuestions: "none", claims: [], factCount: 1, markdownFindingCount: 1,
   guardrailCount: 1, requestedModelProfileId: "profile", requestedModelProviderId: "openai",
   requestedModelId: "gpt", requestedModelTier: "mid", requestedModelParameters: [],
   modelCatalogSchemaVersion: 1, knowledgeSchemaVersion: 1, generationEngine: "openai_responses_v1",

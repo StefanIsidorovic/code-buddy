@@ -24,7 +24,7 @@ const doctor: AgentDoctorReport = { adapter: { id: "codex", displayName: "Codex"
   version: "1", error: null, installHint: "" };
 const summary: ProjectInitializationSummaryInfo = { id: "s1", initializationId: "i1", status: "draft",
   projectPurpose: "", repositoryMap: "", repositoryRoles: "", buildTestMatrix: "", fragileAreas: "",
-  doNotTouchRules: "", agentWorkingRules: "", openQuestions: "", factCount: 0, markdownFindingCount: 0,
+  doNotTouchRules: "", agentWorkingRules: "", openQuestions: "", claims: [], factCount: 0, markdownFindingCount: 0,
   guardrailCount: 0, requestedModelProfileId: "fast", requestedModelProviderId: "openai",
   requestedModelId: "fast", requestedModelTier: "fast", requestedModelParameters: [],
   modelCatalogSchemaVersion: 1, knowledgeSchemaVersion: 1, generationEngine: "test", createdAt: 1,

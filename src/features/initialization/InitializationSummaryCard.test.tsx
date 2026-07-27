@@ -13,7 +13,7 @@ const catalog: ModelCatalogInfo = { schemaVersion: 1,
   providers: [{ id: "openai", displayName: "OpenAI" }], profiles: [profile, unavailable] };
 const summary: ProjectInitializationSummaryInfo = { id: "s1", initializationId: "i1", status: "draft",
   projectPurpose: "purpose", repositoryMap: "map", repositoryRoles: "roles", buildTestMatrix: "tests",
-  fragileAreas: "fragile", doNotTouchRules: "none", agentWorkingRules: "rules", openQuestions: "none",
+  fragileAreas: "fragile", doNotTouchRules: "none", agentWorkingRules: "rules", openQuestions: "none", claims: [],
   factCount: 2, markdownFindingCount: 3, guardrailCount: 4, requestedModelProfileId: "p1",
   requestedModelProviderId: "openai", requestedModelId: "gpt", requestedModelTier: "mid",
   requestedModelParameters: [], modelCatalogSchemaVersion: 1, knowledgeSchemaVersion: 1,

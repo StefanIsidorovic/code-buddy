@@ -34,9 +34,9 @@ use crate::{
         ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
         ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
         ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
-        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
-        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
+        ReviewProjectInitializationSummaryClaimRequest, SaveProjectInitializationGuardrailsRequest,
+        TaskAgentReportInfo, TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo,
+        TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
         TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
         TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
@@ -375,6 +375,14 @@ pub fn approve_project_initialization_summary(
     summary_id: String,
 ) -> AppResult<ProjectInitializationSummaryInfo> {
     state.approve_project_initialization_summary(&summary_id)
+}
+
+#[tauri::command]
+pub fn review_project_initialization_summary_claim(
+    state: State<'_, ProjectStore>,
+    request: ReviewProjectInitializationSummaryClaimRequest,
+) -> AppResult<ProjectInitializationSummaryInfo> {
+    state.review_project_initialization_summary_claim(request)
 }
 
 #[tauri::command]

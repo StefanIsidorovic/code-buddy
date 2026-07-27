@@ -150,6 +150,7 @@ pub struct ProjectInitializationSummaryInfo {
     pub do_not_touch_rules: String,
     pub agent_working_rules: String,
     pub open_questions: String,
+    pub claims: Vec<ProjectInitializationSummaryClaimInfo>,
     pub fact_count: i64,
     pub markdown_finding_count: i64,
     pub guardrail_count: i64,
@@ -163,6 +164,28 @@ pub struct ProjectInitializationSummaryInfo {
     pub generation_engine: String,
     pub created_at: i64,
     pub approved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectInitializationSummaryClaimInfo {
+    pub id: String,
+    pub section: String,
+    pub claim_index: i64,
+    pub original_content: String,
+    pub content: String,
+    pub status: String,
+    pub rejection_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewProjectInitializationSummaryClaimRequest {
+    pub summary_id: String,
+    pub claim_id: String,
+    pub status: String,
+    pub content: String,
+    pub rejection_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1151,6 +1174,11 @@ impl ProjectStore {
                     "project initialization summary not found: {summary_id}"
                 ))
             })?;
+        if summary.claims.iter().any(|claim| claim.status == "pending") {
+            return Err(AppError::InvalidInput(
+                "review every summary claim before approval".to_string(),
+            ));
+        }
         let project_id: String = transaction
             .query_row(
                 "SELECT project_id FROM project_initialization_runs WHERE id = ?1",
@@ -1195,6 +1223,72 @@ impl ProjectStore {
         let connection = self.connection()?;
         project_initialization_summary_by_id(&connection, summary_id)?
             .ok_or_else(|| AppError::Storage("approved summary was not found".to_string()))
+    }
+
+    pub fn review_project_initialization_summary_claim(
+        &self,
+        request: ReviewProjectInitializationSummaryClaimRequest,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let summary_id = request.summary_id.trim();
+        let claim_id = request.claim_id.trim();
+        let status = request.status.trim();
+        if summary_id.is_empty() || claim_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary and claim ids must not be empty".into(),
+            ));
+        }
+        if !matches!(status, "accepted" | "rejected" | "deferred") {
+            return Err(AppError::InvalidInput(
+                "unsupported summary claim review status".into(),
+            ));
+        }
+        let content = request.content.trim();
+        if content.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary claim content must not be empty".into(),
+            ));
+        }
+        let reason = request
+            .rejection_reason
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        if status == "rejected" && reason.is_none() {
+            return Err(AppError::InvalidInput(
+                "rejected summary claims require a reason".into(),
+            ));
+        }
+        let connection = self.connection()?;
+        let mut summary = project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| {
+                AppError::InvalidInput(format!(
+                    "project initialization summary not found: {summary_id}"
+                ))
+            })?;
+        if summary.status == "approved" {
+            return Err(AppError::InvalidInput(
+                "approved summaries cannot be reviewed".into(),
+            ));
+        }
+        let claim = summary
+            .claims
+            .iter_mut()
+            .find(|claim| claim.id == claim_id)
+            .ok_or_else(|| {
+                AppError::InvalidInput(format!("summary claim not found: {claim_id}"))
+            })?;
+        claim.content = content.to_string();
+        claim.status = status.to_string();
+        claim.rejection_reason = if status == "rejected" { reason } else { None };
+        let claims_json = serde_json::to_string(&summary.claims)
+            .map_err(|err| AppError::Storage(err.to_string()))?;
+        connection
+            .execute(
+                "UPDATE project_initialization_summaries SET claims_json = ?1 WHERE id = ?2",
+                params![claims_json, summary_id],
+            )
+            .map_err(storage_error)?;
+        project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| AppError::Storage("reviewed summary was not found".into()))
     }
 
     pub fn list_project_initialization_knowledge_units(
@@ -3037,6 +3131,7 @@ impl ProjectStore {
                     do_not_touch_rules TEXT NOT NULL,
                     agent_working_rules TEXT NOT NULL,
                     open_questions TEXT NOT NULL,
+                    claims_json TEXT NOT NULL DEFAULT '[]',
                     fact_count INTEGER NOT NULL,
                     markdown_finding_count INTEGER NOT NULL,
                     guardrail_count INTEGER NOT NULL,
@@ -3285,6 +3380,12 @@ impl ProjectStore {
             .map_err(storage_error)?;
 
         let connection = self.connection()?;
+        ensure_table_column(
+            &connection,
+            "project_initialization_summaries",
+            "claims_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
         ensure_table_column(
             &connection,
             "project_initialization_summaries",
@@ -3643,10 +3744,13 @@ fn project_initialization_guardrail_from_row(
 fn project_initialization_summary_from_row(
     row: &rusqlite::Row<'_>,
 ) -> rusqlite::Result<ProjectInitializationSummaryInfo> {
-    let requested_model_parameters_json: String = row.get(20)?;
+    let claims_json: String = row.get(11)?;
+    let claims = serde_json::from_str(&claims_json)
+        .map_err(|err| rusqlite::Error::FromSqlConversionFailure(11, Type::Text, Box::new(err)))?;
+    let requested_model_parameters_json: String = row.get(21)?;
     let requested_model_parameters = serde_json::from_str(&requested_model_parameters_json)
-        .map_err(|err| rusqlite::Error::FromSqlConversionFailure(20, Type::Text, Box::new(err)))?;
-    Ok(ProjectInitializationSummaryInfo {
+        .map_err(|err| rusqlite::Error::FromSqlConversionFailure(21, Type::Text, Box::new(err)))?;
+    let mut summary = ProjectInitializationSummaryInfo {
         id: row.get(0)?,
         initialization_id: row.get(1)?,
         status: row.get(2)?,
@@ -3658,20 +3762,25 @@ fn project_initialization_summary_from_row(
         do_not_touch_rules: row.get(8)?,
         agent_working_rules: row.get(9)?,
         open_questions: row.get(10)?,
-        fact_count: row.get(11)?,
-        markdown_finding_count: row.get(12)?,
-        guardrail_count: row.get(13)?,
-        created_at: row.get(14)?,
-        approved_at: row.get(15)?,
-        requested_model_profile_id: row.get(16)?,
-        requested_model_provider_id: row.get(17)?,
-        requested_model_id: row.get(18)?,
-        requested_model_tier: row.get(19)?,
+        claims,
+        fact_count: row.get(12)?,
+        markdown_finding_count: row.get(13)?,
+        guardrail_count: row.get(14)?,
+        created_at: row.get(15)?,
+        approved_at: row.get(16)?,
+        requested_model_profile_id: row.get(17)?,
+        requested_model_provider_id: row.get(18)?,
+        requested_model_id: row.get(19)?,
+        requested_model_tier: row.get(20)?,
         requested_model_parameters,
-        model_catalog_schema_version: row.get(21)?,
-        knowledge_schema_version: row.get(22)?,
-        generation_engine: row.get(23)?,
-    })
+        model_catalog_schema_version: row.get(22)?,
+        knowledge_schema_version: row.get(23)?,
+        generation_engine: row.get(24)?,
+    };
+    if summary.claims.is_empty() {
+        summary.claims = summary_claims(&summary);
+    }
+    Ok(summary)
 }
 
 fn transcript_session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSessionInfo> {
@@ -3987,7 +4096,7 @@ fn list_project_initialization_summary(
         .prepare(
             "SELECT id, initialization_id, status, project_purpose, repository_map,
                     repository_roles, build_test_matrix, fragile_areas,
-                    do_not_touch_rules, agent_working_rules, open_questions,
+                    do_not_touch_rules, agent_working_rules, open_questions, claims_json,
                     fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
                     requested_model_profile_id, requested_model_provider_id,
                     requested_model_id, requested_model_tier,
@@ -4017,7 +4126,7 @@ fn project_initialization_summary_by_id(
         .prepare(
             "SELECT id, initialization_id, status, project_purpose, repository_map,
                     repository_roles, build_test_matrix, fragile_areas,
-                    do_not_touch_rules, agent_working_rules, open_questions,
+                    do_not_touch_rules, agent_working_rules, open_questions, claims_json,
                     fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
                     requested_model_profile_id, requested_model_provider_id,
                     requested_model_id, requested_model_tier,
@@ -4046,18 +4155,20 @@ fn insert_project_initialization_summary(
     let requested_model_parameters_json =
         serde_json::to_string(&summary.requested_model_parameters)
             .map_err(|err| AppError::Storage(err.to_string()))?;
+    let claims_json =
+        serde_json::to_string(&summary.claims).map_err(|err| AppError::Storage(err.to_string()))?;
     connection
         .execute(
             "INSERT INTO project_initialization_summaries
              (id, initialization_id, status, project_purpose, repository_map,
               repository_roles, build_test_matrix, fragile_areas,
-              do_not_touch_rules, agent_working_rules, open_questions,
+              do_not_touch_rules, agent_working_rules, open_questions, claims_json,
               fact_count, markdown_finding_count, guardrail_count, created_at, approved_at,
               requested_model_profile_id, requested_model_provider_id, requested_model_id,
               requested_model_tier, requested_model_parameters_json,
               model_catalog_schema_version, knowledge_schema_version, generation_engine)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                     ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
+                     ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
             params![
                 &summary.id,
                 &summary.initialization_id,
@@ -4070,6 +4181,7 @@ fn insert_project_initialization_summary(
                 &summary.do_not_touch_rules,
                 &summary.agent_working_rules,
                 &summary.open_questions,
+                &claims_json,
                 summary.fact_count,
                 summary.markdown_finding_count,
                 summary.guardrail_count,
@@ -4094,80 +4206,70 @@ fn build_knowledge_units(
     project_id: &str,
     created_at: i64,
 ) -> AppResult<Vec<KnowledgeUnitInfo>> {
-    let sections = [
-        ("project_purpose", "purpose", &summary.project_purpose),
-        ("repository_map", "repository", &summary.repository_map),
-        (
-            "repository_roles",
-            "repository_role",
-            &summary.repository_roles,
-        ),
-        ("build_test_matrix", "command", &summary.build_test_matrix),
-        ("fragile_areas", "fragile_area", &summary.fragile_areas),
-        (
-            "do_not_touch_rules",
-            "constraint",
-            &summary.do_not_touch_rules,
-        ),
-        (
-            "agent_working_rules",
-            "agent_rule",
-            &summary.agent_working_rules,
-        ),
-        ("open_questions", "open_question", &summary.open_questions),
-    ];
     let mut units = Vec::new();
-    for (topic, kind, section) in sections {
-        for (line_index, line) in section
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .enumerate()
-        {
-            if is_markdown_heading(line) {
-                continue;
-            }
-            let sources = knowledge_unit_source_keys(line)?;
-            let content = strip_knowledge_unit_source_markers(line);
-            let content = trim_list_prefix(&content);
-            if content.is_empty() {
+    for claim in summary
+        .claims
+        .iter()
+        .filter(|claim| claim.status == "accepted")
+    {
+        let topic = claim.section.as_str();
+        let kind = match topic {
+            "project_purpose" => "purpose",
+            "repository_map" => "repository",
+            "repository_roles" => "repository_role",
+            "build_test_matrix" => "command",
+            "fragile_areas" => "fragile_area",
+            "do_not_touch_rules" => "constraint",
+            "agent_working_rules" => "agent_rule",
+            "open_questions" => continue,
+            _ => {
                 return Err(AppError::InvalidInput(format!(
-                    "summary {topic} contains a source marker without knowledge content"
-                )));
+                    "unsupported summary claim section: {topic}"
+                )))
             }
-            let is_uncertain = is_uncertain_knowledge_content(content);
-            if sources.is_empty() && !is_uncertain {
-                return Err(AppError::InvalidInput(format!(
-                    "summary {topic} contains an uncited knowledge unit"
-                )));
-            }
-            let identity = format!("{}\n{topic}\n{line_index}\n{content}", summary.id);
-            units.push(KnowledgeUnitInfo {
-                id: Uuid::new_v5(&Uuid::NAMESPACE_OID, identity.as_bytes()).to_string(),
-                project_id: project_id.to_string(),
-                initialization_id: summary.initialization_id.clone(),
-                derived_from_summary_id: summary.id.clone(),
-                kind: kind.to_string(),
-                topic: topic.to_string(),
-                content: content.to_string(),
-                scope: "project".to_string(),
-                status: if is_uncertain {
-                    "needs_confirmation".to_string()
-                } else {
-                    "active".to_string()
-                },
-                confidence: if is_uncertain { 0 } else { 100 },
-                schema_version: summary.knowledge_schema_version,
-                sources: sources
-                    .into_iter()
-                    .map(|source_key| KnowledgeUnitSourceInfo {
-                        source_key,
-                        repository_id: None,
-                        path: None,
-                    })
-                    .collect(),
-                created_at,
-            });
+        };
+        let line = &claim.content;
+        let sources = knowledge_unit_source_keys(line)?;
+        let content = strip_knowledge_unit_source_markers(line);
+        let content = trim_list_prefix(&content);
+        if content.is_empty() {
+            return Err(AppError::InvalidInput(format!(
+                "summary {topic} contains a source marker without knowledge content"
+            )));
         }
+        let is_uncertain = is_uncertain_knowledge_content(content);
+        if sources.is_empty() && !is_uncertain {
+            return Err(AppError::InvalidInput(format!(
+                "summary {topic} contains an uncited knowledge unit"
+            )));
+        }
+        let identity = format!("{}\n{}\n{content}", summary.id, claim.id);
+        units.push(KnowledgeUnitInfo {
+            id: Uuid::new_v5(&Uuid::NAMESPACE_OID, identity.as_bytes()).to_string(),
+            project_id: project_id.to_string(),
+            initialization_id: summary.initialization_id.clone(),
+            derived_from_summary_id: summary.id.clone(),
+            kind: kind.to_string(),
+            topic: topic.to_string(),
+            content: content.to_string(),
+            scope: "project".to_string(),
+            status: if is_uncertain {
+                "needs_confirmation".to_string()
+            } else {
+                "active".to_string()
+            },
+            confidence: if is_uncertain { 0 } else { 100 },
+            schema_version: summary.knowledge_schema_version,
+            sources: sources
+                .into_iter()
+                .map(|source_key| KnowledgeUnitSourceInfo {
+                    source_key,
+                    repository_id: None,
+                    path: None,
+                })
+                .collect(),
+            created_at,
+        });
     }
     if units.is_empty() {
         return Err(AppError::InvalidInput(
@@ -4459,7 +4561,7 @@ fn build_project_initialization_summary(
     generation_engine: &str,
     created_at: i64,
 ) -> ProjectInitializationSummaryInfo {
-    ProjectInitializationSummaryInfo {
+    let mut summary = ProjectInitializationSummaryInfo {
         id: Uuid::new_v4().to_string(),
         initialization_id: context.initialization_id.clone(),
         status: "draft".to_string(),
@@ -4471,6 +4573,7 @@ fn build_project_initialization_summary(
         do_not_touch_rules: draft.do_not_touch_rules,
         agent_working_rules: draft.agent_working_rules,
         open_questions: draft.open_questions,
+        claims: Vec::new(),
         fact_count: context.facts.len() as i64,
         markdown_finding_count: context.findings.len() as i64,
         guardrail_count: context.guardrails.len() as i64,
@@ -4484,7 +4587,45 @@ fn build_project_initialization_summary(
         generation_engine: generation_engine.to_string(),
         created_at,
         approved_at: None,
-    }
+    };
+    summary.claims = summary_claims(&summary);
+    summary
+}
+
+fn summary_claims(
+    summary: &ProjectInitializationSummaryInfo,
+) -> Vec<ProjectInitializationSummaryClaimInfo> {
+    [
+        ("project_purpose", &summary.project_purpose),
+        ("repository_map", &summary.repository_map),
+        ("repository_roles", &summary.repository_roles),
+        ("build_test_matrix", &summary.build_test_matrix),
+        ("fragile_areas", &summary.fragile_areas),
+        ("do_not_touch_rules", &summary.do_not_touch_rules),
+        ("agent_working_rules", &summary.agent_working_rules),
+        ("open_questions", &summary.open_questions),
+    ]
+    .into_iter()
+    .flat_map(|(section, value)| {
+        value
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !is_markdown_heading(line))
+            .enumerate()
+            .map(move |(index, line)| {
+                let content = line.trim().to_string();
+                let identity = format!("{}\n{section}\n{index}\n{content}", summary.id);
+                ProjectInitializationSummaryClaimInfo {
+                    id: Uuid::new_v5(&Uuid::NAMESPACE_OID, identity.as_bytes()).to_string(),
+                    section: section.to_string(),
+                    claim_index: index as i64,
+                    original_content: content.clone(),
+                    content,
+                    status: "pending".to_string(),
+                    rejection_reason: None,
+                }
+            })
+    })
+    .collect()
 }
 
 fn analyze_repository_markdown(
@@ -5313,6 +5454,32 @@ mod tests {
         }
     }
 
+    fn review_summary_for_approval(
+        store: &ProjectStore,
+        summary: &ProjectInitializationSummaryInfo,
+    ) -> ProjectInitializationSummaryInfo {
+        let mut reviewed = summary.clone();
+        for claim in &summary.claims {
+            reviewed = store
+                .review_project_initialization_summary_claim(
+                    ReviewProjectInitializationSummaryClaimRequest {
+                        summary_id: summary.id.clone(),
+                        claim_id: claim.id.clone(),
+                        status: if claim.section == "open_questions" {
+                            "deferred"
+                        } else {
+                            "accepted"
+                        }
+                        .to_string(),
+                        content: claim.content.clone(),
+                        rejection_reason: None,
+                    },
+                )
+                .expect("claim reviewed");
+        }
+        reviewed
+    }
+
     #[test]
     fn recognizes_only_atx_markdown_headings_as_structure() {
         for heading in ["# Purpose", "## Needs confirmation", "   ###### Rules", "#"] {
@@ -5993,7 +6160,6 @@ mod tests {
                 OPENAI_RESPONSES_GENERATION_ENGINE,
             )
             .expect("summary persisted");
-
         assert_eq!(summary.status, "draft");
         assert!(summary.project_purpose.contains("AIadne"));
         assert!(summary.repository_map.contains("AIadne"));
@@ -6085,6 +6251,24 @@ mod tests {
                 OPENAI_RESPONSES_GENERATION_ENGINE,
             )
             .expect("summary persisted");
+        let pending_error = store
+            .approve_project_initialization_summary(&summary.id)
+            .expect_err("pending claims block approval");
+        assert!(matches!(pending_error, AppError::InvalidInput(_)));
+        let first_claim = summary.claims.first().expect("summary has claims");
+        let rejection_error = store
+            .review_project_initialization_summary_claim(
+                ReviewProjectInitializationSummaryClaimRequest {
+                    summary_id: summary.id.clone(),
+                    claim_id: first_claim.id.clone(),
+                    status: "rejected".to_string(),
+                    content: first_claim.content.clone(),
+                    rejection_reason: None,
+                },
+            )
+            .expect_err("rejection reason required");
+        assert!(matches!(rejection_error, AppError::InvalidInput(_)));
+        let summary = review_summary_for_approval(&store, &summary);
 
         let approved = store
             .approve_project_initialization_summary(&summary.id)
@@ -6107,7 +6291,7 @@ mod tests {
         let units = store
             .list_project_initialization_knowledge_units(&initialization.id)
             .expect("knowledge units listed");
-        assert_eq!(units.len(), 8);
+        assert_eq!(units.len(), 7);
         assert!(units.iter().all(|unit| !unit.content.starts_with('#')));
         assert!(units.iter().all(|unit| {
             unit.derived_from_summary_id == summary.id
@@ -6129,13 +6313,7 @@ mod tests {
                 path: None,
             }]
         );
-        let open_question = units
-            .iter()
-            .find(|unit| unit.topic == "open_questions")
-            .expect("open question unit exists");
-        assert_eq!(open_question.status, "needs_confirmation");
-        assert_eq!(open_question.confidence, 0);
-        assert!(open_question.sources.is_empty());
+        assert!(units.iter().all(|unit| unit.topic != "open_questions"));
 
         let initial_ids = units.iter().map(|unit| unit.id.clone()).collect::<Vec<_>>();
         store
@@ -6191,6 +6369,7 @@ mod tests {
                 OPENAI_RESPONSES_GENERATION_ENGINE,
             )
             .expect("section-valid summary persisted");
+        let summary = review_summary_for_approval(&store, &summary);
 
         let error = store
             .approve_project_initialization_summary(&summary.id)

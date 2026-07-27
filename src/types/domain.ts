@@ -222,6 +222,7 @@ export type ProjectInitializationSummaryInfo = {
   doNotTouchRules: string;
   agentWorkingRules: string;
   openQuestions: string;
+  claims: ProjectInitializationSummaryClaimInfo[];
   factCount: number;
   markdownFindingCount: number;
   guardrailCount: number;
@@ -235,6 +236,16 @@ export type ProjectInitializationSummaryInfo = {
   generationEngine: string;
   createdAt: number;
   approvedAt: number | null;
+};
+
+export type ProjectInitializationSummaryClaimInfo = {
+  id: string;
+  section: string;
+  claimIndex: number;
+  originalContent: string;
+  content: string;
+  status: "pending" | "accepted" | "rejected" | "deferred";
+  rejectionReason: string | null;
 };
 
 export type KnowledgeUnitSourceInfo = {
