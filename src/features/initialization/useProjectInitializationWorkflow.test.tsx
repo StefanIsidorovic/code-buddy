@@ -103,4 +103,16 @@ describe("useProjectInitializationWorkflow", () => {
     });
     expect(evidence.setSummary).toHaveBeenCalledWith("i1", reviewed);
   });
+
+  it("regenerates one Summary section through the current Summary identity", async () => {
+    const regenerated = { ...summary, projectPurpose: "New purpose", claims: [] };
+    invoke.mockResolvedValueOnce(regenerated);
+    const { result, evidence, notify } = setup();
+    await act(() => result.current.regenerateSummarySection("project_purpose"));
+    expect(invoke).toHaveBeenCalledWith("regenerate_project_initialization_summary_section", {
+      request: { summaryId: "s1", section: "project_purpose" },
+    });
+    expect(evidence.setSummary).toHaveBeenCalledWith("i1", regenerated);
+    expect(notify).toHaveBeenCalledWith("success", "Summary section regenerated for review.");
+  });
 });

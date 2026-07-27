@@ -195,6 +195,13 @@ pub struct GenerateProjectInitializationSummaryRequest {
     pub model_profile_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegenerateProjectInitializationSummarySectionRequest {
+    pub summary_id: String,
+    pub section: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KnowledgeUnitSourceInfo {
@@ -1136,6 +1143,120 @@ impl ProjectStore {
 
         self.list_project_initialization_summary(&context.initialization_id)?
             .ok_or_else(|| AppError::Storage("generated summary was not persisted".to_string()))
+    }
+
+    pub fn prepare_project_initialization_section_regeneration(
+        &self,
+        request: &RegenerateProjectInitializationSummarySectionRequest,
+    ) -> AppResult<(
+        ProjectInitializationSynthesisContext,
+        ProjectInitializationSummaryInfo,
+    )> {
+        validate_summary_section(&request.section)?;
+        let connection = self.connection()?;
+        let summary = project_initialization_summary_by_id(&connection, request.summary_id.trim())?
+            .ok_or_else(|| {
+                AppError::InvalidInput(format!(
+                    "project initialization summary not found: {}",
+                    request.summary_id.trim()
+                ))
+            })?;
+        if summary.status == "approved" {
+            return Err(AppError::InvalidInput(
+                "approved summaries cannot be regenerated".into(),
+            ));
+        }
+        let model_profile_id = summary.requested_model_profile_id.clone().ok_or_else(|| {
+            AppError::InvalidInput("legacy summaries cannot regenerate one section".into())
+        })?;
+        drop(connection);
+        let context = self.prepare_project_initialization_synthesis(
+            GenerateProjectInitializationSummaryRequest {
+                initialization_id: summary.initialization_id.clone(),
+                model_profile_id,
+            },
+        )?;
+        Ok((context, summary))
+    }
+
+    pub fn persist_project_initialization_summary_section(
+        &self,
+        context: &ProjectInitializationSynthesisContext,
+        expected_summary: &ProjectInitializationSummaryInfo,
+        section: &str,
+        draft: ProjectInitializationKnowledgeDraft,
+        generation_engine: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        validate_summary_section(section)?;
+        let draft = draft.validate()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let current = project_initialization_summary_by_id(&transaction, &expected_summary.id)?
+            .ok_or_else(|| {
+                AppError::InvalidInput("summary changed while regeneration was running".into())
+            })?;
+        if &current != expected_summary {
+            return Err(AppError::Synthesis(
+                "summary review changed while regeneration was running; try again".into(),
+            ));
+        }
+        if list_initialization_repositories(&transaction, &context.initialization_id)?
+            != context.repositories
+            || list_project_initialization_facts(&transaction, &context.initialization_id)?
+                != context.facts
+            || list_project_initialization_markdown_findings(
+                &transaction,
+                &context.initialization_id,
+            )? != context.findings
+            || list_project_initialization_guardrails(&transaction, &context.initialization_id)?
+                != context.guardrails
+        {
+            return Err(AppError::Synthesis(
+                "initialization evidence changed while regeneration was running; try again".into(),
+            ));
+        }
+        let mut updated = current;
+        set_summary_section(&mut updated, section, draft_section(&draft, section)?);
+        let insertion_index = updated
+            .claims
+            .iter()
+            .position(|claim| claim.section == section)
+            .unwrap_or(updated.claims.len());
+        updated.claims.retain(|claim| claim.section != section);
+        let replacement = summary_claims(&updated)
+            .into_iter()
+            .filter(|claim| claim.section == section)
+            .collect::<Vec<_>>();
+        updated
+            .claims
+            .splice(insertion_index..insertion_index, replacement);
+        let claims_json = serde_json::to_string(&updated.claims)
+            .map_err(|err| AppError::Storage(err.to_string()))?;
+        transaction
+            .execute(
+                "UPDATE project_initialization_summaries SET project_purpose=?1, repository_map=?2,
+             repository_roles=?3, build_test_matrix=?4, fragile_areas=?5, do_not_touch_rules=?6,
+             agent_working_rules=?7, open_questions=?8, claims_json=?9, generation_engine=?10
+             WHERE id=?11",
+                params![
+                    updated.project_purpose,
+                    updated.repository_map,
+                    updated.repository_roles,
+                    updated.build_test_matrix,
+                    updated.fragile_areas,
+                    updated.do_not_touch_rules,
+                    updated.agent_working_rules,
+                    updated.open_questions,
+                    claims_json,
+                    generation_engine.trim(),
+                    updated.id
+                ],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.list_project_initialization_summary(&context.initialization_id)?
+            .ok_or_else(|| AppError::Storage("regenerated summary was not found".into()))
     }
 
     pub fn list_project_initialization_summary(
@@ -4628,6 +4749,59 @@ fn summary_claims(
     .collect()
 }
 
+fn validate_summary_section(section: &str) -> AppResult<()> {
+    if matches!(
+        section,
+        "project_purpose"
+            | "repository_map"
+            | "repository_roles"
+            | "build_test_matrix"
+            | "fragile_areas"
+            | "do_not_touch_rules"
+            | "agent_working_rules"
+            | "open_questions"
+    ) {
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput(format!(
+            "unsupported summary section: {section}"
+        )))
+    }
+}
+
+fn draft_section<'a>(
+    draft: &'a ProjectInitializationKnowledgeDraft,
+    section: &str,
+) -> AppResult<&'a str> {
+    match section {
+        "project_purpose" => Ok(&draft.project_purpose),
+        "repository_map" => Ok(&draft.repository_map),
+        "repository_roles" => Ok(&draft.repository_roles),
+        "build_test_matrix" => Ok(&draft.build_test_matrix),
+        "fragile_areas" => Ok(&draft.fragile_areas),
+        "do_not_touch_rules" => Ok(&draft.do_not_touch_rules),
+        "agent_working_rules" => Ok(&draft.agent_working_rules),
+        "open_questions" => Ok(&draft.open_questions),
+        _ => Err(AppError::InvalidInput(format!(
+            "unsupported summary section: {section}"
+        ))),
+    }
+}
+
+fn set_summary_section(summary: &mut ProjectInitializationSummaryInfo, section: &str, value: &str) {
+    match section {
+        "project_purpose" => summary.project_purpose = value.to_string(),
+        "repository_map" => summary.repository_map = value.to_string(),
+        "repository_roles" => summary.repository_roles = value.to_string(),
+        "build_test_matrix" => summary.build_test_matrix = value.to_string(),
+        "fragile_areas" => summary.fragile_areas = value.to_string(),
+        "do_not_touch_rules" => summary.do_not_touch_rules = value.to_string(),
+        "agent_working_rules" => summary.agent_working_rules = value.to_string(),
+        "open_questions" => summary.open_questions = value.to_string(),
+        _ => unreachable!("section was validated"),
+    }
+}
+
 fn analyze_repository_markdown(
     initialization_id: &str,
     repository: &ProjectRepositoryInfo,
@@ -6268,7 +6442,36 @@ mod tests {
             )
             .expect_err("rejection reason required");
         assert!(matches!(rejection_error, AppError::InvalidInput(_)));
-        let summary = review_summary_for_approval(&store, &summary);
+        let reviewed = review_summary_for_approval(&store, &summary);
+        let purpose_claim = reviewed
+            .claims
+            .iter()
+            .find(|claim| claim.section == "project_purpose")
+            .expect("purpose claim")
+            .clone();
+        let mut regenerated_draft = test_knowledge_draft();
+        regenerated_draft.repository_map =
+            "- AIadne: regenerated repository map [source: project_repositories.path]".to_string();
+        let regenerated = store
+            .persist_project_initialization_summary_section(
+                &context,
+                &reviewed,
+                "repository_map",
+                regenerated_draft,
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("section regenerated");
+        assert_eq!(regenerated.project_purpose, reviewed.project_purpose);
+        assert!(regenerated
+            .claims
+            .iter()
+            .any(|claim| claim.id == purpose_claim.id && claim.status == "accepted"));
+        assert!(regenerated
+            .claims
+            .iter()
+            .filter(|claim| claim.section == "repository_map")
+            .all(|claim| claim.status == "pending"));
+        let summary = review_summary_for_approval(&store, &regenerated);
 
         let approved = store
             .approve_project_initialization_summary(&summary.id)

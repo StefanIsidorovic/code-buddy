@@ -57,6 +57,17 @@
 - review status: passed after 2 cycles; cycle 1 found deferred claims could not be revisited; cycle 2 restored deferred-to-final actions and verified presentation/orchestration ownership, accessibility labels, loading locks and targeted regressions.
 - commit: pending.
 
+#### 30.3.3. Regenerate one Summary section safely
+- objective: regenerate a selected Summary section without discarding review decisions elsewhere.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; InitializationDetailsDialog.tsx; useProjectInitializationWorkflow.ts; App.tsx; related tests; working_knowledge/current/plan.md.
+- affected units: synthesis snapshot orchestration, transactional section merge, claim replacement, stale-summary UI guard.
+- expected changes: synthesize against current evidence; atomically replace only the selected section; reset only its claims to pending at their original list position; preserve every unrelated claim identity/status/order.
+- acceptance criteria: approved/legacy summaries reject regeneration; late evidence or review changes reject persistence; unrelated decisions survive; the UI exposes per-section busy/disabled controls and refreshes only the matching Summary.
+- required tests: backend selected-section merge/preservation; typed hook payload; dialog action/loading state; full frontend/Rust gates; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 found whole-claim sorting changed unrelated provenance order; cycle 2 preserves the target insertion position and all unrelated claim identities/status/order while retaining stale snapshot guards.
+- commit: pending.
+
 ### 30.4. Align Summary generation citation validation with approval
 - objective: prevent generated Summary drafts from passing synthesis validation and then failing approval because an individual knowledge line is uncited.
 - status: complete pending commit

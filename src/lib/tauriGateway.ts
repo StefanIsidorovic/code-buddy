@@ -24,6 +24,7 @@ export type TauriCommand =
   | "drain_acp_events"
   | "drain_session_output"
   | "generate_project_initialization_summary"
+  | "regenerate_project_initialization_summary_section"
   | "list_acp_registry_candidates"
   | "list_acp_sessions"
   | "list_acp_permissions"

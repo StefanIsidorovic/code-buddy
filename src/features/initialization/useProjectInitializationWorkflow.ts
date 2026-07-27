@@ -29,6 +29,7 @@ export function useProjectInitializationWorkflow(options: Options) {
   const [dialogOpen, setDialogOpen] = useState(false); const [repositoryIds, setRepositoryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false); const [error, setError] = useState<string | null>(null);
   const [summaryGenerating, setSummaryGenerating] = useState(false);
+  const [summarySectionGenerating, setSummarySectionGenerating] = useState<string | null>(null);
   const [detailsView, setDetailsView] = useState<InitializeDetailsView | null>(null);
   const [interviewOpen, setInterviewOpen] = useState(false); const [interviewError, setInterviewError] = useState<string | null>(null);
   const [scope, setScope] = useState<InterviewScope>("project"); const [repositoryId, setRepositoryId] = useState("");
@@ -121,11 +122,28 @@ export function useProjectInitializationWorkflow(options: Options) {
       evidence.setSummary(value.initializationId, value);
     } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
   }
-  return { dialogOpen, repositoryIds, loading, summaryGenerating, error, detailsView, interviewOpen, interviewError,
+  async function regenerateSummarySection(section: string) {
+    if (!summary) { notify("error", "Generate a summary before regenerating a section."); return; }
+    const summaryId = summary.id;
+    setLoading(true); setSummarySectionGenerating(section);
+    try {
+      const value = await invokeCommand<ProjectInitializationSummaryInfo>(
+        "regenerate_project_initialization_summary_section", {
+          request: { summaryId, section },
+        });
+      if (summaryIdRef.current !== summaryId) return;
+      evidence.setSummary(value.initializationId, value);
+      notify("success", "Summary section regenerated for review.");
+    } catch (reason) { notify("error", errorText(reason)); }
+    finally { setSummarySectionGenerating(null); setLoading(false); }
+  }
+  return { dialogOpen, repositoryIds, loading, summaryGenerating, summarySectionGenerating,
+    error, detailsView, interviewOpen, interviewError,
     scope, repositoryId, kind, pathPattern, content, drafts, openDialog, closeDialog, toggleRepository,
     createInitialization, collectFacts, analyzeMarkdown, openInterview, closeInterview, addGuardrail,
     removeGuardrail: (index: number) => setDrafts((current) => current.filter((_, item) => item !== index)),
-    saveGuardrails, generateSummary, approveSummary, reviewSummaryClaim, setDetailsView, changeScope: setScope,
+    saveGuardrails, generateSummary, approveSummary, reviewSummaryClaim, regenerateSummarySection,
+    setDetailsView, changeScope: setScope,
     changeRepositoryId: setRepositoryId, changeKind: setKind, changePathPattern: setPathPattern, changeContent: setContent };
 }
 function toInput(value: ProjectInitializationGuardrailInfo): ProjectInitializationGuardrailInput {

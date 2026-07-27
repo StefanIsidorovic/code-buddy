@@ -32,11 +32,12 @@ use crate::{
         LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
         ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
         ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
-        ProjectRepositoryInfo, ProjectStore, RenameTranscriptSessionRequest,
-        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
-        ReviewProjectInitializationSummaryClaimRequest, SaveProjectInitializationGuardrailsRequest,
-        TaskAgentReportInfo, TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo,
-        TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
+        ProjectRepositoryInfo, ProjectStore, RegenerateProjectInitializationSummarySectionRequest,
+        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
+        ResolveTaskPhaseRunRequest, ReviewProjectInitializationSummaryClaimRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
+        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
         TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
         TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
@@ -274,6 +275,23 @@ pub async fn generate_project_initialization_summary(
     let registry = SynthesisProviderRegistry::from_env();
     let result = registry.synthesize(&context).await?;
     state.persist_project_initialization_summary(&context, result.draft, result.generation_engine)
+}
+
+#[tauri::command]
+pub async fn regenerate_project_initialization_summary_section(
+    state: State<'_, ProjectStore>,
+    request: RegenerateProjectInitializationSummarySectionRequest,
+) -> AppResult<ProjectInitializationSummaryInfo> {
+    let (context, summary) = state.prepare_project_initialization_section_regeneration(&request)?;
+    let registry = SynthesisProviderRegistry::from_env();
+    let result = registry.synthesize(&context).await?;
+    state.persist_project_initialization_summary_section(
+        &context,
+        &summary,
+        &request.section,
+        result.draft,
+        result.generation_engine,
+    )
 }
 
 #[tauri::command]

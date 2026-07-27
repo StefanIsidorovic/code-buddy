@@ -116,7 +116,9 @@ function App() {
   const knowledgeUnitsLoading = initializationEvidence.unitsLoading;
   const knowledgeUnitsError = initializationEvidence.unitsError;
   const { dialogOpen: initializeDialogOpen, repositoryIds: initializeRepositoryIds,
-    loading: initializeLoading, summaryGenerating, error: initializeError, detailsView: initializeDetailsView,
+    loading: initializeLoading, summaryGenerating,
+    summarySectionGenerating: initializeSummarySectionGenerating,
+    error: initializeError, detailsView: initializeDetailsView,
     interviewOpen: interviewDialogOpen, interviewError, scope: interviewScope,
     repositoryId: interviewRepositoryId, kind: interviewKind, pathPattern: interviewPathPattern,
     content: interviewContent, drafts: interviewDraftGuardrails,
@@ -129,6 +131,7 @@ function App() {
     generateSummary: generateProjectInitializationSummary,
     approveSummary: approveProjectInitializationSummary,
     reviewSummaryClaim: reviewProjectInitializationSummaryClaim,
+    regenerateSummarySection: regenerateProjectInitializationSummarySection,
     setDetailsView: setInitializeDetailsView,
     changeScope: setInterviewScope, changeRepositoryId: setInterviewRepositoryId,
     changeKind: setInterviewKind, changePathPattern: setInterviewPathPattern,
@@ -524,10 +527,13 @@ function App() {
           knowledgeUnitsLoading={knowledgeUnitsLoading}
           markdownFindings={projectInitializationMarkdownFindings}
           summary={projectInitializationSummary}
+          regeneratingSection={initializeSummarySectionGenerating}
           view={initializeDetailsView}
           onApproveSummary={() => void approveProjectInitializationSummary()}
           onReviewSummaryClaim={(claimId, status, content, reason) =>
             void reviewProjectInitializationSummaryClaim(claimId, status, content, reason)}
+          onRegenerateSummarySection={(section) =>
+            void regenerateProjectInitializationSummarySection(section)}
           onClose={() => setInitializeDetailsView(null)}
         />
       ) : null}

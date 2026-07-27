@@ -30,9 +30,11 @@ const unit: KnowledgeUnitInfo = { id: "u1", projectId: "p1", initializationId: "
   sources: [{ sourceKey: "README.md:4", repositoryId: "r1", path: "README.md" }], createdAt: 1 };
 
 function props(overrides: Partial<InitializationDetailsDialogProps> = {}): InitializationDetailsDialogProps {
-  return { factGroups: [], initializeLoading: false, knowledgeUnits: [], knowledgeUnitsError: null,
+  return { factGroups: [], initializeLoading: false, regeneratingSection: null,
+    knowledgeUnits: [], knowledgeUnitsError: null,
     knowledgeUnitsLoading: false, markdownFindings: [], summary: null, view: "facts",
-    onApproveSummary: vi.fn(), onReviewSummaryClaim: vi.fn(), onClose: vi.fn(), ...overrides };
+    onApproveSummary: vi.fn(), onReviewSummaryClaim: vi.fn(),
+    onRegenerateSummarySection: vi.fn(), onClose: vi.fn(), ...overrides };
 }
 
 describe("initialization details dialog", () => {
@@ -60,6 +62,8 @@ describe("initialization details dialog", () => {
     const { rerender } = render(<InitializationDetailsDialog {...value} />);
     expect(screen.getByText("openai / gpt")).toBeInTheDocument();
     expect(screen.getByText("Approval required")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Regenerate Purpose" }));
+    expect(value.onRegenerateSummarySection).toHaveBeenCalledWith("project_purpose");
     fireEvent.click(screen.getByRole("button", { name: "Approve Summary" }));
     expect(value.onApproveSummary).toHaveBeenCalledOnce();
     rerender(<InitializationDetailsDialog {...value} initializeLoading />);

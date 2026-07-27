@@ -52,6 +52,7 @@ pub fn run() {
             commands::save_project_initialization_guardrails,
             commands::list_project_initialization_guardrails,
             commands::generate_project_initialization_summary,
+            commands::regenerate_project_initialization_summary_section,
             commands::list_project_initialization_summary,
             commands::list_project_initialization_knowledge_units,
             commands::select_project_task_context,

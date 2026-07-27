@@ -21,10 +21,12 @@ export type InitializationDetailsDialogProps = {
   knowledgeUnitsLoading: boolean;
   markdownFindings: ProjectInitializationMarkdownFindingInfo[];
   summary: ProjectInitializationSummaryInfo | null;
+  regeneratingSection: string | null;
   view: InitializeDetailsView;
   onApproveSummary: () => void;
   onReviewSummaryClaim: (claimId: string, status: "accepted" | "rejected" | "deferred",
     content: string, rejectionReason: string | null) => void;
+  onRegenerateSummarySection: (section: string) => void;
   onClose: () => void;
 };
 
@@ -118,14 +120,19 @@ function PublishedUnits(props: Pick<InitializationDetailsDialogProps,
 }
 
 function SummaryDetails(props: InitializationDetailsDialogProps) {
-  const { summary, initializeLoading, onApproveSummary, onReviewSummaryClaim, onClose } = props;
+  const { summary, initializeLoading, regeneratingSection, onApproveSummary,
+    onReviewSummaryClaim, onRegenerateSummarySection, onClose } = props;
   if (!summary) return <StateNotice kind="prerequisite" title="No summary available for review"
     description="Generate a Summary draft before opening the detailed review." />;
   const sections = [
-    ["Purpose", summary.projectPurpose], ["Repositories", summary.repositoryMap],
-    ["Repository Roles", summary.repositoryRoles], ["Build/Test", summary.buildTestMatrix],
-    ["Fragile Areas", summary.fragileAreas], ["Do Not Touch", summary.doNotTouchRules],
-    ["Agent Rules", summary.agentWorkingRules], ["Open Questions", summary.openQuestions],
+    ["project_purpose", "Purpose", summary.projectPurpose],
+    ["repository_map", "Repositories", summary.repositoryMap],
+    ["repository_roles", "Repository Roles", summary.repositoryRoles],
+    ["build_test_matrix", "Build/Test", summary.buildTestMatrix],
+    ["fragile_areas", "Fragile Areas", summary.fragileAreas],
+    ["do_not_touch_rules", "Do Not Touch", summary.doNotTouchRules],
+    ["agent_working_rules", "Agent Rules", summary.agentWorkingRules],
+    ["open_questions", "Open Questions", summary.openQuestions],
   ];
   const claims = summary.claims ?? [];
   const pendingCount = claims.filter((claim) => claim.status === "pending").length;
@@ -147,8 +154,12 @@ function SummaryDetails(props: InitializationDetailsDialogProps) {
         <div><dt>Schema</dt><dd>knowledge {summary.knowledgeSchemaVersion} · catalog{" "}
           {summary.modelCatalogSchemaVersion ?? "legacy"}</dd></div>
       </dl>
-      <dl className="summary-section-list details-summary-list">{sections.map(([label, value]) =>
-        <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+      <dl className="summary-section-list details-summary-list">{sections.map(([section, label, value]) =>
+        <div key={section}><dt>{label}</dt><dd>{value}</dd>
+          <button type="button" disabled={initializeLoading || summary.status === "approved"}
+            onClick={() => onRegenerateSummarySection(section)}>
+            {regeneratingSection === section ? "Regenerating…" : `Regenerate ${label}`}
+          </button></div>)}</dl>
       <section className="summary-claim-review-list" aria-label="Summary claim review">
         <div className="knowledge-unit-preview-heading"><div><span>Approval preview</span>
           <h3>{acceptedCount} claim(s) will be published</h3></div>
