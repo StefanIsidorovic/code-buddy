@@ -1,7 +1,7 @@
 use crate::errors::{AppError, AppResult};
 use serde::Serialize;
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, HashMap},
     fs,
     hash::{Hash, Hasher},
     io::Read,
@@ -31,12 +31,14 @@ pub struct GitWorkspaceVerificationInfo {
     pub workspace_path: String,
     pub status: String,
     pub changed_files: Vec<GitDeliveryChangedFileInfo>,
+    pub touched_files: Vec<GitDeliveryChangedFileInfo>,
     pub error: Option<String>,
 }
 
 pub(crate) struct GitWorkspaceSnapshot {
     fingerprint: u64,
     changed_files: Vec<GitDeliveryChangedFileInfo>,
+    path_fingerprints: HashMap<String, u64>,
 }
 
 pub(crate) fn capture_git_workspace_snapshot(path: &Path) -> AppResult<GitWorkspaceSnapshot> {
@@ -50,10 +52,12 @@ pub(crate) fn capture_git_workspace_snapshot(path: &Path) -> AppResult<GitWorksp
     let mut hasher = DefaultHasher::new();
     status.hash(&mut hasher);
     diff.hash(&mut hasher);
-    for file in parse_porcelain_status(&status)
-        .into_iter()
-        .filter(|file| file.status == "??")
-    {
+    let changed_files = parse_porcelain_status(&status);
+    let path_fingerprints = changed_files
+        .iter()
+        .map(|file| (file.path.clone(), changed_file_fingerprint(&path, file)))
+        .collect();
+    for file in changed_files.iter().filter(|file| file.status == "??") {
         file.path.hash(&mut hasher);
         if let Ok(metadata) = fs::metadata(path.join(&file.path)) {
             metadata.len().hash(&mut hasher);
@@ -72,8 +76,30 @@ pub(crate) fn capture_git_workspace_snapshot(path: &Path) -> AppResult<GitWorksp
     }
     Ok(GitWorkspaceSnapshot {
         fingerprint: hasher.finish(),
-        changed_files: parse_porcelain_status(&status),
+        changed_files,
+        path_fingerprints,
     })
+}
+
+fn changed_file_fingerprint(path: &Path, file: &GitDeliveryChangedFileInfo) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    file.status.hash(&mut hasher);
+    file.path.hash(&mut hasher);
+    let file_path = path.join(&file.path);
+    if let Ok(metadata) = fs::metadata(&file_path) {
+        metadata.len().hash(&mut hasher);
+        if metadata.is_file() {
+            let mut bytes = Vec::new();
+            if fs::File::open(file_path)
+                .map(|file| file.take(MAX_UNTRACKED_FINGERPRINT_BYTES))
+                .and_then(|mut file| file.read_to_end(&mut bytes))
+                .is_ok()
+            {
+                bytes.hash(&mut hasher);
+            }
+        }
+    }
+    hasher.finish()
 }
 
 pub(crate) fn compare_git_workspace_snapshots(
@@ -84,29 +110,57 @@ pub(crate) fn compare_git_workspace_snapshots(
     after: AppResult<GitWorkspaceSnapshot>,
 ) -> GitWorkspaceVerificationInfo {
     match (before, after) {
-        (Ok(before), Ok(after)) => GitWorkspaceVerificationInfo {
-            task_id,
-            phase,
-            workspace_path: workspace_path.display().to_string(),
-            status: if before.fingerprint == after.fingerprint {
-                "unchanged"
-            } else {
-                "changed"
-            }
-            .into(),
-            changed_files: after
+        (Ok(before), Ok(after)) => {
+            let workspace_changed = before.fingerprint != after.fingerprint;
+            let mut touched_files = after
                 .changed_files
-                .into_iter()
-                .take(MAX_CHANGED_FILES)
-                .collect(),
-            error: None,
-        },
+                .iter()
+                .filter(|file| {
+                    before.path_fingerprints.get(&file.path)
+                        != after.path_fingerprints.get(&file.path)
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            touched_files.extend(
+                before
+                    .changed_files
+                    .iter()
+                    .filter(|file| !after.path_fingerprints.contains_key(&file.path))
+                    .cloned(),
+            );
+            if workspace_changed && touched_files.is_empty() {
+                touched_files.extend(after.changed_files.iter().cloned());
+                touched_files.extend(before.changed_files.iter().cloned());
+            }
+            touched_files.sort_by(|left, right| left.path.cmp(&right.path));
+            touched_files.dedup_by(|left, right| left.path == right.path);
+            touched_files.truncate(MAX_CHANGED_FILES);
+            GitWorkspaceVerificationInfo {
+                task_id,
+                phase,
+                workspace_path: workspace_path.display().to_string(),
+                status: if workspace_changed {
+                    "changed"
+                } else {
+                    "unchanged"
+                }
+                .into(),
+                changed_files: after
+                    .changed_files
+                    .into_iter()
+                    .take(MAX_CHANGED_FILES)
+                    .collect(),
+                touched_files,
+                error: None,
+            }
+        }
         (before, after) => GitWorkspaceVerificationInfo {
             task_id,
             phase,
             workspace_path: workspace_path.display().to_string(),
             status: "unavailable".into(),
             changed_files: Vec::new(),
+            touched_files: Vec::new(),
             error: Some(
                 after
                     .err()
@@ -507,6 +561,41 @@ mod tests {
         assert_eq!(changed.status, "changed");
         assert!(changed
             .changed_files
+            .iter()
+            .any(|file| file.path == "README.md"));
+        assert!(changed
+            .touched_files
+            .iter()
+            .any(|file| file.path == "README.md"));
+
+        let dirty_before = capture_git_workspace_snapshot(&path);
+        let preexisting_dirty = compare_git_workspace_snapshots(
+            "task".into(),
+            "execution".into(),
+            &path,
+            dirty_before,
+            capture_git_workspace_snapshot(&path),
+        );
+        assert_eq!(preexisting_dirty.status, "unchanged");
+        assert!(preexisting_dirty
+            .changed_files
+            .iter()
+            .any(|file| file.path == "README.md"));
+        assert!(preexisting_dirty.touched_files.is_empty());
+
+        let dirty_before_revert = capture_git_workspace_snapshot(&path);
+        fs::write(path.join("README.md"), "# Delivery\n").expect("dirty file reverted");
+        let reverted = compare_git_workspace_snapshots(
+            "task".into(),
+            "execution".into(),
+            &path,
+            dirty_before_revert,
+            capture_git_workspace_snapshot(&path),
+        );
+        assert_eq!(reverted.status, "changed");
+        assert!(reverted.changed_files.is_empty());
+        assert!(reverted
+            .touched_files
             .iter()
             .any(|file| file.path == "README.md"));
 

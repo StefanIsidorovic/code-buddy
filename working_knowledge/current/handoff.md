@@ -1,15 +1,16 @@
 # Handoff
 
 ## Current State
-- Plan item 37.4a is committed as `af29e92`.
-- Plan item 37.4b is complete pending commit: `send_task_plan_step_prompt` dispatches exactly one server-derived approved step through the selected active ACP session.
-- The prompt includes only the bounded original task, mapped requirements, one step, acceptance criteria, expected paths, requested tier and explicit phase/commit/scope boundaries.
-- Successful dispatch persists `sent`; ACP send failure persists `failed`; both remain attributable to the exact plan step and attempt.
-- The command returns repository pre/post verification, but acceptance does not trust or persist it yet.
+- Plan item 37.4a is committed as `af29e92`; 37.4b as `beeb727`.
+- Plan item 37.4c is complete pending commit.
+- Each step dispatch now persists write-once repository-derived verification, exact touched paths and deterministic `within_scope` / `out_of_scope` / `unavailable` status.
+- Per-file fingerprints distinguish prior dirty files from current-run touches; reverts remain attributable and ambiguous large-file changes fail conservatively.
+- Explicit review is required: accept needs available within-scope verification and a note; reject records the note, marks the attempt failed and permits retry.
+- Accepting one step still cannot complete execution globally.
 - Rust fmt, all 134 backend tests, clippy with warnings denied and diff hygiene pass.
 
 ## Next Step
-- Implement 37.4c: persist repository-derived step verification, compare changed files with expected scope, and allow acceptance only after an explicit passing review gate.
+- Implement 37.4d: frontend step runner/review UX and the all-approved-steps execution completion gate.
 
 ## Commands To Re-Run
 - `cargo test --manifest-path src-tauri/Cargo.toml`: run backend regressions.
@@ -17,6 +18,6 @@
 - `git diff --check`: validate patch hygiene.
 
 ## Watchouts
-- Do not infer a concrete ACP model ID from `small/mid/high` until adapters expose a durable tier mapping.
-- `sent` is model output, not acceptance.
-- Verification and scope checks must come from the repository snapshot, never from agent-authored claims.
+- Show worktree dirty files separately from files touched by the selected step.
+- Never label `sent` as completed or accepted.
+- Out-of-scope and unavailable runs require reject/retry; they cannot be overridden through the accept command.

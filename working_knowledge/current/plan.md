@@ -34,7 +34,7 @@
 
 ### 37.4. Execute and review one step at a time
 - objective: replace monolithic execution with isolated, auditable step runs routed to the smallest adequate model tier.
-- status: in progress; 37.4a committed and 37.4b bounded ACP step dispatch complete pending commit.
+- status: in progress; 37.4a–b committed and 37.4c repository verification/review complete pending commit.
 - affected units: execution phase, ACP session ownership, step receipts, scoped context, Git verification and review.
 - expected changes: each approved step gets its own run, bounded context, tier rationale, expected write scope, verification and review result; execution advances only through accepted step outcomes.
 - acceptance criteria: a run cannot silently serve another step; changed files and checks are repository-derived; failures remain retryable; one step outcome cannot complete execution globally.
@@ -42,6 +42,8 @@
 - 37.4a required tests: success, duplicate/open and out-of-order rejection, retry after failure, cross-plan rejection, tier/scope snapshot, ordered listing and proof that accepting one step leaves execution active.
 - 37.4b review status: passed after 2 cycles; the server derives a bounded prompt from exactly one approved step and its mapped requirements, records the requested tier without inventing an ACP model ID, persists sent/failed outcomes, and returns a repository pre/post snapshot for the next verification gate.
 - 37.4b required tests: bounded prompt and exclusion of unrelated requirements; exact approved Task/plan/step binding; successful fake ACP dispatch; durable failure after ACP send error; command registration; full Rust gates and diff hygiene.
+- 37.4c review status: passed after 2 cycles; Git snapshots distinguish pre-existing dirty state from paths touched by one run, including reverts and conservative large-file fallback; verification is immutable, deterministic scope violations block acceptance, rejection is retryable, and accepted review requires an explicit note without advancing the Task phase.
+- 37.4c required tests: changed/unchanged/unavailable snapshot behavior; pre-existing dirty and reverted paths; write-once verification; exact/directory scope; accept without verification and out-of-scope rejection; retry after review rejection; command persistence/registration; full Rust gates and diff hygiene.
 
 ### 37.5. Add safe parallel execution waves
 - objective: allow independent small-model steps to run concurrently without sharing mutable Git state.

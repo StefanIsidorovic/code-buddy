@@ -441,6 +441,15 @@ pub struct CreateTaskPlanStepRunRequest {
     pub instruction: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewTaskPlanStepRunRequest {
+    pub task_id: String,
+    pub run_id: String,
+    pub decision: String,
+    pub note: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPlanStepRunInfo {
@@ -458,8 +467,24 @@ pub struct TaskPlanStepRunInfo {
     pub status: String,
     pub stop_reason: Option<String>,
     pub error: Option<String>,
+    pub verification_status: Option<String>,
+    pub verification_workspace_path: Option<String>,
+    pub verification_changed_files: Vec<String>,
+    pub verification_error: Option<String>,
+    pub scope_status: Option<String>,
+    pub scope_violations: Vec<String>,
+    pub review_status: Option<String>,
+    pub review_note: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+struct TaskPlanStepReviewState {
+    task_id: String,
+    plan_version_id: String,
+    step_order_index: i64,
+    verification_status: Option<String>,
+    scope_status: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -3503,23 +3528,166 @@ impl ProjectStore {
         self.task_plan_step_run(run_id)
     }
 
-    pub fn accept_task_plan_step_run(&self, run_id: &str) -> AppResult<TaskPlanStepRunInfo> {
+    pub fn record_task_plan_step_run_verification(
+        &self,
+        run_id: &str,
+        status: &str,
+        workspace_path: &str,
+        changed_files_json: &str,
+        error: Option<&str>,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        if !matches!(status, "changed" | "unchanged" | "unavailable") {
+            return Err(AppError::InvalidInput(
+                "step verification status is invalid".into(),
+            ));
+        }
+        let changed_paths = serde_json::from_str::<Vec<serde_json::Value>>(changed_files_json)
+            .map_err(|_| {
+                AppError::InvalidInput("step verification changed files are invalid".into())
+            })?
+            .into_iter()
+            .map(|file| {
+                file.get("path")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::trim)
+                    .filter(|path| !path.is_empty())
+                    .map(ToString::to_string)
+                    .ok_or_else(|| {
+                        AppError::InvalidInput("step verification changed files need paths".into())
+                    })
+            })
+            .collect::<AppResult<Vec<_>>>()?;
+        let connection = self.connection()?;
+        let expected_paths_json: String = connection
+            .query_row(
+                "SELECT expected_paths_json FROM task_plan_step_runs
+                 WHERE id = ?1 AND status = 'sent'",
+                [run_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| {
+                AppError::InvalidInput(
+                    "sent step run is required for repository verification".into(),
+                )
+            })?;
+        let expected_paths =
+            serde_json::from_str::<Vec<String>>(&expected_paths_json).unwrap_or_default();
+        let scope_violations = if status == "unavailable" {
+            Vec::new()
+        } else {
+            changed_paths
+                .iter()
+                .filter(|path| !path_matches_step_scope(path, &expected_paths))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        let scope_status = if status == "unavailable" {
+            "unavailable"
+        } else if scope_violations.is_empty() {
+            "within_scope"
+        } else {
+            "out_of_scope"
+        };
+        let changed = connection
+            .execute(
+                "UPDATE task_plan_step_runs SET verification_status = ?2,
+                 verification_workspace_path = ?3, verification_changed_files_json = ?4,
+                 verification_error = ?5, scope_status = ?6, scope_violations_json = ?7,
+                 updated_at = ?8 WHERE id = ?1 AND status = 'sent'
+                   AND verification_status IS NULL",
+                params![
+                    run_id,
+                    status,
+                    workspace_path,
+                    changed_files_json,
+                    error,
+                    scope_status,
+                    json_string_list(&scope_violations)?,
+                    unix_timestamp()?
+                ],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "sent step run is required for repository verification".into(),
+            ));
+        }
+        drop(connection);
+        self.task_plan_step_run(run_id)
+    }
+
+    pub fn review_task_plan_step_run(
+        &self,
+        request: ReviewTaskPlanStepRunRequest,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        let task_id = request.task_id.trim();
+        let run_id = request.run_id.trim();
+        let decision = request.decision.trim().to_lowercase();
+        let note = request.note.trim();
+        if task_id.is_empty()
+            || run_id.is_empty()
+            || !matches!(decision.as_str(), "accept" | "reject")
+            || note.is_empty()
+            || note.chars().count() > 2_000
+        {
+            return Err(AppError::InvalidInput(
+                "step review requires task, run, accept/reject decision, and a note up to 2000 characters".into(),
+            ));
+        }
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(storage_error)?;
-        let run: Option<(String, String, i64)> = transaction
+        let run: Option<TaskPlanStepReviewState> = transaction
             .query_row(
-                "SELECT task_id, plan_version_id, step_order_index
-                 FROM task_plan_step_runs WHERE id = ?1 AND status = 'sent'",
-                [run_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                "SELECT task_id, plan_version_id, step_order_index,
+                 verification_status, scope_status
+                 FROM task_plan_step_runs
+                 WHERE id = ?1 AND task_id = ?2 AND status = 'sent'",
+                params![run_id, task_id],
+                |row| {
+                    Ok(TaskPlanStepReviewState {
+                        task_id: row.get(0)?,
+                        plan_version_id: row.get(1)?,
+                        step_order_index: row.get(2)?,
+                        verification_status: row.get(3)?,
+                        scope_status: row.get(4)?,
+                    })
+                },
             )
             .optional()
             .map_err(storage_error)?;
-        let Some((task_id, plan_id, step_order)) = run else {
+        let Some(run) = run else {
             return Err(AppError::InvalidInput(
                 "only a sent step run may be accepted".into(),
             ));
         };
+        if decision == "reject" {
+            transaction
+                .execute(
+                    "UPDATE task_plan_step_runs SET status = 'failed',
+                     error = ?2, review_status = 'rejected', review_note = ?3, updated_at = ?4
+                     WHERE id = ?1 AND status = 'sent'",
+                    params![
+                        run_id,
+                        format!("review rejected: {note}"),
+                        note,
+                        unix_timestamp()?
+                    ],
+                )
+                .map_err(storage_error)?;
+            transaction.commit().map_err(storage_error)?;
+            drop(connection);
+            return self.task_plan_step_run(run_id);
+        }
+        if !matches!(
+            run.verification_status.as_deref(),
+            Some("changed" | "unchanged")
+        ) || run.scope_status.as_deref() != Some("within_scope")
+        {
+            return Err(AppError::InvalidInput(
+                "step acceptance requires available repository verification within expected scope"
+                    .into(),
+            ));
+        }
         let state: (String, String, String) = transaction
             .query_row(
                 "SELECT tasks.current_phase, phases.status, versions.status
@@ -3529,7 +3697,7 @@ impl ProjectStore {
                  JOIN task_plan_versions versions
                    ON versions.task_id = tasks.id AND versions.id = ?2
                  WHERE tasks.id = ?1",
-                params![task_id, plan_id],
+                params![run.task_id, run.plan_version_id],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .map_err(storage_error)?;
@@ -3543,20 +3711,21 @@ impl ProjectStore {
                 "SELECT COUNT(*) FROM task_plan_step_runs
                  WHERE plan_version_id = ?1 AND status = 'accepted'
                    AND step_order_index < ?2",
-                params![plan_id, step_order],
+                params![run.plan_version_id, run.step_order_index],
                 |row| row.get(0),
             )
             .map_err(storage_error)?;
-        if accepted_before != step_order {
+        if accepted_before != run.step_order_index {
             return Err(AppError::InvalidInput(
                 "plan step runs must be accepted in order".into(),
             ));
         }
         transaction
             .execute(
-                "UPDATE task_plan_step_runs SET status = 'accepted', updated_at = ?2
+                "UPDATE task_plan_step_runs SET status = 'accepted',
+                 review_status = 'accepted', review_note = ?2, updated_at = ?3
                  WHERE id = ?1 AND status = 'sent'",
-                params![run_id, unix_timestamp()?],
+                params![run_id, note, unix_timestamp()?],
             )
             .map_err(storage_error)?;
         transaction.commit().map_err(storage_error)?;
@@ -3590,7 +3759,11 @@ impl ProjectStore {
             .query_row(
                 "SELECT id, task_id, plan_version_id, plan_step_id, step_order_index,
                  attempt, acp_session_id, instruction, model_tier, model_tier_rationale,
-                 expected_paths_json, status, stop_reason, error, created_at, updated_at
+                 expected_paths_json, status, stop_reason, error,
+                 verification_status, verification_workspace_path,
+                 verification_changed_files_json, verification_error,
+                 scope_status, scope_violations_json, review_status, review_note,
+                 created_at, updated_at
                  FROM task_plan_step_runs WHERE id = ?1",
                 [run_id],
                 |row| {
@@ -3611,8 +3784,31 @@ impl ProjectStore {
                         status: row.get(11)?,
                         stop_reason: row.get(12)?,
                         error: row.get(13)?,
-                        created_at: row.get(14)?,
-                        updated_at: row.get(15)?,
+                        verification_status: row.get(14)?,
+                        verification_workspace_path: row.get(15)?,
+                        verification_changed_files: row
+                            .get::<_, Option<String>>(16)?
+                            .and_then(|value| {
+                                serde_json::from_str::<Vec<serde_json::Value>>(&value).ok()
+                            })
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter_map(|file| {
+                                file.get("path")
+                                    .and_then(serde_json::Value::as_str)
+                                    .map(ToString::to_string)
+                            })
+                            .collect(),
+                        verification_error: row.get(17)?,
+                        scope_status: row.get(18)?,
+                        scope_violations: row
+                            .get::<_, Option<String>>(19)?
+                            .and_then(|value| serde_json::from_str(&value).ok())
+                            .unwrap_or_default(),
+                        review_status: row.get(20)?,
+                        review_note: row.get(21)?,
+                        created_at: row.get(22)?,
+                        updated_at: row.get(23)?,
                     })
                 },
             )
@@ -4652,6 +4848,14 @@ impl ProjectStore {
                     status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed')),
                     stop_reason TEXT,
                     error TEXT,
+                    verification_status TEXT,
+                    verification_workspace_path TEXT,
+                    verification_changed_files_json TEXT,
+                    verification_error TEXT,
+                    scope_status TEXT,
+                    scope_violations_json TEXT,
+                    review_status TEXT,
+                    review_note TEXT,
                     created_at INTEGER NOT NULL,
                     updated_at INTEGER NOT NULL,
                     UNIQUE(task_id, sequence)
@@ -4774,6 +4978,18 @@ impl ProjectStore {
             "verification_status",
             "TEXT",
         )?;
+        for (column, definition) in [
+            ("verification_status", "TEXT"),
+            ("verification_workspace_path", "TEXT"),
+            ("verification_changed_files_json", "TEXT"),
+            ("verification_error", "TEXT"),
+            ("scope_status", "TEXT"),
+            ("scope_violations_json", "TEXT"),
+            ("review_status", "TEXT"),
+            ("review_note", "TEXT"),
+        ] {
+            ensure_table_column(&connection, "task_plan_step_runs", column, definition)?;
+        }
         ensure_table_column(
             &connection,
             "task_phase_run_receipts",
@@ -6833,6 +7049,22 @@ fn json_string_list_from_row(
 
 fn json_string_list(values: &[String]) -> AppResult<String> {
     serde_json::to_string(values).map_err(|error| AppError::Storage(error.to_string()))
+}
+
+fn path_matches_step_scope(path: &str, expected_paths: &[String]) -> bool {
+    let path = path.trim().trim_start_matches("./").trim_start_matches('/');
+    expected_paths.iter().any(|expected| {
+        let expected = expected
+            .trim()
+            .trim_start_matches("./")
+            .trim_start_matches('/')
+            .trim_end_matches('/');
+        !expected.is_empty()
+            && (path == expected
+                || path
+                    .strip_prefix(expected)
+                    .is_some_and(|suffix| suffix.starts_with('/')))
+    })
 }
 
 fn normalized_non_empty(values: Vec<String>) -> Vec<String> {
@@ -9601,8 +9833,30 @@ mod tests {
         store
             .finalize_task_plan_step_run(&retry.id, "sent", Some("end_turn"), None)
             .expect("retry sent");
+        assert!(store
+            .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                run_id: retry.id.clone(),
+                decision: "accept".into(),
+                note: "No repository verification yet".into(),
+            })
+            .is_err());
+        store
+            .record_task_plan_step_run_verification(
+                &retry.id,
+                "changed",
+                "/workspace/repo",
+                r#"[{"status":"M","path":"src/first.rs"}]"#,
+                None,
+            )
+            .expect("retry verification saved");
         let accepted = store
-            .accept_task_plan_step_run(&retry.id)
+            .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                run_id: retry.id.clone(),
+                decision: "accept".into(),
+                note: "Repository change matches the approved step".into(),
+            })
             .expect("first step accepted");
         assert_eq!(accepted.status, "accepted");
         let still_execution = store.task(&task.id).expect("task remains readable");
@@ -9629,13 +9883,64 @@ mod tests {
                 instruction: "Cross plan run".into(),
             })
             .is_err());
+        store
+            .finalize_task_plan_step_run(&second.id, "sent", Some("end_turn"), None)
+            .expect("second step sent");
+        let scoped = store
+            .record_task_plan_step_run_verification(
+                &second.id,
+                "changed",
+                "/workspace/repo",
+                r#"[{"status":"M","path":"src/unexpected.rs"}]"#,
+                None,
+            )
+            .expect("out of scope verification saved");
+        assert_eq!(scoped.scope_status.as_deref(), Some("out_of_scope"));
+        assert_eq!(scoped.scope_violations, vec!["src/unexpected.rs"]);
+        assert!(store
+            .record_task_plan_step_run_verification(
+                &second.id,
+                "changed",
+                "/workspace/repo",
+                r#"[{"status":"M","path":"src/second.rs"}]"#,
+                None,
+            )
+            .is_err());
+        assert!(store
+            .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                run_id: second.id.clone(),
+                decision: "accept".into(),
+                note: "Attempt to accept an unexpected write".into(),
+            })
+            .is_err());
+        let rejected = store
+            .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                run_id: second.id,
+                decision: "reject".into(),
+                note: "Changed a file outside the approved step scope".into(),
+            })
+            .expect("out of scope run rejected");
+        assert_eq!(rejected.status, "failed");
+        assert_eq!(rejected.review_status.as_deref(), Some("rejected"));
+        let second_retry = store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: plan_id,
+                plan_step_id: rejected.plan_step_id,
+                acp_session_id: "acp-6".into(),
+                instruction: "Retry only step two within scope".into(),
+            })
+            .expect("rejected run is retryable");
+        assert_eq!(second_retry.attempt, 2);
         let runs = store
             .list_task_plan_step_runs(&task.id)
             .expect("step runs listed");
-        assert_eq!(runs.len(), 3);
+        assert_eq!(runs.len(), 4);
         assert_eq!(
             runs.iter().map(|run| run.attempt).collect::<Vec<_>>(),
-            vec![1, 2, 1]
+            vec![1, 2, 1, 2]
         );
     }
 

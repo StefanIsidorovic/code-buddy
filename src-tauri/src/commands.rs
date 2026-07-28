@@ -38,9 +38,10 @@ use crate::{
         ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
         RegenerateProjectInitializationSummarySectionRequest, RenameTranscriptSessionRequest,
         ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
-        ReviewProjectInitializationSummaryClaimRequest, SaveProjectInitializationGuardrailsRequest,
-        TaskAgentReportInfo, TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo,
-        TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
+        ReviewProjectInitializationSummaryClaimRequest, ReviewTaskPlanStepRunRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
+        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
         TaskPlanEvaluationInfo, TaskPlanStepInfo, TaskPlanStepRunInfo, TaskPlanVersionInfo,
         TranscriptAcpIdentityInfo, TranscriptEventInfo, TranscriptEventInput,
         TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
@@ -971,6 +972,14 @@ pub fn list_task_plan_step_runs(
 }
 
 #[tauri::command]
+pub fn review_task_plan_step_run(
+    state: State<'_, ProjectStore>,
+    request: ReviewTaskPlanStepRunRequest,
+) -> AppResult<TaskPlanStepRunInfo> {
+    state.review_task_plan_step_run(request)
+}
+
+#[tauri::command]
 pub async fn send_task_plan_step_prompt(
     manager_state: State<'_, Arc<AcpSessionManager>>,
     store_state: State<'_, ProjectStore>,
@@ -1036,7 +1045,7 @@ async fn send_task_plan_step_prompt_with_manager(
     let prompt_manager = Arc::clone(&manager);
     match run_acp_task(move || prompt_manager.send_prompt(&acp_session_id, &instruction)).await {
         Ok(prompt_result) => {
-            let receipt = store.finalize_task_plan_step_run(
+            store.finalize_task_plan_step_run(
                 &receipt_id,
                 "sent",
                 Some(&prompt_result.stop_reason),
@@ -1049,6 +1058,15 @@ async fn send_task_plan_step_prompt_with_manager(
                 before,
                 capture_git_workspace_snapshot(&workspace),
             );
+            let touched_files_json = serde_json::to_string(&workspace_verification.touched_files)
+                .map_err(|error| AppError::Storage(error.to_string()))?;
+            let receipt = store.record_task_plan_step_run_verification(
+                &receipt_id,
+                &workspace_verification.status,
+                &workspace_verification.workspace_path,
+                &touched_files_json,
+                workspace_verification.error.as_deref(),
+            )?;
             Ok(TaskPlanStepRunResultInfo {
                 prompt_result,
                 receipt,
@@ -1467,6 +1485,31 @@ mod tests {
         path
     }
 
+    #[cfg(unix)]
+    fn initialize_command_git_repo(path: &PathBuf) {
+        fs::write(path.join("README.md"), "# Test\n").expect("seed file");
+        for args in [
+            vec!["init"],
+            vec!["add", "README.md"],
+            vec![
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=AIadne Test",
+                "commit",
+                "-m",
+                "initial",
+            ],
+        ] {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(path)
+                .status()
+                .expect("git command starts");
+            assert!(status.success());
+        }
+    }
+
     #[test]
     fn step_instruction_is_bounded_to_one_approved_step() {
         let task = TaskInfo {
@@ -1548,6 +1591,7 @@ mod tests {
         tauri::async_runtime::block_on(async {
             let store = ProjectStore::in_memory().expect("store opens");
             let project_path = temp_command_project_path("step-dispatch");
+            initialize_command_git_repo(&project_path);
             let project = store
                 .create_project(CreateProjectRequest {
                     name: "AIadne".into(),
@@ -1692,13 +1736,24 @@ mod tests {
 
             assert_eq!(result.receipt.status, "sent");
             assert_eq!(result.receipt.plan_step_id, plan.steps[0].id);
+            assert_eq!(
+                result.receipt.verification_status.as_deref(),
+                Some("unchanged")
+            );
+            assert_eq!(result.receipt.scope_status.as_deref(), Some("within_scope"));
+            assert!(result.receipt.verification_changed_files.is_empty());
             assert!(result.receipt.instruction.contains("Execute exactly one"));
             assert!(result
                 .receipt
                 .instruction
                 .contains("Required model tier: small"));
             store
-                .accept_task_plan_step_run(&result.receipt.id)
+                .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
+                    task_id: task.id.clone(),
+                    run_id: result.receipt.id.clone(),
+                    decision: "accept".into(),
+                    note: "Fake run stayed within the expected scope".into(),
+                })
                 .expect("first step accepted for failure-path setup");
             let stopped = manager
                 .start_fake_session(StartFakeAcpSessionRequest {
