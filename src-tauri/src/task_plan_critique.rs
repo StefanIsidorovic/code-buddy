@@ -11,6 +11,33 @@ pub struct TaskPlanCritiqueIssue {
     pub finding_ids: Vec<String>,
     pub explanation: String,
     pub proposed_repair: String,
+    #[serde(default)]
+    pub repairs: Vec<TaskPlanRepair>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum TaskPlanRepair {
+    AddStep {
+        title: String,
+        description: String,
+        complexity: i64,
+        acceptance_criteria: Vec<String>,
+        expected_paths: Vec<String>,
+        satisfies: Vec<String>,
+    },
+    SetStepExpectedPaths {
+        step_id: String,
+        expected_paths: Vec<String>,
+    },
+    SetStepRequirements {
+        step_id: String,
+        satisfies: Vec<String>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,16 +108,21 @@ pub fn critique_instruction(
     Ok(format!(
         "Critique only the deterministic findings in the supplied structured plan context.\n\
          Return JSON only: {{\"issues\":[{{\"findingIds\":[\"exact persisted finding ID\"],\
-         \"explanation\":\"short impact\",\"proposedRepair\":\"specific plan edit\"}}]}}.\n\
+         \"explanation\":\"short impact\",\"proposedRepair\":\"specific plan edit\",\
+         \"repairs\":[{{\"kind\":\"set_step_expected_paths\",\"stepId\":\"exact step ID\",\
+         \"expectedPaths\":[\"path\"]}}]}}]}}.\n\
          Return at most {MAX_PRIMARY_ISSUES} issues, ordered by user impact. Every issue must cite \
-         at least one exact finding ID from the context. Do not invent findings, inspect files, \
-         execute code, rewrite the plan, or claim a repair was applied.\n\
+         at least one exact finding ID from the context and contain at least one typed repair. \
+         Allowed repair kinds are add_step, set_step_expected_paths, and set_step_requirements. \
+         Use only exact requirement and step IDs from context except for a new add_step. Do not \
+         invent findings, inspect files, execute code, rewrite the plan, or claim a repair was applied.\n\
          CONTEXT_JSON:\n{context_json}"
     ))
 }
 
 pub fn grounded_issues(
     response: &str,
+    plan: &TaskPlanVersionInfo,
     findings: &[TaskPlanFindingInfo],
 ) -> Vec<TaskPlanCritiqueIssue> {
     let Some(json) = json_object(response) else {
@@ -114,13 +146,73 @@ pub fn grounded_issues(
             issue.finding_ids.dedup();
             issue.explanation = issue.explanation.trim().to_string();
             issue.proposed_repair = issue.proposed_repair.trim().to_string();
+            issue
+                .repairs
+                .retain_mut(|repair| normalize_repair(repair, plan));
             (!issue.finding_ids.is_empty()
                 && !issue.explanation.is_empty()
-                && !issue.proposed_repair.is_empty())
+                && !issue.proposed_repair.is_empty()
+                && !issue.repairs.is_empty())
             .then_some(issue)
         })
         .take(MAX_PRIMARY_ISSUES)
         .collect()
+}
+
+fn normalize_repair(repair: &mut TaskPlanRepair, plan: &TaskPlanVersionInfo) -> bool {
+    let declared = plan
+        .requirements
+        .iter()
+        .filter(|item| item.kind != "out_of_scope")
+        .map(|item| item.id.as_str())
+        .collect::<HashSet<_>>();
+    match repair {
+        TaskPlanRepair::AddStep {
+            title,
+            description,
+            complexity,
+            acceptance_criteria,
+            expected_paths,
+            satisfies,
+        } => {
+            *title = title.trim().to_string();
+            *description = description.trim().to_string();
+            normalize_list(acceptance_criteria);
+            normalize_list(expected_paths);
+            normalize_list(satisfies);
+            !title.is_empty()
+                && !description.is_empty()
+                && (1..=5).contains(complexity)
+                && !acceptance_criteria.is_empty()
+                && !expected_paths.is_empty()
+                && !satisfies.is_empty()
+                && satisfies.iter().all(|id| declared.contains(id.as_str()))
+        }
+        TaskPlanRepair::SetStepExpectedPaths {
+            step_id,
+            expected_paths,
+        } => {
+            *step_id = step_id.trim().to_string();
+            normalize_list(expected_paths);
+            plan.steps.iter().any(|step| step.id == *step_id) && !expected_paths.is_empty()
+        }
+        TaskPlanRepair::SetStepRequirements { step_id, satisfies } => {
+            *step_id = step_id.trim().to_string();
+            normalize_list(satisfies);
+            plan.steps.iter().any(|step| step.id == *step_id)
+                && !satisfies.is_empty()
+                && satisfies.iter().all(|id| declared.contains(id.as_str()))
+        }
+    }
+}
+
+fn normalize_list(values: &mut Vec<String>) {
+    values
+        .iter_mut()
+        .for_each(|value| *value = value.trim().to_string());
+    values.retain(|value| !value.is_empty());
+    values.sort();
+    values.dedup();
 }
 
 fn json_object(response: &str) -> Option<&str> {
@@ -192,28 +284,41 @@ mod tests {
     fn retains_only_grounded_complete_issues_and_caps_the_brief() {
         let response = r#"```json
         {"issues":[
-          {"findingIds":["GAP:REQ-1"],"explanation":" First ","proposedRepair":" Add a step "},
-          {"findingIds":["INVENTED"],"explanation":"Unsupported","proposedRepair":"Ignore"},
-          {"findingIds":["MISSING_PATHS:step-1"],"explanation":"Second","proposedRepair":"Add paths"},
-          {"findingIds":["GAP:REQ-1"],"explanation":"Third","proposedRepair":"Split step"},
-          {"findingIds":["GAP:REQ-1"],"explanation":"Fourth","proposedRepair":"Never shown"}
+          {"findingIds":["GAP:REQ-1"],"explanation":" First ","proposedRepair":" Add a step ",
+           "repairs":[{"kind":"add_step","title":" Cover retry ","description":" Add coverage ",
+             "complexity":2,"acceptanceCriteria":[" Pass "],"expectedPaths":[" tests/retry.rs "],
+             "satisfies":["REQ-1"]}]},
+          {"findingIds":["INVENTED"],"explanation":"Unsupported","proposedRepair":"Ignore",
+           "repairs":[{"kind":"set_step_expected_paths","stepId":"step-1","expectedPaths":["src/**"]}]},
+          {"findingIds":["MISSING_PATHS:step-1"],"explanation":"Second","proposedRepair":"Add paths",
+           "repairs":[{"kind":"set_step_expected_paths","stepId":"step-1","expectedPaths":["src/**"]}]},
+          {"findingIds":["GAP:REQ-1"],"explanation":"Third","proposedRepair":"Split step",
+           "repairs":[{"kind":"set_step_requirements","stepId":"step-1","satisfies":["REQ-1"]}]},
+          {"findingIds":["GAP:REQ-1"],"explanation":"Fourth","proposedRepair":"Never shown",
+           "repairs":[{"kind":"set_step_requirements","stepId":"step-1","satisfies":["REQ-1"]}]}
         ]}
         ```"#;
         let issues = grounded_issues(
             response,
+            &plan(),
             &[finding("GAP:REQ-1"), finding("MISSING_PATHS:step-1")],
         );
         assert_eq!(issues.len(), 3);
         assert_eq!(issues[0].explanation, "First");
         assert_eq!(issues[0].proposed_repair, "Add a step");
         assert_eq!(issues[1].finding_ids, ["MISSING_PATHS:step-1"]);
+        assert!(matches!(
+            issues[0].repairs[0],
+            TaskPlanRepair::AddStep { .. }
+        ));
     }
 
     #[test]
     fn rejects_malformed_or_entirely_unsupported_output() {
-        assert!(grounded_issues("not json", &[finding("GAP:REQ-1")]).is_empty());
+        assert!(grounded_issues("not json", &plan(), &[finding("GAP:REQ-1")]).is_empty());
         let unsupported = r#"{"issues":[{"findingIds":["FAKE"],"explanation":"Claim",
-            "proposedRepair":"Repair"}]}"#;
-        assert!(grounded_issues(unsupported, &[finding("GAP:REQ-1")]).is_empty());
+            "proposedRepair":"Repair","repairs":[{"kind":"set_step_expected_paths",
+            "stepId":"invented","expectedPaths":["src/**"]}]}]}"#;
+        assert!(grounded_issues(unsupported, &plan(), &[finding("GAP:REQ-1")]).is_empty());
     }
 }

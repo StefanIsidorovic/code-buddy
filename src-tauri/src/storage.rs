@@ -2451,7 +2451,9 @@ impl ProjectStore {
         if let Some(existing) = self.task_plan_critique(evaluation_id)? {
             return Ok(existing);
         }
-        let issues = task_plan_critique::grounded_issues(&request.response, &evaluation.findings);
+        let plan = self.task_plan_version(plan_id)?;
+        let issues =
+            task_plan_critique::grounded_issues(&request.response, &plan, &evaluation.findings);
         if !evaluation.findings.is_empty() && issues.is_empty() {
             return Err(AppError::InvalidInput(
                 "plan critique response contains no grounded issues".into(),
@@ -8013,7 +8015,10 @@ mod tests {
                     evaluation_id: blocked_evaluation.id.clone(),
                     source: "fake-small-model".into(),
                     response: r#"{"issues":[{"findingIds":["INVENTED"],"explanation":"Claim",
-                        "proposedRepair":"Repair"}]}"#
+                        "proposedRepair":"Repair","repairs":[{"kind":"add_step",
+                        "title":"Invent","description":"Unsupported","complexity":2,
+                        "acceptanceCriteria":["Pass"],"expectedPaths":["src/**"],
+                        "satisfies":["REQ-1"]}]}]}"#
                         .into(),
                 })
                 .is_err(),
@@ -8027,7 +8032,11 @@ mod tests {
                 source: "fake-small-model".into(),
                 response: r#"{"issues":[{"findingIds":["GAP:REQ-2"],
                     "explanation":"Documentation has no implementing step.",
-                    "proposedRepair":"Add a documentation step satisfying REQ-2."}]}"#
+                    "proposedRepair":"Add a documentation step satisfying REQ-2.",
+                    "repairs":[{"kind":"add_step","title":"Document behavior",
+                    "description":"Add bounded documentation","complexity":1,
+                    "acceptanceCriteria":["Documentation describes the behavior"],
+                    "expectedPaths":["docs/**"],"satisfies":["REQ-2"]}]}]}"#
                     .into(),
             })
             .expect("grounded critique persisted");
