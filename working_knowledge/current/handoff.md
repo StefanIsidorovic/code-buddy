@@ -17,6 +17,7 @@
 - Plan item 34.3 is committed as 2fc0466: every option advertised by the active ACP agent is visible/selectable again, while unadvertised IDs remain rejected.
 - Plan item 35.1 is committed as b315d4f: completed phases expose immutable evidence history.
 - Plan item 35.2 is complete pending commit: execution persists exact ACP workspace and pre/post Git verification, restores it after refresh, and blocks completion after unchanged/unavailable agent runs.
+- Plan item 35.3 is complete pending commit: unchanged/unavailable execution can rerun after workspace repair, while verified and non-execution runs remain locked.
 
 ## Next Step
 - Commit 35.2 with provenance, then test the execution flow in a real complete Git checkout.

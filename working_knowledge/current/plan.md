@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 35.3. Allow failed execution verification retry
+- objective: let users rerun execution after an unchanged or unavailable repository verification without weakening successful-run or other-phase locks.
+- status: complete pending commit.
+- files: src/features/tasks/TaskPhasePanel.tsx; related tests; working_knowledge/current/*.
+- affected units: execution run-button lock and recovery guidance.
+- expected changes: derive a narrow retry state from the current Task execution verification; unlock and relabel the execution action only for unchanged/unavailable results.
+- acceptance criteria: unavailable/unchanged execution can rerun; changed execution cannot rerun; analysis/planning/review successful runs remain locked; the latest durable receipt remains authoritative for completion.
+- required tests: unavailable/unchanged retry; changed execution lock; non-execution lock regression; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 1 cycle; only unchanged/unavailable execution verification unlocks a clearly labeled retry, changed execution stays locked, and the existing non-execution successful-run lock is unchanged.
+- commit: pending.
+
 ### 35.1. Add read-only completed phase history
 - objective: let users inspect completed Task phases without reopening or mutating their immutable workflow state.
 - status: complete.

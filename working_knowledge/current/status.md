@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: b315d4f step 35.1: expose completed phase history
-- worktree: plan item 35.2 complete pending commit
-- relevant files: durable execution repository verification backend/domain/runtime/Task UI/tests
+- head: 2ab6ce5 step 35.2: verify execution workspace changes
+- worktree: plan item 35.3 complete pending commit
+- relevant files: execution retry presentation/tests
 
 ## Current Task
 - request: make completed phases inspectable and verify execution changes in the real ACP workspace
 - phase: implementation
-- active plan step: 35.2
+- active plan step: 35.3
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -39,3 +39,4 @@
 - 2026-07-28: plan item 34.3 restores all ACP-advertised coding models; frontend audit, typecheck, 274 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-28: plan item 35.1 adds read-only completed-phase history; frontend audit, typecheck, 275 frontend tests, production build and diff hygiene pass.
 - 2026-07-28: plan item 35.2 adds durable ACP-workspace execution verification; frontend audit, typecheck, 277 frontend tests, production build, Rust fmt, 123 Rust tests, clippy with warnings denied and diff hygiene pass.
+- 2026-07-28: plan item 35.3 enables narrow execution retry after unchanged/unavailable verification; frontend audit, typecheck, 278 frontend tests, production build and diff hygiene pass.

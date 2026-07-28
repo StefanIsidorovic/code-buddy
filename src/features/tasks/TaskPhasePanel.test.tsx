@@ -152,6 +152,7 @@ describe("TaskPhasePanel", () => {
       workspaceVerification: verification })} />);
     expect(screen.getByText("No repository change detected")).toBeInTheDocument();
     expect(screen.getByText("Workspace: /repo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rerun execution after fixing workspace" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeDisabled();
     view.rerender(<TaskPhasePanel {...props({ task: executionTask, currentPhase: executionPhase,
       artifacts: [executionArtifact], evidenceReviewed: true, hasPhaseRun: true,
@@ -159,7 +160,19 @@ describe("TaskPhasePanel", () => {
         changedFiles: [{ status: "M", path: "src/index.ts" }] } })} />);
     expect(screen.getByText("Repository changes verified")).toBeInTheDocument();
     expect(screen.getByText("src/index.ts")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "execution agent run finished" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeEnabled();
+  });
+  it("allows execution retry when Git verification is unavailable", () => {
+    const executionPhase = { ...phases[2], status: "in_progress" as const, startedAt: 2 };
+    const executionTask = { ...task, currentPhase: "execution" as const,
+      phases: phases.map((phase) => phase.phase === "execution" ? executionPhase : phase) };
+    const value = props({ task: executionTask, currentPhase: executionPhase, hasPhaseRun: true,
+      workspaceVerification: { taskId: "t1", phase: "execution", workspacePath: "/broken",
+        status: "unavailable", changedFiles: [], error: "not a Git repository" } });
+    render(<TaskPhasePanel {...value} />);
+    fireEvent.click(screen.getByRole("button", { name: "Rerun execution after fixing workspace" }));
+    expect(value.onRunAndPrepare).toHaveBeenCalledOnce();
   });
   it("locks a repeated phase run after a successful receipt", () => {
     render(<TaskPhasePanel {...props({ hasPhaseRun: true })} />);

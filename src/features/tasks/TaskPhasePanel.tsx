@@ -36,6 +36,8 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
     ? workspaceVerification : null;
   const executionBlocked = !!currentExecutionVerification
     && currentExecutionVerification.status !== "changed";
+  const canRetryExecution = task.currentPhase === "execution"
+    && !!currentExecutionVerification && currentExecutionVerification.status !== "changed";
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
   const nextPhase = task.phases.find(({ phaseIndex }) => phaseIndex === (currentPhase?.phaseIndex ?? -1) + 1)?.phase;
   return <section className="task-phase-panel" aria-labelledby="task-phase-title">
@@ -73,9 +75,10 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <small>Show the bounded prompt sent to the coding agent</small></summary>
         <pre>{agentInstruction}</pre></details>
         <button className="primary-action" type="button"
-          disabled={!canRunAgent || agentRunning || loading || hasPhaseRun}
+          disabled={!canRunAgent || agentRunning || loading || hasPhaseRun && !canRetryExecution}
           onClick={() => onRunAndPrepare(agentInstruction)}>{agentRunning ? "Running phase…"
-            : hasPhaseRun ? `${task.currentPhase} agent run finished` : `Run agent for ${task.currentPhase}`}</button>
+            : canRetryExecution ? "Rerun execution after fixing workspace"
+              : hasPhaseRun ? `${task.currentPhase} agent run finished` : `Run agent for ${task.currentPhase}`}</button>
         {!canRunAgent ? <small className="task-helper-card">Start an ACP session to run this phase.</small> : null}
         {hasPhaseRun ? <small className="task-helper-card">The agent response is ready below for review and saving.</small> : null}
         <div className="task-manual-evidence-path task-helper-card"><strong>Manual path</strong>
