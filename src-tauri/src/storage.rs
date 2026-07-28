@@ -6,6 +6,7 @@ use crate::models::{
 use crate::synthesis::ProjectInitializationKnowledgeDraft;
 use crate::task::{assess_task_complexity, is_task_complexity_profile};
 use crate::task_plan::{self, TaskPlanFindingInfo};
+use crate::task_plan_critique::{self, TaskPlanCritiqueIssue};
 use rusqlite::{params, types::Type, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -439,6 +440,28 @@ pub struct TaskPlanEvaluationInfo {
     pub plan_version: i64,
     pub verdict: String,
     pub findings: Vec<TaskPlanFindingInfo>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskPlanCritiqueRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub evaluation_id: String,
+    pub source: String,
+    pub response: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanCritiqueInfo {
+    pub id: String,
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub evaluation_id: String,
+    pub source: String,
+    pub issues: Vec<TaskPlanCritiqueIssue>,
     pub created_at: i64,
 }
 
@@ -2403,6 +2426,97 @@ impl ProjectStore {
         ).optional().map_err(storage_error)
     }
 
+    pub fn create_task_plan_critique(
+        &self,
+        request: CreateTaskPlanCritiqueRequest,
+    ) -> AppResult<TaskPlanCritiqueInfo> {
+        let task_id = request.task_id.trim();
+        let plan_id = request.plan_version_id.trim();
+        let evaluation_id = request.evaluation_id.trim();
+        let source = request.source.trim();
+        if task_id.is_empty() || plan_id.is_empty() || evaluation_id.is_empty() || source.is_empty()
+        {
+            return Err(AppError::InvalidInput(
+                "plan critique requires a task, plan version, evaluation, and source".into(),
+            ));
+        }
+        let evaluation = self
+            .task_plan_evaluation(plan_id)?
+            .filter(|item| item.id == evaluation_id && item.task_id == task_id)
+            .ok_or_else(|| {
+                AppError::InvalidInput(
+                    "plan critique evaluation does not belong to the selected task and plan".into(),
+                )
+            })?;
+        if let Some(existing) = self.task_plan_critique(evaluation_id)? {
+            return Ok(existing);
+        }
+        let issues = task_plan_critique::grounded_issues(&request.response, &evaluation.findings);
+        if !evaluation.findings.is_empty() && issues.is_empty() {
+            return Err(AppError::InvalidInput(
+                "plan critique response contains no grounded issues".into(),
+            ));
+        }
+        let issues_json =
+            serde_json::to_string(&issues).map_err(|error| AppError::Storage(error.to_string()))?;
+        let id = Uuid::new_v4().to_string();
+        let created_at = unix_timestamp()?;
+        let connection = self.connection()?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO task_plan_critiques
+                 (id, task_id, plan_version_id, evaluation_id, source, issues_json, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    id,
+                    task_id,
+                    plan_id,
+                    evaluation_id,
+                    source,
+                    issues_json,
+                    created_at
+                ],
+            )
+            .map_err(storage_error)?;
+        drop(connection);
+        self.task_plan_critique(evaluation_id)?
+            .ok_or_else(|| AppError::Storage("plan critique was not persisted".into()))
+    }
+
+    pub fn task_plan_critique(
+        &self,
+        evaluation_id: &str,
+    ) -> AppResult<Option<TaskPlanCritiqueInfo>> {
+        let connection = self.connection()?;
+        connection
+            .query_row(
+                "SELECT id, task_id, plan_version_id, evaluation_id, source, issues_json, created_at
+                 FROM task_plan_critiques WHERE evaluation_id = ?1",
+                [evaluation_id],
+                |row| {
+                    let json: String = row.get(5)?;
+                    let issues = serde_json::from_str(&json).map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            5,
+                            Type::Text,
+                            Box::new(error),
+                        )
+                    })?;
+                    Ok(TaskPlanCritiqueInfo {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        plan_version_id: row.get(2)?,
+                        evaluation_id: row.get(3)?,
+                        source: row.get(4)?,
+                        issues,
+                        created_at: row.get(6)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(storage_error)
+    }
+
     fn task_plan_version(&self, plan_id: &str) -> AppResult<TaskPlanVersionInfo> {
         let connection = self.connection()?;
         let mut plan = connection
@@ -4058,6 +4172,16 @@ impl ProjectStore {
                     plan_version INTEGER NOT NULL,
                     verdict TEXT NOT NULL CHECK(verdict IN ('clean', 'flags', 'blocked')),
                     findings_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS task_plan_critiques (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    plan_version_id TEXT NOT NULL REFERENCES task_plan_versions(id) ON DELETE CASCADE,
+                    evaluation_id TEXT NOT NULL UNIQUE REFERENCES task_plan_evaluations(id) ON DELETE CASCADE,
+                    source TEXT NOT NULL,
+                    issues_json TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 );
 
@@ -7881,6 +8005,46 @@ mod tests {
             })
             .expect("gap evaluated");
         assert_eq!(blocked_evaluation.verdict, "blocked");
+        assert!(
+            store
+                .create_task_plan_critique(CreateTaskPlanCritiqueRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: first.id.clone(),
+                    evaluation_id: blocked_evaluation.id.clone(),
+                    source: "fake-small-model".into(),
+                    response: r#"{"issues":[{"findingIds":["INVENTED"],"explanation":"Claim",
+                        "proposedRepair":"Repair"}]}"#
+                        .into(),
+                })
+                .is_err(),
+            "unsupported critique is not persisted"
+        );
+        let critique = store
+            .create_task_plan_critique(CreateTaskPlanCritiqueRequest {
+                task_id: task.id.clone(),
+                plan_version_id: first.id.clone(),
+                evaluation_id: blocked_evaluation.id.clone(),
+                source: "fake-small-model".into(),
+                response: r#"{"issues":[{"findingIds":["GAP:REQ-2"],
+                    "explanation":"Documentation has no implementing step.",
+                    "proposedRepair":"Add a documentation step satisfying REQ-2."}]}"#
+                    .into(),
+            })
+            .expect("grounded critique persisted");
+        assert_eq!(critique.issues[0].finding_ids, ["GAP:REQ-2"]);
+        assert_eq!(
+            store
+                .create_task_plan_critique(CreateTaskPlanCritiqueRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: first.id.clone(),
+                    evaluation_id: blocked_evaluation.id.clone(),
+                    source: "another-model".into(),
+                    response: "not json".into(),
+                })
+                .expect("unchanged evaluation reuses critique")
+                .id,
+            critique.id
+        );
         assert!(
             store
                 .approve_task_plan_version(ApproveTaskPlanVersionRequest {
