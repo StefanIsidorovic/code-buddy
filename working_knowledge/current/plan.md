@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 34.3. Restore all ACP-advertised coding models
+- objective: restore model selection for every option advertised by the active ACP agent, including GPT-5.5 when its metadata has no availability flag.
+- status: complete pending commit.
+- files: src-tauri/src/acp.rs; src/types/domain.ts; src/features/runtime/AcpRuntimePanel.tsx; related tests; working_knowledge/current/*.
+- affected units: ACP model contract, backend set-model validation, runtime model selector, compatibility regression coverage.
+- expected changes: remove the unsupported availability inference introduced in 34.2; render all advertised model options; retain rejection only for model IDs the active agent did not advertise.
+- acceptance criteria: GPT-5.5-like options without availability metadata remain visible and selectable; the current model stays selected; unadvertised model IDs remain rejected; Task phase UI from 34.1 is unchanged.
+- required tests: selector shows and sends an advertised option without availability metadata; advertised/unadvertised backend set-model regressions; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy; diff hygiene.
+- review status: passed after 1 cycle; the 34.2 availability inference is fully removed, every active-agent-advertised option is rendered and dispatchable, unadvertised IDs remain rejected, and Task phase presentation is untouched.
+- commit: pending.
+
 ### 34.1. Standardize Task phase step presentation
 - objective: frame every Task phase step consistently, standardize explanatory copy styling, and emphasize tracker readiness without changing workflow gates.
 - status: complete pending commit.
@@ -15,7 +26,7 @@
 
 ### 34.2. Expose authoritative ACP model availability
 - objective: stop offering coding models that the active ACP runtime/configuration cannot actually use.
-- status: complete pending commit.
+- status: reverted by 34.3 because ACP availability metadata is not authoritative in the currently supported protocol/runtime.
 - files: src-tauri/src/acp.rs; src-tauri/src/commands.rs if required; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; src/features/runtime/AcpRuntimePanel.tsx; related tests; working_knowledge/current/*.
 - affected units: ACP model metadata parsing, runtime compatibility/config discovery, typed availability reason, model selector filtering/fallback.
 - expected changes: extend the backend-owned model contract with a real configured/available signal or a validated session capability result; show only usable choices while retaining the active model and an actionable reason when none are selectable.

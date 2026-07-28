@@ -101,8 +101,6 @@ export type AcpModelOption = {
   value: string;
   name: string;
   description: string | null;
-  available?: boolean | null;
-  unavailableReason?: string | null;
 };
 
 export type AcpModelState = {

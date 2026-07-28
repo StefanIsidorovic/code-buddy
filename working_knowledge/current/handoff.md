@@ -13,10 +13,11 @@
 - Plan item 33.2 is committed as ce985e2: desktop Task guidance is sticky, mobile keeps normal flow, and every canonical phase states its distinct expected outcome.
 - Plan item 33.3 is committed as 1dfde7a: the sticky tracker owns precise Next guidance and readiness indicators; the separate space-heavy Next step card and its CSS are removed.
 - Plan item 34.1 is committed as f311ff9: Task steps 1–4 are framed, helper explanations share one visual language, and tracker requirements use emphasized status chips.
-- Plan item 34.2 is complete pending commit: ACP options require explicit runtime availability before selection; unknown alternatives are hidden and current model remains read-only.
+- Plan item 34.2 was committed as 1406827, then found invalid because absent ACP metadata hid usable models such as GPT-5.5.
+- Plan item 34.3 is complete pending commit: every option advertised by the active ACP agent is visible/selectable again, while unadvertised IDs remain rejected.
 
 ## Next Step
-- Commit 34.2 with a provenance note.
+- Commit 34.3 with a provenance note.
 - Extend Project Autopilot into a resumable Facts → Markdown → Summary state machine; keep Task Autopilot separate.
 
 ## Commands To Re-Run

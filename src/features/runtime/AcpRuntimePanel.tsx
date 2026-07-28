@@ -20,13 +20,9 @@ export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
     onChangeModel, onChangePrompt, onDrain, onPreviewContext, onSendPrompt,
     onStartSelected, onStop, onRespondPermission, onToggleExpanded } = props;
   const codingModel = session?.codingModel;
-  const currentModel = codingModel?.options.find(
+  const modelDescription = codingModel?.options.find(
     (option) => option.value === codingModel.currentValue,
-  );
-  const selectableModels = codingModel?.options.filter((option) =>
-    option.value === codingModel.currentValue || option.available === true) ?? [];
-  const canChangeModel = selectableModels.some((option) =>
-    option.value !== codingModel?.currentValue && option.available === true);
+  )?.description;
 
   return (
     <section className="runtime-panel acp-runtime-panel" data-expanded={expanded} aria-labelledby="acp-title">
@@ -80,17 +76,14 @@ export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
       <div className="acp-controls-content" hidden={!expanded} id="acp-controls-content">
         <div className="acp-coding-model">
           <label><span>Coding model</span>
-            {codingModel && canChangeModel ? (
+            {codingModel ? (
               <select aria-label="Coding model" value={codingModel.currentValue}
                 onChange={(event) => onChangeModel(event.target.value)}
                 disabled={busy || promptBusy || !canUseSession}>
-                {selectableModels.map((option) => (
+                {codingModel.options.map((option) => (
                   <option key={option.value} value={option.value}>{option.name}</option>
                 ))}
               </select>
-            ) : codingModel ? (
-              <span className="acp-model-unavailable">{currentModel?.name
-                ?? codingModel.currentValue}</span>
             ) : (
               <span className="acp-model-unavailable">
                 {session ? "This agent does not advertise model selection."
@@ -98,11 +91,7 @@ export function AcpRuntimePanel(props: AcpRuntimePanelProps) {
               </span>
             )}
           </label>
-          {codingModel ? <small>{canChangeModel
-            ? currentModel?.description ?? "Model used by this coding session."
-            : currentModel?.unavailableReason
-              ?? "The agent did not confirm any alternative coding models as compatible with this runtime."
-          }</small> : null}
+          {codingModel ? <small>{modelDescription ?? "Model used by this coding session."}</small> : null}
         </div>
 
         {activeTask ? (

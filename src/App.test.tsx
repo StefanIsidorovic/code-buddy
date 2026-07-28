@@ -1850,13 +1850,11 @@ describe("PTY test panel", () => {
                 value: "gpt-5.6",
                 name: "GPT-5.6",
                 description: "Default coding model",
-                available: true,
               },
               {
                 value: "gpt-5.6-mini",
                 name: "GPT-5.6 Mini",
                 description: "Faster coding model",
-                available: true,
               },
             ],
           },
@@ -1877,13 +1875,11 @@ describe("PTY test panel", () => {
           codingModel: {
             currentValue: "gpt-5.6-mini",
             options: [
-              { value: "gpt-5.6", name: "GPT-5.6", description: "Default coding model",
-                available: true },
+              { value: "gpt-5.6", name: "GPT-5.6", description: "Default coding model" },
               {
                 value: "gpt-5.6-mini",
                 name: "GPT-5.6 Mini",
                 description: "Faster coding model",
-                available: true,
               },
             ],
           },
