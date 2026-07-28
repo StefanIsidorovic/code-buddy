@@ -67,6 +67,8 @@ pub struct AcpModelOption {
     pub value: String,
     pub name: String,
     pub description: Option<String>,
+    pub available: Option<bool>,
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -866,7 +868,7 @@ impl AcpSession {
         }
         let _permit = self.acquire_prompt_permit()?;
 
-        let (agent_session_id, advertised) = {
+        let (agent_session_id, advertised, available) = {
             let metadata = self.metadata()?;
             let state = metadata.coding_model.as_ref().ok_or_else(|| {
                 AppError::InvalidInput(
@@ -874,17 +876,27 @@ impl AcpSession {
                 )
             })?;
             let advertised = state.options.iter().any(|option| option.value == model_id);
+            let available = state
+                .options
+                .iter()
+                .any(|option| option.value == model_id && option.available == Some(true));
             (
                 metadata
                     .agent_session_id
                     .clone()
                     .ok_or_else(|| AppError::Acp("acp session is not initialized".to_string()))?,
                 advertised,
+                available,
             )
         };
         if !advertised {
             return Err(AppError::InvalidInput(format!(
                 "ACP model is not advertised by the active agent: {model_id}"
+            )));
+        }
+        if !available {
+            return Err(AppError::InvalidInput(format!(
+                "ACP model is not confirmed available by the active agent: {model_id}"
             )));
         }
 
@@ -1247,6 +1259,11 @@ fn parse_model_state(result: &Value) -> Option<AcpModelState> {
                     .get("description")
                     .and_then(Value::as_str)
                     .map(ToString::to_string),
+                available: option.get("available").and_then(Value::as_bool),
+                unavailable_reason: option
+                    .get("unavailableReason")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
             })
         })
         .collect::<Vec<_>>();
@@ -1552,10 +1569,10 @@ fn fake_acp_script() -> &'static str {
       printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":false},"agentInfo":{"name":"fake-acp","title":"Fake ACP Agent","version":"0.1.0"},"authMethods":[]}}\n' "$id"
       ;;
     *'"method":"session/new"'*)
-      printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"fake-acp-session","configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"fake-code-fast","options":[{"value":"fake-code-fast","name":"Fake Code Fast","description":"Fast test model"},{"value":"fake-code-deep","name":"Fake Code Deep","description":"Deep test model"}]}]}}\n' "$id"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"fake-acp-session","configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"fake-code-fast","options":[{"value":"fake-code-fast","name":"Fake Code Fast","description":"Fast test model","available":true},{"value":"fake-code-deep","name":"Fake Code Deep","description":"Deep test model","available":true}]}]}}\n' "$id"
       ;;
     *'"method":"session/set_config_option"'*)
-      printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"fake-code-deep","options":[{"value":"fake-code-fast","name":"Fake Code Fast","description":"Fast test model"},{"value":"fake-code-deep","name":"Fake Code Deep","description":"Deep test model"}]}]}}\n' "$id"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":[{"id":"model","name":"Model","type":"select","currentValue":"fake-code-deep","options":[{"value":"fake-code-fast","name":"Fake Code Fast","description":"Fast test model","available":true},{"value":"fake-code-deep","name":"Fake Code Deep","description":"Deep test model","available":true}]}]}}\n' "$id"
       ;;
     *'"method":"session/prompt"'*)
       printf '{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"fake-acp-session","update":{"sessionUpdate":"agent_message_chunk","messageId":"msg_fake","content":{"type":"text","text":"fake acp received prompt"}}}}\n'
@@ -2117,6 +2134,28 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
+    fn rejects_coding_model_without_confirmed_availability() {
+        let manager = AcpSessionManager::default();
+        let session = manager
+            .load_fake_session(
+                std::env::current_dir().expect("current dir exists"),
+                "saved-agent-session",
+            )
+            .expect("existing ACP session loads");
+
+        let error = manager
+            .set_model(SetAcpModelRequest {
+                session_id: session.id,
+                model_id: "restored-model".to_string(),
+            })
+            .expect_err("unknown availability rejected");
+
+        assert!(matches!(error, AppError::InvalidInput(_)));
+        assert!(error.to_string().contains("not confirmed available"));
+    }
+
+    #[test]
+    #[cfg(unix)]
     fn rejects_model_change_while_prompt_operation_is_in_flight() {
         let session = AcpSession::spawn_fake(std::env::current_dir().expect("current dir exists"))
             .expect("acp session starts");
@@ -2355,5 +2394,30 @@ mod tests {
             .status()
             .map(|status| status.success())
             .unwrap_or(false)
+    }
+
+    #[test]
+    fn parses_explicit_model_availability_without_inventing_unknown_state() {
+        let state = parse_model_state(&json!({
+            "configOptions": [{
+                "id": "model",
+                "currentValue": "configured",
+                "options": [
+                    { "value": "configured", "name": "Configured", "available": true },
+                    { "value": "blocked", "name": "Blocked", "available": false,
+                      "unavailableReason": "Missing runtime configuration" },
+                    { "value": "unknown", "name": "Unknown" }
+                ]
+            }]
+        }))
+        .expect("model state parses");
+
+        assert_eq!(state.options[0].available, Some(true));
+        assert_eq!(state.options[1].available, Some(false));
+        assert_eq!(
+            state.options[1].unavailable_reason.as_deref(),
+            Some("Missing runtime configuration")
+        );
+        assert_eq!(state.options[2].available, None);
     }
 }

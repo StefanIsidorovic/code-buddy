@@ -15,13 +15,13 @@
 
 ### 34.2. Expose authoritative ACP model availability
 - objective: stop offering coding models that the active ACP runtime/configuration cannot actually use.
-- status: pending research after 34.1.
+- status: complete pending commit.
 - files: src-tauri/src/acp.rs; src-tauri/src/commands.rs if required; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; src/features/runtime/AcpRuntimePanel.tsx; related tests; working_knowledge/current/*.
 - affected units: ACP model metadata parsing, runtime compatibility/config discovery, typed availability reason, model selector filtering/fallback.
 - expected changes: extend the backend-owned model contract with a real configured/available signal or a validated session capability result; show only usable choices while retaining the active model and an actionable reason when none are selectable.
 - acceptance criteria: frontend never guesses from synthesis catalog or hardcoded model names; every hidden model has a backend-derived reason; current session state remains valid; unsupported agents without availability metadata degrade safely.
 - required tests: configured/unconfigured parsing; current-model fallback; selector filtering and empty state; set-model regression; frontend and Rust gates.
-- review status: pending.
+- review status: passed after 1 cycle; only explicitly available ACP options are selectable, unknown/unavailable alternatives are hidden, the current model remains visible, backend validation matches the UI boundary, and synthesis catalog/hardcoded inference is absent.
 - commit: pending.
 
 ### 33.3. Consolidate Next step into the phase tracker

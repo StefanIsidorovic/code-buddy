@@ -22,8 +22,8 @@ const session: AcpSessionInfo = {
   codingModel: {
     currentValue: "model-a",
     options: [
-      { value: "model-a", name: "Model A", description: "Current model" },
-      { value: "model-b", name: "Model B", description: null },
+      { value: "model-a", name: "Model A", description: "Current model", available: true },
+      { value: "model-b", name: "Model B", description: null, available: true },
     ],
   },
 };
@@ -71,6 +71,17 @@ describe("ACP runtime panel", () => {
     fireEvent.change(screen.getByLabelText("Coding model"), { target: { value: "model-b" } });
     expect(value.onChangeModel).toHaveBeenCalledWith("model-b");
     expect(screen.getByText("Current model")).toBeInTheDocument();
+  });
+
+  it("does not offer models without confirmed runtime availability", () => {
+    const unknown = { ...session, codingModel: { currentValue: "model-a", options: [
+      { value: "model-a", name: "Model A", description: null },
+      { value: "model-b", name: "Model B", description: null },
+    ] } };
+    render(<AcpRuntimePanel {...props({ session: unknown, canUseSession: true })} />);
+    expect(screen.queryByRole("combobox", { name: "Coding model" })).not.toBeInTheDocument();
+    expect(screen.getByText("Model A")).toBeInTheDocument();
+    expect(screen.getByText(/did not confirm any alternative coding models/)).toBeInTheDocument();
   });
 
   it("renders Task assessment and waiting/result state", () => {

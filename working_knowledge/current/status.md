@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 1dfde7a step 33.3: consolidate phase next guidance
-- worktree: plan item 34.1 complete pending commit
-- relevant files: Task phase guide/panel/tests, standardized step/helper/readiness styling, active knowledge
+- head: f311ff9 step 34.1: standardize task phase steps
+- worktree: plan item 34.2 complete pending commit
+- relevant files: ACP model parser/domain/panel/tests, active knowledge
 
 ## Current Task
 - request: filter unusable coding models and standardize Task step frames, helper copy, and readiness emphasis
 - phase: validation
-- active plan step: 34.1
+- active plan step: 34.2
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -35,3 +35,4 @@
 - 2026-07-28: frontend audit, typecheck, 272 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.2.
 - 2026-07-28: frontend audit, typecheck, 273 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.3.
 - 2026-07-28: frontend audit, typecheck, 273 frontend tests, production build and diff hygiene pass for the presentation-only plan item 34.1.
+- 2026-07-28: frontend audit, typecheck, 274 frontend tests, production build, Rust fmt, 124 Rust tests, clippy with warnings denied and diff hygiene pass for plan item 34.2.
