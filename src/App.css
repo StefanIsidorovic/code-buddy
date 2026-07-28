@@ -5185,6 +5185,9 @@ summary:focus-visible {
 .task-operating-model span { color: var(--muted); font-size: 0.76rem; line-height: 1.35; }
 .task-phase-guide { display: grid; gap: 0.55rem; padding: 0.75rem; border: 1px solid var(--border-subtle);
   border-radius: 0.8rem; background: var(--surface-subtle); }
+.task-phase-sticky { position: sticky; top: 0; z-index: 5; display: grid; gap: 0.65rem;
+  padding: 0.15rem 0 0.65rem; background: var(--surface); }
+.task-phase-outcome { padding-bottom: 0.45rem; border-bottom: 1px solid var(--border-subtle); }
 .task-phase-guide ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem;
   margin: 0; padding: 0; list-style: none; }
 .task-phase-guide li { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.05rem 0.4rem;
@@ -5234,6 +5237,7 @@ summary:focus-visible {
   .task-dispatch-resolution > div { flex-direction: column-reverse; }
   .task-phase-guide { overflow-x: auto; }
   .task-phase-guide ol { min-width: 34rem; }
+  .task-phase-sticky { position: static; padding-top: 0; }
 }
 
 @media (max-width: 480px) {

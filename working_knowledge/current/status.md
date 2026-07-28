@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 85abec3 step 32.1: prepare summary review with autopilot
-- worktree: plan item 33.1 complete pending commit
-- relevant files: Task phase guide/panel/tests, Task workflow styling, active knowledge
+- head: 8c4afd5 step 33.1: clarify phase evidence creation
+- worktree: plan item 33.2 complete pending commit
+- relevant files: Task phase guide/panel/tests, sticky/responsive styling, active knowledge
 
 ## Current Task
-- request: remove confusing Run & prepare pseudo-phase and make evidence creation accessible
+- request: keep phase tracker/Next step visible and distinguish planning from analysis
 - phase: validation
-- active plan step: 33.1
+- active plan step: 33.2
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -32,3 +32,4 @@
 - 2026-07-28: targeted approved Summary dialog/App tests and legacy approved storage regression pass for plan item 31.2.
 - 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied and diff hygiene pass for plan item 32.1; two known App async timing tests required a clean rerun and then passed.
 - 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.1.
+- 2026-07-28: frontend audit, typecheck, 272 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.2.

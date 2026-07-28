@@ -37,9 +37,10 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <li><strong>Create evidence</strong><span>Run the agent for this phase, or write evidence manually. Both paths remain editable before saving.</span></li>
         <li><strong>Activity</strong><span>Audit context sends, phase runs, interrupted receipts, and read-only advisor/reviewer reports.</span></li>
       </ul></details>
-    {inProgress ? <TaskPhaseGuide hasDraft={hasDraft && hasProvenance}
-      hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} /> : null}
-    {inProgress ? <div className="task-next-step" role="status" aria-live="polite">
+    {inProgress ? <div className="task-phase-sticky" aria-label="Current phase guidance">
+      <TaskPhaseGuide phase={task.currentPhase} hasDraft={hasDraft && hasProvenance}
+        hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} />
+      <div className="task-next-step" role="status" aria-live="polite">
       <strong>Next step</strong>
       <p>{phaseArtifacts.length > 0
         ? "Review the saved evidence below, acknowledge the checkpoint, then complete the phase."
@@ -53,6 +54,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <li data-complete={hasProvenance}>Transcript provenance: {hasProvenance
           ? `${selectedSourceIds.length} selected` : "select at least one event"}</li>
       </ul> : null}
+      </div>
     </div> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {currentPhase?.status === "pending" ? <button className="primary-action" type="button"
@@ -117,7 +119,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed}>{nextPhase
           ? `Complete ${task.currentPhase} & show ${nextPhase}` : `Complete ${task.currentPhase} & finish task`}</button>
     </div> : null}
-    <div className="task-artifact-list"><strong>Current phase artifacts</strong>
+    <div className="task-artifact-list" aria-label="Current phase artifacts"><strong>Current phase artifacts</strong>
       {phaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{phaseArtifacts.map((artifact) =>
         <li key={artifact.id}><span>{artifact.kind}</span><p>{artifact.content}</p>
           <small>{artifact.sourceTranscriptEventIds.length} source event(s)</small></li>)}</ul>}</div>

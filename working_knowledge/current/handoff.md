@@ -9,10 +9,11 @@
 - Save phase evidence explains why it is disabled and enables only when evidence text and provenance are both ready.
 - Plan item 31.2 is committed as e4783f7: approved Summary snapshots are read-only, legacy approved claims derive final accepted/deferred states, and invalid review/regenerate controls are absent.
 - Plan item 32.1 is committed as 85abec3: Project Autopilot atomically prepares pending Summary decisions, preserves explicit decisions, validates sources, and leaves publication behind one Approve Summary click.
-- Plan item 33.1 is complete pending commit: Task progress shows four real steps, evidence creation exposes agent-assisted and manual paths, and latest-run restoration appears only after a run.
+- Plan item 33.1 is committed as 8c4afd5: Task progress shows four real steps, evidence creation exposes agent-assisted and manual paths, and latest-run restoration appears only after a run.
+- Plan item 33.2 is complete pending commit: desktop Task guidance is sticky, mobile keeps normal flow, and every canonical phase states its distinct expected outcome.
 
 ## Next Step
-- Commit 33.1 with a provenance note.
+- Commit 33.2 with a provenance note.
 - Extend Project Autopilot into a resumable Facts → Markdown → Summary state machine; keep Task Autopilot separate.
 
 ## Commands To Re-Run

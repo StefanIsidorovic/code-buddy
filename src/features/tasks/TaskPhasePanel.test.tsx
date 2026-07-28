@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskInfo, TaskPhaseArtifactInfo, TranscriptEventInfo } from "../../types/domain";
 import { TaskPhasePanel } from "./TaskPhasePanel";
@@ -27,6 +27,7 @@ describe("TaskPhasePanel", () => {
   it("renders phase state and forwards evidence form changes", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     expect(screen.getByRole("heading", { name: "Task phases" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Current phase guidance")).toContainElement(screen.getByRole("status"));
     fireEvent.change(screen.getByLabelText(/Evidence type/), { target: { value: "risk" } });
     fireEvent.change(screen.getByLabelText(/^Phase evidence/), { target: { value: "Risk found" } });
     fireEvent.click(screen.getByText("Transcript provenance"));
@@ -49,7 +50,8 @@ describe("TaskPhasePanel", () => {
     expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeDisabled();
     view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact], evidenceReviewed: true })} />);
     expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeEnabled();
-    expect(screen.getByText("Analysis evidence")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Current phase artifacts"))
+      .getByText("Analysis evidence")).toBeInTheDocument();
   });
   it("offers start only for a pending current phase and surfaces errors", () => {
     const pending = { ...phases[0], status: "pending", startedAt: null }; const value = props({ currentPhase: pending,

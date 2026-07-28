@@ -2,16 +2,27 @@
 
 ## Active Plan
 
+### 33.2. Keep phase guidance visible and phase-specific
+- objective: keep the phase tracker and Next step guidance visible during Task scrolling and make the current phase outcome visibly distinct.
+- status: complete pending commit.
+- files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhasePanel.tsx; related tests; src/App.css; working_knowledge/current/*.
+- affected units: Task scroll layout, sticky guidance region, phase progress labels, phase-purpose copy, responsive behavior.
+- expected changes: group tracker and next action in one sticky desktop region; disable sticky on narrow layouts; pass the canonical phase into the guide; display phase-specific evidence labels and expected outcomes.
+- acceptance criteria: tracker and Next step remain visible while the desktop Task panel scrolls; mobile content is not obscured; analysis/planning/execution/review guides explain different outcomes while retaining the same evidence gates; no backend state-machine changes.
+- required tests: sticky wrapper regression; analysis/planning copy and label tests; existing Task panel tests; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 3 cycles; cycle 1 established the correct desktop scroll-container sticky region and phase-specific outcomes; cycle 2 shortened phase labels and added an accessible guidance region; cycle 3 resolved a tracker/artifact text collision by labeling the artifact region, then passed the full suite with mobile normal flow and no orchestration/backend changes.
+- commit: pending.
+
 ### 33.1. Make phase evidence creation explicit
 - objective: remove the misleading Run/Prepare pseudo-phases and present agent-assisted versus manual evidence creation as two clear paths inside each canonical Task phase.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.css; working_knowledge/current/*.
 - affected units: phase progress labels, current-step guidance, controlled phase-run presentation, manual evidence discoverability, latest-run recovery copy.
 - expected changes: show four real user steps; rename the agent action to Run agent for phase; label Step 1 Create phase evidence; expose manual authoring as an equal path; rename standalone preparation as recovery rather than a normal step.
 - acceptance criteria: users no longer see Run or Prepare as separate phase steps; the UI explains that agent execution produces a draft while manual evidence remains available without ACP; Save, Review and Complete remain unchanged authoritative gates; no backend or orchestration behavior changes.
 - required tests: guide status/label tests; panel agent/manual path, ACP lock, recovery and completion regressions; frontend audit/typecheck/full tests/build; diff hygiene.
 - review status: passed after 1 cycle; the four displayed steps now match the durable workflow gates, agent-assisted and manual evidence paths remain simultaneously discoverable, ACP absence locks only agent execution, recovery appears only when meaningful, and no orchestration/backend authority changed.
-- commit: pending.
+- commit: 8c4afd5.
 
 ### 32.1. Prepare Summary review with Project Autopilot
 - objective: replace repetitive per-claim decisions with one safe, atomic preparation action while retaining one explicit human publication gate.
