@@ -109,6 +109,8 @@ pub fn run() {
             commands::send_acp_prompt,
             commands::send_acp_prompt_with_context,
             commands::send_task_phase_prompt,
+            commands::list_task_plan_step_runs,
+            commands::send_task_plan_step_prompt,
             commands::set_acp_model,
             commands::drain_acp_events,
             commands::list_acp_permissions,

@@ -29,21 +29,21 @@ use crate::{
         CreateProjectInitializationRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
         CreateTaskAgentReportRequest, CreateTaskAgentReportTranscriptRequest,
         CreateTaskContextDispatchRequest, CreateTaskPhaseArtifactRequest,
-        CreateTaskPhaseRunRequest, CreateTaskPlanCritiqueRequest, CreateTaskPlanVersionRequest,
-        CreateTaskRequest, CreateTranscriptSessionRequest, EvaluateTaskPlanRequest,
-        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
-        LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
-        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
-        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
-        ProjectRepositoryInfo, ProjectStore, RegenerateProjectInitializationSummarySectionRequest,
-        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
-        ResolveTaskPhaseRunRequest, ReviewProjectInitializationSummaryClaimRequest,
-        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
-        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
-        TaskPlanEvaluationInfo, TaskPlanVersionInfo, TranscriptAcpIdentityInfo,
-        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
-        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        CreateTaskPhaseRunRequest, CreateTaskPlanCritiqueRequest, CreateTaskPlanStepRunRequest,
+        CreateTaskPlanVersionRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+        EvaluateTaskPlanRequest, GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo,
+        KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
+        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
+        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
+        RegenerateProjectInitializationSummarySectionRequest, RenameTranscriptSessionRequest,
+        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
+        ReviewProjectInitializationSummaryClaimRequest, SaveProjectInitializationGuardrailsRequest,
+        TaskAgentReportInfo, TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo,
+        TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
+        TaskPlanEvaluationInfo, TaskPlanStepInfo, TaskPlanStepRunInfo, TaskPlanVersionInfo,
+        TranscriptAcpIdentityInfo, TranscriptEventInfo, TranscriptEventInput,
+        TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
     task_plan_critique::critique_instruction,
@@ -64,6 +64,23 @@ pub struct TaskPhaseRunResultInfo {
     pub prompt_result: AcpPromptResult,
     pub receipt: TaskPhaseRunReceiptInfo,
     pub workspace_verification: Option<GitWorkspaceVerificationInfo>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendTaskPlanStepRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub plan_step_id: String,
+    pub acp_session_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanStepRunResultInfo {
+    pub prompt_result: AcpPromptResult,
+    pub receipt: TaskPlanStepRunInfo,
+    pub workspace_verification: GitWorkspaceVerificationInfo,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -946,6 +963,188 @@ pub async fn send_task_phase_prompt(
 }
 
 #[tauri::command]
+pub fn list_task_plan_step_runs(
+    state: State<'_, ProjectStore>,
+    task_id: String,
+) -> AppResult<Vec<TaskPlanStepRunInfo>> {
+    state.list_task_plan_step_runs(&task_id)
+}
+
+#[tauri::command]
+pub async fn send_task_plan_step_prompt(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    request: SendTaskPlanStepRequest,
+) -> AppResult<TaskPlanStepRunResultInfo> {
+    send_task_plan_step_prompt_with_manager(
+        Arc::clone(manager_state.inner()),
+        store_state.inner(),
+        request,
+    )
+    .await
+}
+
+async fn send_task_plan_step_prompt_with_manager(
+    manager: Arc<AcpSessionManager>,
+    store: &ProjectStore,
+    request: SendTaskPlanStepRequest,
+) -> AppResult<TaskPlanStepRunResultInfo> {
+    let task = store.task(&request.task_id)?;
+    let plan = store
+        .list_task_plan_versions(&task.id)?
+        .into_iter()
+        .find(|plan| plan.id == request.plan_version_id && plan.status == "approved")
+        .ok_or_else(|| {
+            AppError::InvalidInput(
+                "step dispatch requires the selected Task's approved plan".into(),
+            )
+        })?;
+    let step = plan
+        .steps
+        .iter()
+        .find(|step| step.id == request.plan_step_id)
+        .cloned()
+        .ok_or_else(|| {
+            AppError::InvalidInput(
+                "step dispatch requires a step from the selected approved plan".into(),
+            )
+        })?;
+    let instruction = task_plan_step_instruction(&task, &plan, &step);
+    let acp_session_id = request.acp_session_id.trim().to_string();
+    let workspace = {
+        let manager = Arc::clone(&manager);
+        let session_id = acp_session_id.clone();
+        run_acp_task(move || {
+            manager
+                .list_sessions()?
+                .into_iter()
+                .find(|session| session.id == session_id)
+                .map(|session| session.cwd)
+                .ok_or_else(|| AppError::InvalidInput("active ACP session not found".into()))
+        })
+        .await?
+    };
+    let before = capture_git_workspace_snapshot(&workspace);
+    let receipt = store.begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+        task_id: task.id.clone(),
+        plan_version_id: plan.id,
+        plan_step_id: step.id,
+        acp_session_id: acp_session_id.clone(),
+        instruction: instruction.clone(),
+    })?;
+    let receipt_id = receipt.id.clone();
+    let prompt_manager = Arc::clone(&manager);
+    match run_acp_task(move || prompt_manager.send_prompt(&acp_session_id, &instruction)).await {
+        Ok(prompt_result) => {
+            let receipt = store.finalize_task_plan_step_run(
+                &receipt_id,
+                "sent",
+                Some(&prompt_result.stop_reason),
+                None,
+            )?;
+            let workspace_verification = compare_git_workspace_snapshots(
+                task.id,
+                "execution".into(),
+                &workspace,
+                before,
+                capture_git_workspace_snapshot(&workspace),
+            );
+            Ok(TaskPlanStepRunResultInfo {
+                prompt_result,
+                receipt,
+                workspace_verification,
+            })
+        }
+        Err(error) => {
+            store.finalize_task_plan_step_run(
+                &receipt_id,
+                "failed",
+                None,
+                Some(&error.to_string()),
+            )?;
+            Err(error)
+        }
+    }
+}
+
+fn task_plan_step_instruction(
+    task: &TaskInfo,
+    plan: &TaskPlanVersionInfo,
+    step: &TaskPlanStepInfo,
+) -> String {
+    let requirements = plan
+        .requirements
+        .iter()
+        .filter(|requirement| step.satisfies.contains(&requirement.id))
+        .take(20)
+        .map(|requirement| {
+            format!(
+                "- {}: {}",
+                bounded_instruction_field(&requirement.id, 100),
+                bounded_instruction_field(&requirement.text, 1_000)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let criteria = step
+        .acceptance_criteria
+        .iter()
+        .take(20)
+        .map(|criterion| format!("- {}", bounded_instruction_field(criterion, 1_000)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let paths = if step.expected_paths.is_empty() {
+        "- No expected paths were declared; inspect narrowly and report the exact required scope before writing.".into()
+    } else {
+        step.expected_paths
+            .iter()
+            .take(50)
+            .map(|path| format!("- {}", bounded_instruction_field(path, 500)))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    format!(
+        "Execute exactly one approved plan step.\n\
+         Task: {task}\n\
+         Plan version: {version}\n\
+         Step {number}: {title}\n\
+         Step ID: {step_id}\n\
+         Required model tier: {tier}\n\
+         Description: {description}\n\n\
+         Requirements satisfied by this step:\n{requirements}\n\n\
+         Acceptance criteria:\n{criteria}\n\n\
+         Expected write scope:\n{paths}\n\n\
+         Boundaries:\n\
+         - Work only on this step; do not implement later plan steps.\n\
+         - Do not commit, complete the Task, advance phases, or claim acceptance.\n\
+         - Keep writes within the expected scope. If another path is necessary, stop and explain why before changing it.\n\
+         - Run focused verification and report changed files, checks, failures, and uncertainty.\n\
+         - Return a concise step result in the transcript.",
+        task = bounded_instruction_field(&task.original_prompt, 4_000),
+        version = plan.version,
+        number = step.order_index + 1,
+        title = bounded_instruction_field(&step.title, 500),
+        step_id = step.id,
+        tier = match step.complexity {
+            1..=2 => "small",
+            3 => "mid",
+            _ => "high",
+        },
+        description = bounded_instruction_field(&step.description, 4_000),
+    )
+}
+
+fn bounded_instruction_field(value: &str, max_chars: usize) -> String {
+    let trimmed = value.trim();
+    if trimmed.chars().count() <= max_chars {
+        return trimmed.to_string();
+    }
+    let mut bounded = trimmed.chars().take(max_chars).collect::<String>();
+    bounded.push('…');
+    bounded
+}
+
+#[tauri::command]
 pub async fn set_acp_model(
     state: State<'_, Arc<AcpSessionManager>>,
     request: SetAcpModelRequest,
@@ -1253,7 +1452,9 @@ mod tests {
     use crate::{
         acp::StartFakeAcpSessionRequest,
         storage::{
-            CreateProjectRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+            ApproveTaskPlanVersionRequest, CreateProjectRequest, CreateTaskPhaseArtifactRequest,
+            CreateTaskPlanVersionRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+            EvaluateTaskPlanRequest, TaskPlanRequirementInput, TaskPlanStepInput,
             TransitionTaskPhaseRequest,
         },
     };
@@ -1264,6 +1465,276 @@ mod tests {
         let path = std::env::temp_dir().join(format!("aiadne-command-{label}-{}", Uuid::new_v4()));
         fs::create_dir_all(&path).expect("temp command project dir");
         path
+    }
+
+    #[test]
+    fn step_instruction_is_bounded_to_one_approved_step() {
+        let task = TaskInfo {
+            id: "task-1".into(),
+            project_id: "project-1".into(),
+            transcript_session_id: "transcript-1".into(),
+            original_prompt: "Build both authentication and billing".into(),
+            status: "in_progress".into(),
+            current_phase: "execution".into(),
+            initial_complexity_profile: "standard".into(),
+            initial_complexity_reasons: vec![],
+            initial_complexity_confidence: 50,
+            complexity_profile: "standard".into(),
+            complexity_reasons: vec![],
+            complexity_confidence: Some(50),
+            complexity_source: "system".into(),
+            complexity_assessment_version: "test".into(),
+            complexity_changes: vec![],
+            phases: vec![],
+            created_at: 1,
+            updated_at: 1,
+        };
+        let plan = TaskPlanVersionInfo {
+            id: "plan-1".into(),
+            task_id: task.id.clone(),
+            version: 2,
+            status: "approved".into(),
+            source_artifact_id: "artifact-1".into(),
+            requirements: vec![
+                crate::storage::TaskPlanRequirementInfo {
+                    id: "REQ-AUTH".into(),
+                    text: "Authentication is enforced".into(),
+                    kind: "functional".into(),
+                    order_index: 0,
+                },
+                crate::storage::TaskPlanRequirementInfo {
+                    id: "REQ-BILLING".into(),
+                    text: "Billing is implemented later".into(),
+                    kind: "functional".into(),
+                    order_index: 1,
+                },
+            ],
+            steps: vec![],
+            created_at: 1,
+            approved_at: Some(1),
+        };
+        let step = TaskPlanStepInfo {
+            id: "step-auth".into(),
+            order_index: 0,
+            title: "Add authentication guard".into(),
+            description: "Implement only the route guard".into(),
+            kind: "implementation".into(),
+            complexity: 2,
+            acceptance_criteria: vec!["Unauthorized requests are rejected".into()],
+            expected_paths: vec!["src/auth.ts".into()],
+            satisfies: vec!["REQ-AUTH".into()],
+        };
+
+        let instruction = task_plan_step_instruction(&task, &plan, &step);
+
+        assert!(instruction.contains("Step ID: step-auth"));
+        assert!(instruction.contains("Required model tier: small"));
+        assert!(instruction.contains("REQ-AUTH: Authentication is enforced"));
+        assert!(!instruction.contains("Billing is implemented later"));
+        assert!(instruction.contains("- src/auth.ts"));
+        assert!(instruction.contains("do not implement later plan steps"));
+        assert!(instruction.contains("Do not commit"));
+        assert_eq!(
+            bounded_instruction_field(&"x".repeat(5_000), 4_000)
+                .chars()
+                .count(),
+            4_001
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn dispatches_one_plan_step_and_persists_its_sent_receipt() {
+        tauri::async_runtime::block_on(async {
+            let store = ProjectStore::in_memory().expect("store opens");
+            let project_path = temp_command_project_path("step-dispatch");
+            let project = store
+                .create_project(CreateProjectRequest {
+                    name: "AIadne".into(),
+                    path: project_path.clone(),
+                })
+                .expect("project created");
+            let transcript = store
+                .create_transcript_session(CreateTranscriptSessionRequest {
+                    project_id: Some(project.id.clone()),
+                    runtime: "acp".into(),
+                    source: "Codex".into(),
+                    title: None,
+                })
+                .expect("transcript created");
+            let task = store
+                .create_task(CreateTaskRequest {
+                    project_id: project.id,
+                    transcript_session_id: transcript.id.clone(),
+                    original_prompt: "Implement the approved bounded change".into(),
+                })
+                .expect("task created");
+            let evidence_event = store
+                .append_transcript_events(
+                    &transcript.id,
+                    vec![TranscriptEventInput {
+                        kind: "agent_message".into(),
+                        content: "Phase evidence".into(),
+                    }],
+                )
+                .expect("event saved")
+                .remove(0);
+            store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "start".into(),
+                })
+                .expect("analysis starts");
+            store
+                .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                    task_id: task.id.clone(),
+                    phase: "analysis".into(),
+                    kind: "summary".into(),
+                    content: "Analysis evidence".into(),
+                    source_transcript_event_ids: vec![evidence_event.id.clone()],
+                })
+                .expect("analysis evidence");
+            store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "complete".into(),
+                })
+                .expect("analysis completes");
+            store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "start".into(),
+                })
+                .expect("planning starts");
+            let planning_artifact = store
+                .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                    task_id: task.id.clone(),
+                    phase: "planning".into(),
+                    kind: "summary".into(),
+                    content: "Planning evidence".into(),
+                    source_transcript_event_ids: vec![evidence_event.id],
+                })
+                .expect("planning evidence");
+            let plan = store
+                .create_task_plan_version(CreateTaskPlanVersionRequest {
+                    task_id: task.id.clone(),
+                    source_artifact_id: planning_artifact.id,
+                    requirements: vec![TaskPlanRequirementInput {
+                        id: "REQ-1".into(),
+                        text: "The bounded change works".into(),
+                        kind: "functional".into(),
+                    }],
+                    steps: vec![
+                        TaskPlanStepInput {
+                            title: "Implement bounded change".into(),
+                            description: "Touch only the declared file".into(),
+                            kind: "implementation".into(),
+                            complexity: 2,
+                            acceptance_criteria: vec!["Focused check passes".into()],
+                            expected_paths: vec!["src/bounded.rs".into()],
+                            satisfies: vec!["REQ-1".into()],
+                        },
+                        TaskPlanStepInput {
+                            title: "Verify bounded change".into(),
+                            description: "Run the focused verification".into(),
+                            kind: "infrastructure".into(),
+                            complexity: 1,
+                            acceptance_criteria: vec!["Verification is recorded".into()],
+                            expected_paths: vec![],
+                            satisfies: vec![],
+                        },
+                    ],
+                })
+                .expect("plan created");
+            store
+                .evaluate_task_plan(EvaluateTaskPlanRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                })
+                .expect("plan evaluated");
+            let plan = store
+                .approve_task_plan_version(ApproveTaskPlanVersionRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                })
+                .expect("plan approved");
+            store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "complete".into(),
+                })
+                .expect("planning completes");
+            store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "start".into(),
+                })
+                .expect("execution starts");
+            let manager = Arc::new(AcpSessionManager::default());
+            let session = manager
+                .start_fake_session(StartFakeAcpSessionRequest {
+                    cwd: Some(project_path.clone()),
+                })
+                .expect("fake executor starts");
+
+            let result = send_task_plan_step_prompt_with_manager(
+                Arc::clone(&manager),
+                &store,
+                SendTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    plan_step_id: plan.steps[0].id.clone(),
+                    acp_session_id: session.id.clone(),
+                },
+            )
+            .await
+            .expect("step dispatch succeeds");
+
+            assert_eq!(result.receipt.status, "sent");
+            assert_eq!(result.receipt.plan_step_id, plan.steps[0].id);
+            assert!(result.receipt.instruction.contains("Execute exactly one"));
+            assert!(result
+                .receipt
+                .instruction
+                .contains("Required model tier: small"));
+            store
+                .accept_task_plan_step_run(&result.receipt.id)
+                .expect("first step accepted for failure-path setup");
+            let stopped = manager
+                .start_fake_session(StartFakeAcpSessionRequest {
+                    cwd: Some(project_path.clone()),
+                })
+                .expect("second fake executor starts");
+            manager
+                .stop_session(&stopped.id, true)
+                .expect("second executor stops but remains registered");
+            let _failed = send_task_plan_step_prompt_with_manager(
+                Arc::clone(&manager),
+                &store,
+                SendTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id,
+                    plan_step_id: plan.steps[1].id.clone(),
+                    acp_session_id: stopped.id,
+                },
+            )
+            .await
+            .expect_err("stopped executor fails dispatch");
+            let runs = store
+                .list_task_plan_step_runs(&task.id)
+                .expect("runs listed");
+            assert_eq!(runs.len(), 2);
+            assert_eq!(runs[0].status, "accepted");
+            assert_eq!(runs[1].status, "failed");
+            assert!(runs[1]
+                .error
+                .as_deref()
+                .is_some_and(|error| !error.is_empty()));
+            manager
+                .stop_and_remove_session(&session.id, true)
+                .expect("fake executor stops");
+            let _ = fs::remove_dir_all(project_path);
+        });
     }
 
     #[test]

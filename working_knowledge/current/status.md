@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 9621050 step 37.3i: apply grounded plan repairs
-- worktree: plan item 37.4a complete pending commit
-- relevant files: durable approved-plan step-run ledger, ordered acceptance and retry gates
+- head: af29e92 step 37.4a: isolate approved plan step runs
+- worktree: plan item 37.4b complete pending commit
+- relevant files: bounded approved-step ACP dispatch, command registration and step receipts
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: commit
-- active plan step: 37.4a
+- active plan step: 37.4b
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Summary Autopilot preparation changes only pending decisions, validates the would-be publication payload, and never publishes Knowledge Units.
 
 ## Last Verification
+- 2026-07-29: plan item 37.4b dispatches one server-authored bounded approved step, returns repository verification and persists sent/failed lifecycle; Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4a adds immutable per-step run identity, tier/scope snapshots, ordered acceptance and retryable failure; Rust fmt, 132 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.3 adds bounded cached grounded critique and explicit atomic repair application; frontend audit, typecheck, 292 frontend tests, production build, Rust fmt, 131 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-28: frontend audit, typecheck, 269 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied, feature Tauri-boundary check, file-size check and git diff hygiene all pass for plan item 31.1.

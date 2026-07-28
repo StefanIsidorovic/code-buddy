@@ -1,14 +1,15 @@
 # Handoff
 
 ## Current State
-- Plan items 37.1–37.3 are committed through `9621050`.
-- Plan item 37.4a is complete pending commit: `task_plan_step_runs` durably binds each attempt to one Task, approved plan version and exact ordered step.
-- A run snapshots model tier rationale and expected write paths; only the next unaccepted step may run, sent attempts remain review-gated, and failed attempts are retryable.
-- Accepting a step advances only the step ledger and cannot complete the execution phase.
-- Rust fmt, all 132 backend tests, clippy with warnings denied and diff hygiene pass.
+- Plan item 37.4a is committed as `af29e92`.
+- Plan item 37.4b is complete pending commit: `send_task_plan_step_prompt` dispatches exactly one server-derived approved step through the selected active ACP session.
+- The prompt includes only the bounded original task, mapped requirements, one step, acceptance criteria, expected paths, requested tier and explicit phase/commit/scope boundaries.
+- Successful dispatch persists `sent`; ACP send failure persists `failed`; both remain attributable to the exact plan step and attempt.
+- The command returns repository pre/post verification, but acceptance does not trust or persist it yet.
+- Rust fmt, all 134 backend tests, clippy with warnings denied and diff hygiene pass.
 
 ## Next Step
-- Implement 37.4b: expose step-run commands and bounded per-step ACP dispatch without falling back to monolithic execution.
+- Implement 37.4c: persist repository-derived step verification, compare changed files with expected scope, and allow acceptance only after an explicit passing review gate.
 
 ## Commands To Re-Run
 - `cargo test --manifest-path src-tauri/Cargo.toml`: run backend regressions.
@@ -16,6 +17,6 @@
 - `git diff --check`: validate patch hygiene.
 
 ## Watchouts
-- Keep `sent` separate from `accepted`; model output is not approval.
-- Repository-derived changed files and checks belong in a later verification receipt, not agent-authored step claims.
-- Do not let a completed step mutate Task phase state; global execution completion needs a separate all-steps gate.
+- Do not infer a concrete ACP model ID from `small/mid/high` until adapters expose a durable tier mapping.
+- `sent` is model output, not acceptance.
+- Verification and scope checks must come from the repository snapshot, never from agent-authored claims.
