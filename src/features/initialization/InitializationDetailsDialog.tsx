@@ -154,19 +154,22 @@ function SummaryDetails(props: InitializationDetailsDialogProps) {
         <div><dt>Schema</dt><dd>knowledge {summary.knowledgeSchemaVersion} · catalog{" "}
           {summary.modelCatalogSchemaVersion ?? "legacy"}</dd></div>
       </dl>
+      {summary.status === "approved" ? <StateNotice kind="success" title="Summary approved"
+        description="This is the read-only approved snapshot. Published Knowledge Units are shown below." /> : null}
       <dl className="summary-section-list details-summary-list">{sections.map(([section, label, value]) =>
         <div key={section}><dt>{label}</dt><dd>{value}</dd>
-          <button type="button" disabled={initializeLoading || summary.status === "approved"}
+          {summary.status !== "approved" ? <button type="button" disabled={initializeLoading}
             onClick={() => onRegenerateSummarySection(section)}>
             {regeneratingSection === section ? "Regenerating…" : `Regenerate ${label}`}
-          </button></div>)}</dl>
-      <section className="summary-claim-review-list" aria-label="Summary claim review">
+          </button> : null}</div>)}</dl>
+      {summary.status !== "approved" ? <section className="summary-claim-review-list"
+        aria-label="Summary claim review">
         <div className="knowledge-unit-preview-heading"><div><span>Approval preview</span>
           <h3>{acceptedCount} claim(s) will be published</h3></div>
           <strong>{pendingCount} pending</strong></div>
         <ul>{claims.map((claim) => <SummaryClaimReview key={claim.id}
           claim={claim} loading={initializeLoading} onReview={onReviewSummaryClaim} />)}</ul>
-      </section>
+      </section> : null}
       <PublishedUnits {...props} />
     </div>
     <div className="modal-actions"><button type="button" onClick={onClose}>Close</button>

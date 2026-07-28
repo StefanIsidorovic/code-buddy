@@ -3900,6 +3900,16 @@ fn project_initialization_summary_from_row(
     };
     if summary.claims.is_empty() {
         summary.claims = summary_claims(&summary);
+        if summary.status == "approved" {
+            for claim in &mut summary.claims {
+                claim.status = if claim.section == "open_questions" {
+                    "deferred"
+                } else {
+                    "accepted"
+                }
+                .to_string();
+            }
+        }
     }
     Ok(summary)
 }
@@ -6480,11 +6490,27 @@ mod tests {
         assert_eq!(approved.id, summary.id);
         assert_eq!(approved.status, "approved");
         assert!(approved.approved_at.is_some());
+        store
+            .connection()
+            .expect("connection")
+            .execute(
+                "UPDATE project_initialization_summaries SET claims_json = '[]' WHERE id = ?1",
+                params![summary.id],
+            )
+            .expect("legacy approved claims simulated");
         let listed_summary = store
             .list_project_initialization_summary(&initialization.id)
             .expect("summary listed")
             .expect("summary exists");
         assert_eq!(listed_summary.status, "approved");
+        assert!(listed_summary.claims.iter().all(|claim| {
+            claim.status
+                == if claim.section == "open_questions" {
+                    "deferred"
+                } else {
+                    "accepted"
+                }
+        }));
         assert_eq!(
             listed_summary.requested_model_profile_id.as_deref(),
             Some("openai-gpt-5.6-sol-high")

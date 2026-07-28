@@ -86,9 +86,14 @@ describe("initialization details dialog", () => {
   });
 
   it("orders approved Knowledge Unit loading, error, empty, and populated states", () => {
-    const approved = { ...summary, status: "approved" as const, approvedAt: 2 };
+    const approved = { ...summary, status: "approved" as const, approvedAt: 2,
+      claims: summary.claims.map((claim) => ({ ...claim, status: "pending" as const })) };
     const { rerender } = render(<InitializationDetailsDialog {...props({ view: "summary",
       summary: approved, knowledgeUnitsLoading: true })} />);
+    expect(screen.getByText("Summary approved")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Summary claim review")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Regenerate Purpose" })).not.toBeInTheDocument();
     expect(screen.getByText("Loading published units…")).toBeInTheDocument();
     rerender(<InitializationDetailsDialog {...props({ view: "summary", summary: approved,
       knowledgeUnitsError: "offline" })} />);

@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 31.2. Make approved Summary review read-only
+- objective: stop approved legacy Summary snapshots from rendering actionable pending claim controls that the backend must reject.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; src/features/initialization/InitializationDetailsDialog.tsx; related Rust/frontend tests; working_knowledge/current/*.
+- affected units: legacy claim derivation, approved Summary presentation, regeneration/review action visibility.
+- expected changes: derive accepted/deferred states for approved rows without persisted claim JSON; render approved Summary sections and Published Units as a read-only snapshot; omit all claim decisions and regeneration actions.
+- acceptance criteria: an approved legacy Summary never displays pending review controls; no review/regeneration callback can be triggered; draft Summary behavior remains unchanged; published units remain visible.
+- required tests: legacy approved claim derivation; approved dialog action absence; draft regression; full frontend/Rust gates; diff hygiene.
+- review status: passed after 1 cycle; the screenshot path is covered directly, approved legacy rows derive final states, draft review remains interactive, and no new frontend/backend authority was introduced.
+- commit: pending.
+
 ### 31.1. Keep a completed phase run locked and reveal the evidence path
 - objective: prevent a successful Run & prepare from becoming runnable again when receipt refresh lags, and make the next evidence actions discoverable.
 - status: complete pending commit.
