@@ -22,9 +22,11 @@
 - Plan item 35.5 is complete pending commit: project switching clears hidden transcript/Task identity and prevents late old-project creation from restoring it.
 - Plan item 35.6 is complete pending commit: unchanged verification with a non-empty Git change set is accurately labeled and can complete; clean/unavailable runs remain blocked.
 - Plan item 36.1 is complete pending commit: Activity leads with one Task result; optional checks, audit history and delivery/provenance are collapsed secondary details.
+- Claude Buddy comparison confirms its execution is still strictly linear; its reusable strengths are first-class requirements/steps, tiered fresh sessions, deterministic validation, grounded critique and post-diff fulfillment.
+- Plan items 37.1–37.5 define the AIadne path: structured plan versions, deterministic evaluation, grounded critique, per-step execution, then isolated-worktree parallel waves.
 
 ## Next Step
-- Visually verify the summary-first Activity layout with the completed Formily Task.
+- Implement 37.1 backend persistence contract and tests before adding the planning editor.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

@@ -2,6 +2,45 @@
 
 ## Active Plan
 
+### 37.1. Establish versioned structured Task plans
+- objective: make planning output machine-readable so evaluation, critique and step execution can operate on explicit requirements and implementation steps instead of parsing prose.
+- status: planned.
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/*; App composition; related tests; working_knowledge/current/*.
+- affected units: planning-phase artifact contract, immutable plan versions, requirement-to-step coverage, planning review UI.
+- expected changes: persist one or more versioned Task plan snapshots; model testable requirements and ordered steps with acceptance criteria, expected paths, satisfied requirement IDs and complexity; let the user review/edit a draft and explicitly approve one version before planning completes.
+- acceptance criteria: planning completion requires an approved structured plan; every non-infrastructure step satisfies at least one declared requirement; versions remain immutable and attributable; existing prose evidence/provenance remains linked rather than replaced; legacy Tasks degrade safely.
+- required tests: migration; atomic version creation; validation and cross-Task rejection; approval immutability; typed gateway/hook/presentation; existing Task regressions; frontend/Rust gates; diff hygiene.
+- review status: pending.
+- commit: pending.
+
+### 37.2. Add deterministic plan evaluation
+- objective: identify actionable plan defects cheaply before any implementation agent runs.
+- status: planned after 37.1.
+- affected units: coverage matrix, structural findings and planning completion gate.
+- expected changes: evaluate requirement gaps, unmapped steps, empty criteria, invalid requirement references, ordering hazards and expected-path collisions without a model; persist a version-addressed evaluation result.
+- acceptance criteria: findings have stable IDs and exact evidence; blocking defects prevent approval; evaluation is repeatable for the same plan version; no free-form model judgment is presented as deterministic fact.
+
+### 37.3. Add grounded plan critique and repair proposals
+- objective: turn deterministic findings into a short ranked explanation and reversible repair path.
+- status: planned after 37.2.
+- affected units: read-only secondary-agent orchestration, critique artifacts, plan-version proposal application.
+- expected changes: send only bounded findings and plan context to a small/mid agent; require every critique claim to cite finding IDs; show at most three primary issues; apply accepted structured proposals through a new immutable plan version.
+- acceptance criteria: unsupported claims are dropped; critique never edits a plan directly; user-applied repairs are versioned and attributed; unchanged finding sets can reuse cached critique.
+
+### 37.4. Execute and review one step at a time
+- objective: replace monolithic execution with isolated, auditable step runs routed to the smallest adequate model tier.
+- status: planned after 37.3.
+- affected units: execution phase, ACP session ownership, step receipts, scoped context, Git verification and review.
+- expected changes: each approved step gets its own run, bounded context, tier rationale, expected write scope, verification and review result; execution advances only through accepted step outcomes.
+- acceptance criteria: a run cannot silently serve another step; changed files and checks are repository-derived; failures remain retryable; one step outcome cannot complete execution globally.
+
+### 37.5. Add safe parallel execution waves
+- objective: allow independent small-model steps to run concurrently without sharing mutable Git state.
+- status: deferred until 37.4 is proven.
+- affected units: step dependencies, scheduler, isolated worktrees/branches, integration and conflict gates.
+- expected changes: derive runnable waves only from explicit dependencies and non-overlapping write scopes; run every step in its own Git worktree/branch; integrate completed wave results serially and revalidate after merge.
+- acceptance criteria: shared-worktree parallel writes are impossible; ambiguous dependencies or overlapping scopes force serialization; conflicts never auto-resolve; downstream steps consume only integrated upstream commits.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.

@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 9b2f3c5 step 35.6: accept existing execution changes
-- worktree: plan item 36.1 complete pending commit
-- relevant files: Task Activity summary, progressive disclosures and presentation tests
+- worktree: structured Task plan/evaluation roadmap documented
+- relevant files: Task planning persistence, evaluation, critique and step-run boundaries
 
 ## Current Task
-- request: make the Task Activity result understandable and move technical detail out of the primary flow
-- phase: final validation
-- active plan step: 36.1
+- request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
+- phase: detailed planning
+- active plan step: 37.1
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.

@@ -55,6 +55,9 @@
 - Delivery readiness boundary: Git delivery intelligence starts as read-only inspection of branch, HEAD, worktree status, and HEAD provenance notes; Ship/Commit/Push controls require a separate explicit plan and must not be implied by readiness display.
 - Delivery provenance history boundary: Activity may show bounded recent commit provenance by reading Git log and `refs/notes/provenance`, but it remains inspection-only and does not prove tests, deployment, mergeability, or permission to mutate Git.
 - Activity information hierarchy: Task completion, saved evidence, repository verification, changed files and the latest conclusion are primary; advisor/reviewer controls, receipt history and delivery provenance remain available through closed progressive disclosures.
+- Structured Task planning: retain analysis/planning/execution/review as the user-facing lifecycle; planning owns versioned requirements and steps, execution owns per-step runs, and review owns fulfillment and grounded critique.
+- Parallel step safety: never run implementation agents concurrently in one mutable checkout; parallel waves require explicit dependencies, non-overlapping write scopes, isolated Git worktrees/branches and serialized integration.
+- Critique grounding: critique synthesizes stable evaluation findings, cites their IDs, proposes versioned repairs and has no direct authority to rewrite a plan or execute code.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.

@@ -8,6 +8,8 @@
 - May a future Task span multiple ACP sessions, or should continuation always create a new linked session?
 - Which measured Task outcomes should later calibrate classifier weights and confidence without silently changing historical assessments?
 - Should Review brief finding resolution later persist per Task/user, or remain a transient Activity-panel aid?
+- Should the first structured-plan editor support arbitrary dependency edges, or keep execution ordered until isolated worktree scheduling is implemented?
+- Which ACP-advertised model metadata can safely support weak/mid/strong routing before availability and cost signals become authoritative?
 
 ## Resolved
 - Should ACP Controls, Task phases, receipt histories, and Output remain one stacked page?: No; Agent is the default focused view with controls/output, while Task and Activity are separate local views.
