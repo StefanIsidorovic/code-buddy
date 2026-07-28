@@ -55,6 +55,7 @@ export function WorkspaceContextFooterActions({
             type="button" onClick={onOpenRepository} disabled={!project}>
             <SwitchIcon />
             <strong>{repository?.name ?? (project ? "Default path" : "No workspace")}</strong>
+            {repository ? <small>{repository.path}</small> : null}
           </button>
         </dd>
       </div>

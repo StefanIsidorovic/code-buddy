@@ -2,16 +2,27 @@
 
 ## Active Plan
 
+### 35.4. Expose and enforce ACP repository identity
+- objective: prevent same-name repository records and stale ACP sessions from disguising a workspace-path mismatch.
+- status: complete pending commit.
+- files: src/features/workspace/WorkspaceContextSelector.tsx; src/features/tasks/TaskPhasePanel.tsx; App composition; related tests/styles; working_knowledge/current/*.
+- affected units: sidebar context identity, Task phase-run availability, stale-session recovery guidance.
+- expected changes: display selected repository path in the footer; compare selected repository path with active ACP cwd; block phase runs and show both paths plus restart instructions when they differ.
+- acceptance criteria: users can distinguish same-name repositories; a stale/mismatched ACP session cannot run a Task phase; matching paths preserve behavior; the warning names both selected and active paths.
+- required tests: footer path; matching/mismatching Task run state; App wiring; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 1 cycle; repository identity now includes its full path, Task compares the active ACP cwd with the selected repository/default workspace, mismatches expose both paths and lock phase execution, and matching paths preserve all existing behavior.
+- commit: pending.
+
 ### 35.3. Allow failed execution verification retry
 - objective: let users rerun execution after an unchanged or unavailable repository verification without weakening successful-run or other-phase locks.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/tasks/TaskPhasePanel.tsx; related tests; working_knowledge/current/*.
 - affected units: execution run-button lock and recovery guidance.
 - expected changes: derive a narrow retry state from the current Task execution verification; unlock and relabel the execution action only for unchanged/unavailable results.
 - acceptance criteria: unavailable/unchanged execution can rerun; changed execution cannot rerun; analysis/planning/review successful runs remain locked; the latest durable receipt remains authoritative for completion.
 - required tests: unavailable/unchanged retry; changed execution lock; non-execution lock regression; frontend audit/typecheck/full tests/build; diff hygiene.
 - review status: passed after 1 cycle; only unchanged/unavailable execution verification unlocks a clearly labeled retry, changed execution stays locked, and the existing non-execution successful-run lock is unchanged.
-- commit: pending.
+- commit: faa0eaf.
 
 ### 35.1. Add read-only completed phase history
 - objective: let users inspect completed Task phases without reopening or mutating their immutable workflow state.

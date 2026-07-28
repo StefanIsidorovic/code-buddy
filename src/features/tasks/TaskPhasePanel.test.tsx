@@ -19,6 +19,7 @@ function props(overrides = {}) { return { task, artifacts: [], currentPhase: pha
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
   canRunAgent: true, agentRunning: false, hasPhaseRun: false, evidenceReviewed: false,
   workspaceVerification: null,
+  agentWorkspacePath: "/repo", expectedWorkspacePath: "/repo",
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
   onToggleAllSources: vi.fn(),
   onStart: vi.fn(), onComplete: vi.fn(), onRunAndPrepare: vi.fn(), onPrepareCompletion: vi.fn(),
@@ -173,6 +174,13 @@ describe("TaskPhasePanel", () => {
     render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByRole("button", { name: "Rerun execution after fixing workspace" }));
     expect(value.onRunAndPrepare).toHaveBeenCalledOnce();
+  });
+  it("blocks a phase run when the ACP session uses a different selected repository", () => {
+    render(<TaskPhasePanel {...props({ agentWorkspacePath: "/old-repo",
+      expectedWorkspacePath: "/selected-repo" })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Selected repository: /selected-repo");
+    expect(screen.getByRole("alert")).toHaveTextContent("Active ACP workspace: /old-repo");
+    expect(screen.getByRole("button", { name: "Run agent for analysis" })).toBeDisabled();
   });
   it("locks a repeated phase run after a successful receipt", () => {
     render(<TaskPhasePanel {...props({ hasPhaseRun: true })} />);

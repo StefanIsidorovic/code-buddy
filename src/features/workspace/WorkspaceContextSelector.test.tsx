@@ -41,6 +41,7 @@ describe("workspace context selector", () => {
     renderContext(project, repository, onOpenWorkspace, onOpenRepository);
     fireEvent.click(screen.getByRole("button", { name: "Switch workspace: AIadne" }));
     fireEvent.click(screen.getByRole("button", { name: "Switch repository: desktop" }));
+    expect(screen.getByText("/work/AIadne/desktop")).toBeInTheDocument();
     expect(onOpenWorkspace).toHaveBeenCalledOnce();
     expect(onOpenRepository).toHaveBeenCalledOnce();
     const icons = document.querySelectorAll(".runtime-context-action svg");

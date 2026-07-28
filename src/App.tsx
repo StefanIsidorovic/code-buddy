@@ -416,6 +416,8 @@ function App() {
             agentRunning={acpPromptBusy}
             hasPhaseRun={hasCurrentPhaseRun}
             workspaceVerification={executionVerification}
+            agentWorkspacePath={acpSession?.cwd ?? null}
+            expectedWorkspacePath={selectedRepository?.path ?? selectedProject?.path ?? null}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onToggleAllSources={taskPhase.toggleAllSources}

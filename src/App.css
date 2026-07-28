@@ -5250,6 +5250,11 @@ summary:focus-visible {
   background: var(--color-primary-soft); }
 .task-execution-verification span, .task-execution-verification small { color: var(--muted); }
 .task-execution-verification ul { display: grid; gap: 0.25rem; margin: 0; padding-left: 1.2rem; }
+.task-workspace-mismatch { display: grid; gap: 0.3rem; padding: 0.75rem; border: 1px solid var(--danger);
+  border-radius: 0.75rem; background: var(--danger-soft); overflow-wrap: anywhere; }
+.task-workspace-mismatch span, .task-workspace-mismatch small { color: var(--muted); }
+.runtime-context-action button small { display: block; overflow: hidden; color: var(--muted);
+  font-size: 0.65rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 760px) {
   .acp-workspace-body { display: flex; flex-direction: column; overflow: visible; }

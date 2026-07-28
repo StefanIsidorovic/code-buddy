@@ -10,6 +10,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   error: string | null; loading: boolean; onChangeKind: (value: string) => void;
   canRunAgent: boolean; agentRunning: boolean; hasPhaseRun: boolean; evidenceReviewed: boolean;
   workspaceVerification: GitWorkspaceVerificationInfo | null;
+  agentWorkspacePath: string | null; expectedWorkspacePath: string | null;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onToggleAllSources: (selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
@@ -19,6 +20,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
 export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
   kind, content, error, loading, canRunAgent, agentRunning, hasPhaseRun, evidenceReviewed,
   workspaceVerification,
+  agentWorkspacePath, expectedWorkspacePath,
   onChangeKind, onChangeContent, onToggleSource, onToggleAllSources,
   onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
@@ -38,6 +40,8 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
     && currentExecutionVerification.status !== "changed";
   const canRetryExecution = task.currentPhase === "execution"
     && !!currentExecutionVerification && currentExecutionVerification.status !== "changed";
+  const workspaceMismatch = !!agentWorkspacePath && !!expectedWorkspacePath
+    && agentWorkspacePath !== expectedWorkspacePath;
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
   const nextPhase = task.phases.find(({ phaseIndex }) => phaseIndex === (currentPhase?.phaseIndex ?? -1) + 1)?.phase;
   return <section className="task-phase-panel" aria-labelledby="task-phase-title">
@@ -64,6 +68,13 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} />
     </div> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
+    {workspaceMismatch ? <div className="task-workspace-mismatch" role="alert">
+      <strong>ACP session is using a different repository</strong>
+      <span>Selected repository: {expectedWorkspacePath}</span>
+      <span>Active ACP workspace: {agentWorkspacePath}</span>
+      <small>Stop the ACP session, select the repository, then start a new ACP session before
+        running this phase.</small>
+    </div> : null}
     {viewingCurrentPhase && currentPhase?.status === "pending" ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
     {inProgress && viewingCurrentPhase ? <div className="task-artifact-editor">
@@ -75,7 +86,8 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <small>Show the bounded prompt sent to the coding agent</small></summary>
         <pre>{agentInstruction}</pre></details>
         <button className="primary-action" type="button"
-          disabled={!canRunAgent || agentRunning || loading || hasPhaseRun && !canRetryExecution}
+          disabled={!canRunAgent || workspaceMismatch || agentRunning || loading
+            || hasPhaseRun && !canRetryExecution}
           onClick={() => onRunAndPrepare(agentInstruction)}>{agentRunning ? "Running phase…"
             : canRetryExecution ? "Rerun execution after fixing workspace"
               : hasPhaseRun ? `${task.currentPhase} agent run finished` : `Run agent for ${task.currentPhase}`}</button>
