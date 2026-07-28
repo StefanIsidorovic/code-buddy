@@ -465,6 +465,28 @@ export type TaskPlanEvaluationInfo = {
   createdAt: number;
 };
 
+export type TaskPlanCritiqueIssue = {
+  findingIds: string[];
+  explanation: string;
+  proposedRepair: string;
+};
+
+export type TaskPlanCritiqueInfo = {
+  id: string;
+  taskId: string;
+  planVersionId: string;
+  evaluationId: string;
+  source: string;
+  issues: TaskPlanCritiqueIssue[];
+  createdAt: number;
+};
+
+export type RunTaskPlanCritiqueResultInfo = {
+  critique: TaskPlanCritiqueInfo;
+  cached: boolean;
+  promptResult: AcpPromptResult | null;
+};
+
 export type TaskAgentRole = "advisor" | "reviewer";
 
 export type TaskAgentReportInfo = {

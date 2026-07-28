@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
-import type { TaskInfo, TaskPlanDraft, TaskPlanEvaluationInfo,
-  TaskPlanVersionInfo } from "../../types/domain";
+import type { RunTaskPlanCritiqueResultInfo, TaskInfo, TaskPlanCritiqueInfo, TaskPlanDraft,
+  TaskPlanEvaluationInfo, TaskPlanVersionInfo } from "../../types/domain";
 
-export function useTaskPlanWorkflow(task: TaskInfo | null) {
+interface Options {
+  candidateId?: string | null;
+  cwd?: string | null;
+}
+
+export function useTaskPlanWorkflow(task: TaskInfo | null, options: Options = {}) {
   const [versions, setVersions] = useState<TaskPlanVersionInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<TaskPlanEvaluationInfo | null>(null);
+  const [critique, setCritique] = useState<TaskPlanCritiqueInfo | null>(null);
   const requestId = useRef(0);
   const taskIdRef = useRef(task?.id ?? null);
+  const evaluationIdRef = useRef(evaluation?.id ?? null);
   taskIdRef.current = task?.id ?? null;
+  evaluationIdRef.current = evaluation?.id ?? null;
 
   async function refresh() {
     if (!task) return;
@@ -27,9 +35,14 @@ export function useTaskPlanWorkflow(task: TaskInfo | null) {
         ? await invokeCommand<TaskPlanEvaluationInfo | null>("get_task_plan_evaluation", {
           planVersionId: latest.id,
         }) : null;
+      const nextCritique = nextEvaluation
+        ? await invokeCommand<TaskPlanCritiqueInfo | null>("get_task_plan_critique", {
+          evaluationId: nextEvaluation.id,
+        }) : null;
       if (request === requestId.current) {
         setVersions(next);
         setEvaluation(nextEvaluation ?? null);
+        setCritique(nextCritique ?? null);
       }
     } catch (reason) {
       if (request === requestId.current) setError(errorText(reason));
@@ -41,6 +54,7 @@ export function useTaskPlanWorkflow(task: TaskInfo | null) {
   useEffect(() => {
     setVersions([]);
     setEvaluation(null);
+    setCritique(null);
     setError(null);
     if (task) void refresh();
     else requestId.current += 1;
@@ -58,6 +72,7 @@ export function useTaskPlanWorkflow(task: TaskInfo | null) {
       if (taskIdRef.current !== taskId) return;
       setVersions((current) => [...current, version]);
       setEvaluation(null);
+      setCritique(null);
     } catch (reason) {
       if (taskIdRef.current === task.id) setError(errorText(reason));
     } finally {
@@ -94,6 +109,33 @@ export function useTaskPlanWorkflow(task: TaskInfo | null) {
         request: { taskId, planVersionId },
       });
       if (taskIdRef.current === taskId) setEvaluation(value);
+      if (taskIdRef.current === taskId) setCritique(null);
+    } catch (reason) {
+      if (taskIdRef.current === taskId) setError(errorText(reason));
+    } finally {
+      if (taskIdRef.current === taskId) setLoading(false);
+    }
+  }
+
+  async function runCritique() {
+    const candidateId = options.candidateId?.trim();
+    const cwd = options.cwd?.trim();
+    if (!task || !evaluation || !candidateId || !cwd) {
+      setError(!candidateId ? "Select an ACP agent before running critique."
+        : "Select a repository before running critique.");
+      return;
+    }
+    const taskId = task.id;
+    const planVersionId = evaluation.planVersionId;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await invokeCommand<RunTaskPlanCritiqueResultInfo>("run_task_plan_critique", {
+        request: { taskId, planVersionId, evaluationId: evaluation.id, candidateId, cwd },
+      });
+      if (taskIdRef.current === taskId && evaluationIdRef.current === evaluation.id) {
+        setCritique(result.critique);
+      }
     } catch (reason) {
       if (taskIdRef.current === taskId) setError(errorText(reason));
     } finally {
@@ -102,5 +144,5 @@ export function useTaskPlanWorkflow(task: TaskInfo | null) {
   }
 
   return { versions, loading, error, approved: versions.find(({ status }) => status === "approved") ?? null,
-    evaluation, create, evaluate, approve, refresh };
+    evaluation, critique, create, evaluate, runCritique, approve, refresh };
 }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import type { TaskPlanDraft, TaskPlanEvaluationInfo, TaskPlanVersionInfo } from "../../types/domain";
+import type { TaskPlanCritiqueInfo, TaskPlanDraft, TaskPlanEvaluationInfo,
+  TaskPlanVersionInfo } from "../../types/domain";
+import { TaskPlanCritiquePanel } from "./TaskPlanCritiquePanel";
 import { TaskPlanEvaluationPanel } from "./TaskPlanEvaluationPanel";
 
 type RequirementDraft = { id: string; text: string; kind: string };
@@ -11,8 +13,11 @@ interface Props {
   loading: boolean;
   error: string | null;
   evaluation: TaskPlanEvaluationInfo | null;
+  critique: TaskPlanCritiqueInfo | null;
+  canRunCritique: boolean;
   onCreate: (sourceArtifactId: string, draft: TaskPlanDraft) => void;
   onEvaluate: (planVersionId: string) => void;
+  onRunCritique: () => void;
   onApprove: (planVersionId: string) => void;
 }
 
@@ -23,8 +28,8 @@ const step = (): StepDraft => ({ title: "", description: "", kind: "implementati
 const lines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
 const commaList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
-export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, evaluation, onCreate,
-  onEvaluate, onApprove }: Props) {
+export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, evaluation, critique,
+  canRunCritique, onCreate, onEvaluate, onRunCritique, onApprove }: Props) {
   const [requirements, setRequirements] = useState<RequirementDraft[]>([requirement(0)]);
   const [steps, setSteps] = useState<StepDraft[]>([step()]);
   const approved = versions.find(({ status }) => status === "approved") ?? null;
@@ -122,6 +127,8 @@ export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, eva
       its structured plan.</small> : null}
     {latest ? <TaskPlanEvaluationPanel plan={latest} evaluation={evaluation} loading={loading}
       onEvaluate={onEvaluate} /> : null}
+    {evaluation ? <TaskPlanCritiquePanel evaluation={evaluation} critique={critique}
+      loading={loading} canRun={canRunCritique} onRun={onRunCritique} /> : null}
     {latest ? <div className="task-plan-version">
       <span>Latest draft: v{latest.version} · {latest.requirements.length} requirement(s)
         · {latest.steps.length} step(s)</span>

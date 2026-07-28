@@ -539,6 +539,14 @@ pub fn get_task_plan_evaluation(
 }
 
 #[tauri::command]
+pub fn get_task_plan_critique(
+    state: State<'_, ProjectStore>,
+    evaluation_id: String,
+) -> AppResult<Option<TaskPlanCritiqueInfo>> {
+    state.task_plan_critique(&evaluation_id)
+}
+
+#[tauri::command]
 pub async fn run_task_plan_critique(
     manager_state: State<'_, Arc<AcpSessionManager>>,
     store_state: State<'_, ProjectStore>,

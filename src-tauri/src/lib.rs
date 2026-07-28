@@ -75,6 +75,7 @@ pub fn run() {
             commands::approve_task_plan_version,
             commands::evaluate_task_plan,
             commands::get_task_plan_evaluation,
+            commands::get_task_plan_critique,
             commands::run_task_plan_critique,
             commands::create_task_agent_report,
             commands::run_task_agent_report,

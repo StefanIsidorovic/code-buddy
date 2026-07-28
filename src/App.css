@@ -5291,6 +5291,19 @@ summary:focus-visible {
 .task-plan-evaluation li[data-severity="blocking"] { border-left-color: var(--color-danger); }
 .task-plan-evaluation li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem; }
 .task-plan-evaluation code { color: var(--muted); font-size: 0.68rem; }
+.task-plan-critique { display: grid; gap: 0.55rem; padding: 0.65rem;
+  border: 1px solid var(--color-warning); border-radius: 0.7rem;
+  background: var(--color-warning-soft); }
+.task-plan-critique > div:first-child { display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 0.5rem; }
+.task-plan-critique h5, .task-plan-critique p { margin: 0; }
+.task-plan-critique h5 { font-size: 0.82rem; }
+.task-plan-critique span, .task-plan-critique small { color: var(--muted); font-size: 0.72rem; }
+.task-plan-critique ol { display: grid; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+.task-plan-critique li { display: grid; gap: 0.3rem; padding: 0.55rem; border-radius: 0.55rem;
+  background: var(--surface); border: 1px solid var(--border); }
+.task-plan-critique li > div { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.task-plan-critique code { font-size: 0.68rem; color: var(--color-danger); }
 .task-provenance-picker { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.7rem; }
 .task-provenance-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.75rem; cursor: pointer; font-weight: 650; }

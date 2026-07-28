@@ -40,4 +40,36 @@ describe("useTaskPlanWorkflow", () => {
       request: { taskId: "task-1", planVersionId: "plan-1" },
     });
   });
+
+  it("runs grounded critique with the selected isolated agent context", async () => {
+    const evaluation = {
+      id: "evaluation-1", taskId: "task-1", planVersionId: "plan-1", planVersion: 1,
+      verdict: "flags", findings: [{ id: "MISSING_PATHS:step-1", code: "MISSING_PATHS",
+        severity: "warning", message: "Missing paths", requirementId: null, stepIds: ["step-1"] }],
+      createdAt: 2,
+    };
+    invoke.mockImplementation((command) => {
+      if (command === "list_task_plan_versions") return Promise.resolve([version]);
+      if (command === "get_task_plan_evaluation") return Promise.resolve(evaluation);
+      if (command === "get_task_plan_critique") return Promise.resolve(null);
+      if (command === "run_task_plan_critique") return Promise.resolve({
+        cached: false, promptResult: null,
+        critique: { id: "critique-1", taskId: "task-1", planVersionId: "plan-1",
+          evaluationId: "evaluation-1", source: "codex-acp", createdAt: 3,
+          issues: [{ findingIds: ["MISSING_PATHS:step-1"], explanation: "Scope is unclear",
+            proposedRepair: "Declare expected paths" }] },
+      });
+      return Promise.resolve(null);
+    });
+    const { result } = renderHook(() => useTaskPlanWorkflow(task, {
+      candidateId: "codex-acp", cwd: "/repo",
+    }));
+    await waitFor(() => expect(result.current.evaluation?.id).toBe("evaluation-1"));
+    await act(() => result.current.runCritique());
+    expect(result.current.critique?.id).toBe("critique-1");
+    expect(invoke).toHaveBeenCalledWith("run_task_plan_critique", { request: {
+      taskId: "task-1", planVersionId: "plan-1", evaluationId: "evaluation-1",
+      candidateId: "codex-acp", cwd: "/repo",
+    } });
+  });
 });

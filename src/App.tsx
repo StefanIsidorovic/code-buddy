@@ -201,7 +201,10 @@ function App() {
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
     onRunSettled: taskPhaseRuns.refresh });
-  const taskPlan = useTaskPlanWorkflow(activeTask);
+  const taskPlan = useTaskPlanWorkflow(activeTask, {
+    candidateId: selectedAcpCandidateId,
+    cwd: selectedRepository?.path ?? selectedProject?.path,
+  });
   const hasCurrentPhaseRun = taskPhase.hasCompletedRun || !!activeTask &&
     taskPhaseRuns.receipts.some((receipt) =>
       receipt.phase === activeTask.currentPhase && receipt.status === "sent");
@@ -425,10 +428,14 @@ function App() {
             planningPlanApproved={taskPlan.approved !== null}
             planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}
               error={taskPlan.error} evaluation={taskPlan.evaluation}
+              critique={taskPlan.critique}
+              canRunCritique={!!selectedAcpCandidateId
+                && !!(selectedRepository?.path ?? selectedProject?.path)}
               sourceArtifactId={[...taskPhase.artifacts].reverse()
                 .find(({ phase }) => phase === "planning")?.id ?? null}
               onCreate={(artifactId, draft) => void taskPlan.create(artifactId, draft)}
               onEvaluate={(versionId) => void taskPlan.evaluate(versionId)}
+              onRunCritique={() => void taskPlan.runCritique()}
               onApprove={(versionId) => void taskPlan.approve(versionId)} />}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
