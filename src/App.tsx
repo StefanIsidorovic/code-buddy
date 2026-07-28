@@ -195,6 +195,9 @@ function App() {
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
     onRunSettled: taskPhaseRuns.refresh });
+  const hasCurrentPhaseRun = taskPhase.hasCompletedRun || !!activeTask &&
+    taskPhaseRuns.receipts.some((receipt) =>
+      receipt.phase === activeTask.currentPhase && receipt.status === "sent");
   const workspaceNavigation = useWorkspaceNavigation();
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
@@ -405,8 +408,7 @@ function App() {
             error={taskPhase.error} loading={taskPhase.loading || taskPhaseRuns.loading}
             canRunAgent={canUseAcpSession}
             agentRunning={acpPromptBusy}
-            hasPhaseRun={taskPhaseRuns.receipts.some((receipt) =>
-              receipt.phase === activeTask.currentPhase && receipt.status === "sent")}
+            hasPhaseRun={hasCurrentPhaseRun}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onToggleAllSources={taskPhase.toggleAllSources}

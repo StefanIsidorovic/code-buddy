@@ -1,105 +1,26 @@
 # Handoff
 
 ## Current State
-- Plan item 30.2 is complete pending commit: Project Initialization now defaults to a compact setup card, expands on Open setup/Initialize, and reallocates desktop width to Runtime while compact.
-- Plan item 30.1 is committed as 8c72382: Session History Resume errors/locks are visible, row colors are repaired, and full frontend gates pass.
-- Plan item 29.2 is committed as 9b5414f: 29.1 provenance was verified and active knowledge is updated for the next read-only delivery-intelligence slice.
-- Plan item 29.1 is committed as 4e838d2: Activity Delivery readiness now includes read-only Recent provenance history from bounded Git log/notes inspection, and full frontend/Rust gates pass.
-- Plan item 28.3 is committed as 753c6de: delivery-readiness provenance, tracker state, and handoff notes are updated after the 28.2 commit.
-- Plan item 28.2 is committed as b359052: Activity now has a read-only Delivery readiness panel backed by a stale-safe hook and typed gateway command.
-- Plan item 28.1 is committed as ada3525: the backend has a read-only Git delivery readiness inspector for branch/HEAD/status/provenance, with full backend gates passing.
-- Plan item 27.2 is committed as a6650b6: the Review brief finding-action slice is validated, provenance for 27.1 is verified, and the next roadmap step is scoped to read-only delivery readiness / Git intelligence.
-- Plan item 27.1 is committed as 3e7277b: Review brief findings now support editable ACP follow-up drafts and local Mark resolved/Reopen state without sending ACP, persisting Task evidence, completing phases, or mutating Git.
-- Plan item 26.2 is committed as af54d8a: the Review brief slice was validated and scoped the next step to explicit finding follow-up/resolution guidance.
-- Plan item 26.1 is committed as 2317a46: Activity advisor/reviewer reports now have a conservative read-only Review brief derived from exact report snippets.
-- Plan item 25.3 is committed as 939aee1: Task guidance docs and in-app guidance were validated, and provenance notes for 25.1/25.2 were verified.
-- Plan item 25.2 is committed as f52e683: `TaskPhasePanel` now has a compact native `How this Task works` disclosure that explains Agent, Task, Run & prepare, and Activity responsibilities.
-- Plan item 25.1 is committed as 4f0ee18: `LOCAL_PROGRESS.md` now explains the real-user Task model before adding more execution/review automation.
-- Plan item 24.6 is committed as f3b83e9: the secondary-agent flow passed full frontend/Rust hardening, provenance notes for 24.3/24.4/24.5 were verified, and no additional code fix was required.
-- Plan item 24.5 is committed: Activity now exposes explicit `Run advisor` and `Run reviewer` actions for the current in-progress Task phase, backed by the typed `run_task_agent_report` gateway command.
-- `useTaskAgentReports` owns stale-safe report loading and run orchestration, including Task-change guards, disabled reasons, running-role state, error surfacing, and post-run refresh; `TaskAgentReportsPanel` owns only presentation plus transient local resolved-finding state and a required draft callback.
-- Advisor/reviewer run controls require an active in-progress Task phase, selected ACP candidate, and selected repository/project cwd; a late result after Task change cannot attach reports to the visible Task.
-- `src/App.tsx` remains composition-only at 593 lines and only wires Task, candidate/cwd identity, Review brief prompt drafts, and Delivery readiness state into feature hooks/panels.
-- Plan item 24.4 is committed: `run_task_agent_report` validates Task/phase/role before external startup, launches a secondary isolated ACP session, sends a role-scoped instruction, drains output, atomically creates a separate ACP transcript plus immutable report, and removes the secondary session from the manager.
-- Secondary transcript/report publication is transactional: no persisted agent output means no transcript/report commit, and phase changes during the run cause the storage transaction to reject without partial report state.
-- Plan item 24.3 is committed: secondary ACP starts can request `workspaceIsolation: "snapshot_sandbox"`, which creates a bounded writable snapshot, excludes `.git`/generated directories/symlinks, launches the adapter through `bwrap`, sends ACP `session/new.cwd` as `/work`, and removes the snapshot when the ACP session drops.
-- Ordinary primary ACP registry starts remain unwrapped and keep their existing npx-neutral/binary-project cwd behavior.
-- `src-tauri/src/acp_workspace.rs` owns the snapshot/sandbox boundary and its tests; `src-tauri/src/acp.rs` only carries the optional isolation request through ACP session launch.
-- Activity now exposes a read-only Advisor & Reviewer Reports panel with role/phase/order/content, exact transcript identity, provenance count, refresh, and stale-safe Task switching; the tab summary includes report count.
-- TaskAgentReport now persists ordered immutable advisor/reviewer findings with exact secondary ACP event provenance; only a free same-project ACP transcript and current in-progress phase are accepted.
-- Secondary reports are deliberately separate from executor phase artifacts and expose no transition, evidence, receipt, runtime, or Git mutation authority.
-- Review brief finding actions are local-only: Draft follow-up fills the existing ACP prompt and returns to Agent view for user review; Mark resolved/Reopen only changes the visible Activity panel state for the current render.
-- A process-level test now destroys the original ACP manager, waits for its PID to exit, loads the exact external session id through a fresh manager, consumes replay once, and proves follow-up prompting still works.
-- Activity now identifies pending phase/context receipts left by an older ACP process, explains their unconfirmed outcome, and links each receipt to the existing conservative manual resolution gate.
-- Pending work owned by the current running ACP session is never labeled interrupted; Resume triggers no automatic retry, sent claim, failure, evidence creation, or phase transition.
-- Session History now exposes an explicit per-row Resume action for ACP transcripts; it is locked during another live/resuming session and legacy rows fail with an actionable recovery message.
-- Successful Resume activates the existing transcript/Task, resets the workspace to Agent, consumes replay without duplicating SQLite history, and preserves future live persistence; workspace changes invalidate and stop late loads.
-- The backend can now restart a persisted registry adapter and issue ACP `session/load` with its exact stored external session id and repository cwd; successful replay events/model config reuse the normal runtime buffers.
-- Unsupported adapters, blank recovery identifiers, and failed loads never become managed sessions; failed child processes are killed by the session Drop boundary.
-- ACP output now appears and persists during long ordinary and controlled prompts instead of waiting for prompt completion.
-- `useAcpEventDrain` serializes overlapping polls, pins output to the prompt's starting transcript, and captures live plus final persisted agent IDs for exact phase receipt linkage.
-- The current phase now offers `Run & prepare <phase>`: it sends one audited controlled prompt, refreshes the originating Task's run receipts, and fills the editable draft from exact linked events only after success.
-- Failed or stale runs never prepare evidence; standalone Prepare, Add evidence, Review, Complete, and next-phase Start remain separate explicit gates.
-- npx ACP adapters now bootstrap from the neutral OS temporary directory, preventing a selected project's invalid `devEngines`/npm metadata from exiting before initialize; `session/new` still targets the selected repository.
-- A real Codex ACP smoke test completed initialize and session creation for `/home/katarina/projects/super`; binary ACP launch cwd behavior is unchanged.
-- ACP child startup failures now include a bounded stderr reason and structured Tauri errors render as readable messages instead of raw `{code,message}` JSON.
-- Direct `codex-acp@1.1.0` initialize succeeds with AIadne's payload; the screenshot's exact child failure cannot be classified further because the old build discarded its stderr, so the next Start attempt is the authoritative diagnostic.
-- ACP tool-using prompts no longer deadlock when Codex requests permission: pending requests stay visible in Agent view (even with controls collapsed), and only an explicit offered choice resumes the prompt.
-- Permission polling is independent from the blocked prompt call; graceful Stop returns cancelled outcomes, and failed response writes remain retryable.
-- Task and Activity views now scroll independently inside the desktop viewport, so long evidence/artifact content remains reachable; mobile keeps normal page scrolling.
-- Task Context Preview can close via X, Close, or backdrop while a context send continues single-flight; successful completion still refreshes dispatch history.
-- ACP `tool_call_update` events are dropped before output/transcript persistence, meaningful initial tool calls remain, and idle drain cadence is 1000 ms instead of 400 ms.
-- Task Phase shows a compact five-step guide; Run/Prepare are accurately optional, while Save evidence, Review, and Complete expose the authoritative gates and next required action.
-- Completion CTA names the next pending phase or final Task completion; the backend-returned phase renders immediately but still requires its own explicit Start.
-- Task Phase now offers `Prepare completion`, which loads only the latest current-phase sent receipt's linked response events into an editable draft with exact provenance IDs.
-- Missing links produce an actionable error; stale responses after Task changes are ignored, and Add evidence/review/Complete/next Start remain separate explicit gates.
-- Controlled phase runs now persist normalized links from their sent receipt to the exact agent transcript events drained after that run; cross-transcript and user-event links are rejected transactionally.
-- Background ACP drain pauses while a prompt is in flight, preventing polling from consuming a controlled response before it can be persisted and linked.
-- ACP now opens in a focused Agent view containing both ACP Controls and Session Output; Task and Activity are separate accessible tab views instead of one stacked page.
-- View tabs support click and Arrow/Home/End keyboard navigation, disable Task-owned views without an active Task, and return safely to Agent when the Task disappears.
-- Transcript provenance is now collapsed by default with selected/event counts, normalized 16px checkboxes, compact event metadata, two-line previews and a bounded scroll area.
-- The screenshot-confirmed runtime overlap is fixed: dynamic controls/workflow/errors size naturally, Output grows, and phase/context histories are grouped under collapsed Task activity.
-- ACP session status/actions switch to a narrow layout at 760px and long session IDs wrap instead of clipping actions.
-- Phase completion UI now shows deterministic phase-specific review criteria and requires an explicit acknowledgment that resets when Task/evidence/phase state changes.
-- The current phase can draft editable evidence from the latest persisted agent response with exact transcript-event provenance; saving and completion remain explicit.
-- Phase Run History now exposes ordered exact instructions/outcomes and can conservatively resolve stale pending runs only after their ACP session stops.
-- Controlled phase runs now persist an ordered `pending` receipt before ACP and finalize it once as `sent` or `failed`, retaining exact instruction, phase, session and outcome.
-- An in-progress Task phase now exposes its exact canonical agent instruction and can send one controlled ACP prompt after exact Task/transcript ownership validation.
-- Phase execution never creates evidence, completes the phase, or starts the next one; those remain explicit backend-enforced gates.
-- Task Dispatch History now shows ordered receipts with exact stored prompt/context, source count, ACP outcome, stop reason and error.
-- A genuinely stale `pending` receipt can be manually resolved only to `failed`, with a mandatory bounded reason and only after its associated ACP session is no longer running; finalized outcomes remain immutable.
-- Explicit context sends now create an ordered Task receipt before ACP dispatch and finalize it as `sent` or `failed`; interrupted attempts remain `pending` for later recovery.
-- Receipts retain exact user/context/wire strings, included source snapshots, ACP session, stop reason/error, and Task/transcript ownership.
-- Unified Task Context Preview now has an explicit send action; the exact rendered context enriches only the ACP wire prompt, while Task `originalPrompt` and transcript user events retain the user's plain prompt.
-- Prompt dispatch has a synchronous in-flight guard, and the dialog stays open on failed dispatch for an explicit retry.
-- Task Context Preview now unifies approved project Knowledge Units, transcript-attached Knowledge Cards, and active Task phase artifacts with visible source/reason and a strict character budget.
-- The selector validates project, initialization, transcript, and Task ownership; preview responses are discarded after workspace identity changes.
-- Plan 18 introduces Task persistence, first-prompt creation, phase knowledge, and staged UI in that order.
-- Plan items through 18.3 are complete: project-owned ACP prompts create persistent Tasks with analysis-first phases and an explainable initial quick/standard/complex assessment.
-- Initial and effective complexity are persisted separately; every system/user change is retained in append-only history.
-- ACP Controls now shows a responsive read-only Task assessment for the live transcript, including profile, phase, reasons, confidence/source, version, and differing initial profile.
-- ACP Controls now exposes the active agent's advertised Coding model independently of Summary synthesis selection; changes are validated and scoped to the live ACP session.
-- ACP Controls can collapse model, Task assessment, and result details to prioritize Session Output while keeping Prompt, Preview/Send, Drain, and Stop visible.
+- Plan item 31.1 is complete pending commit.
+- A successful controlled phase run now locks Run & prepare immediately for the current Task/phase even when receipt refresh is delayed or empty.
+- Failed runs remain retryable; Task/phase changes clear the local lock.
+- Task shows a visible Next step card with evidence-text and provenance requirements.
+- Transcript provenance opens automatically after a successful run or first selection.
+- Save phase evidence explains why it is disabled and enables only when evidence text and provenance are both ready.
 
 ## Next Step
-- Commit plan item 30.2 with a provenance note, then manually test the app layout: compact Project Initialization by default, Open setup expansion, Initialize dialog, Collapse setup, and Session History Resume/lock copy.
-- Apply `.agents/skills/aiadne-modern-frontend/SKILL.md` and run `npm run frontend:audit` for every subsequent frontend slice.
+- Commit 31.1 with a provenance note, then manually verify the screenshot flow in Tauri.
+- Plan explicit manual evidence provenance separately if agent-free phase completion remains desired.
 
 ## Commands To Re-Run
-- `npm run frontend:audit`: enforce the project-local frontend architecture guardrails.
-- `npm run typecheck`: validate TypeScript contracts.
-- `npm run test -- --run`: validate frontend regressions.
-- `npm run build`: validate production bundle output.
-- `cargo fmt --manifest-path src-tauri/Cargo.toml --check`: validate Rust formatting.
-- `cargo test --manifest-path src-tauri/Cargo.toml`: validate storage and backend regressions.
-- `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`: validate Rust quality.
+- `npm run frontend:audit`: check frontend architecture.
+- `npm run typecheck`: check TypeScript contracts.
+- `npm run test -- --run`: run frontend regressions.
+- `npm run build`: validate the production bundle.
+- `cargo test --manifest-path src-tauri/Cargo.toml`: run backend regressions.
 - `git diff --check`: validate patch hygiene.
 
 ## Watchouts
-- Keep phase transitions atomic with task-knowledge artifact publication and preserve exact source references.
-- Use the effective complexity profile to control depth and checkpoints, not to skip validation or provenance.
-- Enforce project ownership between a Task and its transcript session.
-- Keep canonical phase order deterministic and avoid free-form phase names at this layer.
-- Preserve unrelated user changes if the worktree changes during implementation.
-- Do not use AIadne's synthesis catalog as the ACP runtime model source; retain and validate the active agent's advertised options.
-- Show the user the stable approximate `AIadne -> beyond Conductor` progress tracker in every substantive work update; the percentage is directional rather than a delivery estimate.
+- Do not weaken transcript provenance implicitly; model manual evidence explicitly.
+- Keep durable receipt history authoritative across restarts.
+- Preserve the known non-failing React act warning in the unrelated App toast test unless that test is directly addressed.

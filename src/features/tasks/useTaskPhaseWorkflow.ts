@@ -12,8 +12,11 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent,
   const [sourceIds, setSourceIds] = useState<string[]>([]); const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false); const requestId = useRef(0);
   const [evidenceReviewed, setEvidenceReviewed] = useState(false);
+  const [completedRunKey, setCompletedRunKey] = useState<string | null>(null);
   const taskIdRef = useRef(task?.id ?? null);
   const currentPhase = task?.phases.find(({ phase }) => phase === task.currentPhase) ?? null;
+  const runKey = task ? `${task.id}:${task.currentPhase}` : null;
+  useEffect(() => { setCompletedRunKey(null); }, [runKey]);
   useEffect(() => { taskIdRef.current = task?.id ?? null; const request = ++requestId.current;
     setArtifacts([]); setSourceIds([]); setError(null); setEvidenceReviewed(false);
     if (!task) return; setLoading(true); void invokeCommand<TaskPhaseArtifactInfo[]>("list_task_phase_artifacts", { taskId: task.id })
@@ -35,7 +38,10 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent,
     finally { if (taskIdRef.current === taskId) setLoading(false); } }
   async function runAndPrepare(instruction: string) { if (!task) return; const taskId = task.id;
     const sent = await runAgent(taskId, instruction); await onRunSettled(taskId);
-    if (sent && taskIdRef.current === taskId) await prepareCompletion(); }
+    if (sent && taskIdRef.current === taskId) {
+      setCompletedRunKey(`${taskId}:${task.currentPhase}`);
+      await prepareCompletion();
+    } }
   async function transition(action: "start" | "complete") { if (!task || action === "complete" && !evidenceReviewed) return; setLoading(true); setError(null);
     try { const value = await invokeCommand<TaskInfo>("transition_task_phase", { request: { taskId: task.id, action } });
       if (taskIdRef.current === task.id) { upsertTask(value); setEvidenceReviewed(false); } }
@@ -48,7 +54,8 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent,
       setArtifacts((current) => [...current, artifact]); setContent(""); setSourceIds([]); setEvidenceReviewed(false); }
     catch (reason) { if (taskIdRef.current === task.id) setError(errorText(reason)); }
     finally { if (taskIdRef.current === task.id) setLoading(false); } }
-  return { artifacts, kind, content, sourceIds, sourceEvents, error, loading, currentPhase, evidenceReviewed,
+  return { artifacts, kind, content, sourceIds, sourceEvents, error, loading, currentPhase,
+    evidenceReviewed, hasCompletedRun: completedRunKey === runKey,
     changeKind: setKind, changeContent: setContent, toggleSource, toggleAllSources,
     prepareCompletion, runAndPrepare, createArtifact,
     acknowledgeEvidenceReview: setEvidenceReviewed, start: () => transition("start"), complete: () => transition("complete") };

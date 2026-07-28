@@ -20,6 +20,9 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   onAcknowledgeEvidenceReview }: Props) {
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
   const inProgress = currentPhase?.status === "in_progress";
+  const hasDraft = !!content.trim();
+  const hasProvenance = selectedSourceIds.length > 0;
+  const canSaveEvidence = hasDraft && hasProvenance;
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
   const nextPhase = task.phases.find(({ phaseIndex }) => phaseIndex === (currentPhase?.phaseIndex ?? -1) + 1)?.phase;
   return <section className="task-phase-panel" aria-labelledby="task-phase-title">
@@ -35,8 +38,23 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <li><strong>Activity</strong><span>Audit context sends, phase runs, interrupted receipts, and read-only advisor/reviewer reports.</span></li>
       </ul></details>
     {inProgress ? <TaskPhaseGuide hasRun={hasPhaseRun}
-      hasDraft={!!content.trim() && selectedSourceIds.length > 0}
+      hasDraft={hasDraft && hasProvenance}
       hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} /> : null}
+    {inProgress ? <div className="task-next-step" role="status" aria-live="polite">
+      <strong>Next step</strong>
+      <p>{phaseArtifacts.length > 0
+        ? "Review the saved evidence below, acknowledge the checkpoint, then complete the phase."
+        : canSaveEvidence
+          ? "Your evidence draft and provenance are ready. Save phase evidence."
+          : hasPhaseRun
+            ? "Review the prepared evidence text and selected provenance, then save it."
+            : "Run & prepare this phase, or write evidence manually and select its transcript provenance."}</p>
+      {phaseArtifacts.length === 0 ? <ul>
+        <li data-complete={hasDraft}>Evidence text: {hasDraft ? "ready" : "required"}</li>
+        <li data-complete={hasProvenance}>Transcript provenance: {hasProvenance
+          ? `${selectedSourceIds.length} selected` : "select at least one event"}</li>
+      </ul> : null}
+    </div> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {currentPhase?.status === "pending" ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
@@ -65,7 +83,9 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       <small>{hasPhaseRun
         ? "Reloads the latest linked agent response into this editable draft."
         : "Available after a successful phase run. You can also write evidence manually."}</small>
-      <details className="task-provenance-picker"><summary><span>Transcript provenance</span>
+      <details key={hasPhaseRun || hasProvenance ? "provenance-open" : "provenance-closed"}
+        className="task-provenance-picker" open={hasPhaseRun || hasProvenance ? true : undefined}>
+        <summary><span>Transcript provenance</span>
         <small>{selectedSourceIds.length} selected · {sourceEvents.length} persisted event(s)</small></summary>
         {sourceEvents.length === 0 ? <p>No persisted transcript events yet.</p>
           : <><p>Choose the exact transcript events that support this evidence. They remain attached as its audit trail.</p>
@@ -80,7 +100,9 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
             <span className="task-provenance-content">{event.content}</span></label>)}</div></>}
       </details>
       <button type="button" onClick={onCreateArtifact} disabled={loading || !kind.trim()
-        || !content.trim() || selectedSourceIds.length === 0}>Save phase evidence</button>
+        || !canSaveEvidence}>Save phase evidence</button>
+      {!canSaveEvidence ? <small role="note">To enable Save phase evidence, add evidence text and select
+        at least one supporting transcript event.</small> : null}
       <small>Saves this text as an immutable Task artifact linked to the selected transcript events.
         It does not complete the phase.</small>
       {phaseArtifacts.length > 0 ? <fieldset className="task-phase-review"><legend>Review checkpoint</legend>

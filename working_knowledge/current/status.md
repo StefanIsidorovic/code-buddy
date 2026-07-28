@@ -1,143 +1,29 @@
 # Status
 
 ## Session
-- session_id: codex-20260723-aiadne-execution-review
-- date_utc: 2026-07-23
+- session_id: codex-20260728-aiadne-task-ux
+- date_utc: 2026-07-28
 - agent_model: codex
 
 ## Target Repositories
-- code-buddy: /home/katarina/projects/AIadne
+- AIadne: /home/katarina/projects/AIadne
 
 ## Repository State
 - branch: new/start
-- head: 8c72382 step 30.1: repair session history resume ux
-- worktree: plan item 30.2 compact Project Initialization complete pending commit.
-- relevant files: src/features/runtime/useAcpRecovery.ts; src/features/runtime/useAcpRuntime.ts; src/features/transcripts/SessionHistoryPanel.tsx; src/features/initialization/ProjectInitializationPanel.tsx; src/App.tsx; src/App.css; frontend tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
+- head: 90a78c6 step 30.3.3: regenerate summary sections safely
+- worktree: plan item 31.1 complete pending commit
+- relevant files: Task phase workflow/panel tests, App composition wiring, Task UX CSS, active knowledge
 
 ## Current Task
-- request: fix broken Session History Resume UX/colors and make Project Initialization stop permanently occupying the main workspace; borrow the useful Buddy view/sidebar pattern.
-- phase: in_progress
-- active plan step: 30.2 complete pending commit; AIadne-to-beyond-Conductor tracker approximately 98%.
+- request: fix Task phase controls that remain disabled after provenance selection, prevent Run & prepare from re-enabling after success, and reveal the next evidence actions
+- phase: validation
+- active plan step: 31.1
 
 ## Risks And Constraints
-- Keep task-specific knowledge separate from project Knowledge Units and manual Knowledge Cards.
-- Preserve the original user prompt separately from any context-enriched ACP payload.
-- A single ACP/transcript session represents one Task; later prompts continue it instead of creating duplicates.
-- Canonical knowledge-building order is analysis, planning, execution, review; intake is Task creation and learning is a review output.
-- `src/App.tsx` is already large, so backend domain foundations precede frontend orchestration.
-- Complexity classification must be explainable, versioned, auditable, and user-overridable; prompt-only ambiguity defaults to standard rather than false precision.
-- Summary model selection and coding-agent model selection are separate concerns; coding choices must not mutate global Codex configuration.
-- ACP coding model options should be discovered from the active agent rather than duplicated in AIadne's synthesis catalog.
+- Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
+- Failed runs must remain retryable, and the local lock must reset when Task or phase changes.
+- Saving evidence still requires both evidence text and same-transcript event provenance; explicit manual evidence needs a separate auditable backend contract.
+- App.tsx must remain composition-only and Task features must not invoke Tauri directly.
 
 ## Last Verification
-- 2026-07-23: 30.2 frontend gates pass after one review/test-alignment cycle: frontend audit (`App.tsx` 601 lines), typecheck, targeted ProjectInitializationPanel/App tests (44 tests), full Vitest suite (259 tests across 51 files), production build, non-test direct-Tauri boundary check, file-size check (`ProjectInitializationPanel.tsx` 180 lines), and `git diff --check`.
-- 2026-07-23: 30.1 frontend gates pass after review fix: frontend audit (`App.tsx` 597 lines), typecheck, targeted Session History/runtime/App regression tests, full Vitest suite (258 tests across 51 files), production build, non-test direct-Tauri boundary check, file-size check (`SessionHistoryPanel.tsx` 66 lines, `useAcpRecovery.ts` 68 lines, `useAcpRuntime.ts` 250 lines), and `git diff --check`.
-- 2026-07-23: repository state verified at HEAD 9b5414f/29.2 with a clean worktree before planning Session History Resume and Project Initialization UX fixes; current knowledge was repaired from stale "29.2 pending commit" state.
-- 2026-07-23: 29.1 commit 4e838d2 has a verified provenance note; worktree was clean before 29.2 knowledge edits, and the next step remains read-only validation/evidence signals beside delivery readiness.
-- 2026-07-23: 29.1 full gates pass: frontend audit, typecheck, 257 frontend tests across 51 files, production build, delivery/App Tauri boundary check, file-size check (`App.tsx` 593 lines, `DeliveryReadinessPanel.tsx` 71 lines, `useDeliveryReadiness.ts` 57 lines), `git diff --check`, Rust fmt, 121 Rust tests, and clippy with warnings denied. The existing App PTY keyboard test was stabilized after it blocked the first full frontend run.
-- 2026-07-23: 28.2 commit b359052 has a verified provenance note; worktree was clean before 28.3 knowledge edits, and the next slice is scoped to read-only validation/evidence readiness rather than Ship/Commit/Push mutation.
-- 2026-07-23: 28.2 full frontend gates pass with frontend audit, typecheck, 256 frontend tests, production build, no direct Tauri/import boundary check for delivery/App, file-size check (`App.tsx` 592 lines, `DeliveryReadinessPanel.tsx` 55 lines, `useDeliveryReadiness.ts` 50 lines), and `git diff --check`; an existing App test act warning appeared but the suite passed.
-- 2026-07-23: provenance note verified for ada3525/28.1; backend delivery readiness inspector is committed and the frontend Activity readiness UI is ready for commit.
-- 2026-07-23: 28.1 targeted Rust delivery tests pass after fixing porcelain leading-space parsing; full backend gates pass with Rust fmt check, 119 Rust tests, clippy with warnings denied, and `git diff --check`.
-- 2026-07-23: commit a6650b6/27.2 is HEAD with a verified provenance note; current knowledge was repaired from stale "27.2 pending commit" state before committing the delivery-readiness slice.
-- 2026-07-23: provenance note verified for 3e7277b/27.1, worktree checked clean before 27.2 knowledge updates, and the next roadmap slice is scoped to read-only delivery readiness / Git intelligence rather than Git mutation or automatic shipping.
-- 2026-07-23: plan item 27.1 full frontend gates pass: targeted 14 tests, frontend audit, typecheck, 249 frontend tests, production build, no direct Tauri/import boundary check for modified feature/view files, file-size check (`App.tsx` 586 lines, `TaskAgentReportsPanel.tsx` 71 lines, `taskAgentReportBrief.ts` 94 lines, `AcpWorkspaceViews.tsx` 86 lines), and `git diff --check`; review cycle 2 found no remaining Task mutation or backend-coupling issue.
-- 2026-07-23: provenance note verified for af54d8a/26.2; 26.2 is committed and the next execution/review slice is 27.1 Review brief finding follow-up/resolution controls.
-- 2026-07-23: provenance note verified for 2317a46/26.1, worktree checked clean before 26.2 knowledge updates, and next execution/review step scoped to read-only finding follow-up/resolution guidance.
-- 2026-07-23: 26.1 targeted report-brief helper/panel tests pass (6 tests), frontend audit, typecheck, 246 frontend tests, production build, no direct Tauri/import boundary check, file-size check (`taskAgentReportBrief.ts` 82 lines, `TaskAgentReportsPanel.tsx` 46 lines, `App.tsx` 585 lines), and `git diff --check` pass after adding the read-only Review brief.
-- 2026-07-23: repository state rechecked for the next execution/review harness slice; HEAD is 939aee1 and worktree was clean before plan item 26.1.
-- 2026-07-22: commit 939aee1 has a verified provenance note under `refs/notes/provenance` for plan item 25.3.
-- 2026-07-22: plan item 25.3 final validation passed with docs signal check, frontend audit, typecheck, 242 frontend tests, production build, `git diff --check`, and verified provenance notes for 25.1 and 25.2.
-- 2026-07-22: provenance notes verified for 4f0ee18/25.1 and f52e683/25.2; Task guidance docs and in-app disclosure are aligned and no Task automation boundary changed.
-- 2026-07-22: 25.2 targeted TaskPhasePanel test, frontend audit, typecheck, 242 frontend tests, production build, no direct Tauri boundary check for TaskPhasePanel, size check (`TaskPhasePanel.tsx` 78 lines, `App.tsx` 585 lines), and `git diff --check` pass for in-app Task operating-model guidance.
-- 2026-07-22: commit 4f0ee18 has a verified provenance note under `refs/notes/provenance` for plan item 25.1.
-- 2026-07-22: commit f3b83e9 has a verified provenance note under `refs/notes/provenance` for plan item 24.6.
-- 2026-07-22: plan item 24.6 final hardening passed with frontend audit, typecheck, 241 frontend tests, production build, Rust formatting, 116 Rust tests, clippy with warnings denied, `git diff --check`, and verified provenance notes for commits 8554eb0/24.3, c1ae996/24.4 and 9bc5b7b/24.5; no executor Task mutation path or extra code fix was introduced.
-- 2026-07-22: 241 frontend tests, 116 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale-safe Activity advisor/reviewer run controls, exact typed `run_task_agent_report` payload, disabled/running/error states, Task-change stale guard, feature no-Tauri boundary, `App.tsx` 585-line composition check, and `git diff --check` pass for plan item 24.5.
-- 2026-07-22: 239 frontend tests, 116 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, atomic secondary transcript+report storage, fake ACP advisor orchestration, secondary session removal, typed gateway contract, and `git diff --check` pass for plan item 24.4; App remains 579 lines.
-- 2026-07-22: 239 frontend tests, 114 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, isolated snapshot filtering/cleanup, missing-`bwrap` rejection, unwrapped primary launch coverage, sandbox command construction, and `git diff --check` pass for plan item 24.3; App remains 579 lines.
-- 2026-07-22: 239 frontend tests, 110 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale-safe report loading, read-only Activity presentation/count, and `git diff --check` pass for plan item 24.2; App is 579 lines.
-- 2026-07-22: 234 frontend tests, 110 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, legacy migration, exact secondary provenance, active-phase/free-transcript role gates, typed commands, and `git diff --check` pass for plan item 24.1; App remains 574 lines.
-- 2026-07-22: 233 frontend tests, 109 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, old-PID termination, fresh-manager exact-id load, one-shot replay, follow-up prompt, and `git diff --check` pass for plan item 23.7; App remains 574 lines.
-- 2026-07-22: 230 frontend tests, 108 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, Resume identity/load/App wiring, replay non-persistence, stale-workspace cleanup and concurrency locks pass for plan item 23.5; App is 570 lines and runtime remains at its 250-line ceiling.
-- 2026-07-22: 224 frontend tests, 108 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, exact ACP `session/load`/no-`session/new` coverage, capability/cleanup validation, and `git diff --check` pass for plan item 23.4; App remains 565 lines.
-- 2026-07-22: 223 frontend tests, 105 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, legacy migration, atomic ACP transcript/recovery identity persistence, and `git diff --check` pass for plan item 23.3; App remains 565 lines.
-- 2026-07-22: 222 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, pending-prompt live visibility, serialized persistence and complete phase-link coverage, and `git diff --check` pass for plan item 23.2; runtime hook remains 249 lines.
-- 2026-07-22: 218 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, ordered run-refresh-prepare and failed-run coverage, and `git diff --check` pass for plan item 23.1; App remains 565 lines.
-- 2026-07-22: real `codex-acp@1.1.0` initialize/session-new succeeds from neutral cwd against `/home/katarina/projects/super`; 216 frontend tests, 103 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, and `git diff --check` pass for plan item 22.22.
-- 2026-07-22: 216 frontend tests, 102 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, bounded stderr startup-failure coverage, clean full rerun after one unrelated async test flake, and `git diff --check` pass for plan item 22.21.
-- 2026-07-22: 216 frontend tests, 100 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, explicit ACP permission UI and full request/response wire-flow coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.20.
-- 2026-07-22: 215 frontend tests, 98 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, modal-send dismissal and ACP tool-update filtering coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.19.
-- 2026-07-22: 215 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, optional/manual evidence and final-review CTA coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.18.
-- 2026-07-22: 211 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, stale Task/empty linked-response coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.17.
-- 2026-07-22: 209 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, exact phase-response link coverage, `git diff --check`, and two adversarial review cycles pass for plan item 22.16.
-- 2026-07-22: 209 frontend tests, 97 Rust tests, frontend audit, typecheck, production build, Rust formatting/clippy, keyboard tab behavior, `git diff --check`, and two adversarial review cycles pass for plan item 22.15; `App.tsx` is 562 lines.
-- 2026-07-19: repository, active knowledge, ACP prompt/transcript flow, SQLite schema, storage tests, and task-context selector inspected; no Task aggregate currently exists.
-- 2026-07-19: 82 Rust tests, Rust formatting, clippy with warnings denied, adversarial review cycle 1, and `git diff --check` pass for plan item 18.1.
-- 2026-07-19: commit 2cfde08 has a verified provenance note under `refs/notes/provenance` for plan item 18.1.
-- 2026-07-19: 37 frontend tests, 82 Rust tests, typecheck, Rust formatting, clippy with warnings denied, `git diff --check`, and adversarial review cycle 2 pass for plan item 18.2.
-- 2026-07-19: commit a6181df has a verified provenance note under `refs/notes/provenance` for plan item 18.2.
-- 2026-07-19: 88 Rust tests, formatting, clippy with warnings denied, `git diff --check`, migration coverage, and three adversarial review cycles pass for plan item 18.3.
-- 2026-07-19: commits 2263631 and d2e34fe have verified provenance notes under `refs/notes/provenance` for plan items 18.2.1 and 18.3.
-- 2026-07-19: 38 frontend tests, 88 Rust tests, typecheck, production build, clippy, token checks, `git diff --check`, and two review cycles pass for plan item 18.3.1.
-- 2026-07-19: commit 58b9a01 has a verified provenance note under `refs/notes/provenance` for plan item 18.3.1.
-- 2026-07-20: repository state, active knowledge, AIadne ACP client, and installed `codex-acp@1.1.0` inspected; the adapter exposes runtime models in `session/new` and accepts `session/set_config_option` with `configId=model`.
-- 2026-07-20: 92 Rust tests, 38 frontend tests, formatting, clippy with warnings denied, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 18.3.2.
-- 2026-07-20: commit 017041d has a verified provenance note under `refs/notes/provenance` for plan item 18.3.2.
-- 2026-07-20: 38 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 18.3.3; the existing Vite chunk-size warning remains non-fatal.
-- 2026-07-20: commit 083a4b9 has a verified provenance note under `refs/notes/provenance` for plan item 18.3.3.
-- 2026-07-20: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial review cycle 1 pass for plan item 18.3.3.1.
-- 2026-07-20: commit 4cb2826 has a verified provenance note under `refs/notes/provenance` for plan item 18.3.3.1.
-- 2026-07-20: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial review cycle 1 pass for plan item 18.3.3.2.
-- 2026-07-20: commit a8856ae has a verified provenance note under `refs/notes/provenance` for plan item 18.3.3.2.
-- 2026-07-21: the first full frontend verification exposed one transient Markdown findings timing failure; the isolated test and immediate full rerun passed.
-- 2026-07-21: 38 frontend tests, typecheck, production build, `git diff --check`, and adversarial documentation review pass for plan item 18.3.3.3; the existing Vite chunk-size warning remains non-fatal.
-- 2026-07-21: 44 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 19.1; `App.tsx` is 188 lines smaller and the existing Vite chunk-size warning remains non-fatal.
-- 2026-07-21: 48 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 19.2; shared UI primitives and the global notification lifecycle are outside `App.tsx`.
-- 2026-07-21: 51 frontend tests, typecheck, production build, domain dependency checks, `git diff --check`, and two adversarial review cycles pass for plan item 19.3; `App.tsx` is 306 lines smaller with one domain contract source of truth.
-- 2026-07-21: 55 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4; ACP Controls is a state-free typed feature component and `App.tsx` is 175 lines smaller.
-- 2026-07-21: 59 frontend tests, typecheck, production build, Tauri/xterm-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.1; Session Output is a typed feature component and `App.tsx` is 74 lines smaller.
-- 2026-07-21: 59 frontend tests, 92 Rust tests, typecheck, production build, Rust formatting/clippy, forbidden product-string checks, and two adversarial review cycles pass for plan item 19.4.2; Fake ACP is internal test infrastructure only.
-- 2026-07-21: 62 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.3; workspace context summary/pickers are state-free feature presentation and `App.tsx` is 42 lines smaller.
-- 2026-07-21: 66 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.4; repository management dialog is state-free feature presentation and `App.tsx` is 108 lines smaller.
-- 2026-07-21: 70 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.5; workspace management dialog is state-free feature presentation and `App.tsx` is 100 lines smaller.
-- 2026-07-21: 74 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.6; Project Initialize scope dialog is state-free feature presentation and `App.tsx` is 78 lines smaller.
-- 2026-07-21: 79 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.7; Interview Guardrails dialog is state-free feature presentation, shared kind formatting is directly tested, and `App.tsx` is 136 lines smaller.
-- 2026-07-21: 85 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.8; Initialization Details is state-free feature presentation across Facts, Markdown, Summary, and Knowledge Units, and `App.tsx` is 263 lines smaller.
-- 2026-07-21: 89 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.9; Project Delete confirmation is state-free presentation and `App.tsx` is 55 lines smaller.
-- 2026-07-21: 93 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.10; Task Context Preview is state-free knowledge presentation and `App.tsx` is 95 lines smaller.
-- 2026-07-21: 97 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.11; New Knowledge Card is state-free knowledge presentation and `App.tsx` is 79 lines smaller.
-- 2026-07-21: 101 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.12; Knowledge Cards sidebar is state-free presentation and `App.tsx` is 55 lines smaller.
-- 2026-07-21: 106 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.13; Session History sidebar is state-free transcript presentation and `App.tsx` is 104 lines smaller.
-- 2026-07-21: 111 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.14; ACP Registry sidebar is state-free agent presentation and `App.tsx` is 84 lines smaller.
-- 2026-07-21: 116 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.15; Terminal PTY/Agent Doctor sidebar is state-free agent presentation and `App.tsx` is 88 lines smaller.
-- 2026-07-21: 122 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.16; Initialization Summary phase card is state-free presentation and `App.tsx` is 172 lines smaller.
-- 2026-07-21: 127 frontend tests, typecheck, production build, Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.17; the complete Project Initialization lane is state-free presentation and `App.tsx` is 318 lines smaller at 2,204 lines.
-- 2026-07-21: 131 frontend tests, typecheck, production build, Tauri/xterm-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.4.18; PTY controls are state-free runtime presentation and `App.tsx` is 43 lines smaller at 2,161 lines.
-- 2026-07-21: 134 frontend tests, typecheck, production build, direct-Tauri-import boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.5; all App backend commands now cross the explicit typed gateway.
-- 2026-07-21: 136 frontend tests, typecheck, production build, xterm lifecycle boundary check, `git diff --check`, and two adversarial review cycles pass for plan item 19.6; terminal lifecycle/input/resize operations are isolated and `App.tsx` is 99 lines smaller at 2,062 lines.
-- 2026-07-21: project-local frontend skill validation, deterministic frontend audit, 138 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 20; future frontend changes are governed by permanent architecture and quality gates.
-- 2026-07-21: frontend audit, 142 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.1; project catalog orchestration is isolated with stale-response protection and `App.tsx` is 180 lines smaller at 1,882 lines.
-- 2026-07-21: frontend audit, 145 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.2; initialization evidence/cache orchestration is isolated with stale-response protection and `App.tsx` is 246 lines smaller at 1,636 lines.
-- 2026-07-21: frontend audit, 149 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.3; Project Initialization forms/actions are isolated and `App.tsx` is 275 lines smaller at 1,361 lines.
-- 2026-07-21: frontend audit, 153 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.4; Knowledge Cards/attachments/context preview are isolated and `App.tsx` is 143 lines smaller at 1,218 lines.
-- 2026-07-21: frontend audit, 157 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.5; transcript/Task-index orchestration is isolated and `App.tsx` is 255 lines smaller at 963 lines.
-- 2026-07-21: frontend audit, 160 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.6; ACP runtime orchestration is isolated and `App.tsx` is 194 lines smaller at 769 lines.
-- 2026-07-21: frontend audit, 163 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.7; PTY process/terminal orchestration is isolated and `App.tsx` is 113 lines smaller at 656 lines.
-- 2026-07-21: frontend audit, 167 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.8; Agent Doctor/synthesis catalog orchestration is isolated and `App.tsx` is 98 lines smaller at 558 lines.
-- 2026-07-21: frontend audit, 170 frontend tests, typecheck, production build, `git diff --check`, and two adversarial review cycles pass for plan item 21.9; project deletion coordination is isolated, App has no backend workflow, and `App.tsx` is 39 lines smaller at 519 lines.
-- 2026-07-21: frontend audit, 171 frontend tests, typecheck, production build without chunk warnings, `git diff --check`, and two adversarial review cycles pass for plan item 21.10; initial JS is 281.69 kB and PTY-only xterm is a separate 329.31 kB chunk.
-- 2026-07-21: 93 Rust tests, 171 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.1; immutable Task phase artifacts now retain same-transcript event provenance in canonical event order.
-- 2026-07-21: 93 Rust tests, 171 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.2; explicit start/complete transitions enforce canonical evidence-gated Task progression.
-- 2026-07-21: 93 Rust tests, 177 frontend tests, Rust fmt/clippy with warnings denied, frontend audit/typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.3; Task phases/artifacts are manually operable with persisted event provenance and stale-safe frontend orchestration.
-- 2026-07-21: 94 Rust tests, 178 frontend tests, Rust fmt/clippy with warnings denied, typecheck/build, `git diff --check`, and two adversarial review cycles pass for plan item 22.4; the preview unifies three source classes under one strict budget without ACP injection.
-- 2026-07-21: 94 Rust tests, 183 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.5; frozen preview context reaches only the ACP wire payload after explicit confirmation.
-- 2026-07-22: 96 Rust tests, 182 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.6; exact context dispatch intents/outcomes are durable and ordered before ACP automation.
-- 2026-07-22: 96 Rust tests, 187 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.7; receipt history is inspectable and stale pending attempts can only be resolved as failed after their ACP session stops.
-- 2026-07-22: 96 Rust tests, 195 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.8; one visible phase-scoped instruction can run against the exact active Task without advancing its evidence gates.
-- 2026-07-22: 97 Rust tests, 195 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.9; every controlled phase run now has a durable ordered intent/outcome receipt.
-- 2026-07-22: 97 Rust tests, 199 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.10; phase-run history and active-session-guarded pending recovery are user-visible.
-- 2026-07-22: 97 Rust tests, 201 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.11; the latest persisted ACP response can become an editable evidence draft with exact event provenance.
-- 2026-07-22: 97 Rust tests, 203 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.12; phase completion now requires an explicit transient review acknowledgment against visible phase-specific criteria.
-- 2026-07-22: 97 Rust tests, 204 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.13; the screenshot-confirmed Task Phase collapse is fixed with a mode-safe flex layout and compact activity disclosure.
-- 2026-07-22: 97 Rust tests, 205 frontend tests, frontend audit/typecheck/build, Rust fmt/clippy, `git diff --check`, and two adversarial review cycles pass for plan item 22.14; the screenshot-confirmed oversized provenance checkbox/list regression is fixed with normalized controls and a compact native disclosure.
+- 2026-07-28: frontend audit, typecheck, 269 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied, feature Tauri-boundary check, file-size check and git diff hygiene all pass for plan item 31.1.

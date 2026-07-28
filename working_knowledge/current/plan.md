@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 31.1. Keep a completed phase run locked and reveal the evidence path
+- objective: prevent a successful Run & prepare from becoming runnable again when receipt refresh lags, and make the next evidence actions discoverable.
+- status: complete pending commit.
+- files: src/features/tasks/useTaskPhaseWorkflow.ts; src/features/tasks/useTaskPhaseWorkflow.test.tsx; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.tsx; src/App.css; related App tests; working_knowledge/current/*.
+- affected units: Task/phase-scoped run completion state, receipt-derived run lock, evidence requirements, provenance disclosure, next-action guidance.
+- expected changes: retain a local successful-run signal until Task/phase changes; combine it with durable sent receipts; auto-open provenance after run/selection; show evidence/provenance requirements and a phase-aware next step.
+- acceptance criteria: a successful run cannot immediately run twice even if receipt refresh returns empty; failed runs remain retryable; phase changes reset the local lock; Save clearly explains and reflects its text-plus-provenance gate; provenance is visible when it becomes actionable.
+- required tests: successful/failed/reset workflow tests; panel run lock, disclosure, disabled reason and Save readiness tests; App integration; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 added the Task/phase-local successful-run lock and visible evidence requirements; cycle 2 verified failed-run retry, phase reset, receipt fallback, automatically opened provenance, exact Save gating, feature ownership, accessibility, file sizes and all frontend/Rust gates.
+- commit: pending.
+
 ### 30.1. Repair Session History Resume UX
 - objective: make Resume behavior understandable and fix the broken-looking Session History colors/row layout.
 - status: complete
@@ -15,146 +26,146 @@
 
 ### 30.2. Compact Project Initialization when not active
 - objective: stop Project Initialization from permanently taking the main workspace when the user is not actively working in that flow.
-- status: complete pending commit
+- status: complete
 - files: src/features/initialization/ProjectInitializationPanel.tsx; src/features/initialization/ProjectInitializationPanel.test.tsx; src/App.tsx; src/App.test.tsx; src/App.css; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: Project Initialization presentation, app shell layout, responsive layout rules, frontend architecture guardrails, current knowledge.
 - expected changes: add a compact Project Knowledge card with status/progress/open actions, show the full initialization workflow only when opened or when initialization is started, and let the runtime lane take more width while the setup card is compact.
 - acceptance criteria: compact state preserves Initialize/Open actions and prerequisite messaging; full state preserves all existing phase actions/previews; App owns only shell expansion state; ProjectInitializationPanel owns no backend calls; desktop layout reallocates width to Runtime when compact; mobile remains usable.
 - required tests: ProjectInitializationPanel compact/full tests; App smoke/regression tests for initialization start and runtime layout; targeted tests; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 found App regressions that still assumed always-expanded Project Initialization, hidden Summary controls, and exact PTY terminal dimensions; cycle 2 verified compact/full behavior, App composition-only layout state, no direct Tauri/backend mutation path, responsive CSS fallback, and feature file sizes.
-- commit: pending.
+- commit: 29b5131.
 
 ### 30.3. Add granular Summary review before approval
 - objective: let users correct, reject, or defer individual generated Summary claims instead of approving an all-or-nothing synthesis.
-- status: in progress; backend foundation committed separately as 30.3.1.
+- status: complete.
 - files: src-tauri/src/initialization.rs; src-tauri/src/storage.rs; src-tauri/src/commands.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/initialization/InitializationDetailsDialog.tsx; src/features/initialization/useProjectInitializationWorkflow.ts; related frontend/Rust tests; working_knowledge/current/*; LOCAL_PROGRESS.md.
 - affected units: generated Summary structure, claim/section review state, regeneration inputs, approval and knowledge-unit publication boundary, Summary dialog UX, typed Tauri contracts.
 - expected changes: represent Summary claims as reviewable units; allow editing a claim, rejecting it with a reason, and regenerating one section; keep Open Questions distinct from accepted facts; publish only explicitly accepted knowledge units when Summary approval is confirmed.
 - acceptance criteria: no rejected or unresolved claim is published as knowledge; edits and rejection reasons remain auditable; section regeneration does not discard already reviewed unrelated sections; Open Questions remain unresolved inputs rather than approved knowledge; whole-Summary approval clearly shows exactly what will be published.
 - required tests: backend claim-state and partial-publication tests; rejected/open-question exclusion tests; section-regeneration preservation tests; dialog edit/reject/regenerate/approval-preview tests; stale-response guards; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; Rust fmt/test/clippy; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 verified the two-level navigation model, accessible Task-local tabs, persistent output, permission routing, and existing App workflows; cycle 2 passed the frontend audit, typecheck, all 264 frontend tests, production build, and diff hygiene with no remaining navigation, responsive-layout, or composition regression.
-- commit: pending.
+- commit: completed across f9f2df3, d6d8c62 and 90a78c6.
 
 #### 30.3.1. Persist granular Summary claim review
 - objective: establish the authoritative backend review boundary before adding interactive review controls.
-- status: complete pending commit.
+- status: complete.
 - files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; affected frontend fixtures.
 - affected units: Summary storage migration, stable per-line claims, typed review command, approval validation, Knowledge Unit publication.
 - expected changes: persist pending/accepted/rejected/deferred claim decisions and edits; require rejection reasons; block pending approval; publish accepted non-question claims only; derive pending claims for legacy drafts.
 - acceptance criteria: review decisions survive reads; invalid review state is rejected; pending claims block approval; rejected/deferred/Open Question claims are excluded from publication.
 - required tests: pending approval rejection; rejection-reason validation; accepted/deferred flow; accepted-only unit publication; full frontend and Rust gates.
 - review status: passed after 2 cycles; cycle 1 found stale tests that bypassed the new review boundary; cycle 2 verified migration compatibility, validation, deterministic identities, accepted-only publication, typed command exposure, and full gates.
-- commit: pending.
+- commit: f9f2df3.
 
 #### 30.3.2. Add interactive Summary claim review
 - objective: let users edit and explicitly accept, reject, or defer each generated claim before approval.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/initialization/InitializationDetailsDialog.tsx; useProjectInitializationWorkflow.ts; App.tsx; App.css; related tests; working_knowledge/current/plan.md.
 - affected units: typed review orchestration, stale-summary guard, claim editor, rejection reason, approval preview and lock.
 - expected changes: persist individual decisions through the 30.3.1 command; show publishable/pending counts; keep deferred decisions revisitable; prevent approval while claims remain pending or no publishable claim is accepted.
 - acceptance criteria: edits and decisions send exact typed payloads; rejected claims require a reason; late results cannot replace a different Summary; approval preview matches the backend publication boundary.
 - required tests: hook payload/update; claim editing/rejection lock; approval lock; App wiring; frontend audit/typecheck/full tests/build; Rust gates; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 found deferred claims could not be revisited; cycle 2 restored deferred-to-final actions and verified presentation/orchestration ownership, accessibility labels, loading locks and targeted regressions.
-- commit: pending.
+- commit: d6d8c62.
 
 #### 30.3.3. Regenerate one Summary section safely
 - objective: regenerate a selected Summary section without discarding review decisions elsewhere.
-- status: complete pending commit.
+- status: complete.
 - files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/lib/tauriGateway.ts; InitializationDetailsDialog.tsx; useProjectInitializationWorkflow.ts; App.tsx; related tests; working_knowledge/current/plan.md.
 - affected units: synthesis snapshot orchestration, transactional section merge, claim replacement, stale-summary UI guard.
 - expected changes: synthesize against current evidence; atomically replace only the selected section; reset only its claims to pending at their original list position; preserve every unrelated claim identity/status/order.
 - acceptance criteria: approved/legacy summaries reject regeneration; late evidence or review changes reject persistence; unrelated decisions survive; the UI exposes per-section busy/disabled controls and refreshes only the matching Summary.
 - required tests: backend selected-section merge/preservation; typed hook payload; dialog action/loading state; full frontend/Rust gates; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 found whole-claim sorting changed unrelated provenance order; cycle 2 preserves the target insertion position and all unrelated claim identities/status/order while retaining stale snapshot guards.
-- commit: pending.
+- commit: 90a78c6.
 
 ### 30.4. Align Summary generation citation validation with approval
 - objective: prevent generated Summary drafts from passing synthesis validation and then failing approval because an individual knowledge line is uncited.
-- status: complete pending commit
+- status: complete
 - files: src-tauri/src/synthesis.rs; working_knowledge/current/plan.md.
 - affected units: provider-neutral Summary source validation, OpenAI correction feedback, synthesis regression coverage.
 - expected changes: validate every non-empty, non-heading Summary line using the same citation-or-explicit-uncertainty boundary enforced when approval builds Knowledge Units.
 - acceptance criteria: a section containing one cited line and one uncited material line is rejected during synthesis; headings are ignored as structure; explicit uncertainty lines remain valid; approval validation remains unchanged.
 - required tests: mixed cited/uncited line regression; mixed cited/uncertain line success; existing source/malformed/unknown tests; Rust fmt/test/clippy; `git diff --check`.
 - review status: passed after 1 cycle; generation now validates every publishable line against the same citation-or-explicit-uncertainty boundary as approval, headings remain structural, the approval guardrail is unchanged, and targeted/full Rust gates pass.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.5. Expose Summary generation progress
 - objective: make the long-running Summary synthesis action visibly busy so users know their click was accepted.
-- status: complete pending commit
+- status: complete
 - files: src/features/initialization/useProjectInitializationWorkflow.ts; src/features/initialization/useProjectInitializationWorkflow.test.tsx; src/features/initialization/InitializationSummaryCard.tsx; src/features/initialization/InitializationSummaryCard.test.tsx; src/App.tsx; src/App.css; working_knowledge/current/plan.md.
 - affected units: initialization workflow operation state, Summary action presentation, and loading-state regression coverage.
 - expected changes: expose a Summary-specific workflow signal, use it to disable the action, show a compact spinner and `Generating Summary…`, and expose `aria-busy` without confusing other initialization operations with synthesis.
 - acceptance criteria: generation cannot be submitted twice while active; the visible and accessible label communicates progress; reduced-motion preferences retain a calmer progress indicator.
 - required tests: focused Summary card test; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 replaced the shared initialization loading signal with Summary-specific workflow state to prevent false `Generating Summary…` labels during other phases; cycle 2 verified accessible busy/disabled behavior, reduced-motion styling, focused/full regression coverage, App composition boundaries, and all frontend gates.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.6. Redesign Task evidence and persistent agent output UX
 - objective: make phase progress truthful, evidence controls understandable, permission waits visible, and coding-agent output continuously available while working in Task or Activity.
-- status: complete pending commit
+- status: complete
 - files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhaseGuide.test.tsx; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/features/tasks/useTaskPhaseWorkflow.ts; src/features/runtime/AcpWorkspaceViews.tsx; src/features/runtime/AcpWorkspaceViews.test.tsx; src/App.tsx; src/App.css; working_knowledge/current/plan.md.
 - affected units: phase progress presentation, run/prepare availability, evidence classification and help copy, transcript provenance selection, persistent workspace output, pending-permission navigation.
 - expected changes: reflect successful phase runs and prepared drafts in the five-step guide; prevent accidental repeat phase runs; gate preparation on a successful run; replace free-form artifact kind with named evidence types; explain evidence/provenance persistence; add Select all; keep Session Output in a desktop right rail for every workspace tab; surface pending permission outside Agent with a direct review action.
 - acceptance criteria: completed Run/Prepare steps no longer remain visually optional; a successful current-phase receipt locks the repeat Run CTA; Prepare is unavailable before a successful run; users can bulk-select provenance and understand what Save phase evidence persists; Task/Activity retain live output; pending ACP permission is visible and actionable outside Agent; mobile returns to a safe stacked layout.
 - required tests: Task guide state transitions; Task run/prepare/provenance controls; persistent output across tabs; permission alert navigation; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 corrected the guide to derive Run/Prepare completion from successful current-phase receipts and draft state, added receipt-loading action locks, and aligned operating-model copy with persistent output; cycle 2 verified evidence semantics, bulk provenance, permission navigation, responsive output rail, focused/full regressions, architecture audit, file-size limits, typecheck, and production build.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.7. Move workspace navigation into the sidebar
 - objective: keep navigation on the left, render only the selected Project Knowledge/Agent/Task/Activity surface in the center, and reserve the right rail for toggleable agent output.
-- status: complete pending commit
+- status: complete
 - files: src/features/runtime/WorkspaceNavigation.tsx; src/features/runtime/WorkspaceNavigation.test.tsx; src/features/runtime/useWorkspaceNavigation.ts; src/features/runtime/useWorkspaceNavigation.test.tsx; src/features/runtime/AcpWorkspaceViews.tsx; src/features/runtime/AcpWorkspaceViews.test.tsx; src/App.tsx; src/App.css; related App tests; working_knowledge/current/plan.md.
 - affected units: application shell grid, sidebar workspace navigation, contextual center selection, active-Task defaulting/fallback, persistent output visibility.
 - expected changes: remove duplicate top workspace tabs; add Project Knowledge, Agent Controls, Task, Activity and Agent Output controls to the sidebar; select a newly active Task by default while respecting later manual navigation; move Project Initialization into the selected center surface; allow the output rail to hide/show independently and retain responsive stacking.
 - acceptance criteria: Project Knowledge no longer permanently consumes a top-level column; Task/Activity are disabled without a Task; a newly available Task becomes the center view once; manual choices are preserved while valid; disappearing Task falls back safely; output visibility is independent of the center selection; mobile navigation remains reachable.
 - required tests: sidebar availability/active state/permission/output toggle; navigation default/fallback/manual selection; selected center rendering; hidden output; existing App initialization/Task flows; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 made Agent the no-Task default, kept newly available Task auto-selection one-shot, and aligned legacy integration tests with explicit sidebar navigation; cycle 2 verified PTY-to-workspace navigation recovery, contextual Project Knowledge rendering, independent output toggle, safe Task fallback, permission visibility, mobile reachability, responsive two-column center/output layout, architecture audit, typecheck, all frontend tests, production build, and file-size limits.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.8. Separate primary sidebar destinations from Task-local tabs
 - objective: keep only Project Knowledge and Task as sidebar destinations, restore Agent/Task/Activity as local tabs within Task, keep output permanently visible, and demote workspace/repository switching to a compact sidebar footer.
-- status: complete pending commit
+- status: complete
 - files: src/features/runtime/WorkspaceNavigation.tsx; src/features/runtime/WorkspaceNavigation.test.tsx; src/features/runtime/useWorkspaceNavigation.ts; src/features/runtime/useWorkspaceNavigation.test.tsx; src/features/runtime/AcpWorkspaceViews.tsx; src/features/runtime/AcpWorkspaceViews.test.tsx; src/App.tsx; src/App.test.tsx; src/App.css; working_knowledge/current/plan.md.
 - affected units: primary navigation hierarchy, Task-local tab state/keyboard behavior, output visibility, sidebar context-control placement.
 - expected changes: reduce sidebar navigation to two items; remove the output toggle; restore accessible Agent/Task/Activity tabs above Task workspace content; default Task workspace to Agent without an active Task and to Task when one becomes newly available; keep Session Output mounted; move workspace/repository controls below runtime info in a compact secondary footer.
 - acceptance criteria: sidebar contains no Workspace heading or Agent/Activity/output items; Project Knowledge and Task switch only the center domain; Task-local tabs retain active/disabled/keyboard behavior; permission review opens Agent; output remains visible; current workspace/repository controls are reachable at the sidebar end and visually secondary.
 - required tests: two-item sidebar navigation; local tab switching/disabled/keyboard behavior; Project Knowledge isolation; persistent output; permission navigation; App initialization/Task flows; `npm run frontend:audit`; `npm run typecheck`; `npm run test -- --run`; `npm run build`; `git diff --check`.
 - review status: passed after 2 cycles; cycle 1 verified the two-level navigation model, accessible Task-local tabs, persistent output, permission routing, and existing App workflows; cycle 2 passed the frontend audit, typecheck, all 264 frontend tests, production build, and diff hygiene with no remaining navigation, responsive-layout, or composition regression.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.9. Collapse project switching into runtime footer
 - objective: remove duplicated project-context cards and make the existing Workspace and Repository runtime facts the compact entry points for context switching.
-- status: complete pending commit
+- status: complete
 - files: src/features/workspace/WorkspaceContextSelector.tsx; src/features/workspace/WorkspaceContextSelector.test.tsx; src/App.tsx; src/App.test.tsx; src/App.css; working_knowledge/current/plan.md.
 - affected units: sidebar runtime footer presentation; workspace/repository modal entry points; accessible action naming.
 - expected changes: remove the separate Project context section; render bold, icon-supported Workspace and Repository values as compact dialog buttons inside the existing runtime-info card; preserve the current dialogs and disable repository switching without a project.
 - acceptance criteria: only one workspace/repository summary remains in the sidebar; both selected values open their existing dialogs; actions are keyboard accessible and do not move on hover; unavailable repository selection remains disabled.
 - required tests: empty/default/selected context action behavior; App dialog wiring; frontend audit; typecheck; full frontend tests; production build; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 replaced duplicated cards with compact accessible runtime-footer actions and corrected legacy path-based assertions; cycle 2 passed frontend audit, typecheck, all 264 frontend tests, production build, and diff hygiene with no remaining dialog-wiring, disabled-state, hover-layout, or composition regression.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.10. Pin compact context actions to the sidebar footer
 - objective: keep runtime context controls at the physical bottom of the sidebar and simplify their visual hierarchy.
-- status: complete pending commit
+- status: complete
 - files: src/features/workspace/WorkspaceContextSelector.tsx; src/features/workspace/WorkspaceContextSelector.test.tsx; src/App.tsx; src/App.test.tsx; src/App.css; working_knowledge/current/plan.md.
 - affected units: desktop sidebar height distribution; runtime-info grid; workspace/repository action styling.
 - expected changes: let sidebar content fill available height while its main controls scroll; pin runtime info to the bottom; remove Active Folder; place Workspace and Repository on separate full-width rows; use the same icon and suppress hover background/movement.
 - acceptance criteria: runtime info sits at the sidebar bottom on desktop; Active Folder is absent; both context actions span the card, retain modal behavior, share an icon, and have a transparent stable hover.
 - required tests: context action identity/callbacks; Active Folder absence; frontend audit; typecheck; full frontend tests; production build; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 established the desktop flex-height boundary, removed Active Folder, and verified full-width context actions with identical icons and stable transparent interaction styling; cycle 2 passed frontend audit, typecheck, all 264 frontend tests, production build, and diff hygiene with no remaining sidebar-height, mobile-navigation, modal-wiring, accessibility, or hover-layout regression.
-- commit: pending.
+- commit: da67e2f.
 
 ### 30.11. Give the sidebar footer an explicit bottom layout row
 - objective: ensure runtime information is a real sidebar footer rather than merely the last item after scrollable content.
-- status: complete pending commit
+- status: complete
 - files: src/App.tsx; src/App.test.tsx; src/App.css; working_knowledge/current/plan.md.
 - affected units: sidebar grid rows; scroll/content height ownership; footer semantics and responsive reset.
 - expected changes: reduce the desktop sidebar to header plus a fill-height content row; wrap runtime info in an explicit footer; let the controls area consume remaining height and scroll while the footer stays at the physical bottom; keep mobile flow natural.
 - acceptance criteria: desktop runtime info occupies the bottom edge of the sidebar independent of content height; main sidebar controls scroll above it; mobile expanded navigation remains document-flow based.
 - required tests: explicit footer containment; frontend audit; typecheck; full frontend tests; production build; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 corrected the root cause by replacing obsolete five-row sidebar placement with an explicit header/fill-height body and semantic footer; cycle 2 passed frontend audit, typecheck, all 264 frontend tests, production build, and diff hygiene with no remaining desktop footer-position, scroll-containment, mobile-flow, or accessibility regression.
-- commit: pending.
+- commit: da67e2f.
 
 ### 29.1. Add read-only delivery provenance history
 - objective: make delivery readiness more useful by showing the recent provenance trail for repository commits without adding Git mutation controls.

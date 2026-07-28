@@ -5477,3 +5477,35 @@ summary:focus-visible {
 .summary-claim-review label { display: grid; gap: .35rem; font-size: .78rem; font-weight: 600; }
 .summary-claim-review textarea { min-height: 5rem; resize: vertical; }
 .summary-claim-actions { justify-content: flex-end; }
+
+.task-next-step {
+  background: var(--butter);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+}
+
+.task-next-step p,
+.task-next-step ul {
+  margin: 0;
+}
+
+.task-next-step ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  list-style: none;
+  padding: 0;
+}
+
+.task-next-step li {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.task-next-step li[data-complete="true"] {
+  color: var(--mint-strong);
+  font-weight: 650;
+}

@@ -80,6 +80,7 @@ describe("useTaskPhaseWorkflow", () => {
     expect(runAgent).toHaveBeenCalledWith("t1", "exact instruction");
     expect(onRunSettled).toHaveBeenCalledWith("t1");
     expect(order).toEqual(["run", "refresh", "prepare"]);
+    expect(result.current.hasCompletedRun).toBe(true);
     expect(result.current.content).toBe("Evidence"); expect(result.current.sourceIds).toEqual(["e1"]);
   });
   it("refreshes a failed run without preparing evidence", async () => {
@@ -89,8 +90,22 @@ describe("useTaskPhaseWorkflow", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(() => result.current.runAndPrepare("exact instruction"));
     expect(onRunSettled).toHaveBeenCalledWith("t1");
+    expect(result.current.hasCompletedRun).toBe(false);
     expect(invoke.mock.calls.filter(([command]) => command === "latest_task_phase_run_response_events"))
       .toHaveLength(0);
+  });
+  it("resets the local successful-run lock when the Task phase changes", async () => {
+    runAgent.mockResolvedValue(true); onRunSettled.mockResolvedValue(undefined);
+    invoke.mockImplementation((command) => command === "latest_task_phase_run_response_events"
+      ? Promise.resolve([source]) : Promise.resolve([]));
+    const { result, rerender } = renderHook(({ value }) => useTaskPhaseWorkflow({ task: value,
+      sourceEvents: [source], upsertTask: vi.fn(), runAgent, onRunSettled }),
+    { initialProps: { value: task } });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.runAndPrepare("exact instruction"));
+    expect(result.current.hasCompletedRun).toBe(true);
+    rerender({ value: { ...task, currentPhase: "planning" as const } });
+    await waitFor(() => expect(result.current.hasCompletedRun).toBe(false));
   });
   it("explains when no linked phase response can prepare completion", async () => {
     invoke.mockResolvedValue([]); const { result } = renderHook(() => useTaskPhaseWorkflow({ task,

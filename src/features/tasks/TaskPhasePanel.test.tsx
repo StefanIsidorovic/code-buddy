@@ -77,14 +77,25 @@ describe("TaskPhasePanel", () => {
     expect(value.onPrepareCompletion).toHaveBeenCalledOnce();
     expect(screen.getByText(/Reloads the latest linked agent response/)).toBeInTheDocument();
   });
-  it("keeps transcript provenance compact until explicitly opened", () => {
+  it("opens transcript provenance when a run or selection makes it the next step", () => {
     render(<TaskPhasePanel {...props({ selectedSourceIds: ["e1"] })} />);
     const disclosure = screen.getByText("Transcript provenance").closest("details");
-    expect(disclosure).not.toHaveAttribute("open");
-    expect(screen.getByText("1 selected · 1 persisted event(s)")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Transcript provenance"));
     expect(disclosure).toHaveAttribute("open");
+    expect(screen.getByText("1 selected · 1 persisted event(s)")).toBeInTheDocument();
     expect(screen.getByText("#1 · agent message")).toBeInTheDocument();
+  });
+  it("explains every requirement and enables Save only when draft and provenance are ready", () => {
+    const value = props({ hasPhaseRun: true }); const view = render(<TaskPhasePanel {...value} />);
+    expect(screen.getByText(/Review the prepared evidence text/)).toBeInTheDocument();
+    expect(screen.getByText("Evidence text: required")).toBeInTheDocument();
+    expect(screen.getByText("Transcript provenance: select at least one event")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save phase evidence" })).toBeDisabled();
+    expect(screen.getByRole("note")).toHaveTextContent(/add evidence text and select/);
+    view.rerender(<TaskPhasePanel {...props({ hasPhaseRun: true, content: "Analysis result",
+      selectedSourceIds: ["e1"] })} />);
+    expect(screen.getByText("Evidence text: ready")).toBeInTheDocument();
+    expect(screen.getByText("Transcript provenance: 1 selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save phase evidence" })).toBeEnabled();
   });
   it("requires explicit phase-aware evidence review before completion", () => {
     const value = props({ artifacts: [artifact] }); const view = render(<TaskPhasePanel {...value} />);
