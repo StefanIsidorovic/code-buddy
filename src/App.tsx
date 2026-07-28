@@ -39,6 +39,8 @@ import { TaskPlanEditor } from "./features/tasks/TaskPlanEditor";
 import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPlanWorkflow } from "./features/tasks/useTaskPlanWorkflow";
+import { useTaskStepExecution } from "./features/tasks/useTaskStepExecution";
+import { TaskExecutionStepsPanel } from "./features/tasks/TaskExecutionStepsPanel";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { executionVerificationForTask } from "./features/tasks/taskPhaseExecution";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
@@ -205,6 +207,9 @@ function App() {
     candidateId: selectedAcpCandidateId,
     cwd: selectedRepository?.path ?? selectedProject?.path,
   });
+  const taskSteps = useTaskStepExecution({ task: activeTask, plan: taskPlan.approved,
+    acpSessionId: canUseAcpSession ? acpSession?.id ?? null : null,
+    onDispatchSettled: async () => { await drainAcpEvents(); } });
   const hasCurrentPhaseRun = taskPhase.hasCompletedRun || !!activeTask &&
     taskPhaseRuns.receipts.some((receipt) =>
       receipt.phase === activeTask.currentPhase && receipt.status === "sent");
@@ -426,6 +431,14 @@ function App() {
             agentWorkspacePath={acpSession?.cwd ?? null}
             expectedWorkspacePath={selectedRepository?.path ?? selectedProject?.path ?? null}
             planningPlanApproved={taskPlan.approved !== null}
+            executionStepsComplete={taskSteps.allAccepted}
+            executionPanel={<TaskExecutionStepsPanel plan={taskPlan.approved}
+              runs={taskSteps.runs} nextStep={taskSteps.nextStep}
+              canRun={canUseAcpSession && acpSession?.cwd ===
+                (selectedRepository?.path ?? selectedProject?.path)}
+              loading={taskSteps.loading} actionRunId={taskSteps.actionRunId} error={taskSteps.error}
+              onRun={() => void taskSteps.dispatch()}
+              onReview={(runId, decision, note) => void taskSteps.review(runId, decision, note)} />}
             planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}
               error={taskPlan.error} evaluation={taskPlan.evaluation}
               critique={taskPlan.critique}

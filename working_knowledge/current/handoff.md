@@ -1,23 +1,25 @@
 # Handoff
 
 ## Current State
-- Plan item 37.4a is committed as `af29e92`; 37.4b as `beeb727`.
-- Plan item 37.4c is complete pending commit.
-- Each step dispatch now persists write-once repository-derived verification, exact touched paths and deterministic `within_scope` / `out_of_scope` / `unavailable` status.
-- Per-file fingerprints distinguish prior dirty files from current-run touches; reverts remain attributable and ambiguous large-file changes fail conservatively.
-- Explicit review is required: accept needs available within-scope verification and a note; reject records the note, marks the attempt failed and permits retry.
-- Accepting one step still cannot complete execution globally.
-- Rust fmt, all 134 backend tests, clippy with warnings denied and diff hygiene pass.
+- Plan items 37.4a–c are committed through `f893d0b`.
+- Plan item 37.4d is complete pending commit; 37.4 one-step-at-a-time execution is now end-to-end.
+- Execution shows ordered approved steps, requested tier, expected/touched paths, Git/scope status and explicit Accept or Reject & retry controls.
+- Only the next unaccepted step can run; stale Task responses are ignored; ACP workspace must belong to the Task project in both UI and backend.
+- The old monolithic execution action is absent for structured plans.
+- Execution completion requires every approved plan step to be accepted; legacy Tasks without structured plans retain the previous verification fallback.
+- Frontend ownership follows the modern frontend skill: presentation component + feature hook + shared contracts + typed gateway; App remains composition-only.
+- Frontend audit, typecheck, 297 frontend tests, production build, Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 
 ## Next Step
-- Implement 37.4d: frontend step runner/review UX and the all-approved-steps execution completion gate.
+- Begin 37.5a: model explicit step dependencies and derive deterministic serial/parallel execution waves before creating isolated worktrees.
 
 ## Commands To Re-Run
-- `cargo test --manifest-path src-tauri/Cargo.toml`: run backend regressions.
-- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`: enforce lint cleanliness.
+- `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
+- `npm run typecheck && npm run test -- --run && npm run build`: verify frontend behavior and bundle.
+- `cargo test --manifest-path src-tauri/Cargo.toml`: verify backend gates.
 - `git diff --check`: validate patch hygiene.
 
 ## Watchouts
-- Show worktree dirty files separately from files touched by the selected step.
-- Never label `sent` as completed or accepted.
-- Out-of-scope and unavailable runs require reject/retry; they cannot be overridden through the accept command.
+- Do not run parallel steps in the shared worktree.
+- Tier labels are requirements, not concrete ACP model IDs, until adapters expose a mapping.
+- Preserve the explicit Accept/Reject gate when adding autopilot; automation needs separately visible authority.

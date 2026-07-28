@@ -1033,6 +1033,15 @@ async fn send_task_plan_step_prompt_with_manager(
         })
         .await?
     };
+    let workspace_allowed = store
+        .list_project_repositories(&task.project_id)?
+        .iter()
+        .any(|repository| repository.path == workspace);
+    if !workspace_allowed {
+        return Err(AppError::InvalidInput(
+            "active ACP workspace does not belong to the selected Task project".into(),
+        ));
+    }
     let before = capture_git_workspace_snapshot(&workspace);
     let receipt = store.begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
         task_id: task.id.clone(),
@@ -1755,6 +1764,36 @@ mod tests {
                     note: "Fake run stayed within the expected scope".into(),
                 })
                 .expect("first step accepted for failure-path setup");
+            let other_path = temp_command_project_path("wrong-step-workspace");
+            let mismatched = manager
+                .start_fake_session(StartFakeAcpSessionRequest {
+                    cwd: Some(other_path.clone()),
+                })
+                .expect("mismatched executor starts");
+            let mismatch = send_task_plan_step_prompt_with_manager(
+                Arc::clone(&manager),
+                &store,
+                SendTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    plan_step_id: plan.steps[1].id.clone(),
+                    acp_session_id: mismatched.id.clone(),
+                },
+            )
+            .await
+            .expect_err("cross-project workspace rejected");
+            assert!(mismatch.to_string().contains("does not belong"));
+            assert_eq!(
+                store
+                    .list_task_plan_step_runs(&task.id)
+                    .expect("mismatch creates no receipt")
+                    .len(),
+                1
+            );
+            manager
+                .stop_and_remove_session(&mismatched.id, true)
+                .expect("mismatched executor stops");
+            let _ = fs::remove_dir_all(other_path);
             let stopped = manager
                 .start_fake_session(StartFakeAcpSessionRequest {
                     cwd: Some(project_path.clone()),

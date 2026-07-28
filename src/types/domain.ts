@@ -533,7 +533,41 @@ export type GitWorkspaceVerificationInfo = {
   workspacePath: string;
   status: "changed" | "unchanged" | "unavailable";
   changedFiles: GitDeliveryChangedFileInfo[];
+  touchedFiles: GitDeliveryChangedFileInfo[];
   error: string | null;
+};
+
+export type TaskPlanStepRunInfo = {
+  id: string;
+  taskId: string;
+  planVersionId: string;
+  planStepId: string;
+  stepOrderIndex: number;
+  attempt: number;
+  acpSessionId: string;
+  instruction: string;
+  modelTier: "small" | "mid" | "high";
+  modelTierRationale: string;
+  expectedPaths: string[];
+  status: "pending" | "sent" | "failed" | "accepted";
+  stopReason: string | null;
+  error: string | null;
+  verificationStatus: "changed" | "unchanged" | "unavailable" | null;
+  verificationWorkspacePath: string | null;
+  verificationChangedFiles: string[];
+  verificationError: string | null;
+  scopeStatus: "within_scope" | "out_of_scope" | "unavailable" | null;
+  scopeViolations: string[];
+  reviewStatus: "accepted" | "rejected" | null;
+  reviewNote: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TaskPlanStepRunResultInfo = {
+  promptResult: AcpPromptResult;
+  receipt: TaskPlanStepRunInfo;
+  workspaceVerification: GitWorkspaceVerificationInfo;
 };
 
 export type TaskPhaseRunResultInfo = {

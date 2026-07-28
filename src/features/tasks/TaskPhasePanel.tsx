@@ -13,6 +13,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   workspaceVerification: GitWorkspaceVerificationInfo | null;
   agentWorkspacePath: string | null; expectedWorkspacePath: string | null;
   planningPanel?: ReactNode; planningPlanApproved?: boolean;
+  executionPanel?: ReactNode; executionStepsComplete?: boolean;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onToggleAllSources: (selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
@@ -24,6 +25,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   workspaceVerification,
   agentWorkspacePath, expectedWorkspacePath,
   planningPanel, planningPlanApproved = false,
+  executionPanel, executionStepsComplete = false,
   onChangeKind, onChangeContent, onToggleSource, onToggleAllSources,
   onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
@@ -42,7 +44,9 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   const executionAccepted = currentExecutionVerification?.status === "changed"
     || currentExecutionVerification?.status === "unchanged"
       && currentExecutionVerification.changedFiles.length > 0;
-  const executionBlocked = !!currentExecutionVerification && !executionAccepted;
+  const usingStepExecution = task.currentPhase === "execution" && !!executionPanel;
+  const executionBlocked = usingStepExecution ? !executionStepsComplete
+    : !!currentExecutionVerification && !executionAccepted;
   const canRetryExecution = task.currentPhase === "execution"
     && !!currentExecutionVerification && !executionAccepted;
   const workspaceMismatch = !!agentWorkspacePath && !!expectedWorkspacePath
@@ -83,7 +87,11 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
     {viewingCurrentPhase && currentPhase?.status === "pending" ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
     {inProgress && viewingCurrentPhase ? <div className="task-artifact-editor">
+      {usingStepExecution ? executionPanel : null}
       <fieldset className="task-phase-run"><legend>Step 1 · Create phase evidence</legend>
+        {usingStepExecution ? <><strong>Evidence from accepted plan steps</strong>
+        <p>Run and review every approved plan step above. Then write the durable execution
+          conclusion below and select its transcript provenance.</p></> : <>
         <strong>Agent-assisted path</strong>
         <p>Runs the coding agent for this {task.currentPhase} phase and copies its linked response
           into an editable draft. This does not save evidence or complete the phase.</p>
@@ -98,6 +106,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
               : hasPhaseRun ? `${task.currentPhase} agent run finished` : `Run agent for ${task.currentPhase}`}</button>
         {!canRunAgent ? <small className="task-helper-card">Start an ACP session to run this phase.</small> : null}
         {hasPhaseRun ? <small className="task-helper-card">The agent response is ready below for review and saving.</small> : null}
+        </>}
         <div className="task-manual-evidence-path task-helper-card"><strong>Manual path</strong>
           <span>Skip the agent and write evidence directly below, then choose its transcript provenance.</span></div>
       </fieldset>
@@ -151,7 +160,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           the phase criteria.</small>}
       </fieldset>
       <fieldset className="task-phase-step"><legend>Step 4 · Complete phase</legend>
-      {task.currentPhase === "execution" && hasPhaseRun ? <div className="task-execution-verification"
+      {task.currentPhase === "execution" && hasPhaseRun && !usingStepExecution ? <div className="task-execution-verification"
         data-status={currentExecutionVerification?.status ?? "missing"} role="status">
         <strong>{currentExecutionVerification?.status === "changed"
           ? "Repository changes verified"
@@ -174,9 +183,10 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           ? `Complete ${task.currentPhase} & show ${nextPhase}` : `Complete ${task.currentPhase} & finish task`}</button>
       <small className="task-helper-card">Completes only the current phase. The next phase is
         revealed but never started automatically.</small>
-      {executionBlocked ? <small className="task-helper-card">Execution cannot be completed from
-        this local run until AIadne verifies a repository change. Fix the workspace/Git problem,
-        make the approved change, then rerun execution.</small> : null}
+      {executionBlocked ? <small className="task-helper-card">{usingStepExecution
+        ? "Execution cannot be completed until every approved plan step is accepted."
+        : <>Execution cannot be completed from this local run until AIadne verifies a repository
+          change. Fix the workspace/Git problem, make the approved change, then rerun execution.</>}</small> : null}
       {task.currentPhase === "planning" && !planningPlanApproved ? <small className="task-helper-card">
         Create and approve a structured implementation plan before completing planning.</small> : null}
       </fieldset>

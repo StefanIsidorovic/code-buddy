@@ -33,6 +33,7 @@ export function executionVerificationForTask(
     workspacePath: receipt.verificationWorkspacePath,
     status: receipt.verificationStatus,
     changedFiles: parseChangedFiles(receipt.verificationChangedFilesJson),
+    touchedFiles: [],
     error: receipt.verificationError,
   } satisfies GitWorkspaceVerificationInfo;
 }

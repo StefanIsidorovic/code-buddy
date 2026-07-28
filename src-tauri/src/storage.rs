@@ -4165,30 +4165,60 @@ impl ProjectStore {
                 }
             }
             if current_phase == "execution" {
-                let latest_verification: Option<(Option<String>, Option<String>)> = transaction
+                let approved_plan_id: Option<String> = transaction
                     .query_row(
-                        "SELECT verification_status, verification_changed_files_json
-                         FROM task_phase_run_receipts
-                         WHERE task_id = ?1 AND phase = 'execution' AND status = 'sent'
-                         ORDER BY sequence DESC LIMIT 1",
+                        "SELECT id FROM task_plan_versions
+                         WHERE task_id = ?1 AND status = 'approved'",
                         [task_id],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
+                        |row| row.get(0),
                     )
                     .optional()
                     .map_err(storage_error)?;
-                let verification_accepted =
-                    latest_verification
-                        .as_ref()
-                        .is_none_or(|(status, changed_files)| {
-                            status.as_deref() == Some("changed")
-                                || status.as_deref() == Some("unchanged")
-                                    && changed_files.as_deref().is_some_and(|value| value != "[]")
-                        });
-                if !verification_accepted {
-                    return Err(AppError::InvalidInput(
-                        "execution completion requires a verified repository change from the latest phase run"
-                            .into(),
-                    ));
+                if let Some(plan_id) = approved_plan_id {
+                    let (step_count, accepted_count): (i64, i64) = transaction
+                        .query_row(
+                            "SELECT
+                               (SELECT COUNT(*) FROM task_plan_steps WHERE plan_version_id = ?1),
+                               (SELECT COUNT(DISTINCT plan_step_id) FROM task_plan_step_runs
+                                WHERE plan_version_id = ?1 AND status = 'accepted')",
+                            [plan_id],
+                            |row| Ok((row.get(0)?, row.get(1)?)),
+                        )
+                        .map_err(storage_error)?;
+                    if step_count == 0 || accepted_count != step_count {
+                        return Err(AppError::InvalidInput(
+                            "execution completion requires every approved plan step to be accepted"
+                                .into(),
+                        ));
+                    }
+                } else {
+                    let latest_verification: Option<(Option<String>, Option<String>)> = transaction
+                        .query_row(
+                            "SELECT verification_status, verification_changed_files_json
+                             FROM task_phase_run_receipts
+                             WHERE task_id = ?1 AND phase = 'execution' AND status = 'sent'
+                             ORDER BY sequence DESC LIMIT 1",
+                            [task_id],
+                            |row| Ok((row.get(0)?, row.get(1)?)),
+                        )
+                        .optional()
+                        .map_err(storage_error)?;
+                    let verification_accepted =
+                        latest_verification
+                            .as_ref()
+                            .is_none_or(|(status, changed_files)| {
+                                status.as_deref() == Some("changed")
+                                    || status.as_deref() == Some("unchanged")
+                                        && changed_files
+                                            .as_deref()
+                                            .is_some_and(|value| value != "[]")
+                            });
+                    if !verification_accepted {
+                        return Err(AppError::InvalidInput(
+                            "execution completion requires a verified repository change from the latest phase run"
+                                .into(),
+                        ));
+                    }
                 }
             }
             transaction
@@ -9466,20 +9496,26 @@ mod tests {
                     .expect("structured plan approved");
             }
             if phase == "execution" {
+                let plan = store
+                    .list_task_plan_versions(&task.id)
+                    .expect("plans listed")
+                    .into_iter()
+                    .find(|plan| plan.status == "approved")
+                    .expect("approved plan exists");
                 let run = store
-                    .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                    .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
                         task_id: task.id.clone(),
-                        transcript_session_id: transcript.id.clone(),
-                        phase: phase.to_string(),
+                        plan_version_id: plan.id,
+                        plan_step_id: plan.steps[0].id.clone(),
                         acp_session_id: "acp-execution".into(),
                         instruction: "Implement only the plan".into(),
                     })
                     .expect("execution run started");
                 store
-                    .finalize_task_phase_run(&run.id, "sent", Some("end_turn"), None)
+                    .finalize_task_plan_step_run(&run.id, "sent", Some("end_turn"), None)
                     .expect("execution run finalized");
                 store
-                    .record_task_phase_run_verification(
+                    .record_task_plan_step_run_verification(
                         &run.id,
                         "unchanged",
                         "/workspace/repo",
@@ -9493,16 +9529,15 @@ mod tests {
                         action: "complete".to_string(),
                     })
                     .expect_err("unverified execution rejected");
-                assert!(blocked.to_string().contains("verified repository change"));
+                assert!(blocked.to_string().contains("every approved plan step"));
                 store
-                    .record_task_phase_run_verification(
-                        &run.id,
-                        "unchanged",
-                        "/workspace/repo",
-                        r#"[{"status":"M","path":"src/lib.rs"}]"#,
-                        None,
-                    )
-                    .expect("existing changed files persisted");
+                    .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
+                        task_id: task.id.clone(),
+                        run_id: run.id,
+                        decision: "accept".into(),
+                        note: "Execution step is verified".into(),
+                    })
+                    .expect("execution step accepted");
             }
             transitioned = store
                 .transition_task_phase(TransitionTaskPhaseRequest {

@@ -34,7 +34,7 @@
 
 ### 37.4. Execute and review one step at a time
 - objective: replace monolithic execution with isolated, auditable step runs routed to the smallest adequate model tier.
-- status: in progress; 37.4a–b committed and 37.4c repository verification/review complete pending commit.
+- status: complete pending commit; 37.4a–c committed and 37.4d per-step UX/completion gate verified.
 - affected units: execution phase, ACP session ownership, step receipts, scoped context, Git verification and review.
 - expected changes: each approved step gets its own run, bounded context, tier rationale, expected write scope, verification and review result; execution advances only through accepted step outcomes.
 - acceptance criteria: a run cannot silently serve another step; changed files and checks are repository-derived; failures remain retryable; one step outcome cannot complete execution globally.
@@ -44,6 +44,8 @@
 - 37.4b required tests: bounded prompt and exclusion of unrelated requirements; exact approved Task/plan/step binding; successful fake ACP dispatch; durable failure after ACP send error; command registration; full Rust gates and diff hygiene.
 - 37.4c review status: passed after 2 cycles; Git snapshots distinguish pre-existing dirty state from paths touched by one run, including reverts and conservative large-file fallback; verification is immutable, deterministic scope violations block acceptance, rejection is retryable, and accepted review requires an explicit note without advancing the Task phase.
 - 37.4c required tests: changed/unchanged/unavailable snapshot behavior; pre-existing dirty and reverted paths; write-once verification; exact/directory scope; accept without verification and out-of-scope rejection; retry after review rejection; command persistence/registration; full Rust gates and diff hygiene.
+- 37.4d review status: passed after 2 cycles; execution renders ordered approved steps with tier/scope/verification/review state, dispatches only the next step through a stale-safe feature hook, blocks workspace mismatches in UI and backend, removes the monolithic execution action, and completes execution only when every approved step is accepted.
+- 37.4d required tests: next-step and review action locks; out-of-scope presentation; stale Task response; dispatch/review payloads; Task phase completion wiring; backend all-steps gate and cross-project workspace rejection; frontend/Rust gates and diff hygiene.
 
 ### 37.5. Add safe parallel execution waves
 - objective: allow independent small-model steps to run concurrently without sharing mutable Git state.

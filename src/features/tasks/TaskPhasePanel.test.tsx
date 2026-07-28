@@ -176,6 +176,23 @@ describe("TaskPhasePanel", () => {
     expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "execution agent run finished" })).toBeDisabled();
   });
+  it("uses accepted plan steps instead of monolithic execution", () => {
+    const executionPhase = { ...phases[2], status: "in_progress" as const, startedAt: 2 };
+    const executionTask = { ...task, currentPhase: "execution" as const,
+      phases: phases.map((phase) => phase.phase === "execution" ? executionPhase : phase) };
+    const executionArtifact = { ...artifact, phase: "execution" as const };
+    const view = render(<TaskPhasePanel {...props({ task: executionTask, currentPhase: executionPhase,
+      artifacts: [executionArtifact], evidenceReviewed: true,
+      executionPanel: <div>Per-step execution</div>, executionStepsComplete: false })} />);
+    expect(screen.getByText("Per-step execution")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run agent for execution" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Run and review every approved plan step above/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeDisabled();
+    view.rerender(<TaskPhasePanel {...props({ task: executionTask, currentPhase: executionPhase,
+      artifacts: [executionArtifact], evidenceReviewed: true,
+      executionPanel: <div>Per-step execution</div>, executionStepsComplete: true })} />);
+    expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeEnabled();
+  });
   it("allows execution retry when Git verification is unavailable", () => {
     const executionPhase = { ...phases[2], status: "in_progress" as const, startedAt: 2 };
     const executionTask = { ...task, currentPhase: "execution" as const,

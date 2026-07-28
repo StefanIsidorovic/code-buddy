@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: beeb727 step 37.4b: dispatch bounded plan steps
-- worktree: plan item 37.4c complete pending commit
-- relevant files: per-file Git attribution, durable scope verification and explicit step review
+- head: f893d0b step 37.4c: verify and review plan steps
+- worktree: plan item 37.4d complete pending commit
+- relevant files: per-step execution/review UX, stale-safe orchestration and all-steps completion gate
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: commit
-- active plan step: 37.4c
+- active plan step: 37.4d
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Summary Autopilot preparation changes only pending decisions, validates the would-be publication payload, and never publishes Knowledge Units.
 
 ## Last Verification
+- 2026-07-29: plan item 37.4d adds per-step execution/review UX and requires all approved steps before execution completion; frontend audit, typecheck, 297 frontend tests, production build, Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4c persists write-once repository verification and scope review per step; Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4b dispatches one server-authored bounded approved step, returns repository verification and persists sent/failed lifecycle; Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4a adds immutable per-step run identity, tier/scope snapshots, ordered acceptance and retryable failure; Rust fmt, 132 Rust tests, clippy with warnings denied and diff hygiene pass.
