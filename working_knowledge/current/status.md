@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 6ecf544 step 35.5: reset transcript project scope
-- worktree: plan item 35.6 complete pending commit
-- relevant files: execution verification gate semantics and tests
+- head: 9b2f3c5 step 35.6: accept existing execution changes
+- worktree: plan item 36.1 complete pending commit
+- relevant files: Task Activity summary, progressive disclosures and presentation tests
 
 ## Current Task
-- request: make completed phases inspectable and verify execution changes in the real ACP workspace
-- phase: implementation
-- active plan step: 35.6
+- request: make the Task Activity result understandable and move technical detail out of the primary flow
+- phase: final validation
+- active plan step: 36.1
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -43,3 +43,4 @@
 - 2026-07-28: plan item 35.4 exposes repository paths and blocks stale ACP cwd mismatches; frontend audit, typecheck, 279 frontend tests, production build and diff hygiene pass.
 - 2026-07-28: plan item 35.5 resets transcript identity on project switch and rejects stale async results; frontend audit, typecheck, 280 frontend tests, production build and diff hygiene pass.
 - 2026-07-28: plan item 35.6 accepts reviewed pre-existing Git changes while retaining clean/unavailable execution blocks; frontend audit, typecheck, 281 frontend tests, production build, Rust fmt, 123 Rust tests, clippy with warnings denied and diff hygiene pass.
+- 2026-07-28: plan item 36.1 makes Activity summary-first; frontend audit, typecheck, 283 frontend tests, production build and diff hygiene pass.

@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 36.1. Make Task Activity summary-first
+- objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
+- status: complete pending commit.
+- files: src/features/tasks/TaskActivityPanel.tsx; related tests; src/App.tsx; src/App.css; working_knowledge/current/*.
+- affected units: Activity information hierarchy, completed-phase/result summary, optional checks, audit and delivery detail discoverability.
+- expected changes: show phase completion, saved evidence, repository verification and latest conclusion first; group advisor/reviewer actions, phase/context history and delivery provenance into closed, labeled disclosures.
+- acceptance criteria: the default Activity view answers whether the Task completed and what changed; technical history and provenance no longer dominate the page; every existing action and detail remains reachable; backend workflow and raw Session Output are unchanged.
+- required tests: completed/in-progress summaries; verification and changed-file presentation; disclosure labels/default state; App wiring; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 1 cycle; Activity now leads with phase completion, saved evidence, repository verification, changed files and the latest conclusion, while every optional action and audit/delivery detail remains reachable in a closed disclosure with responsive behavior.
+- commit: pending.
+
 ### 35.6. Accept pre-existing verified execution changes
 - objective: distinguish “no new mutation during this run” from “the repository has no implementation changes”.
 - status: complete pending commit.

@@ -34,6 +34,7 @@ import { useDeliveryReadiness } from "./features/delivery/useDeliveryReadiness";
 import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel";
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
+import { TaskActivityPanel } from "./features/tasks/TaskActivityPanel";
 import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
@@ -426,20 +427,19 @@ function App() {
             onCreateArtifact={() => void taskPhase.createArtifact()}
             onStart={() => void taskPhase.start()} onComplete={() => void taskPhase.complete()}
             onRunAndPrepare={(instruction) => void taskPhase.runAndPrepare(instruction)} /> : null}
-            activity={activeTask ? (({ showAgent }) => <><TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
+            activity={activeTask ? (({ showAgent }) => <TaskActivityPanel task={activeTask}
+            artifacts={taskPhase.artifacts} phaseReceipts={taskPhaseRuns.receipts}
+            deliveryReadiness={deliveryReadiness.readiness}
+            recoveryNotice={<TaskRecoveryNotice phaseReceipts={taskPhaseRuns.receipts}
             contextReceipts={taskDispatch.receipts} currentAcpSessionId={canUseAcpSession ? acpSession?.id ?? null : null}
-            onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />
-            <DeliveryReadinessPanel repositoryPath={selectedRepository?.path ?? null}
-            readiness={deliveryReadiness.readiness} loading={deliveryReadiness.loading}
-            provenanceHistory={deliveryReadiness.provenanceHistory}
-            error={deliveryReadiness.error} onRefresh={() => void deliveryReadiness.refresh()} />
-            <TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
+            onReviewPhase={taskPhaseRuns.openResolution} onReviewContext={taskDispatch.openResolution} />}
+            optionalChecks={<TaskAgentReportsPanel reports={taskAgentReports.reports} loading={taskAgentReports.loading}
             runningRole={taskAgentReports.runningRole} error={taskAgentReports.error}
             runDisabledReason={taskAgentReports.runDisabledReason}
             onDraftFollowUp={(draft) => { setAcpPromptFromRuntime(draft); showAgent(); }}
             onRun={(role) => void taskAgentReports.run(role)}
-            onRefresh={() => void taskAgentReports.refresh()} />
-            <TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
+            onRefresh={() => void taskAgentReports.refresh()} />}
+            auditTrail={<><TaskPhaseRunHistoryPanel receipts={taskPhaseRuns.receipts}
             loading={taskPhaseRuns.loading} error={taskPhaseRuns.error} resolutionReceiptId={taskPhaseRuns.resolutionReceiptId}
             resolutionReason={taskPhaseRuns.resolutionReason} onRefresh={() => void taskPhaseRuns.refresh()}
             onOpenResolution={taskPhaseRuns.openResolution} onChangeResolutionReason={taskPhaseRuns.changeResolutionReason}
@@ -450,7 +450,11 @@ function App() {
             onRefresh={() => void taskDispatch.refresh()} onOpenResolution={taskDispatch.openResolution}
             onChangeResolutionReason={taskDispatch.changeResolutionReason}
             onCancelResolution={taskDispatch.cancelResolution}
-            onResolve={() => void taskDispatch.resolve()} /></>) : null}
+            onResolve={() => void taskDispatch.resolve()} /></>}
+            deliveryDetails={<DeliveryReadinessPanel repositoryPath={selectedRepository?.path ?? null}
+            readiness={deliveryReadiness.readiness} loading={deliveryReadiness.loading}
+            provenanceHistory={deliveryReadiness.provenanceHistory}
+            error={deliveryReadiness.error} onRefresh={() => void deliveryReadiness.refresh()} />} />) : null}
             currentPhase={activeTask?.currentPhase ?? null}
             phaseRunCount={taskPhaseRuns.receipts.length}
             contextDispatchCount={taskDispatch.receipts.length}
