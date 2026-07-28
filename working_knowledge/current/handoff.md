@@ -25,9 +25,10 @@
 - Claude Buddy comparison confirms its execution is still strictly linear; its reusable strengths are first-class requirements/steps, tiered fresh sessions, deterministic validation, grounded critique and post-diff fulfillment.
 - Plan items 37.1–37.5 define the AIadne path: structured plan versions, deterministic evaluation, grounded critique, per-step execution, then isolated-worktree parallel waves.
 - Plan item 37.1 is complete pending commit: planning evidence can produce immutable requirement/step versions, one version can be approved, and planning cannot complete without that approved structured plan.
+- Plan item 37.2 is complete pending commit: immutable plans receive cached deterministic clean/flags/blocked evaluations; gaps and out-of-scope contradictions block approval, while missing/shared expected paths remain visible warnings.
 
 ## Next Step
-- Implement 37.2 deterministic plan evaluation over the approved/draft structured plan.
+- Implement 37.3 grounded critique over persisted deterministic findings.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

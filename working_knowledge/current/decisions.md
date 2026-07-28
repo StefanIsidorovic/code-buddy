@@ -57,6 +57,7 @@
 - Activity information hierarchy: Task completion, saved evidence, repository verification, changed files and the latest conclusion are primary; advisor/reviewer controls, receipt history and delivery provenance remain available through closed progressive disclosures.
 - Structured Task planning: retain analysis/planning/execution/review as the user-facing lifecycle; planning owns versioned requirements and steps, execution owns per-step runs, and review owns fulfillment and grounded critique.
 - Structured plan approval: every saved planning revision is immutable and linked to same-Task planning evidence; at most one version is approved, approved content cannot be revised, and planning completion requires that approval.
+- Deterministic plan evaluation: immutable plan versions are evaluated once and cached; stable GAP and OUT_OF_SCOPE findings block approval, MISSING_PATHS and exact PATH_COLLISION findings warn without inventing dependency edges, and no model output is labeled deterministic.
 - Parallel step safety: never run implementation agents concurrently in one mutable checkout; parallel waves require explicit dependencies, non-overlapping write scopes, isolated Git worktrees/branches and serialized integration.
 - Critique grounding: critique synthesizes stable evaluation findings, cites their IDs, proposes versioned repairs and has no direct authority to rewrite a plan or execute code.
 

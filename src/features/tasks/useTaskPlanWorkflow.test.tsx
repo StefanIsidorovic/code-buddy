@@ -16,6 +16,10 @@ describe("useTaskPlanWorkflow", () => {
     invoke.mockImplementation((command) => {
       if (command === "list_task_plan_versions") return Promise.resolve([]);
       if (command === "create_task_plan_version") return Promise.resolve(version);
+      if (command === "evaluate_task_plan") return Promise.resolve({
+        id: "evaluation-1", taskId: "task-1", planVersionId: "plan-1", planVersion: 1,
+        verdict: "clean", findings: [], createdAt: 2,
+      });
       return Promise.resolve({ ...version, status: "approved", approvedAt: 2 });
     });
     const { result } = renderHook(() => useTaskPlanWorkflow(task));
@@ -28,6 +32,8 @@ describe("useTaskPlanWorkflow", () => {
         complexity: 2, acceptanceCriteria: ["Pass"], expectedPaths: [], satisfies: ["REQ-1"] }],
     }));
     expect(result.current.versions).toEqual([version]);
+    await act(() => result.current.evaluate("plan-1"));
+    expect(result.current.evaluation?.verdict).toBe("clean");
     await act(() => result.current.approve("plan-1"));
     expect(result.current.approved?.id).toBe("plan-1");
     expect(invoke).toHaveBeenCalledWith("approve_task_plan_version", {

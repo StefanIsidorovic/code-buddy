@@ -10,6 +10,7 @@ pub mod session;
 pub mod storage;
 pub mod synthesis;
 pub mod task;
+pub mod task_plan;
 
 use acp::AcpSessionManager;
 use session::SessionManager;
@@ -71,6 +72,8 @@ pub fn run() {
             commands::create_task_plan_version,
             commands::list_task_plan_versions,
             commands::approve_task_plan_version,
+            commands::evaluate_task_plan,
+            commands::get_task_plan_evaluation,
             commands::create_task_agent_report,
             commands::run_task_agent_report,
             commands::list_task_agent_reports,

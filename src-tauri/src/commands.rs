@@ -29,7 +29,7 @@ use crate::{
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskAgentReportRequest,
         CreateTaskAgentReportTranscriptRequest, CreateTaskContextDispatchRequest,
         CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskPlanVersionRequest,
-        CreateTaskRequest, CreateTranscriptSessionRequest,
+        CreateTaskRequest, CreateTranscriptSessionRequest, EvaluateTaskPlanRequest,
         GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
         LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
         ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
@@ -39,8 +39,8 @@ use crate::{
         ResolveTaskPhaseRunRequest, ReviewProjectInitializationSummaryClaimRequest,
         SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
         TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanVersionInfo,
-        TranscriptAcpIdentityInfo, TranscriptEventInfo, TranscriptEventInput,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanEvaluationInfo,
+        TaskPlanVersionInfo, TranscriptAcpIdentityInfo, TranscriptEventInfo, TranscriptEventInput,
         TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
@@ -500,6 +500,22 @@ pub fn approve_task_plan_version(
     request: ApproveTaskPlanVersionRequest,
 ) -> AppResult<TaskPlanVersionInfo> {
     state.approve_task_plan_version(request)
+}
+
+#[tauri::command]
+pub fn evaluate_task_plan(
+    state: State<'_, ProjectStore>,
+    request: EvaluateTaskPlanRequest,
+) -> AppResult<TaskPlanEvaluationInfo> {
+    state.evaluate_task_plan(request)
+}
+
+#[tauri::command]
+pub fn get_task_plan_evaluation(
+    state: State<'_, ProjectStore>,
+    plan_version_id: String,
+) -> AppResult<Option<TaskPlanEvaluationInfo>> {
+    state.task_plan_evaluation(&plan_version_id)
 }
 
 #[tauri::command]

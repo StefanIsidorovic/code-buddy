@@ -17,6 +17,8 @@ export type TauriCommand =
   | "create_task_agent_report"
   | "create_task_phase_artifact"
   | "create_task_plan_version"
+  | "evaluate_task_plan"
+  | "get_task_plan_evaluation"
   | "create_transcript_session"
   | "create_acp_transcript_session"
   | "get_transcript_acp_identity"

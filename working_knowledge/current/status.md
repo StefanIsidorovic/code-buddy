@@ -11,13 +11,13 @@
 ## Repository State
 - branch: new/start
 - head: 9b2f3c5 step 35.6: accept existing execution changes
-- worktree: plan item 37.1 complete pending commit
-- relevant files: structured Task plan persistence, planning editor, approval gate and tests
+- worktree: plan item 37.2 complete pending commit
+- relevant files: deterministic plan evaluation, approval policy, evaluation UI and tests
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: final validation
-- active plan step: 37.1
+- active plan step: 37.2
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -45,3 +45,4 @@
 - 2026-07-28: plan item 35.6 accepts reviewed pre-existing Git changes while retaining clean/unavailable execution blocks; frontend audit, typecheck, 281 frontend tests, production build, Rust fmt, 123 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-28: plan item 36.1 makes Activity summary-first; frontend audit, typecheck, 283 frontend tests, production build and diff hygiene pass.
 - 2026-07-28: plan item 37.1 adds immutable structured plan versions and planning approval; frontend audit, typecheck, 286 frontend tests, production build, Rust fmt, 125 Rust tests, clippy with warnings denied and diff hygiene pass.
+- 2026-07-28: plan item 37.2 adds deterministic version-addressed plan evaluation and approval blocking; frontend audit, typecheck, 288 frontend tests, production build, Rust fmt, 127 Rust tests, clippy with warnings denied and diff hygiene pass.

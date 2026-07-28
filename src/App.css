@@ -5276,6 +5276,21 @@ summary:focus-visible {
 .task-plan-approved-steps { display: grid; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
 .task-plan-approved-steps li { display: grid; gap: 0.2rem; padding: 0.6rem;
   border: 1px solid var(--border-subtle); border-radius: 0.6rem; background: var(--mint-soft); }
+.task-plan-evaluation { display: grid; gap: 0.55rem; padding: 0.65rem;
+  border: 1px solid var(--border-subtle); border-radius: 0.6rem; background: var(--surface-subtle); }
+.task-plan-evaluation[data-verdict="clean"] { border-color: var(--color-success); background: var(--mint-soft); }
+.task-plan-evaluation[data-verdict="blocked"] { border-color: var(--color-danger); background: var(--color-danger-soft); }
+.task-plan-evaluation > div:first-child { display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 0.5rem; }
+.task-plan-evaluation h5, .task-plan-evaluation p { margin: 0; }
+.task-plan-evaluation h5 { font-size: 0.82rem; }
+.task-plan-evaluation span { color: var(--muted); font-size: 0.72rem; }
+.task-plan-evaluation ol { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.task-plan-evaluation li { display: grid; gap: 0.25rem; padding: 0.55rem;
+  border-left: 3px solid var(--color-warning); background: var(--surface-raised); }
+.task-plan-evaluation li[data-severity="blocking"] { border-left-color: var(--color-danger); }
+.task-plan-evaluation li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem; }
+.task-plan-evaluation code { color: var(--muted); font-size: 0.68rem; }
 .task-provenance-picker { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.7rem; }
 .task-provenance-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.75rem; cursor: pointer; font-weight: 650; }

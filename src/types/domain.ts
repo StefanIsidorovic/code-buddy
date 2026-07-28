@@ -446,6 +446,25 @@ export type TaskPlanDraft = {
     acceptanceCriteria: string[]; expectedPaths: string[]; satisfies: string[] }>;
 };
 
+export type TaskPlanFindingInfo = {
+  id: string;
+  code: "GAP" | "OUT_OF_SCOPE" | "MISSING_PATHS" | "PATH_COLLISION";
+  severity: "blocking" | "warning";
+  message: string;
+  requirementId: string | null;
+  stepIds: string[];
+};
+
+export type TaskPlanEvaluationInfo = {
+  id: string;
+  taskId: string;
+  planVersionId: string;
+  planVersion: number;
+  verdict: "clean" | "flags" | "blocked";
+  findings: TaskPlanFindingInfo[];
+  createdAt: number;
+};
+
 export type TaskAgentRole = "advisor" | "reviewer";
 
 export type TaskAgentReportInfo = {

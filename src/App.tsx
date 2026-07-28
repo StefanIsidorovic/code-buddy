@@ -424,9 +424,11 @@ function App() {
             expectedWorkspacePath={selectedRepository?.path ?? selectedProject?.path ?? null}
             planningPlanApproved={taskPlan.approved !== null}
             planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}
-              error={taskPlan.error} sourceArtifactId={[...taskPhase.artifacts].reverse()
+              error={taskPlan.error} evaluation={taskPlan.evaluation}
+              sourceArtifactId={[...taskPhase.artifacts].reverse()
                 .find(({ phase }) => phase === "planning")?.id ?? null}
               onCreate={(artifactId, draft) => void taskPlan.create(artifactId, draft)}
+              onEvaluate={(versionId) => void taskPlan.evaluate(versionId)}
               onApprove={(versionId) => void taskPlan.approve(versionId)} />}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}

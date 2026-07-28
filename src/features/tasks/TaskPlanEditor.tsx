@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { TaskPlanDraft, TaskPlanVersionInfo } from "../../types/domain";
+import type { TaskPlanDraft, TaskPlanEvaluationInfo, TaskPlanVersionInfo } from "../../types/domain";
+import { TaskPlanEvaluationPanel } from "./TaskPlanEvaluationPanel";
 
 type RequirementDraft = { id: string; text: string; kind: string };
 type StepDraft = { title: string; description: string; kind: string; complexity: number;
@@ -9,7 +10,9 @@ interface Props {
   versions: TaskPlanVersionInfo[];
   loading: boolean;
   error: string | null;
+  evaluation: TaskPlanEvaluationInfo | null;
   onCreate: (sourceArtifactId: string, draft: TaskPlanDraft) => void;
+  onEvaluate: (planVersionId: string) => void;
   onApprove: (planVersionId: string) => void;
 }
 
@@ -20,8 +23,8 @@ const step = (): StepDraft => ({ title: "", description: "", kind: "implementati
 const lines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
 const commaList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
-export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, onCreate,
-  onApprove }: Props) {
+export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, evaluation, onCreate,
+  onEvaluate, onApprove }: Props) {
   const [requirements, setRequirements] = useState<RequirementDraft[]>([requirement(0)]);
   const [steps, setSteps] = useState<StepDraft[]>([step()]);
   const approved = versions.find(({ status }) => status === "approved") ?? null;
@@ -117,11 +120,18 @@ export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, onC
     }}>Save new plan version</button>
     {!sourceArtifactId ? <small className="task-helper-card">Save planning evidence before creating
       its structured plan.</small> : null}
+    {latest ? <TaskPlanEvaluationPanel plan={latest} evaluation={evaluation} loading={loading}
+      onEvaluate={onEvaluate} /> : null}
     {latest ? <div className="task-plan-version">
       <span>Latest draft: v{latest.version} · {latest.requirements.length} requirement(s)
         · {latest.steps.length} step(s)</span>
-      <button type="button" disabled={loading} onClick={() => onApprove(latest.id)}>
+      <button type="button" disabled={loading || !evaluation || evaluation.verdict === "blocked"}
+        onClick={() => onApprove(latest.id)}>
         Approve plan v{latest.version}</button>
+      {!evaluation ? <small>Run deterministic evaluation before approval.</small>
+        : evaluation.verdict === "blocked"
+          ? <small>Resolve blocking findings in a new plan version before approval.</small>
+          : null}
     </div> : null}
   </section>;
 }

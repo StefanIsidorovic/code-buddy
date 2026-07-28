@@ -5,6 +5,7 @@ use crate::models::{
 };
 use crate::synthesis::ProjectInitializationKnowledgeDraft;
 use crate::task::{assess_task_complexity, is_task_complexity_profile};
+use crate::task_plan::{self, TaskPlanFindingInfo};
 use rusqlite::{params, types::Type, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -385,6 +386,13 @@ pub struct ApproveTaskPlanVersionRequest {
     pub plan_version_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvaluateTaskPlanRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPlanRequirementInfo {
@@ -420,6 +428,18 @@ pub struct TaskPlanVersionInfo {
     pub steps: Vec<TaskPlanStepInfo>,
     pub created_at: i64,
     pub approved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanEvaluationInfo {
+    pub id: String,
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub plan_version: i64,
+    pub verdict: String,
+    pub findings: Vec<TaskPlanFindingInfo>,
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -2285,6 +2305,22 @@ impl ProjectStore {
                 "structured plan version is already finalized".into(),
             ));
         }
+        let evaluation_verdict: Option<String> = transaction
+            .query_row(
+                "SELECT verdict FROM task_plan_evaluations WHERE plan_version_id = ?1",
+                [plan_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        if evaluation_verdict
+            .as_deref()
+            .is_none_or(|verdict| verdict == "blocked")
+        {
+            return Err(AppError::InvalidInput(
+                "plan approval requires a current non-blocking deterministic evaluation".into(),
+            ));
+        }
         let now = unix_timestamp()?;
         transaction
             .execute(
@@ -2302,6 +2338,69 @@ impl ProjectStore {
         transaction.commit().map_err(storage_error)?;
         drop(connection);
         self.task_plan_version(plan_id)
+    }
+
+    pub fn evaluate_task_plan(
+        &self,
+        request: EvaluateTaskPlanRequest,
+    ) -> AppResult<TaskPlanEvaluationInfo> {
+        let task_id = request.task_id.trim();
+        let plan_id = request.plan_version_id.trim();
+        let plan = self.task_plan_version(plan_id)?;
+        if plan.task_id != task_id {
+            return Err(AppError::InvalidInput(
+                "plan version does not belong to the selected task".into(),
+            ));
+        }
+        if let Some(existing) = self.task_plan_evaluation(plan_id)? {
+            return Ok(existing);
+        }
+        let (verdict, findings) = task_plan::evaluate(&plan);
+        let findings_json = serde_json::to_string(&findings)
+            .map_err(|error| AppError::Storage(error.to_string()))?;
+        let id = Uuid::new_v4().to_string();
+        let created_at = unix_timestamp()?;
+        let connection = self.connection()?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO task_plan_evaluations
+             (id, task_id, plan_version_id, plan_version, verdict, findings_json, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    id,
+                    task_id,
+                    plan_id,
+                    plan.version,
+                    verdict,
+                    findings_json,
+                    created_at
+                ],
+            )
+            .map_err(storage_error)?;
+        drop(connection);
+        self.task_plan_evaluation(plan_id)?
+            .ok_or_else(|| AppError::Storage("structured plan evaluation was not persisted".into()))
+    }
+
+    pub fn task_plan_evaluation(
+        &self,
+        plan_version_id: &str,
+    ) -> AppResult<Option<TaskPlanEvaluationInfo>> {
+        let connection = self.connection()?;
+        connection.query_row(
+            "SELECT id, task_id, plan_version_id, plan_version, verdict, findings_json, created_at
+             FROM task_plan_evaluations WHERE plan_version_id = ?1",
+            [plan_version_id], |row| {
+                let json: String = row.get(5)?;
+                let findings = serde_json::from_str(&json).map_err(|error|
+                    rusqlite::Error::FromSqlConversionFailure(5, Type::Text, Box::new(error)))?;
+                Ok(TaskPlanEvaluationInfo {
+                    id: row.get(0)?, task_id: row.get(1)?, plan_version_id: row.get(2)?,
+                    plan_version: row.get(3)?, verdict: row.get(4)?, findings,
+                    created_at: row.get(6)?,
+                })
+            },
+        ).optional().map_err(storage_error)
     }
 
     fn task_plan_version(&self, plan_id: &str) -> AppResult<TaskPlanVersionInfo> {
@@ -3951,6 +4050,16 @@ impl ProjectStore {
 
                 CREATE INDEX IF NOT EXISTS idx_task_plan_versions_task_version
                     ON task_plan_versions(task_id, version DESC);
+
+                CREATE TABLE IF NOT EXISTS task_plan_evaluations (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    plan_version_id TEXT NOT NULL UNIQUE REFERENCES task_plan_versions(id) ON DELETE CASCADE,
+                    plan_version INTEGER NOT NULL,
+                    verdict TEXT NOT NULL CHECK(verdict IN ('clean', 'flags', 'blocked')),
+                    findings_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
 
                 CREATE TABLE IF NOT EXISTS task_agent_reports (
                     id TEXT PRIMARY KEY,
@@ -7713,11 +7822,18 @@ mod tests {
         let request = CreateTaskPlanVersionRequest {
             task_id: task.id.clone(),
             source_artifact_id: artifact.id.clone(),
-            requirements: vec![TaskPlanRequirementInput {
-                id: " req-1 ".into(),
-                text: "The behavior is implemented".into(),
-                kind: "functional".into(),
-            }],
+            requirements: vec![
+                TaskPlanRequirementInput {
+                    id: " req-1 ".into(),
+                    text: "The behavior is implemented".into(),
+                    kind: "functional".into(),
+                },
+                TaskPlanRequirementInput {
+                    id: "REQ-2".into(),
+                    text: "The behavior is documented".into(),
+                    kind: "constraint".into(),
+                },
+            ],
             steps: vec![TaskPlanStepInput {
                 title: "Implement behavior".into(),
                 description: "Change the bounded module".into(),
@@ -7758,6 +7874,22 @@ mod tests {
         assert_eq!(second.version, 2);
         assert_eq!(first.requirements[0].id, "REQ-1");
         assert_eq!(second.steps[0].complexity, 3);
+        let blocked_evaluation = store
+            .evaluate_task_plan(EvaluateTaskPlanRequest {
+                task_id: task.id.clone(),
+                plan_version_id: first.id.clone(),
+            })
+            .expect("gap evaluated");
+        assert_eq!(blocked_evaluation.verdict, "blocked");
+        assert!(
+            store
+                .approve_task_plan_version(ApproveTaskPlanVersionRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: first.id.clone(),
+                })
+                .is_err(),
+            "blocking findings prevent approval"
+        );
         assert!(
             store
                 .transition_task_phase(TransitionTaskPhaseRequest {
@@ -7768,6 +7900,32 @@ mod tests {
             "planning is blocked before approval"
         );
 
+        assert!(
+            store
+                .approve_task_plan_version(ApproveTaskPlanVersionRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: second.id.clone(),
+                })
+                .is_err(),
+            "approval requires deterministic evaluation"
+        );
+        let evaluation = store
+            .evaluate_task_plan(EvaluateTaskPlanRequest {
+                task_id: task.id.clone(),
+                plan_version_id: second.id.clone(),
+            })
+            .expect("plan evaluated");
+        assert_eq!(evaluation.verdict, "clean");
+        assert_eq!(
+            store
+                .evaluate_task_plan(EvaluateTaskPlanRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: second.id.clone(),
+                })
+                .expect("cached evaluation returned")
+                .id,
+            evaluation.id,
+        );
         let approved = store
             .approve_task_plan_version(ApproveTaskPlanVersionRequest {
                 task_id: task.id.clone(),
@@ -8398,6 +8556,12 @@ mod tests {
                         }],
                     })
                     .expect("structured plan created");
+                store
+                    .evaluate_task_plan(EvaluateTaskPlanRequest {
+                        task_id: task.id.clone(),
+                        plan_version_id: plan.id.clone(),
+                    })
+                    .expect("structured plan evaluated");
                 store
                     .approve_task_plan_version(ApproveTaskPlanVersionRequest {
                         task_id: task.id.clone(),

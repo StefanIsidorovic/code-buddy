@@ -15,10 +15,13 @@
 
 ### 37.2. Add deterministic plan evaluation
 - objective: identify actionable plan defects cheaply before any implementation agent runs.
-- status: planned after 37.1.
+- status: complete pending commit.
 - affected units: coverage matrix, structural findings and planning completion gate.
 - expected changes: evaluate requirement gaps, unmapped steps, empty criteria, invalid requirement references, ordering hazards and expected-path collisions without a model; persist a version-addressed evaluation result.
 - acceptance criteria: findings have stable IDs and exact evidence; blocking defects prevent approval; evaluation is repeatable for the same plan version; no free-form model judgment is presented as deterministic fact.
+- required tests: pure gap/path/scope rules; persisted immutable evaluation; missing/blocked approval gates; frontend empty/clean/flags/blocked presentation; stale-safe orchestration; frontend/Rust gates; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 added pure stable findings, persisted version-addressed evaluations, approval enforcement and accessible triage; cycle 2 made the disabled approval path explicit, normalized absent legacy responses, verified cached evaluation reuse and directly proved blocking findings cannot be approved.
+- commit: pending.
 
 ### 37.3. Add grounded plan critique and repair proposals
 - objective: turn deterministic findings into a short ranked explanation and reversible repair path.
