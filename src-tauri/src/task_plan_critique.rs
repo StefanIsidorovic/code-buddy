@@ -1,7 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::{storage::TaskPlanVersionInfo, task_plan::TaskPlanFindingInfo};
+use crate::{
+    storage::{
+        CreateTaskPlanVersionRequest, TaskPlanRequirementInput, TaskPlanStepInput,
+        TaskPlanVersionInfo,
+    },
+    task_plan::TaskPlanFindingInfo,
+};
 
 const MAX_PRIMARY_ISSUES: usize = 3;
 
@@ -215,6 +221,85 @@ fn normalize_list(values: &mut Vec<String>) {
     values.dedup();
 }
 
+pub fn repair_draft(
+    plan: &TaskPlanVersionInfo,
+    issues: &[TaskPlanCritiqueIssue],
+) -> Result<CreateTaskPlanVersionRequest, String> {
+    let requirements = plan
+        .requirements
+        .iter()
+        .map(|item| TaskPlanRequirementInput {
+            id: item.id.clone(),
+            text: item.text.clone(),
+            kind: item.kind.clone(),
+        })
+        .collect();
+    let mut step_ids = plan
+        .steps
+        .iter()
+        .map(|item| item.id.clone())
+        .collect::<Vec<_>>();
+    let mut steps = plan
+        .steps
+        .iter()
+        .map(|item| TaskPlanStepInput {
+            title: item.title.clone(),
+            description: item.description.clone(),
+            kind: item.kind.clone(),
+            complexity: item.complexity,
+            acceptance_criteria: item.acceptance_criteria.clone(),
+            expected_paths: item.expected_paths.clone(),
+            satisfies: item.satisfies.clone(),
+        })
+        .collect::<Vec<_>>();
+    for repair in issues.iter().flat_map(|issue| &issue.repairs) {
+        match repair {
+            TaskPlanRepair::AddStep {
+                title,
+                description,
+                complexity,
+                acceptance_criteria,
+                expected_paths,
+                satisfies,
+            } => {
+                step_ids.push(String::new());
+                steps.push(TaskPlanStepInput {
+                    title: title.clone(),
+                    description: description.clone(),
+                    kind: "implementation".into(),
+                    complexity: *complexity,
+                    acceptance_criteria: acceptance_criteria.clone(),
+                    expected_paths: expected_paths.clone(),
+                    satisfies: satisfies.clone(),
+                });
+            }
+            TaskPlanRepair::SetStepExpectedPaths {
+                step_id,
+                expected_paths,
+            } => {
+                let index = step_ids
+                    .iter()
+                    .position(|id| id == step_id)
+                    .ok_or_else(|| format!("repair step not found: {step_id}"))?;
+                steps[index].expected_paths = expected_paths.clone();
+            }
+            TaskPlanRepair::SetStepRequirements { step_id, satisfies } => {
+                let index = step_ids
+                    .iter()
+                    .position(|id| id == step_id)
+                    .ok_or_else(|| format!("repair step not found: {step_id}"))?;
+                steps[index].satisfies = satisfies.clone();
+            }
+        }
+    }
+    Ok(CreateTaskPlanVersionRequest {
+        task_id: plan.task_id.clone(),
+        source_artifact_id: plan.source_artifact_id.clone(),
+        requirements,
+        steps,
+    })
+}
+
 fn json_object(response: &str) -> Option<&str> {
     let start = response.find('{')?;
     let end = response.rfind('}')?;
@@ -320,5 +405,37 @@ mod tests {
             "proposedRepair":"Repair","repairs":[{"kind":"set_step_expected_paths",
             "stepId":"invented","expectedPaths":["src/**"]}]}]}"#;
         assert!(grounded_issues(unsupported, &plan(), &[finding("GAP:REQ-1")]).is_empty());
+    }
+
+    #[test]
+    fn applies_typed_repairs_to_a_new_draft_without_mutating_the_source() {
+        let source = plan();
+        let issues = vec![TaskPlanCritiqueIssue {
+            finding_ids: vec!["GAP:REQ-1".into()],
+            explanation: "Add focused coverage".into(),
+            proposed_repair: "Add a step and narrow the original path.".into(),
+            repairs: vec![
+                TaskPlanRepair::SetStepExpectedPaths {
+                    step_id: "step-1".into(),
+                    expected_paths: vec!["src/retry/**".into()],
+                },
+                TaskPlanRepair::AddStep {
+                    title: "Test retry guard".into(),
+                    description: "Add regression coverage".into(),
+                    complexity: 1,
+                    acceptance_criteria: vec!["Focused tests pass".into()],
+                    expected_paths: vec!["tests/retry.rs".into()],
+                    satisfies: vec!["REQ-1".into()],
+                },
+            ],
+        }];
+        let repaired = repair_draft(&source, &issues).expect("repair applies");
+        assert_eq!(source.steps.len(), 1);
+        assert_eq!(source.steps[0].expected_paths, ["src/retry.rs"]);
+        assert_eq!(repaired.steps.len(), 2);
+        assert_eq!(repaired.steps[0].expected_paths, ["src/retry/**"]);
+        assert_eq!(repaired.steps[1].title, "Test retry guard");
+        assert_eq!(repaired.task_id, source.task_id);
+        assert_eq!(repaired.source_artifact_id, source.source_artifact_id);
     }
 }
