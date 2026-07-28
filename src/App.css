@@ -5174,6 +5174,10 @@ summary:focus-visible {
 }
 
 .task-phase-list li[data-current="true"] { border-color: var(--color-accent); }
+.task-phase-list li[data-viewed="true"] { background: var(--color-primary-soft); }
+.task-phase-list button { display: grid; gap: 0.2rem; width: 100%; padding: 0; border: 0;
+  background: transparent; color: inherit; text-align: left; text-transform: none; box-shadow: none; }
+.task-phase-list button:hover { transform: none; background: transparent; color: var(--ink-strong); }
 .task-operating-model { border: 1px solid var(--border-subtle); border-radius: 0.8rem;
   background: var(--surface-subtle); }
 .task-operating-model > summary { padding: 0.7rem 0.8rem; cursor: pointer; color: var(--ink-strong);

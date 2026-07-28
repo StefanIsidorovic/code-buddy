@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 1406827 step 34.2: require confirmed coding models
-- worktree: plan item 34.3 complete pending commit; reverts the unsupported 34.2 availability restriction
-- relevant files: ACP model contract/panel/tests, active knowledge
+- head: 2fc0466 step 34.3: restore advertised coding models
+- worktree: plan item 35.1 complete pending commit
+- relevant files: Task phase history UI/tests, then execution repository verification
 
 ## Current Task
-- request: filter unusable coding models and standardize Task step frames, helper copy, and readiness emphasis
-- phase: validation
-- active plan step: 34.3
+- request: make completed phases inspectable and verify execution changes in the real ACP workspace
+- phase: implementation
+- active plan step: 35.1
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -37,3 +37,4 @@
 - 2026-07-28: frontend audit, typecheck, 273 frontend tests, production build and diff hygiene pass for the presentation-only plan item 34.1.
 - 2026-07-28: frontend audit, typecheck, 274 frontend tests, production build, Rust fmt, 124 Rust tests, clippy with warnings denied and diff hygiene pass for plan item 34.2.
 - 2026-07-28: plan item 34.3 restores all ACP-advertised coding models; frontend audit, typecheck, 274 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied and diff hygiene pass.
+- 2026-07-28: plan item 35.1 adds read-only completed-phase history; frontend audit, typecheck, 275 frontend tests, production build and diff hygiene pass.

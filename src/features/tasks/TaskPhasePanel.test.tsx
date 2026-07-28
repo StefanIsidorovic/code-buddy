@@ -66,6 +66,20 @@ describe("TaskPhasePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start analysis" }));
     expect(value.onStart).toHaveBeenCalledOnce(); expect(screen.getByRole("alert")).toHaveTextContent("Gate failed");
   });
+  it("shows completed phases as read-only history and returns to the current phase", () => {
+    const planningPhase = { ...phases[1], status: "in_progress" as const, startedAt: 2 };
+    const completedAnalysis = { ...phases[0], status: "completed" as const, completedAt: 2 };
+    const planningTask = { ...task, currentPhase: "planning" as const,
+      phases: [completedAnalysis, planningPhase, phases[2], phases[3]] };
+    render(<TaskPhasePanel {...props({ task: planningTask, currentPhase: planningPhase,
+      artifacts: [artifact] })} />);
+    fireEvent.click(screen.getByRole("button", { name: "analysis completed" }));
+    expect(screen.getByLabelText("analysis phase history")).toHaveTextContent("Analysis evidence");
+    expect(screen.getByText(/Read-only completed phase/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run agent for planning" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "planning in_progress" }));
+    expect(screen.getByRole("button", { name: "Run agent for planning" })).toBeInTheDocument();
+  });
   it("shows the exact bounded instruction and runs only an in-progress phase", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByText("Exact agent instruction"));

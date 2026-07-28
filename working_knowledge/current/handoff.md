@@ -14,11 +14,12 @@
 - Plan item 33.3 is committed as 1dfde7a: the sticky tracker owns precise Next guidance and readiness indicators; the separate space-heavy Next step card and its CSS are removed.
 - Plan item 34.1 is committed as f311ff9: Task steps 1–4 are framed, helper explanations share one visual language, and tracker requirements use emphasized status chips.
 - Plan item 34.2 was committed as 1406827, then found invalid because absent ACP metadata hid usable models such as GPT-5.5.
-- Plan item 34.3 is complete pending commit: every option advertised by the active ACP agent is visible/selectable again, while unadvertised IDs remain rejected.
+- Plan item 34.3 is committed as 2fc0466: every option advertised by the active ACP agent is visible/selectable again, while unadvertised IDs remain rejected.
+- Plan item 35.1 is active: completed phases need a read-only historical view.
+- Plan item 35.2 follows: execution needs repository-derived workspace/change verification rather than trusting agent prose.
 
 ## Next Step
-- Commit 34.3 with a provenance note.
-- Extend Project Autopilot into a resumable Facts → Markdown → Summary state machine; keep Task Autopilot separate.
+- Implement, verify and commit 35.1, then 35.2.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

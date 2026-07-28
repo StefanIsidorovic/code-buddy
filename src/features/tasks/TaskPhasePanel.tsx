@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo, TranscriptEventInfo } from "../../types/domain";
 import { buildTaskPhaseExecutionPrompt } from "./taskPhaseExecution";
 import { taskPhaseReviewCriteria } from "./taskPhaseReview";
@@ -18,7 +19,11 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   onChangeKind, onChangeContent, onToggleSource, onToggleAllSources,
   onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
+  const [viewedPhase, setViewedPhase] = useState<TaskPhaseInfo["phase"]>(task.currentPhase);
+  useEffect(() => setViewedPhase(task.currentPhase), [task.id, task.currentPhase]);
   const phaseArtifacts = artifacts.filter(({ phase }) => phase === task.currentPhase);
+  const viewedPhaseArtifacts = artifacts.filter(({ phase }) => phase === viewedPhase);
+  const viewingCurrentPhase = viewedPhase === task.currentPhase;
   const inProgress = currentPhase?.status === "in_progress";
   const hasDraft = !!content.trim();
   const hasProvenance = selectedSourceIds.length > 0;
@@ -29,7 +34,13 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
     <div className="doctor-heading"><div><h3 id="task-phase-title">Task phases</h3>
       <span>{task.status} · current: {task.currentPhase}</span></div></div>
     <ol className="task-phase-list">{task.phases.map((phase) => <li key={phase.id}
-      data-current={phase.phase === task.currentPhase}><strong>{phase.phase}</strong><span>{phase.status}</span></li>)}</ol>
+      data-current={phase.phase === task.currentPhase} data-viewed={phase.phase === viewedPhase}>
+      {phase.status === "completed" || phase.phase === task.currentPhase
+        ? <button type="button" aria-pressed={phase.phase === viewedPhase}
+          onClick={() => setViewedPhase(phase.phase)}><strong>{phase.phase}</strong>
+          <span>{phase.status}</span></button>
+        : <><strong>{phase.phase}</strong><span>{phase.status}</span></>}
+    </li>)}</ol>
     <details className="task-operating-model"><summary>How this Task works</summary>
       <ul>
         <li><strong>Agent</strong><span>Prompt controls and permission decisions live in Agent; output stays visible beside every view.</span></li>
@@ -37,15 +48,15 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <li><strong>Create evidence</strong><span>Run the agent for this phase, or write evidence manually. Both paths remain editable before saving.</span></li>
         <li><strong>Activity</strong><span>Audit context sends, phase runs, interrupted receipts, and read-only advisor/reviewer reports.</span></li>
       </ul></details>
-    {inProgress ? <div className="task-phase-sticky" aria-label="Current phase guidance">
+    {inProgress && viewingCurrentPhase ? <div className="task-phase-sticky" aria-label="Current phase guidance">
       <TaskPhaseGuide phase={task.currentPhase} hasEvidenceText={hasDraft}
         provenanceCount={selectedSourceIds.length} hasPhaseRun={hasPhaseRun}
         hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} />
     </div> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
-    {currentPhase?.status === "pending" ? <button className="primary-action" type="button"
+    {viewingCurrentPhase && currentPhase?.status === "pending" ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
-    {inProgress ? <div className="task-artifact-editor">
+    {inProgress && viewingCurrentPhase ? <div className="task-artifact-editor">
       <fieldset className="task-phase-run"><legend>Step 1 · Create phase evidence</legend>
         <strong>Agent-assisted path</strong>
         <p>Runs the coding agent for this {task.currentPhase} phase and copies its linked response
@@ -118,8 +129,12 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         revealed but never started automatically.</small>
       </fieldset>
     </div> : null}
-    <div className="task-artifact-list" aria-label="Current phase artifacts"><strong>Current phase artifacts</strong>
-      {phaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{phaseArtifacts.map((artifact) =>
+    <div className="task-artifact-list" aria-label={viewingCurrentPhase
+      ? "Current phase artifacts" : `${viewedPhase} phase history`}>
+      <strong>{viewingCurrentPhase ? "Current phase artifacts" : `${viewedPhase} phase evidence`}</strong>
+      {!viewingCurrentPhase ? <p className="task-helper-card">Read-only completed phase.
+        Its saved evidence and provenance remain immutable.</p> : null}
+      {viewedPhaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{viewedPhaseArtifacts.map((artifact) =>
         <li key={artifact.id}><span>{artifact.kind}</span><p>{artifact.content}</p>
           <small>{artifact.sourceTranscriptEventIds.length} source event(s)</small></li>)}</ul>}</div>
   </section>;
