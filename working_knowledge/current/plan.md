@@ -2,16 +2,27 @@
 
 ## Active Plan
 
+### 35.5. Reset transcript identity on project switch
+- objective: prevent a transcript from the previous project from remaining the hidden active Task/session identity after workspace switching.
+- status: complete pending commit.
+- files: src/features/transcripts/useTranscriptWorkspace.ts; related tests; working_knowledge/current/*.
+- affected units: project-scoped transcript refs, live/opened session state, Task lookup and creation identity.
+- expected changes: synchronously invalidate active/opened transcript state, events, task cache and stale requests whenever projectId changes, then refresh the new project scope.
+- acceptance criteria: getActiveSessionId returns null after a project switch until a new transcript is created/activated; old live events/task cannot appear; stale refresh/open responses cannot repopulate old context; same-project behavior is unchanged.
+- required tests: project switch reset and stale response guard; existing transcript/App regressions; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 1 cycle; project switches synchronously invalidate active/opened transcript identity, events and Task caches; async transcript creation is project-scoped against late results; cross-project saved activation is rejected; existing project behavior is unchanged.
+- commit: pending.
+
 ### 35.4. Expose and enforce ACP repository identity
 - objective: prevent same-name repository records and stale ACP sessions from disguising a workspace-path mismatch.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/workspace/WorkspaceContextSelector.tsx; src/features/tasks/TaskPhasePanel.tsx; App composition; related tests/styles; working_knowledge/current/*.
 - affected units: sidebar context identity, Task phase-run availability, stale-session recovery guidance.
 - expected changes: display selected repository path in the footer; compare selected repository path with active ACP cwd; block phase runs and show both paths plus restart instructions when they differ.
 - acceptance criteria: users can distinguish same-name repositories; a stale/mismatched ACP session cannot run a Task phase; matching paths preserve behavior; the warning names both selected and active paths.
 - required tests: footer path; matching/mismatching Task run state; App wiring; frontend audit/typecheck/full tests/build; diff hygiene.
 - review status: passed after 1 cycle; repository identity now includes its full path, Task compares the active ACP cwd with the selected repository/default workspace, mismatches expose both paths and lock phase execution, and matching paths preserve all existing behavior.
-- commit: pending.
+- commit: fa6dd9d.
 
 ### 35.3. Allow failed execution verification retry
 - objective: let users rerun execution after an unchanged or unavailable repository verification without weakening successful-run or other-phase locks.

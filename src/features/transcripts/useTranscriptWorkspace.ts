@@ -15,6 +15,7 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
   const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(""); const [renameTitle, setRenameTitle] = useState("");
   const sessionRef = useRef<TranscriptSessionInfo | null>(null); const tasksRef = useRef<Record<string, TaskInfo>>({});
+  const projectIdRef = useRef(projectId); projectIdRef.current = projectId;
   const openRequest = useRef(0); const loadRequest = useRef(0);
   const selectedId = openedSession?.id ?? session?.id ?? null;
   const selectedSession = useMemo(() => sessions.find(({ id }) => id === selectedId) ?? null, [selectedId, sessions]);
@@ -22,7 +23,18 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
 
   useEffect(() => { sessionRef.current = session; }, [session]);
   useEffect(() => { setRenameTitle(selectedSession?.title ?? ""); }, [selectedSession?.id, selectedSession?.title]);
-  useEffect(() => { void refresh(projectId); }, [projectId]);
+  useEffect(() => {
+    ++openRequest.current;
+    sessionRef.current = null;
+    tasksRef.current = {};
+    setSession(null);
+    setOpenedSession(null);
+    setOpenedEvents([]);
+    setLiveEvents([]);
+    setTasks({});
+    setError(null);
+    void refresh(projectId);
+  }, [projectId]);
 
   async function refresh(nextProjectId = projectId) {
     const request = ++loadRequest.current; setLoading(true); setError(null); tasksRef.current = {}; setTasks({});
@@ -41,18 +53,22 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
     finally { if (request === loadRequest.current) setLoading(false); }
   }
   async function create(runtime: string, source: string, title: string) {
+    const requestProjectId = projectId;
     setError(null);
     try { const value = await invokeCommand<TranscriptSessionInfo | null>("create_transcript_session",
       { request: { projectId, runtime, source, title } });
+      if (projectIdRef.current !== requestProjectId) return null;
       sessionRef.current = value; setSession(value);
       if (!value) return null; setOpenedSession(null); setOpenedEvents([]); setLiveEvents([]);
       setSessions((current) => [value, ...current.filter(({ id }) => id !== value.id)]); return value;
     } catch (reason) { sessionRef.current = null; setSession(null); setError(errorText(reason)); return null; }
   }
   async function createAcp(source: string, title: string, candidateId: string, agentSessionId: string) {
+    const requestProjectId = projectId;
     setError(null);
     try { const value = await invokeCommand<TranscriptSessionInfo | null>("create_acp_transcript_session",
       { request: { projectId, source, title, candidateId, agentSessionId } });
+      if (projectIdRef.current !== requestProjectId) return null;
       sessionRef.current = value; setSession(value);
       if (!value) return null; setOpenedSession(null); setOpenedEvents([]); setLiveEvents([]);
       setSessions((current) => [value, ...current.filter(({ id }) => id !== value.id)]); return value;
@@ -79,6 +95,10 @@ export function useTranscriptWorkspace({ projectId, onShowAcp }: Options) {
   }
   function showLive() { ++openRequest.current; onShowAcp(); setOpenedSession(null); setOpenedEvents([]); }
   function activateSaved(value: TranscriptSessionInfo) {
+    if (value.projectId !== projectIdRef.current) {
+      setError("Saved transcript does not belong to the selected project.");
+      return;
+    }
     ++openRequest.current; onShowAcp(); sessionRef.current = value; setSession(value);
     setOpenedSession(null); setOpenedEvents([]); setLiveEvents([]);
   }

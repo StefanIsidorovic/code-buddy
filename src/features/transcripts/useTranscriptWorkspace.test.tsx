@@ -71,6 +71,25 @@ describe("useTranscriptWorkspace", () => {
     expect(onShowAcp).toHaveBeenCalledOnce();
   });
 
+  it("clears active transcript identity and ignores stale creation after a project switch", async () => {
+    let resolveCreate: (value: TranscriptSessionInfo) => void = () => undefined;
+    const create = new Promise<TranscriptSessionInfo>((resolve) => { resolveCreate = resolve; });
+    invoke.mockImplementation((command) => command === "create_acp_transcript_session"
+      ? create : Promise.resolve([]));
+    const { result, rerender } = renderHook(({ projectId }) =>
+      useTranscriptWorkspace({ projectId, onShowAcp }), { initialProps: { projectId: "p1" } });
+    act(() => result.current.activateSaved(session("t1")));
+    expect(result.current.getActiveSessionId()).toBe("t1");
+    let pending!: Promise<TranscriptSessionInfo | null>;
+    act(() => { pending = result.current.createAcp("Codex", "ACP", "codex-acp", "agent"); });
+    rerender({ projectId: "p2" });
+    expect(result.current.getActiveSessionId()).toBeNull();
+    await act(async () => { resolveCreate(session("late")); await pending; });
+    expect(result.current.getActiveSessionId()).toBeNull();
+    expect(result.current.session).toBeNull();
+    expect(result.current.liveEvents).toEqual([]);
+  });
+
   it("coalesces and persists non-empty events while updating session metadata", async () => {
     const inserted: TranscriptEventInfo[] = [{ id: "e1", sessionId: "t1", sequence: 0,
       kind: "assistant_message", content: "answer", createdAt: 5 }];

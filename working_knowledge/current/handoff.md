@@ -19,6 +19,7 @@
 - Plan item 35.2 is complete pending commit: execution persists exact ACP workspace and pre/post Git verification, restores it after refresh, and blocks completion after unchanged/unavailable agent runs.
 - Plan item 35.3 is complete pending commit: unchanged/unavailable execution can rerun after workspace repair, while verified and non-execution runs remain locked.
 - Plan item 35.4 is complete pending commit: footer shows selected repository path and Task blocks phase runs when active ACP cwd differs, with explicit restart guidance.
+- Plan item 35.5 is complete pending commit: project switching clears hidden transcript/Task identity and prevents late old-project creation from restoring it.
 
 ## Next Step
 - Commit 35.2 with provenance, then test the execution flow in a real complete Git checkout.
