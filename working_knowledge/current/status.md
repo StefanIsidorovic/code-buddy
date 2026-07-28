@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 8c4afd5 step 33.1: clarify phase evidence creation
-- worktree: plan item 33.2 complete pending commit
-- relevant files: Task phase guide/panel/tests, sticky/responsive styling, active knowledge
+- head: ce985e2 step 33.2: keep phase guidance visible
+- worktree: plan item 33.3 complete pending commit
+- relevant files: Task phase guide/panel/tests, compact tracker styling, active knowledge
 
 ## Current Task
-- request: keep phase tracker/Next step visible and distinguish planning from analysis
+- request: move essential Next step content into the tracker and remove the separate card
 - phase: validation
-- active plan step: 33.2
+- active plan step: 33.3
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -33,3 +33,4 @@
 - 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied and diff hygiene pass for plan item 32.1; two known App async timing tests required a clean rerun and then passed.
 - 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.1.
 - 2026-07-28: frontend audit, typecheck, 272 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.2.
+- 2026-07-28: frontend audit, typecheck, 273 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.3.

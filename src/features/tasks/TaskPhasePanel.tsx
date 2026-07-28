@@ -38,23 +38,9 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <li><strong>Activity</strong><span>Audit context sends, phase runs, interrupted receipts, and read-only advisor/reviewer reports.</span></li>
       </ul></details>
     {inProgress ? <div className="task-phase-sticky" aria-label="Current phase guidance">
-      <TaskPhaseGuide phase={task.currentPhase} hasDraft={hasDraft && hasProvenance}
+      <TaskPhaseGuide phase={task.currentPhase} hasEvidenceText={hasDraft}
+        provenanceCount={selectedSourceIds.length} hasPhaseRun={hasPhaseRun}
         hasEvidence={phaseArtifacts.length > 0} reviewed={evidenceReviewed} />
-      <div className="task-next-step" role="status" aria-live="polite">
-      <strong>Next step</strong>
-      <p>{phaseArtifacts.length > 0
-        ? "Review the saved evidence below, acknowledge the checkpoint, then complete the phase."
-        : canSaveEvidence
-          ? "Your evidence draft and provenance are ready. Save phase evidence."
-          : hasPhaseRun
-            ? "Review the prepared evidence text and selected provenance, then save it."
-            : "Create phase evidence: run the agent, or write it manually and select transcript provenance."}</p>
-      {phaseArtifacts.length === 0 ? <ul>
-        <li data-complete={hasDraft}>Evidence text: {hasDraft ? "ready" : "required"}</li>
-        <li data-complete={hasProvenance}>Transcript provenance: {hasProvenance
-          ? `${selectedSourceIds.length} selected` : "select at least one event"}</li>
-      </ul> : null}
-      </div>
     </div> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {currentPhase?.status === "pending" ? <button className="primary-action" type="button"

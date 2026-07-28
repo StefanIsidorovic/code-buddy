@@ -28,6 +28,7 @@ describe("TaskPhasePanel", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     expect(screen.getByRole("heading", { name: "Task phases" })).toBeInTheDocument();
     expect(screen.getByLabelText("Current phase guidance")).toContainElement(screen.getByRole("status"));
+    expect(document.querySelector(".task-next-step")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Evidence type/), { target: { value: "risk" } });
     fireEvent.change(screen.getByLabelText(/^Phase evidence/), { target: { value: "Risk found" } });
     fireEvent.click(screen.getByText("Transcript provenance"));

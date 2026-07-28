@@ -2,16 +2,27 @@
 
 ## Active Plan
 
+### 33.3. Consolidate Next step into the phase tracker
+- objective: preserve precise next-action guidance while removing the separate space-heavy Next step card.
+- status: complete pending commit.
+- files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhasePanel.tsx; related tests; src/App.css; working_knowledge/current/*.
+- affected units: derived next-action copy, evidence readiness indicators, sticky guidance layout, live status semantics.
+- expected changes: pass evidence text/provenance/run readiness into the guide; render one compact Next row and readiness list inside the tracker; remove the separate card and unused styles.
+- acceptance criteria: only one sticky guidance block remains; every prior Next step state remains communicated; text/provenance requirements remain visible before evidence persistence; saved/reviewed states stay phase-aware; no orchestration/backend changes.
+- required tests: empty/run/draft/provenance/saved/reviewed guidance transitions; absence of separate card; existing Task panel regressions; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 moved the more precise readiness derivation into the guide and removed the duplicate card/styles; cycle 2 updated stale wording coverage, added an explicit separate-card absence regression, and confirmed one live compact guidance source with no state/backend changes.
+- commit: pending.
+
 ### 33.2. Keep phase guidance visible and phase-specific
 - objective: keep the phase tracker and Next step guidance visible during Task scrolling and make the current phase outcome visibly distinct.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhasePanel.tsx; related tests; src/App.css; working_knowledge/current/*.
 - affected units: Task scroll layout, sticky guidance region, phase progress labels, phase-purpose copy, responsive behavior.
 - expected changes: group tracker and next action in one sticky desktop region; disable sticky on narrow layouts; pass the canonical phase into the guide; display phase-specific evidence labels and expected outcomes.
 - acceptance criteria: tracker and Next step remain visible while the desktop Task panel scrolls; mobile content is not obscured; analysis/planning/execution/review guides explain different outcomes while retaining the same evidence gates; no backend state-machine changes.
 - required tests: sticky wrapper regression; analysis/planning copy and label tests; existing Task panel tests; frontend audit/typecheck/full tests/build; diff hygiene.
 - review status: passed after 3 cycles; cycle 1 established the correct desktop scroll-container sticky region and phase-specific outcomes; cycle 2 shortened phase labels and added an accessible guidance region; cycle 3 resolved a tracker/artifact text collision by labeling the artifact region, then passed the full suite with mobile normal flow and no orchestration/backend changes.
-- commit: pending.
+- commit: ce985e2.
 
 ### 33.1. Make phase evidence creation explicit
 - objective: remove the misleading Run/Prepare pseudo-phases and present agent-assisted versus manual evidence creation as two clear paths inside each canonical Task phase.
