@@ -18,6 +18,7 @@ interface Props {
   onCreate: (sourceArtifactId: string, draft: TaskPlanDraft) => void;
   onEvaluate: (planVersionId: string) => void;
   onRunCritique: () => void;
+  onApplyRepairs: () => void;
   onApprove: (planVersionId: string) => void;
 }
 
@@ -29,7 +30,7 @@ const lines = (value: string) => value.split("\n").map((item) => item.trim()).fi
 const commaList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
 export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, evaluation, critique,
-  canRunCritique, onCreate, onEvaluate, onRunCritique, onApprove }: Props) {
+  canRunCritique, onCreate, onEvaluate, onRunCritique, onApplyRepairs, onApprove }: Props) {
   const [requirements, setRequirements] = useState<RequirementDraft[]>([requirement(0)]);
   const [steps, setSteps] = useState<StepDraft[]>([step()]);
   const approved = versions.find(({ status }) => status === "approved") ?? null;
@@ -128,7 +129,8 @@ export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, eva
     {latest ? <TaskPlanEvaluationPanel plan={latest} evaluation={evaluation} loading={loading}
       onEvaluate={onEvaluate} /> : null}
     {evaluation ? <TaskPlanCritiquePanel evaluation={evaluation} critique={critique}
-      loading={loading} canRun={canRunCritique} onRun={onRunCritique} /> : null}
+      loading={loading} canRun={canRunCritique} onRun={onRunCritique}
+      onApply={onApplyRepairs} /> : null}
     {latest ? <div className="task-plan-version">
       <span>Latest draft: v{latest.version} · {latest.requirements.length} requirement(s)
         · {latest.steps.length} step(s)</span>

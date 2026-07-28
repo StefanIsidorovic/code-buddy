@@ -57,7 +57,12 @@ describe("useTaskPlanWorkflow", () => {
         critique: { id: "critique-1", taskId: "task-1", planVersionId: "plan-1",
           evaluationId: "evaluation-1", source: "codex-acp", createdAt: 3,
           issues: [{ findingIds: ["MISSING_PATHS:step-1"], explanation: "Scope is unclear",
-            proposedRepair: "Declare expected paths" }] },
+            proposedRepair: "Declare expected paths", repairs: [{
+              kind: "set_step_expected_paths", stepId: "step-1", expectedPaths: ["src/**"],
+            }] }] },
+      });
+      if (command === "apply_task_plan_critique") return Promise.resolve({
+        ...version, id: "plan-2", version: 2,
       });
       return Promise.resolve(null);
     });
@@ -71,5 +76,12 @@ describe("useTaskPlanWorkflow", () => {
       taskId: "task-1", planVersionId: "plan-1", evaluationId: "evaluation-1",
       candidateId: "codex-acp", cwd: "/repo",
     } });
+    await act(() => result.current.applyRepairs());
+    expect(result.current.versions[result.current.versions.length - 1]?.id).toBe("plan-2");
+    expect(result.current.evaluation).toBeNull();
+    expect(result.current.critique).toBeNull();
+    expect(invoke).toHaveBeenCalledWith("apply_task_plan_critique", {
+      request: { taskId: "task-1", critiqueId: "critique-1" },
+    });
   });
 });

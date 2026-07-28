@@ -25,10 +25,12 @@
 
 ### 37.3. Add grounded plan critique and repair proposals
 - objective: turn deterministic findings into a short ranked explanation and reversible repair path.
-- status: planned after 37.2.
+- status: complete pending commit.
 - affected units: read-only secondary-agent orchestration, critique artifacts, plan-version proposal application.
 - expected changes: send only bounded findings and plan context to a small/mid agent; require every critique claim to cite finding IDs; show at most three primary issues; apply accepted structured proposals through a new immutable plan version.
 - acceptance criteria: unsupported claims are dropped; critique never edits a plan directly; user-applied repairs are versioned and attributed; unchanged finding sets can reuse cached critique.
+- required tests: pure grounding/context/repair rules; immutable cached persistence; atomic repair attribution; command registration; stale-safe hook; accessible empty/result/apply presentation; frontend/Rust gates; diff hygiene.
+- review status: passed after 3 cycles; grounding rejects unsupported claims and bounds context/results, typed repairs validate exact plan identities, and explicit user application atomically creates an attributed draft whose evaluation and approval state reset.
 
 ### 37.4. Execute and review one step at a time
 - objective: replace monolithic execution with isolated, auditable step runs routed to the smallest adequate model tier.

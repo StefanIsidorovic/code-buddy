@@ -18,8 +18,10 @@ export function useTaskPlanWorkflow(task: TaskInfo | null, options: Options = {}
   const requestId = useRef(0);
   const taskIdRef = useRef(task?.id ?? null);
   const evaluationIdRef = useRef(evaluation?.id ?? null);
+  const critiqueIdRef = useRef(critique?.id ?? null);
   taskIdRef.current = task?.id ?? null;
   evaluationIdRef.current = evaluation?.id ?? null;
+  critiqueIdRef.current = critique?.id ?? null;
 
   async function refresh() {
     if (!task) return;
@@ -143,6 +145,27 @@ export function useTaskPlanWorkflow(task: TaskInfo | null, options: Options = {}
     }
   }
 
+  async function applyRepairs() {
+    if (!task || !critique) return;
+    const taskId = task.id;
+    const critiqueId = critique.id;
+    setLoading(true);
+    setError(null);
+    try {
+      const version = await invokeCommand<TaskPlanVersionInfo>("apply_task_plan_critique", {
+        request: { taskId, critiqueId },
+      });
+      if (taskIdRef.current !== taskId || critiqueIdRef.current !== critiqueId) return;
+      setVersions((current) => [...current, version]);
+      setEvaluation(null);
+      setCritique(null);
+    } catch (reason) {
+      if (taskIdRef.current === taskId) setError(errorText(reason));
+    } finally {
+      if (taskIdRef.current === taskId) setLoading(false);
+    }
+  }
+
   return { versions, loading, error, approved: versions.find(({ status }) => status === "approved") ?? null,
-    evaluation, critique, create, evaluate, runCritique, approve, refresh };
+    evaluation, critique, create, evaluate, runCritique, applyRepairs, approve, refresh };
 }

@@ -2,6 +2,7 @@ import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 
 export type TauriCommand =
   | "analyze_project_initialization_markdown"
+  | "apply_task_plan_critique"
   | "append_transcript_events"
   | "approve_project_initialization_summary"
   | "approve_task_plan_version"

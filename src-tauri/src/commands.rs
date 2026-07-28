@@ -24,22 +24,23 @@ use crate::{
         StartFakeSessionRequest,
     },
     storage::{
-        ApproveTaskPlanVersionRequest, CreateAcpTranscriptSessionRequest,
-        CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
-        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskAgentReportRequest,
-        CreateTaskAgentReportTranscriptRequest, CreateTaskContextDispatchRequest,
-        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskPlanCritiqueRequest,
-        CreateTaskPlanVersionRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
-        EvaluateTaskPlanRequest, GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo,
-        KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
-        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
-        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
-        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
-        RegenerateProjectInitializationSummarySectionRequest, RenameTranscriptSessionRequest,
-        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
-        ReviewProjectInitializationSummaryClaimRequest, SaveProjectInitializationGuardrailsRequest,
-        TaskAgentReportInfo, TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo,
-        TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
+        ApplyTaskPlanCritiqueRequest, ApproveTaskPlanVersionRequest,
+        CreateAcpTranscriptSessionRequest, CreateKnowledgeItemRequest,
+        CreateProjectInitializationRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
+        CreateTaskAgentReportRequest, CreateTaskAgentReportTranscriptRequest,
+        CreateTaskContextDispatchRequest, CreateTaskPhaseArtifactRequest,
+        CreateTaskPhaseRunRequest, CreateTaskPlanCritiqueRequest, CreateTaskPlanVersionRequest,
+        CreateTaskRequest, CreateTranscriptSessionRequest, EvaluateTaskPlanRequest,
+        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
+        LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
+        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
+        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
+        ProjectRepositoryInfo, ProjectStore, RegenerateProjectInitializationSummarySectionRequest,
+        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
+        ResolveTaskPhaseRunRequest, ReviewProjectInitializationSummaryClaimRequest,
+        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
+        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
         TaskPlanEvaluationInfo, TaskPlanVersionInfo, TranscriptAcpIdentityInfo,
         TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
         TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
@@ -544,6 +545,14 @@ pub fn get_task_plan_critique(
     evaluation_id: String,
 ) -> AppResult<Option<TaskPlanCritiqueInfo>> {
     state.task_plan_critique(&evaluation_id)
+}
+
+#[tauri::command]
+pub fn apply_task_plan_critique(
+    state: State<'_, ProjectStore>,
+    request: ApplyTaskPlanCritiqueRequest,
+) -> AppResult<TaskPlanVersionInfo> {
+    state.apply_task_plan_critique(request)
 }
 
 #[tauri::command]

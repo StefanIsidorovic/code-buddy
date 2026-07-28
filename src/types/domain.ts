@@ -469,7 +469,14 @@ export type TaskPlanCritiqueIssue = {
   findingIds: string[];
   explanation: string;
   proposedRepair: string;
+  repairs: TaskPlanRepair[];
 };
+
+export type TaskPlanRepair =
+  | { kind: "add_step"; title: string; description: string; complexity: number;
+    acceptanceCriteria: string[]; expectedPaths: string[]; satisfies: string[] }
+  | { kind: "set_step_expected_paths"; stepId: string; expectedPaths: string[] }
+  | { kind: "set_step_requirements"; stepId: string; satisfies: string[] };
 
 export type TaskPlanCritiqueInfo = {
   id: string;

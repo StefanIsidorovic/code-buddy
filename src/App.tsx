@@ -436,6 +436,7 @@ function App() {
               onCreate={(artifactId, draft) => void taskPlan.create(artifactId, draft)}
               onEvaluate={(versionId) => void taskPlan.evaluate(versionId)}
               onRunCritique={() => void taskPlan.runCritique()}
+              onApplyRepairs={() => void taskPlan.applyRepairs()}
               onApprove={(versionId) => void taskPlan.approve(versionId)} />}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}

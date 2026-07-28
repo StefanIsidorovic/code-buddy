@@ -1,8 +1,8 @@
 # Status
 
 ## Session
-- session_id: codex-20260728-aiadne-task-ux
-- date_utc: 2026-07-28
+- session_id: codex-20260729-aiadne-task-orchestration
+- date_utc: 2026-07-29
 - agent_model: codex
 
 ## Target Repositories
@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 9b2f3c5 step 35.6: accept existing execution changes
-- worktree: plan item 37.2 complete pending commit
-- relevant files: deterministic plan evaluation, approval policy, evaluation UI and tests
+- head: 7b265ce step 37.3h: persist repaired plan versions atomically
+- worktree: plan item 37.3 complete pending commit
+- relevant files: grounded critique command/UI, typed repair application and refreshed planning workflow
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: final validation
-- active plan step: 37.2
+- active plan step: 37.3
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Summary Autopilot preparation changes only pending decisions, validates the would-be publication payload, and never publishes Knowledge Units.
 
 ## Last Verification
+- 2026-07-29: plan item 37.3 adds bounded cached grounded critique and explicit atomic repair application; frontend audit, typecheck, 292 frontend tests, production build, Rust fmt, 131 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-28: frontend audit, typecheck, 269 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied, feature Tauri-boundary check, file-size check and git diff hygiene all pass for plan item 31.1.
 - 2026-07-28: targeted approved Summary dialog/App tests and legacy approved storage regression pass for plan item 31.2.
 - 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied and diff hygiene pass for plan item 32.1; two known App async timing tests required a clean rerun and then passed.

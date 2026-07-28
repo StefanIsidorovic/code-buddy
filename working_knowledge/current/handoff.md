@@ -28,7 +28,7 @@
 - Plan item 37.2 is complete pending commit: immutable plans receive cached deterministic clean/flags/blocked evaluations; gaps and out-of-scope contradictions block approval, while missing/shared expected paths remain visible warnings.
 
 ## Next Step
-- Implement 37.3 grounded critique over persisted deterministic findings.
+- Implement 37.4 one-step-at-a-time execution over the approved structured plan.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

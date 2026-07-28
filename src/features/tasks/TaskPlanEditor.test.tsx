@@ -8,7 +8,8 @@ describe("TaskPlanEditor", () => {
     const onCreate = vi.fn();
     render(<TaskPlanEditor sourceArtifactId="artifact-1" versions={[]} loading={false}
       error={null} evaluation={null} critique={null} canRunCritique={false}
-      onCreate={onCreate} onEvaluate={vi.fn()} onRunCritique={vi.fn()} onApprove={vi.fn()} />);
+      onCreate={onCreate} onEvaluate={vi.fn()} onRunCritique={vi.fn()}
+      onApplyRepairs={vi.fn()} onApprove={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Requirement 1 text"), {
       target: { value: "The cache remains bounded" },
     });
@@ -45,7 +46,8 @@ describe("TaskPlanEditor", () => {
     } as TaskPlanVersionInfo;
     render(<TaskPlanEditor sourceArtifactId="artifact-1" versions={[approved]} loading={false}
       error={null} evaluation={null} critique={null} canRunCritique={false}
-      onCreate={vi.fn()} onEvaluate={vi.fn()} onRunCritique={vi.fn()} onApprove={vi.fn()} />);
+      onCreate={vi.fn()} onEvaluate={vi.fn()} onRunCritique={vi.fn()}
+      onApplyRepairs={vi.fn()} onApprove={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Approved implementation plan" })).toBeInTheDocument();
     expect(screen.getByText("1. Bound cache")).toBeInTheDocument();
