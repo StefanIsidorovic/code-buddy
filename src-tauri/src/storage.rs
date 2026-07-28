@@ -453,6 +453,13 @@ pub struct CreateTaskPlanCritiqueRequest {
     pub response: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyTaskPlanCritiqueRequest {
+    pub task_id: String,
+    pub critique_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPlanCritiqueInfo {
@@ -2128,6 +2135,14 @@ impl ProjectStore {
         &self,
         request: CreateTaskPlanVersionRequest,
     ) -> AppResult<TaskPlanVersionInfo> {
+        self.create_task_plan_version_attributed(request, None)
+    }
+
+    fn create_task_plan_version_attributed(
+        &self,
+        request: CreateTaskPlanVersionRequest,
+        attribution: Option<(&str, &str)>,
+    ) -> AppResult<TaskPlanVersionInfo> {
         let task_id = request.task_id.trim();
         let source_artifact_id = request.source_artifact_id.trim();
         if task_id.is_empty() || source_artifact_id.is_empty() {
@@ -2273,6 +2288,43 @@ impl ProjectStore {
                     ],
                 )
                 .map_err(storage_error)?;
+        }
+        if let Some((critique_id, source_plan_version_id)) = attribution {
+            let critique_valid: bool = transaction
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM task_plan_critiques
+                     WHERE id = ?1 AND task_id = ?2 AND plan_version_id = ?3)",
+                    params![critique_id, task_id, source_plan_version_id],
+                    |row| row.get(0),
+                )
+                .map_err(storage_error)?;
+            if !critique_valid {
+                return Err(AppError::InvalidInput(
+                    "repair attribution does not belong to the selected task and source plan"
+                        .into(),
+                ));
+            }
+            transaction
+                .execute(
+                    "INSERT INTO task_plan_repair_applications
+                     (id, critique_id, source_plan_version_id, repaired_plan_version_id, created_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        Uuid::new_v4().to_string(),
+                        critique_id,
+                        source_plan_version_id,
+                        id,
+                        now
+                    ],
+                )
+                .map_err(|error| match error {
+                    rusqlite::Error::SqliteFailure(ref failure, _)
+                        if failure.code == rusqlite::ErrorCode::ConstraintViolation =>
+                    {
+                        AppError::InvalidInput("plan critique repairs were already applied".into())
+                    }
+                    other => storage_error(other),
+                })?;
         }
         transaction.commit().map_err(storage_error)?;
         drop(connection);
@@ -2495,6 +2547,68 @@ impl ProjectStore {
                 "SELECT id, task_id, plan_version_id, evaluation_id, source, issues_json, created_at
                  FROM task_plan_critiques WHERE evaluation_id = ?1",
                 [evaluation_id],
+                |row| {
+                    let json: String = row.get(5)?;
+                    let issues = serde_json::from_str(&json).map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            5,
+                            Type::Text,
+                            Box::new(error),
+                        )
+                    })?;
+                    Ok(TaskPlanCritiqueInfo {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        plan_version_id: row.get(2)?,
+                        evaluation_id: row.get(3)?,
+                        source: row.get(4)?,
+                        issues,
+                        created_at: row.get(6)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(storage_error)
+    }
+
+    pub fn apply_task_plan_critique(
+        &self,
+        request: ApplyTaskPlanCritiqueRequest,
+    ) -> AppResult<TaskPlanVersionInfo> {
+        let task_id = request.task_id.trim();
+        let critique_id = request.critique_id.trim();
+        if task_id.is_empty() || critique_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "applying plan repairs requires a task and critique".into(),
+            ));
+        }
+        let critique = self
+            .task_plan_critique_by_id(critique_id)?
+            .filter(|item| item.task_id == task_id)
+            .ok_or_else(|| {
+                AppError::InvalidInput("plan critique does not belong to the selected task".into())
+            })?;
+        let source = self.task_plan_version(&critique.plan_version_id)?;
+        if source.status != "draft" {
+            return Err(AppError::InvalidInput(
+                "repairs may only be applied to a draft plan version".into(),
+            ));
+        }
+        let repaired = task_plan_critique::repair_draft(&source, &critique.issues)
+            .map_err(AppError::InvalidInput)?;
+        self.create_task_plan_version_attributed(repaired, Some((&critique.id, &source.id)))
+    }
+
+    fn task_plan_critique_by_id(
+        &self,
+        critique_id: &str,
+    ) -> AppResult<Option<TaskPlanCritiqueInfo>> {
+        let connection = self.connection()?;
+        connection
+            .query_row(
+                "SELECT id, task_id, plan_version_id, evaluation_id, source, issues_json, created_at
+                 FROM task_plan_critiques WHERE id = ?1",
+                [critique_id],
                 |row| {
                     let json: String = row.get(5)?;
                     let issues = serde_json::from_str(&json).map_err(|error| {
@@ -4184,6 +4298,14 @@ impl ProjectStore {
                     evaluation_id TEXT NOT NULL UNIQUE REFERENCES task_plan_evaluations(id) ON DELETE CASCADE,
                     source TEXT NOT NULL,
                     issues_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS task_plan_repair_applications (
+                    id TEXT PRIMARY KEY,
+                    critique_id TEXT NOT NULL UNIQUE REFERENCES task_plan_critiques(id) ON DELETE RESTRICT,
+                    source_plan_version_id TEXT NOT NULL REFERENCES task_plan_versions(id) ON DELETE RESTRICT,
+                    repaired_plan_version_id TEXT NOT NULL UNIQUE REFERENCES task_plan_versions(id) ON DELETE CASCADE,
                     created_at INTEGER NOT NULL
                 );
 
@@ -8054,6 +8176,39 @@ mod tests {
                 .id,
             critique.id
         );
+        let repaired = store
+            .apply_task_plan_critique(ApplyTaskPlanCritiqueRequest {
+                task_id: task.id.clone(),
+                critique_id: critique.id.clone(),
+            })
+            .expect("critique repairs create a new version");
+        assert_eq!(repaired.version, 3);
+        assert_eq!(repaired.steps.len(), 2);
+        assert_eq!(repaired.steps[1].satisfies, ["REQ-2"]);
+        assert_eq!(first.steps.len(), 1, "source version remains immutable");
+        assert!(
+            store
+                .apply_task_plan_critique(ApplyTaskPlanCritiqueRequest {
+                    task_id: task.id.clone(),
+                    critique_id: critique.id.clone(),
+                })
+                .is_err(),
+            "one critique cannot create multiple repair versions"
+        );
+        let connection = store.connection().expect("connection opens");
+        let attribution: (String, String, String) = connection
+            .query_row(
+                "SELECT critique_id, source_plan_version_id, repaired_plan_version_id
+                 FROM task_plan_repair_applications WHERE critique_id = ?1",
+                [&critique.id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("repair attribution persisted");
+        assert_eq!(
+            attribution,
+            (critique.id.clone(), first.id.clone(), repaired.id)
+        );
+        drop(connection);
         assert!(
             store
                 .approve_task_plan_version(ApproveTaskPlanVersionRequest {
@@ -8144,7 +8299,7 @@ mod tests {
                 .list_task_plan_versions(&task.id)
                 .expect("versions listed")
                 .len(),
-            2
+            3
         );
         let advanced = store
             .transition_task_phase(TransitionTaskPhaseRequest {
