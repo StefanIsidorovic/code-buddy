@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: fa6dd9d step 35.4: enforce ACP repository identity
-- worktree: plan item 35.5 complete pending commit
-- relevant files: project-scoped transcript reset and tests
+- head: 6ecf544 step 35.5: reset transcript project scope
+- worktree: plan item 35.6 complete pending commit
+- relevant files: execution verification gate semantics and tests
 
 ## Current Task
 - request: make completed phases inspectable and verify execution changes in the real ACP workspace
 - phase: implementation
-- active plan step: 35.5
+- active plan step: 35.6
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -42,3 +42,4 @@
 - 2026-07-28: plan item 35.3 enables narrow execution retry after unchanged/unavailable verification; frontend audit, typecheck, 278 frontend tests, production build and diff hygiene pass.
 - 2026-07-28: plan item 35.4 exposes repository paths and blocks stale ACP cwd mismatches; frontend audit, typecheck, 279 frontend tests, production build and diff hygiene pass.
 - 2026-07-28: plan item 35.5 resets transcript identity on project switch and rejects stale async results; frontend audit, typecheck, 280 frontend tests, production build and diff hygiene pass.
+- 2026-07-28: plan item 35.6 accepts reviewed pre-existing Git changes while retaining clean/unavailable execution blocks; frontend audit, typecheck, 281 frontend tests, production build, Rust fmt, 123 Rust tests, clippy with warnings denied and diff hygiene pass.

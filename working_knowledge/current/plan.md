@@ -2,6 +2,17 @@
 
 ## Active Plan
 
+### 35.6. Accept pre-existing verified execution changes
+- objective: distinguish “no new mutation during this run” from “the repository has no implementation changes”.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; src/features/tasks/TaskPhasePanel.tsx; related tests; working_knowledge/current/*.
+- affected units: durable execution completion gate, verification labels and retry state.
+- expected changes: accept changed verification or unchanged verification with a non-empty post-run Git change set; keep unavailable and unchanged-clean runs blocked; label the pre-existing-change case accurately.
+- acceptance criteria: an already-modified reviewed worktree can complete execution; a clean unchanged worktree cannot; unavailable remains blocked; changed-during-run remains accepted; retry is offered only for blocked cases.
+- required tests: backend unchanged-dirty acceptance/unchanged-clean rejection; UI labels/gates/retry; frontend/Rust gates; diff hygiene.
+- review status: passed after 1 cycle; the backend accepts changed-during-run or unchanged-with-existing-files verification, rejects unchanged-clean and unavailable results, and the Task UI labels and retry/completion gates match those durable semantics.
+- commit: pending.
+
 ### 35.5. Reset transcript identity on project switch
 - objective: prevent a transcript from the previous project from remaining the hidden active Task/session identity after workspace switching.
 - status: complete pending commit.

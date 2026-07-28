@@ -36,10 +36,12 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   const currentExecutionVerification = task.currentPhase === "execution"
     && workspaceVerification?.taskId === task.id && workspaceVerification.phase === "execution"
     ? workspaceVerification : null;
-  const executionBlocked = !!currentExecutionVerification
-    && currentExecutionVerification.status !== "changed";
+  const executionAccepted = currentExecutionVerification?.status === "changed"
+    || currentExecutionVerification?.status === "unchanged"
+      && currentExecutionVerification.changedFiles.length > 0;
+  const executionBlocked = !!currentExecutionVerification && !executionAccepted;
   const canRetryExecution = task.currentPhase === "execution"
-    && !!currentExecutionVerification && currentExecutionVerification.status !== "changed";
+    && !!currentExecutionVerification && !executionAccepted;
   const workspaceMismatch = !!agentWorkspacePath && !!expectedWorkspacePath
     && agentWorkspacePath !== expectedWorkspacePath;
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
@@ -150,7 +152,10 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
         <strong>{currentExecutionVerification?.status === "changed"
           ? "Repository changes verified"
           : currentExecutionVerification?.status === "unchanged"
-            ? "No repository change detected"
+            && currentExecutionVerification.changedFiles.length > 0
+            ? "Existing repository changes verified"
+          : currentExecutionVerification?.status === "unchanged"
+            ? "No repository changes found"
             : "Repository verification unavailable"}</strong>
         {currentExecutionVerification ? <><span>Workspace: {currentExecutionVerification.workspacePath}</span>
           {currentExecutionVerification.changedFiles.length > 0

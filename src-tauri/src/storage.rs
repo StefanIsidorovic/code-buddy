@@ -2947,19 +2947,26 @@ impl ProjectStore {
                 ));
             }
             if current_phase == "execution" {
-                let latest_verification: Option<Option<String>> = transaction
+                let latest_verification: Option<(Option<String>, Option<String>)> = transaction
                     .query_row(
-                        "SELECT verification_status FROM task_phase_run_receipts
+                        "SELECT verification_status, verification_changed_files_json
+                         FROM task_phase_run_receipts
                          WHERE task_id = ?1 AND phase = 'execution' AND status = 'sent'
                          ORDER BY sequence DESC LIMIT 1",
                         [task_id],
-                        |row| row.get(0),
+                        |row| Ok((row.get(0)?, row.get(1)?)),
                     )
                     .optional()
                     .map_err(storage_error)?;
-                if latest_verification.is_some()
-                    && latest_verification.flatten().as_deref() != Some("changed")
-                {
+                let verification_accepted =
+                    latest_verification
+                        .as_ref()
+                        .is_none_or(|(status, changed_files)| {
+                            status.as_deref() == Some("changed")
+                                || status.as_deref() == Some("unchanged")
+                                    && changed_files.as_deref().is_some_and(|value| value != "[]")
+                        });
+                if !verification_accepted {
                     return Err(AppError::InvalidInput(
                         "execution completion requires a verified repository change from the latest phase run"
                             .into(),
@@ -7729,12 +7736,12 @@ mod tests {
                 store
                     .record_task_phase_run_verification(
                         &run.id,
-                        "changed",
+                        "unchanged",
                         "/workspace/repo",
                         r#"[{"status":"M","path":"src/lib.rs"}]"#,
                         None,
                     )
-                    .expect("changed verification persisted");
+                    .expect("existing changed files persisted");
             }
             transitioned = store
                 .transition_task_phase(TransitionTaskPhaseRequest {
