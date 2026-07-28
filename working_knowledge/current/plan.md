@@ -4,7 +4,7 @@
 
 ### 37.1. Establish versioned structured Task plans
 - objective: make planning output machine-readable so evaluation, critique and step execution can operate on explicit requirements and implementation steps instead of parsing prose.
-- status: complete pending commit.
+- status: complete; committed as 8daafa9.
 - files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/*; App composition; related tests; working_knowledge/current/*.
 - affected units: planning-phase artifact contract, immutable plan versions, requirement-to-step coverage, planning review UI.
 - expected changes: persist one or more versioned Task plan snapshots; model testable requirements and ordered steps with acceptance criteria, expected paths, satisfied requirement IDs and complexity; let the user review/edit a draft and explicitly approve one version before planning completes.

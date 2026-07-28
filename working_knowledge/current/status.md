@@ -10,24 +10,25 @@
 
 ## Repository State
 - branch: new/start
-- head: f893d0b step 37.4c: verify and review plan steps
-- worktree: plan item 37.4d complete pending commit
-- relevant files: per-step execution/review UX, stale-safe orchestration and all-steps completion gate
+- head: 8daafa9 step 37.4f: gate tasks on project knowledge
+- worktree: clean before final working-knowledge synchronization
+- relevant files: one-click Project Knowledge approval and authoritative Task readiness gates
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
-- phase: commit
-- active plan step: 37.4d
+- phase: complete
+- active plan step: 37.4f complete; 37.5 next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
 - Failed runs must remain retryable, and the local lock must reset when Task or phase changes.
 - Saving evidence still requires both evidence text and same-transcript event provenance; explicit manual evidence needs a separate auditable backend contract.
 - App.tsx must remain composition-only and Task features must not invoke Tauri directly.
-- Project Autopilot and Task Autopilot require separate explicit authority/state-machine plans; do not hide auto-approval behind the manual review UI.
-- Summary Autopilot preparation changes only pending decisions, validates the would-be publication payload, and never publishes Knowledge Units.
+- Project Autopilot has explicit one-click authority to decide pending generated claims and publish; manual claim review remains available.
+- Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan items 37.4e–f add atomic one-click Project Knowledge approval and same-project readiness gates for phase starts, phase runs and structured step runs; frontend audit, typecheck, 298 frontend tests, production build, Rust fmt, 136 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4d adds per-step execution/review UX and requires all approved steps before execution completion; frontend audit, typecheck, 297 frontend tests, production build, Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4c persists write-once repository verification and scope review per step; Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4b dispatches one server-authored bounded approved step, returns repository verification and persists sent/failed lifecycle; Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.

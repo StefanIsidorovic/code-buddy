@@ -60,6 +60,8 @@
 - Deterministic plan evaluation: immutable plan versions are evaluated once and cached; stable GAP and OUT_OF_SCOPE findings block approval, MISSING_PATHS and exact PATH_COLLISION findings warn without inventing dependency edges, and no model output is labeled deterministic.
 - Parallel step safety: never run implementation agents concurrently in one mutable checkout; parallel waves require explicit dependencies, non-overlapping write scopes, isolated Git worktrees/branches and serialized integration.
 - Critique grounding: critique synthesizes stable evaluation findings, cites their IDs, proposes versioned repairs and has no direct authority to rewrite a plan or execute code.
+- Project Knowledge readiness: Task creation may preserve a draft assignment, but starting a phase or running either monolithic or structured execution requires an approved Summary with at least one active Knowledge Unit from that exact Task project.
+- Project Autopilot approval: one explicit action may preserve existing claim decisions, accept pending generated claims, defer pending Open Questions, validate the publication payload and atomically publish Knowledge Units; individual manual decisions remain available.
 
 ## Deferred
 - Task knowledge extraction/synthesis format: artifact `kind` remains extensible until phase execution defines curated kinds; content and provenance are already immutable.
