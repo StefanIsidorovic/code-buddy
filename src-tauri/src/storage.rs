@@ -351,6 +351,79 @@ pub struct TaskPhaseArtifactInfo {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TaskPlanRequirementInput {
+    pub id: String,
+    pub text: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanStepInput {
+    pub title: String,
+    pub description: String,
+    pub kind: String,
+    pub complexity: i64,
+    pub acceptance_criteria: Vec<String>,
+    pub expected_paths: Vec<String>,
+    pub satisfies: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskPlanVersionRequest {
+    pub task_id: String,
+    pub source_artifact_id: String,
+    pub requirements: Vec<TaskPlanRequirementInput>,
+    pub steps: Vec<TaskPlanStepInput>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApproveTaskPlanVersionRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanRequirementInfo {
+    pub id: String,
+    pub text: String,
+    pub kind: String,
+    pub order_index: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanStepInfo {
+    pub id: String,
+    pub order_index: i64,
+    pub title: String,
+    pub description: String,
+    pub kind: String,
+    pub complexity: i64,
+    pub acceptance_criteria: Vec<String>,
+    pub expected_paths: Vec<String>,
+    pub satisfies: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanVersionInfo {
+    pub id: String,
+    pub task_id: String,
+    pub version: i64,
+    pub status: String,
+    pub source_artifact_id: String,
+    pub requirements: Vec<TaskPlanRequirementInfo>,
+    pub steps: Vec<TaskPlanStepInfo>,
+    pub created_at: i64,
+    pub approved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTaskAgentReportRequest {
     pub task_id: String,
     pub phase: String,
@@ -2008,6 +2081,302 @@ impl ProjectStore {
         Ok(artifacts)
     }
 
+    pub fn create_task_plan_version(
+        &self,
+        request: CreateTaskPlanVersionRequest,
+    ) -> AppResult<TaskPlanVersionInfo> {
+        let task_id = request.task_id.trim();
+        let source_artifact_id = request.source_artifact_id.trim();
+        if task_id.is_empty() || source_artifact_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "structured plan requires a task and planning evidence artifact".into(),
+            ));
+        }
+        if request.requirements.is_empty() || request.steps.is_empty() {
+            return Err(AppError::InvalidInput(
+                "structured plan requires at least one requirement and one step".into(),
+            ));
+        }
+        let mut requirement_ids = HashSet::new();
+        let requirements = request
+            .requirements
+            .into_iter()
+            .enumerate()
+            .map(|(index, item)| {
+                let id = item.id.trim().to_uppercase();
+                let text = item.text.trim().to_string();
+                let kind = item.kind.trim().to_lowercase();
+                if id.is_empty()
+                    || text.is_empty()
+                    || !matches!(
+                        kind.as_str(),
+                        "functional" | "constraint" | "non_functional" | "out_of_scope"
+                    )
+                    || !requirement_ids.insert(id.clone())
+                {
+                    return Err(AppError::InvalidInput(
+                        "requirements need unique IDs, text, and a supported kind".into(),
+                    ));
+                }
+                Ok((index as i64, id, text, kind))
+            })
+            .collect::<AppResult<Vec<_>>>()?;
+        let declared_ids = requirement_ids;
+        let steps = request.steps.into_iter().enumerate().map(|(index, item)| {
+            let title = item.title.trim().to_string();
+            let description = item.description.trim().to_string();
+            let kind = item.kind.trim().to_lowercase();
+            let acceptance_criteria = normalized_non_empty(item.acceptance_criteria);
+            let expected_paths = normalized_non_empty(item.expected_paths);
+            let satisfies = normalized_non_empty(item.satisfies)
+                .into_iter().map(|id| id.to_uppercase()).collect::<Vec<_>>();
+            if title.is_empty() || description.is_empty()
+                || !matches!(kind.as_str(), "implementation" | "infrastructure")
+                || !(1..=5).contains(&item.complexity)
+                || acceptance_criteria.is_empty()
+                || kind == "implementation" && satisfies.is_empty()
+                || satisfies.iter().any(|id| !declared_ids.contains(id)) {
+                return Err(AppError::InvalidInput(
+                    "steps need title, description, complexity 1-5, criteria, and valid requirement links".into(),
+                ));
+            }
+            Ok((index as i64, title, description, kind, item.complexity,
+                acceptance_criteria, expected_paths, satisfies))
+        }).collect::<AppResult<Vec<_>>>()?;
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let phase: (String, String) = transaction.query_row(
+            "SELECT tasks.current_phase, phases.status FROM tasks
+             JOIN task_phases phases ON phases.task_id = tasks.id AND phases.phase = tasks.current_phase
+             WHERE tasks.id = ?1",
+            [task_id], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).map_err(|error| match error {
+            rusqlite::Error::QueryReturnedNoRows => AppError::InvalidInput(format!("task not found: {task_id}")),
+            other => storage_error(other),
+        })?;
+        if phase != ("planning".into(), "in_progress".into()) {
+            return Err(AppError::InvalidInput(
+                "structured plans may only be created during the in-progress planning phase".into(),
+            ));
+        }
+        let artifact_valid: bool = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM task_phase_artifacts
+             WHERE id = ?1 AND task_id = ?2 AND phase = 'planning')",
+                params![source_artifact_id, task_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if !artifact_valid {
+            return Err(AppError::InvalidInput(
+                "structured plan source must be planning evidence from the same task".into(),
+            ));
+        }
+        let approved_exists: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM task_plan_versions WHERE task_id = ?1 AND status = 'approved')",
+            [task_id], |row| row.get(0),
+        ).map_err(storage_error)?;
+        if approved_exists {
+            return Err(AppError::InvalidInput(
+                "approved structured plan is immutable".into(),
+            ));
+        }
+        let version: i64 = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(version), 0) + 1 FROM task_plan_versions WHERE task_id = ?1",
+                [task_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let id = Uuid::new_v4().to_string();
+        let now = unix_timestamp()?;
+        transaction
+            .execute(
+                "INSERT INTO task_plan_versions
+             (id, task_id, version, status, source_artifact_id, created_at, approved_at)
+             VALUES (?1, ?2, ?3, 'draft', ?4, ?5, NULL)",
+                params![id, task_id, version, source_artifact_id, now],
+            )
+            .map_err(storage_error)?;
+        for (order, requirement_id, text, kind) in requirements {
+            transaction
+                .execute(
+                    "INSERT INTO task_plan_requirements
+                 (plan_version_id, requirement_id, order_index, text, kind)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![id, requirement_id, order, text, kind],
+                )
+                .map_err(storage_error)?;
+        }
+        for (order, title, description, kind, complexity, criteria, paths, satisfies) in steps {
+            transaction
+                .execute(
+                    "INSERT INTO task_plan_steps
+                 (id, plan_version_id, order_index, title, description, kind, complexity,
+                  acceptance_criteria_json, expected_paths_json, satisfies_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        Uuid::new_v4().to_string(),
+                        id,
+                        order,
+                        title,
+                        description,
+                        kind,
+                        complexity,
+                        json_string_list(&criteria)?,
+                        json_string_list(&paths)?,
+                        json_string_list(&satisfies)?
+                    ],
+                )
+                .map_err(storage_error)?;
+        }
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task_plan_version(&id)
+    }
+
+    pub fn list_task_plan_versions(&self, task_id: &str) -> AppResult<Vec<TaskPlanVersionInfo>> {
+        let task_id = task_id.trim();
+        self.task(task_id)?;
+        let connection = self.connection()?;
+        let ids = {
+            let mut statement = connection
+                .prepare(
+                    "SELECT id FROM task_plan_versions WHERE task_id = ?1 ORDER BY version ASC",
+                )
+                .map_err(storage_error)?;
+            let values = statement
+                .query_map([task_id], |row| row.get(0))
+                .map_err(storage_error)?
+                .collect::<Result<Vec<String>, _>>()
+                .map_err(storage_error)?;
+            values
+        };
+        drop(connection);
+        ids.iter().map(|id| self.task_plan_version(id)).collect()
+    }
+
+    pub fn approve_task_plan_version(
+        &self,
+        request: ApproveTaskPlanVersionRequest,
+    ) -> AppResult<TaskPlanVersionInfo> {
+        let task_id = request.task_id.trim();
+        let plan_id = request.plan_version_id.trim();
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let state: Option<(String, String, String)> = transaction.query_row(
+            "SELECT versions.status, tasks.current_phase, phases.status
+             FROM task_plan_versions versions JOIN tasks ON tasks.id = versions.task_id
+             JOIN task_phases phases ON phases.task_id = tasks.id AND phases.phase = tasks.current_phase
+             WHERE versions.id = ?1 AND versions.task_id = ?2",
+            params![plan_id, task_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional().map_err(storage_error)?;
+        if state
+            .as_ref()
+            .is_none_or(|(_, phase, status)| phase != "planning" || status != "in_progress")
+        {
+            return Err(AppError::InvalidInput(
+                "only a draft from the current in-progress planning phase can be approved".into(),
+            ));
+        }
+        if state.is_some_and(|(status, _, _)| status != "draft") {
+            return Err(AppError::InvalidInput(
+                "structured plan version is already finalized".into(),
+            ));
+        }
+        let now = unix_timestamp()?;
+        transaction
+            .execute(
+                "UPDATE task_plan_versions SET status = 'approved', approved_at = ?1 WHERE id = ?2",
+                params![now, plan_id],
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::SqliteFailure(ref failure, _)
+                    if failure.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    AppError::InvalidInput("task already has an approved structured plan".into())
+                }
+                other => storage_error(other),
+            })?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task_plan_version(plan_id)
+    }
+
+    fn task_plan_version(&self, plan_id: &str) -> AppResult<TaskPlanVersionInfo> {
+        let connection = self.connection()?;
+        let mut plan = connection
+            .query_row(
+                "SELECT id, task_id, version, status, source_artifact_id, created_at, approved_at
+             FROM task_plan_versions WHERE id = ?1",
+                [plan_id],
+                |row| {
+                    Ok(TaskPlanVersionInfo {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        version: row.get(2)?,
+                        status: row.get(3)?,
+                        source_artifact_id: row.get(4)?,
+                        requirements: Vec::new(),
+                        steps: Vec::new(),
+                        created_at: row.get(5)?,
+                        approved_at: row.get(6)?,
+                    })
+                },
+            )
+            .map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => {
+                    AppError::InvalidInput(format!("structured plan version not found: {plan_id}"))
+                }
+                other => storage_error(other),
+            })?;
+        let mut requirements = connection
+            .prepare(
+                "SELECT requirement_id, text, kind, order_index FROM task_plan_requirements
+             WHERE plan_version_id = ?1 ORDER BY order_index ASC",
+            )
+            .map_err(storage_error)?;
+        plan.requirements = requirements
+            .query_map([plan_id], |row| {
+                Ok(TaskPlanRequirementInfo {
+                    id: row.get(0)?,
+                    text: row.get(1)?,
+                    kind: row.get(2)?,
+                    order_index: row.get(3)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        drop(requirements);
+        let mut steps = connection
+            .prepare(
+                "SELECT id, order_index, title, description, kind, complexity,
+                    acceptance_criteria_json, expected_paths_json, satisfies_json
+             FROM task_plan_steps WHERE plan_version_id = ?1 ORDER BY order_index ASC",
+            )
+            .map_err(storage_error)?;
+        plan.steps = steps
+            .query_map([plan_id], |row| {
+                Ok(TaskPlanStepInfo {
+                    id: row.get(0)?,
+                    order_index: row.get(1)?,
+                    title: row.get(2)?,
+                    description: row.get(3)?,
+                    kind: row.get(4)?,
+                    complexity: row.get(5)?,
+                    acceptance_criteria: json_string_list_from_row(row, 6)?,
+                    expected_paths: json_string_list_from_row(row, 7)?,
+                    satisfies: json_string_list_from_row(row, 8)?,
+                })
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        Ok(plan)
+    }
+
     pub fn create_task_agent_report(
         &self,
         request: CreateTaskAgentReportRequest,
@@ -2946,6 +3315,21 @@ impl ProjectStore {
                         .to_string(),
                 ));
             }
+            if current_phase == "planning" {
+                let approved_plan_count: i64 = transaction
+                    .query_row(
+                        "SELECT COUNT(*) FROM task_plan_versions
+                     WHERE task_id = ?1 AND status = 'approved'",
+                        [task_id],
+                        |row| row.get(0),
+                    )
+                    .map_err(storage_error)?;
+                if approved_plan_count != 1 {
+                    return Err(AppError::InvalidInput(
+                        "planning completion requires one approved structured plan".into(),
+                    ));
+                }
+            }
             if current_phase == "execution" {
                 let latest_verification: Option<(Option<String>, Option<String>)> = transaction
                     .query_row(
@@ -3526,6 +3910,47 @@ impl ProjectStore {
                     transcript_event_id TEXT NOT NULL REFERENCES transcript_events(id) ON DELETE RESTRICT,
                     PRIMARY KEY (artifact_id, transcript_event_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS task_plan_versions (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    version INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('draft', 'approved')),
+                    source_artifact_id TEXT NOT NULL REFERENCES task_phase_artifacts(id) ON DELETE RESTRICT,
+                    created_at INTEGER NOT NULL,
+                    approved_at INTEGER,
+                    UNIQUE(task_id, version)
+                );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_task_plan_versions_one_approved
+                    ON task_plan_versions(task_id) WHERE status = 'approved';
+
+                CREATE TABLE IF NOT EXISTS task_plan_requirements (
+                    plan_version_id TEXT NOT NULL REFERENCES task_plan_versions(id) ON DELETE CASCADE,
+                    requirement_id TEXT NOT NULL,
+                    order_index INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    kind TEXT NOT NULL CHECK(kind IN ('functional', 'constraint', 'non_functional', 'out_of_scope')),
+                    PRIMARY KEY(plan_version_id, requirement_id),
+                    UNIQUE(plan_version_id, order_index)
+                );
+
+                CREATE TABLE IF NOT EXISTS task_plan_steps (
+                    id TEXT PRIMARY KEY,
+                    plan_version_id TEXT NOT NULL REFERENCES task_plan_versions(id) ON DELETE CASCADE,
+                    order_index INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    kind TEXT NOT NULL CHECK(kind IN ('implementation', 'infrastructure')),
+                    complexity INTEGER NOT NULL CHECK(complexity BETWEEN 1 AND 5),
+                    acceptance_criteria_json TEXT NOT NULL,
+                    expected_paths_json TEXT NOT NULL,
+                    satisfies_json TEXT NOT NULL,
+                    UNIQUE(plan_version_id, order_index)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_plan_versions_task_version
+                    ON task_plan_versions(task_id, version DESC);
 
                 CREATE TABLE IF NOT EXISTS task_agent_reports (
                     id TEXT PRIMARY KEY,
@@ -5713,6 +6138,21 @@ fn json_string_list_from_row(
     })
 }
 
+fn json_string_list(values: &[String]) -> AppResult<String> {
+    serde_json::to_string(values).map_err(|error| AppError::Storage(error.to_string()))
+}
+
+fn normalized_non_empty(values: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    values
+        .into_iter()
+        .filter_map(|value| {
+            let value = value.trim().to_string();
+            (!value.is_empty() && seen.insert(value.clone())).then_some(value)
+        })
+        .collect()
+}
+
 struct TaskComplexityChangeInput<'a> {
     task_id: &'a str,
     sequence: i64,
@@ -7201,6 +7641,239 @@ mod tests {
     }
 
     #[test]
+    fn versions_and_approves_structured_plans_before_planning_can_complete() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "Structured planning".into(),
+                path: temp_project_path("structured-planning"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let event = store
+            .append_transcript_events(
+                &transcript.id,
+                vec![TranscriptEventInput {
+                    kind: "agent_message".into(),
+                    content: "Evidence".into(),
+                }],
+            )
+            .expect("event created")
+            .remove(0);
+        let mut task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id,
+                original_prompt: "Implement a versioned plan".into(),
+            })
+            .expect("task created");
+        task = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "start".into(),
+            })
+            .expect("analysis started");
+        store
+            .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                task_id: task.id.clone(),
+                phase: "analysis".into(),
+                kind: "summary".into(),
+                content: "Boundaries understood".into(),
+                source_transcript_event_ids: vec![event.id.clone()],
+            })
+            .expect("analysis evidence");
+        task = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "complete".into(),
+            })
+            .expect("analysis completed");
+        task = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "start".into(),
+            })
+            .expect("planning started");
+        let artifact = store
+            .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
+                task_id: task.id.clone(),
+                phase: "planning".into(),
+                kind: "plan".into(),
+                content: "REQ-1 is implemented by one bounded step".into(),
+                source_transcript_event_ids: vec![event.id],
+            })
+            .expect("planning evidence");
+        let request = CreateTaskPlanVersionRequest {
+            task_id: task.id.clone(),
+            source_artifact_id: artifact.id.clone(),
+            requirements: vec![TaskPlanRequirementInput {
+                id: " req-1 ".into(),
+                text: "The behavior is implemented".into(),
+                kind: "functional".into(),
+            }],
+            steps: vec![TaskPlanStepInput {
+                title: "Implement behavior".into(),
+                description: "Change the bounded module".into(),
+                kind: "implementation".into(),
+                complexity: 2,
+                acceptance_criteria: vec!["Focused tests pass".into()],
+                expected_paths: vec!["src/**".into()],
+                satisfies: vec!["req-1".into()],
+            }],
+        };
+        let first = store
+            .create_task_plan_version(request)
+            .expect("first version created");
+        let second = store
+            .create_task_plan_version(CreateTaskPlanVersionRequest {
+                task_id: task.id.clone(),
+                source_artifact_id: artifact.id,
+                requirements: vec![TaskPlanRequirementInput {
+                    id: "REQ-1".into(),
+                    text: "The behavior is implemented safely".into(),
+                    kind: "functional".into(),
+                }],
+                steps: vec![TaskPlanStepInput {
+                    title: "Implement and verify behavior".into(),
+                    description: "Change only the module".into(),
+                    kind: "implementation".into(),
+                    complexity: 3,
+                    acceptance_criteria: vec![
+                        "Focused tests pass".into(),
+                        "No unrelated diff".into(),
+                    ],
+                    expected_paths: vec!["src/**".into()],
+                    satisfies: vec!["REQ-1".into()],
+                }],
+            })
+            .expect("second version created");
+        assert_eq!(first.version, 1);
+        assert_eq!(second.version, 2);
+        assert_eq!(first.requirements[0].id, "REQ-1");
+        assert_eq!(second.steps[0].complexity, 3);
+        assert!(
+            store
+                .transition_task_phase(TransitionTaskPhaseRequest {
+                    task_id: task.id.clone(),
+                    action: "complete".into(),
+                })
+                .is_err(),
+            "planning is blocked before approval"
+        );
+
+        let approved = store
+            .approve_task_plan_version(ApproveTaskPlanVersionRequest {
+                task_id: task.id.clone(),
+                plan_version_id: second.id.clone(),
+            })
+            .expect("plan approved");
+        assert_eq!(approved.status, "approved");
+        assert!(approved.approved_at.is_some());
+        assert!(
+            store
+                .approve_task_plan_version(ApproveTaskPlanVersionRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: first.id,
+                })
+                .is_err(),
+            "only one version can be approved"
+        );
+        assert!(
+            store
+                .create_task_plan_version(CreateTaskPlanVersionRequest {
+                    task_id: task.id.clone(),
+                    source_artifact_id: approved.source_artifact_id.clone(),
+                    requirements: vec![TaskPlanRequirementInput {
+                        id: "REQ-1".into(),
+                        text: "Mutation after approval".into(),
+                        kind: "functional".into(),
+                    }],
+                    steps: vec![TaskPlanStepInput {
+                        title: "Mutate".into(),
+                        description: "Not allowed".into(),
+                        kind: "implementation".into(),
+                        complexity: 1,
+                        acceptance_criteria: vec!["Done".into()],
+                        expected_paths: vec![],
+                        satisfies: vec!["REQ-1".into()],
+                    }],
+                })
+                .is_err(),
+            "approved content is immutable"
+        );
+        assert_eq!(
+            store
+                .list_task_plan_versions(&task.id)
+                .expect("versions listed")
+                .len(),
+            2
+        );
+        let advanced = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "complete".into(),
+            })
+            .expect("approved plan completes planning");
+        assert_eq!(advanced.current_phase, "execution");
+    }
+
+    #[test]
+    fn rejects_invalid_structured_plan_links_atomically() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "Invalid plan".into(),
+                path: temp_project_path("invalid-structured-plan"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id,
+                original_prompt: "Reject invalid plan".into(),
+            })
+            .expect("task created");
+        let invalid = store.create_task_plan_version(CreateTaskPlanVersionRequest {
+            task_id: task.id.clone(),
+            source_artifact_id: "missing".into(),
+            requirements: vec![TaskPlanRequirementInput {
+                id: "REQ-1".into(),
+                text: "Known requirement".into(),
+                kind: "functional".into(),
+            }],
+            steps: vec![TaskPlanStepInput {
+                title: "Invalid".into(),
+                description: "References missing requirement".into(),
+                kind: "implementation".into(),
+                complexity: 2,
+                acceptance_criteria: vec!["Done".into()],
+                expected_paths: vec![],
+                satisfies: vec!["REQ-2".into()],
+            }],
+        });
+        assert!(matches!(invalid, Err(AppError::InvalidInput(_))));
+        assert!(store
+            .list_task_plan_versions(&task.id)
+            .expect("versions listed")
+            .is_empty());
+    }
+
+    #[test]
     fn persists_read_only_task_agent_reports_with_exact_secondary_provenance() {
         let store = ProjectStore::in_memory().expect("store opens");
         let project = store
@@ -7695,7 +8368,7 @@ mod tests {
                     .expect("next phase started");
             }
             assert_eq!(transitioned.current_phase, phase);
-            store
+            let phase_artifact = store
                 .create_task_phase_artifact(CreateTaskPhaseArtifactRequest {
                     task_id: task.id.clone(),
                     phase: phase.to_string(),
@@ -7704,6 +8377,34 @@ mod tests {
                     source_transcript_event_ids: vec![events[1].id.clone()],
                 })
                 .expect("phase artifact created");
+            if phase == "planning" {
+                let plan = store
+                    .create_task_plan_version(CreateTaskPlanVersionRequest {
+                        task_id: task.id.clone(),
+                        source_artifact_id: phase_artifact.id,
+                        requirements: vec![TaskPlanRequirementInput {
+                            id: "REQ-1".into(),
+                            text: "The requested behavior is implemented".into(),
+                            kind: "functional".into(),
+                        }],
+                        steps: vec![TaskPlanStepInput {
+                            title: "Implement requested behavior".into(),
+                            description: "Make the bounded implementation change".into(),
+                            kind: "implementation".into(),
+                            complexity: 2,
+                            acceptance_criteria: vec!["Focused verification passes".into()],
+                            expected_paths: vec![],
+                            satisfies: vec!["REQ-1".into()],
+                        }],
+                    })
+                    .expect("structured plan created");
+                store
+                    .approve_task_plan_version(ApproveTaskPlanVersionRequest {
+                        task_id: task.id.clone(),
+                        plan_version_id: plan.id,
+                    })
+                    .expect("structured plan approved");
+            }
             if phase == "execution" {
                 let run = store
                     .begin_task_phase_run(CreateTaskPhaseRunRequest {

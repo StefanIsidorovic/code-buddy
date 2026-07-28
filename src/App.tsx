@@ -35,8 +35,10 @@ import { SessionHistoryPanel } from "./features/transcripts/SessionHistoryPanel"
 import { useTranscriptWorkspace } from "./features/transcripts/useTranscriptWorkspace";
 import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
 import { TaskActivityPanel } from "./features/tasks/TaskActivityPanel";
+import { TaskPlanEditor } from "./features/tasks/TaskPlanEditor";
 import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
+import { useTaskPlanWorkflow } from "./features/tasks/useTaskPlanWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
 import { executionVerificationForTask } from "./features/tasks/taskPhaseExecution";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
@@ -199,6 +201,7 @@ function App() {
   const taskPhase = useTaskPhaseWorkflow({ task: activeTask, sourceEvents: liveTranscriptEvents,
     upsertTask: upsertTranscriptTask, runAgent: sendAcpPhasePrompt,
     onRunSettled: taskPhaseRuns.refresh });
+  const taskPlan = useTaskPlanWorkflow(activeTask);
   const hasCurrentPhaseRun = taskPhase.hasCompletedRun || !!activeTask &&
     taskPhaseRuns.receipts.some((receipt) =>
       receipt.phase === activeTask.currentPhase && receipt.status === "sent");
@@ -419,6 +422,12 @@ function App() {
             workspaceVerification={executionVerification}
             agentWorkspacePath={acpSession?.cwd ?? null}
             expectedWorkspacePath={selectedRepository?.path ?? selectedProject?.path ?? null}
+            planningPlanApproved={taskPlan.approved !== null}
+            planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}
+              error={taskPlan.error} sourceArtifactId={[...taskPhase.artifacts].reverse()
+                .find(({ phase }) => phase === "planning")?.id ?? null}
+              onCreate={(artifactId, draft) => void taskPlan.create(artifactId, draft)}
+              onApprove={(versionId) => void taskPlan.approve(versionId)} />}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onToggleAllSources={taskPhase.toggleAllSources}

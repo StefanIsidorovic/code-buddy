@@ -24,9 +24,10 @@
 - Plan item 36.1 is complete pending commit: Activity leads with one Task result; optional checks, audit history and delivery/provenance are collapsed secondary details.
 - Claude Buddy comparison confirms its execution is still strictly linear; its reusable strengths are first-class requirements/steps, tiered fresh sessions, deterministic validation, grounded critique and post-diff fulfillment.
 - Plan items 37.1–37.5 define the AIadne path: structured plan versions, deterministic evaluation, grounded critique, per-step execution, then isolated-worktree parallel waves.
+- Plan item 37.1 is complete pending commit: planning evidence can produce immutable requirement/step versions, one version can be approved, and planning cannot complete without that approved structured plan.
 
 ## Next Step
-- Implement 37.1 backend persistence contract and tests before adding the planning editor.
+- Implement 37.2 deterministic plan evaluation over the approved/draft structured plan.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import type { GitWorkspaceVerificationInfo, TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo,
   TranscriptEventInfo } from "../../types/domain";
 import { buildTaskPhaseExecutionPrompt } from "./taskPhaseExecution";
@@ -11,6 +12,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   canRunAgent: boolean; agentRunning: boolean; hasPhaseRun: boolean; evidenceReviewed: boolean;
   workspaceVerification: GitWorkspaceVerificationInfo | null;
   agentWorkspacePath: string | null; expectedWorkspacePath: string | null;
+  planningPanel?: ReactNode; planningPlanApproved?: boolean;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onToggleAllSources: (selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
@@ -21,6 +23,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   kind, content, error, loading, canRunAgent, agentRunning, hasPhaseRun, evidenceReviewed,
   workspaceVerification,
   agentWorkspacePath, expectedWorkspacePath,
+  planningPanel, planningPlanApproved = false,
   onChangeKind, onChangeContent, onToggleSource, onToggleAllSources,
   onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
@@ -137,6 +140,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       <small className="task-helper-card">Saves this text as an immutable Task artifact linked to
         the selected transcript events. It does not complete the phase.</small>
       </fieldset>
+      {task.currentPhase === "planning" ? planningPanel : null}
       <fieldset className="task-phase-step task-phase-review"><legend>Step 3 · Review evidence</legend>
       {phaseArtifacts.length > 0 ? <>
         <ul>{taskPhaseReviewCriteria[task.currentPhase].map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
@@ -165,13 +169,16 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           : <span>This run has no repository-derived verification result.</span>}
       </div> : null}
       <button className="primary-action" type="button" onClick={onComplete}
-        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed || executionBlocked}>{nextPhase
+        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed || executionBlocked
+          || task.currentPhase === "planning" && !planningPlanApproved}>{nextPhase
           ? `Complete ${task.currentPhase} & show ${nextPhase}` : `Complete ${task.currentPhase} & finish task`}</button>
       <small className="task-helper-card">Completes only the current phase. The next phase is
         revealed but never started automatically.</small>
       {executionBlocked ? <small className="task-helper-card">Execution cannot be completed from
         this local run until AIadne verifies a repository change. Fix the workspace/Git problem,
         make the approved change, then rerun execution.</small> : null}
+      {task.currentPhase === "planning" && !planningPlanApproved ? <small className="task-helper-card">
+        Create and approve a structured implementation plan before completing planning.</small> : null}
       </fieldset>
     </div> : null}
     <div className="task-artifact-list" aria-label={viewingCurrentPhase

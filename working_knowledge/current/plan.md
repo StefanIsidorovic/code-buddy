@@ -4,13 +4,13 @@
 
 ### 37.1. Establish versioned structured Task plans
 - objective: make planning output machine-readable so evaluation, critique and step execution can operate on explicit requirements and implementation steps instead of parsing prose.
-- status: planned.
+- status: complete pending commit.
 - files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/*; App composition; related tests; working_knowledge/current/*.
 - affected units: planning-phase artifact contract, immutable plan versions, requirement-to-step coverage, planning review UI.
 - expected changes: persist one or more versioned Task plan snapshots; model testable requirements and ordered steps with acceptance criteria, expected paths, satisfied requirement IDs and complexity; let the user review/edit a draft and explicitly approve one version before planning completes.
 - acceptance criteria: planning completion requires an approved structured plan; every non-infrastructure step satisfies at least one declared requirement; versions remain immutable and attributable; existing prose evidence/provenance remains linked rather than replaced; legacy Tasks degrade safely.
 - required tests: migration; atomic version creation; validation and cross-Task rejection; approval immutability; typed gateway/hook/presentation; existing Task regressions; frontend/Rust gates; diff hygiene.
-- review status: pending.
+- review status: passed after 2 cycles; cycle 1 established immutable relational plan versions, validation, approval and the planning completion gate; cycle 2 added the responsive planning editor, stale-safe orchestration, draft restoration, read-only approved presentation and updated the legacy phase-flow regression to follow the new gate.
 - commit: pending.
 
 ### 37.2. Add deterministic plan evaluation

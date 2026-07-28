@@ -5256,6 +5256,26 @@ summary:focus-visible {
   border: 1px dashed var(--border-subtle); border-radius: .55rem;
   background: var(--surface-subtle); color: var(--muted); font-size: .76rem;
   font-weight: 400; line-height: 1.4; text-transform: none; }
+.task-plan-editor { display: grid; gap: 0.7rem; padding: 0.8rem; border: 1px solid var(--border);
+  border-radius: 0.65rem; background: var(--surface-raised); }
+.task-plan-editor > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 0.5rem; }
+.task-plan-editor h4, .task-plan-editor p { margin: 0; }
+.task-plan-editor > div:first-child span, .task-plan-approved-steps span { color: var(--muted); font-size: 0.74rem; }
+.task-plan-editor fieldset { display: grid; gap: 0.55rem; }
+.task-plan-editor legend { padding: 0 0.35rem; font-weight: 700; }
+.task-plan-row { display: grid; grid-template-columns: 6rem 9rem minmax(12rem, 1fr) auto; gap: 0.45rem; }
+.task-plan-step-draft { display: grid; gap: 0.45rem; padding: 0.65rem; border: 1px solid var(--border-subtle);
+  border-radius: 0.6rem; background: var(--surface-subtle); }
+.task-plan-step-draft > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.45rem; }
+.task-plan-step-draft label { display: flex; align-items: center; gap: 0.4rem; color: var(--muted);
+  font-size: 0.75rem; text-transform: none; }
+.task-plan-step-draft input[type="number"] { width: 4rem; }
+.task-plan-version { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 0.6rem; padding: 0.65rem; border-radius: 0.6rem; background: var(--mint-soft); }
+.task-plan-approved-steps { display: grid; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+.task-plan-approved-steps li { display: grid; gap: 0.2rem; padding: 0.6rem;
+  border: 1px solid var(--border-subtle); border-radius: 0.6rem; background: var(--mint-soft); }
 .task-provenance-picker { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.7rem; }
 .task-provenance-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.75rem; cursor: pointer; font-weight: 650; }
@@ -5295,6 +5315,7 @@ summary:focus-visible {
   .acp-output-rail { min-height: 24rem; }
   .task-result-heading { flex-direction: column; }
   .task-result-facts { grid-template-columns: 1fr; }
+  .task-plan-row { grid-template-columns: 1fr; }
   .task-phase-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .task-operating-model ul { grid-template-columns: 1fr; }
   .task-dispatch-list > li > div:first-child { flex-direction: column; }

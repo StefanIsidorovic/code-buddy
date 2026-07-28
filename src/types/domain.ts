@@ -409,6 +409,43 @@ export type TaskPhaseArtifactInfo = {
   createdAt: number;
 };
 
+export type TaskPlanRequirementInfo = {
+  id: string;
+  text: string;
+  kind: "functional" | "constraint" | "non_functional" | "out_of_scope";
+  orderIndex: number;
+};
+
+export type TaskPlanStepInfo = {
+  id: string;
+  orderIndex: number;
+  title: string;
+  description: string;
+  kind: "implementation" | "infrastructure";
+  complexity: number;
+  acceptanceCriteria: string[];
+  expectedPaths: string[];
+  satisfies: string[];
+};
+
+export type TaskPlanVersionInfo = {
+  id: string;
+  taskId: string;
+  version: number;
+  status: "draft" | "approved";
+  sourceArtifactId: string;
+  requirements: TaskPlanRequirementInfo[];
+  steps: TaskPlanStepInfo[];
+  createdAt: number;
+  approvedAt: number | null;
+};
+
+export type TaskPlanDraft = {
+  requirements: Array<{ id: string; text: string; kind: string }>;
+  steps: Array<{ title: string; description: string; kind: string; complexity: number;
+    acceptanceCriteria: string[]; expectedPaths: string[]; satisfies: string[] }>;
+};
+
 export type TaskAgentRole = "advisor" | "reviewer";
 
 export type TaskAgentReportInfo = {

@@ -24,11 +24,12 @@ use crate::{
         StartFakeSessionRequest,
     },
     storage::{
-        CreateAcpTranscriptSessionRequest, CreateKnowledgeItemRequest,
-        CreateProjectInitializationRequest, CreateProjectRepositoryRequest, CreateProjectRequest,
-        CreateTaskAgentReportRequest, CreateTaskAgentReportTranscriptRequest,
-        CreateTaskContextDispatchRequest, CreateTaskPhaseArtifactRequest,
-        CreateTaskPhaseRunRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+        ApproveTaskPlanVersionRequest, CreateAcpTranscriptSessionRequest,
+        CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
+        CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskAgentReportRequest,
+        CreateTaskAgentReportTranscriptRequest, CreateTaskContextDispatchRequest,
+        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskPlanVersionRequest,
+        CreateTaskRequest, CreateTranscriptSessionRequest,
         GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
         LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
         ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
@@ -38,9 +39,9 @@ use crate::{
         ResolveTaskPhaseRunRequest, ReviewProjectInitializationSummaryClaimRequest,
         SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
         TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TranscriptAcpIdentityInfo,
-        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
-        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanVersionInfo,
+        TranscriptAcpIdentityInfo, TranscriptEventInfo, TranscriptEventInput,
+        TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
 };
@@ -475,6 +476,30 @@ pub fn list_task_phase_artifacts(
     task_id: String,
 ) -> AppResult<Vec<TaskPhaseArtifactInfo>> {
     state.list_task_phase_artifacts(&task_id)
+}
+
+#[tauri::command]
+pub fn create_task_plan_version(
+    state: State<'_, ProjectStore>,
+    request: CreateTaskPlanVersionRequest,
+) -> AppResult<TaskPlanVersionInfo> {
+    state.create_task_plan_version(request)
+}
+
+#[tauri::command]
+pub fn list_task_plan_versions(
+    state: State<'_, ProjectStore>,
+    task_id: String,
+) -> AppResult<Vec<TaskPlanVersionInfo>> {
+    state.list_task_plan_versions(&task_id)
+}
+
+#[tauri::command]
+pub fn approve_task_plan_version(
+    state: State<'_, ProjectStore>,
+    request: ApproveTaskPlanVersionRequest,
+) -> AppResult<TaskPlanVersionInfo> {
+    state.approve_task_plan_version(request)
 }
 
 #[tauri::command]
