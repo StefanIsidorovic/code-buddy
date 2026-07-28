@@ -34,10 +34,12 @@
 
 ### 37.4. Execute and review one step at a time
 - objective: replace monolithic execution with isolated, auditable step runs routed to the smallest adequate model tier.
-- status: planned after 37.3.
+- status: in progress; 37.4a durable ordered step-run state complete pending commit.
 - affected units: execution phase, ACP session ownership, step receipts, scoped context, Git verification and review.
 - expected changes: each approved step gets its own run, bounded context, tier rationale, expected write scope, verification and review result; execution advances only through accepted step outcomes.
 - acceptance criteria: a run cannot silently serve another step; changed files and checks are repository-derived; failures remain retryable; one step outcome cannot complete execution globally.
+- 37.4a review status: passed after 1 cycle; approved-plan step identity, attempt, tier rationale and expected paths are snapshotted durably; only the next unaccepted step can run; open attempts cannot overlap; failed attempts can retry; accepted outcomes advance only the step ledger and never the Task phase.
+- 37.4a required tests: success, duplicate/open and out-of-order rejection, retry after failure, cross-plan rejection, tier/scope snapshot, ordered listing and proof that accepting one step leaves execution active.
 
 ### 37.5. Add safe parallel execution waves
 - objective: allow independent small-model steps to run concurrently without sharing mutable Git state.

@@ -431,6 +431,37 @@ pub struct TaskPlanVersionInfo {
     pub approved_at: Option<i64>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskPlanStepRunRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub plan_step_id: String,
+    pub acp_session_id: String,
+    pub instruction: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskPlanStepRunInfo {
+    pub id: String,
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub plan_step_id: String,
+    pub step_order_index: i64,
+    pub attempt: i64,
+    pub acp_session_id: String,
+    pub instruction: String,
+    pub model_tier: String,
+    pub model_tier_rationale: String,
+    pub expected_paths: Vec<String>,
+    pub status: String,
+    pub stop_reason: Option<String>,
+    pub error: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPlanEvaluationInfo {
@@ -3310,6 +3341,284 @@ impl ProjectStore {
             .collect()
     }
 
+    pub fn begin_task_plan_step_run(
+        &self,
+        request: CreateTaskPlanStepRunRequest,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        let task_id = request.task_id.trim();
+        let plan_id = request.plan_version_id.trim();
+        let step_id = request.plan_step_id.trim();
+        let acp_session_id = request.acp_session_id.trim();
+        let instruction = request.instruction.trim();
+        if task_id.is_empty()
+            || plan_id.is_empty()
+            || step_id.is_empty()
+            || acp_session_id.is_empty()
+            || instruction.is_empty()
+        {
+            return Err(AppError::InvalidInput(
+                "step run requires task, approved plan step, ACP session, and instruction".into(),
+            ));
+        }
+
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let phase_state: Option<(String, String)> = transaction
+            .query_row(
+                "SELECT tasks.current_phase, phases.status FROM tasks
+                 JOIN task_phases phases
+                   ON phases.task_id = tasks.id AND phases.phase = tasks.current_phase
+                 WHERE tasks.id = ?1",
+                [task_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        if phase_state.as_ref() != Some(&("execution".into(), "in_progress".into())) {
+            return Err(AppError::InvalidInput(
+                "plan steps may run only during the in-progress execution phase".into(),
+            ));
+        }
+
+        let step: Option<(i64, i64, String)> = transaction
+            .query_row(
+                "SELECT steps.order_index, steps.complexity, steps.expected_paths_json
+                 FROM task_plan_steps steps
+                 JOIN task_plan_versions versions ON versions.id = steps.plan_version_id
+                 WHERE steps.id = ?1 AND versions.id = ?2
+                   AND versions.task_id = ?3 AND versions.status = 'approved'",
+                params![step_id, plan_id, task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        let Some((step_order_index, complexity, expected_paths_json)) = step else {
+            return Err(AppError::InvalidInput(
+                "step run must target a step from this Task's approved plan".into(),
+            ));
+        };
+
+        let next_order: Option<i64> = transaction
+            .query_row(
+                "SELECT MIN(steps.order_index) FROM task_plan_steps steps
+                 WHERE steps.plan_version_id = ?1
+                   AND NOT EXISTS (
+                     SELECT 1 FROM task_plan_step_runs runs
+                     WHERE runs.plan_step_id = steps.id AND runs.status = 'accepted'
+                   )",
+                [plan_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if next_order != Some(step_order_index) {
+            return Err(AppError::InvalidInput(
+                "only the next unaccepted approved plan step may run".into(),
+            ));
+        }
+        let pending_exists: bool = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM task_plan_step_runs
+                 WHERE plan_step_id = ?1 AND status IN ('pending', 'sent'))",
+                [step_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if pending_exists {
+            return Err(AppError::InvalidInput(
+                "the selected plan step already has an open run".into(),
+            ));
+        }
+
+        let attempt: i64 = transaction
+            .query_row(
+                "SELECT COALESCE(MAX(attempt), 0) + 1 FROM task_plan_step_runs
+                 WHERE plan_step_id = ?1",
+                [step_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let (model_tier, model_tier_rationale) = match complexity {
+            1..=2 => ("small", format!("step complexity {complexity}/5")),
+            3 => ("mid", "step complexity 3/5".to_string()),
+            _ => ("high", format!("step complexity {complexity}/5")),
+        };
+        let id = Uuid::new_v4().to_string();
+        let now = unix_timestamp()?;
+        transaction
+            .execute(
+                "INSERT INTO task_plan_step_runs
+                 (id, task_id, plan_version_id, plan_step_id, step_order_index, attempt,
+                  acp_session_id, instruction, model_tier, model_tier_rationale,
+                  expected_paths_json, status, stop_reason, error, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
+                         'pending', NULL, NULL, ?12, ?12)",
+                params![
+                    id,
+                    task_id,
+                    plan_id,
+                    step_id,
+                    step_order_index,
+                    attempt,
+                    acp_session_id,
+                    instruction,
+                    model_tier,
+                    model_tier_rationale,
+                    expected_paths_json,
+                    now
+                ],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task_plan_step_run(&id)
+    }
+
+    pub fn finalize_task_plan_step_run(
+        &self,
+        run_id: &str,
+        status: &str,
+        stop_reason: Option<&str>,
+        error: Option<&str>,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        if !matches!(status, "sent" | "failed") {
+            return Err(AppError::InvalidInput(
+                "step run final status is invalid".into(),
+            ));
+        }
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_plan_step_runs
+                 SET status = ?2, stop_reason = ?3, error = ?4, updated_at = ?5
+                 WHERE id = ?1 AND status = 'pending'",
+                params![run_id, status, stop_reason, error, unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "step run is missing or already finalized".into(),
+            ));
+        }
+        drop(connection);
+        self.task_plan_step_run(run_id)
+    }
+
+    pub fn accept_task_plan_step_run(&self, run_id: &str) -> AppResult<TaskPlanStepRunInfo> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let run: Option<(String, String, i64)> = transaction
+            .query_row(
+                "SELECT task_id, plan_version_id, step_order_index
+                 FROM task_plan_step_runs WHERE id = ?1 AND status = 'sent'",
+                [run_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        let Some((task_id, plan_id, step_order)) = run else {
+            return Err(AppError::InvalidInput(
+                "only a sent step run may be accepted".into(),
+            ));
+        };
+        let state: (String, String, String) = transaction
+            .query_row(
+                "SELECT tasks.current_phase, phases.status, versions.status
+                 FROM tasks
+                 JOIN task_phases phases
+                   ON phases.task_id = tasks.id AND phases.phase = tasks.current_phase
+                 JOIN task_plan_versions versions
+                   ON versions.task_id = tasks.id AND versions.id = ?2
+                 WHERE tasks.id = ?1",
+                params![task_id, plan_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .map_err(storage_error)?;
+        if state != ("execution".into(), "in_progress".into(), "approved".into()) {
+            return Err(AppError::InvalidInput(
+                "step acceptance requires the same approved plan in active execution".into(),
+            ));
+        }
+        let accepted_before: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM task_plan_step_runs
+                 WHERE plan_version_id = ?1 AND status = 'accepted'
+                   AND step_order_index < ?2",
+                params![plan_id, step_order],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if accepted_before != step_order {
+            return Err(AppError::InvalidInput(
+                "plan step runs must be accepted in order".into(),
+            ));
+        }
+        transaction
+            .execute(
+                "UPDATE task_plan_step_runs SET status = 'accepted', updated_at = ?2
+                 WHERE id = ?1 AND status = 'sent'",
+                params![run_id, unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        self.task_plan_step_run(run_id)
+    }
+
+    pub fn list_task_plan_step_runs(&self, task_id: &str) -> AppResult<Vec<TaskPlanStepRunInfo>> {
+        self.task(task_id.trim())?;
+        let connection = self.connection()?;
+        let ids = {
+            let mut statement = connection
+                .prepare(
+                    "SELECT id FROM task_plan_step_runs
+                     WHERE task_id = ?1 ORDER BY step_order_index ASC, attempt ASC",
+                )
+                .map_err(storage_error)?;
+            let values = statement
+                .query_map([task_id.trim()], |row| row.get::<_, String>(0))
+                .map_err(storage_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?;
+            values
+        };
+        drop(connection);
+        ids.iter().map(|id| self.task_plan_step_run(id)).collect()
+    }
+
+    fn task_plan_step_run(&self, run_id: &str) -> AppResult<TaskPlanStepRunInfo> {
+        self.connection()?
+            .query_row(
+                "SELECT id, task_id, plan_version_id, plan_step_id, step_order_index,
+                 attempt, acp_session_id, instruction, model_tier, model_tier_rationale,
+                 expected_paths_json, status, stop_reason, error, created_at, updated_at
+                 FROM task_plan_step_runs WHERE id = ?1",
+                [run_id],
+                |row| {
+                    let expected_paths_json: String = row.get(10)?;
+                    Ok(TaskPlanStepRunInfo {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        plan_version_id: row.get(2)?,
+                        plan_step_id: row.get(3)?,
+                        step_order_index: row.get(4)?,
+                        attempt: row.get(5)?,
+                        acp_session_id: row.get(6)?,
+                        instruction: row.get(7)?,
+                        model_tier: row.get(8)?,
+                        model_tier_rationale: row.get(9)?,
+                        expected_paths: serde_json::from_str(&expected_paths_json)
+                            .unwrap_or_default(),
+                        status: row.get(11)?,
+                        stop_reason: row.get(12)?,
+                        error: row.get(13)?,
+                        created_at: row.get(14)?,
+                        updated_at: row.get(15)?,
+                    })
+                },
+            )
+            .map_err(|_| AppError::InvalidInput(format!("step run not found: {run_id}")))
+    }
+
     pub fn link_task_phase_run_events(
         &self,
         request: LinkTaskPhaseRunEventsRequest,
@@ -4380,6 +4689,33 @@ impl ProjectStore {
                     PRIMARY KEY(receipt_id, transcript_event_id),
                     UNIQUE(transcript_event_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS task_plan_step_runs (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                    plan_version_id TEXT NOT NULL REFERENCES task_plan_versions(id) ON DELETE RESTRICT,
+                    plan_step_id TEXT NOT NULL REFERENCES task_plan_steps(id) ON DELETE RESTRICT,
+                    step_order_index INTEGER NOT NULL,
+                    attempt INTEGER NOT NULL,
+                    acp_session_id TEXT NOT NULL,
+                    instruction TEXT NOT NULL,
+                    model_tier TEXT NOT NULL CHECK(model_tier IN ('small', 'mid', 'high')),
+                    model_tier_rationale TEXT NOT NULL,
+                    expected_paths_json TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed', 'accepted')),
+                    stop_reason TEXT,
+                    error TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    UNIQUE(plan_step_id, attempt)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_task_plan_step_runs_task_order_attempt
+                    ON task_plan_step_runs(task_id, step_order_index, attempt);
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_task_plan_step_runs_one_open
+                    ON task_plan_step_runs(plan_step_id)
+                    WHERE status IN ('pending', 'sent');
 
                 CREATE TABLE IF NOT EXISTS task_complexity_changes (
                     id TEXT PRIMARY KEY,
@@ -9125,6 +9461,182 @@ mod tests {
         assert!(store
             .finalize_task_phase_run(&first.id, "failed", None, Some("late"))
             .is_err());
+    }
+
+    #[test]
+    fn isolates_ordered_retryable_runs_for_approved_plan_steps() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".into(),
+                path: temp_project_path("plan-step-runs"),
+            })
+            .expect("project created");
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id,
+                transcript_session_id: transcript.id,
+                original_prompt: "Implement an approved plan".into(),
+            })
+            .expect("task created");
+        let artifact_id = Uuid::new_v4().to_string();
+        let plan_id = Uuid::new_v4().to_string();
+        let first_step_id = Uuid::new_v4().to_string();
+        let second_step_id = Uuid::new_v4().to_string();
+        let now = unix_timestamp().expect("timestamp");
+        let connection = store.connection().expect("connection");
+        connection
+            .execute(
+                "UPDATE tasks SET current_phase = 'execution', status = 'in_progress'
+                 WHERE id = ?1",
+                [&task.id],
+            )
+            .expect("task moved to execution fixture");
+        connection
+            .execute(
+                "UPDATE task_phases SET status = CASE
+                   WHEN phase IN ('analysis', 'planning') THEN 'completed'
+                   WHEN phase = 'execution' THEN 'in_progress'
+                   ELSE 'pending' END
+                 WHERE task_id = ?1",
+                [&task.id],
+            )
+            .expect("phase fixture prepared");
+        connection
+            .execute(
+                "INSERT INTO task_phase_artifacts
+                 (id, task_id, phase, sequence, kind, content, created_at)
+                 VALUES (?1, ?2, 'planning', 0, 'summary', 'Approved plan', ?3)",
+                params![artifact_id, task.id, now],
+            )
+            .expect("artifact fixture inserted");
+        connection
+            .execute(
+                "INSERT INTO task_plan_versions
+                 (id, task_id, version, status, source_artifact_id, created_at, approved_at)
+                 VALUES (?1, ?2, 1, 'approved', ?3, ?4, ?4)",
+                params![plan_id, task.id, artifact_id, now],
+            )
+            .expect("plan fixture inserted");
+        for (id, order, complexity, paths) in [
+            (
+                &first_step_id,
+                0_i64,
+                2_i64,
+                r#"["src/first.rs","src/shared.rs"]"#,
+            ),
+            (&second_step_id, 1_i64, 4_i64, r#"["src/second.rs"]"#),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO task_plan_steps
+                     (id, plan_version_id, order_index, title, description, kind, complexity,
+                      acceptance_criteria_json, expected_paths_json, satisfies_json)
+                     VALUES (?1, ?2, ?3, ?4, 'Bounded change', 'implementation', ?5,
+                             '[\"passes\"]', ?6, '[\"REQ-1\"]')",
+                    params![
+                        id,
+                        plan_id,
+                        order,
+                        format!("Step {}", order + 1),
+                        complexity,
+                        paths
+                    ],
+                )
+                .expect("step fixture inserted");
+        }
+        drop(connection);
+
+        let first = store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: plan_id.clone(),
+                plan_step_id: first_step_id.clone(),
+                acp_session_id: "acp-1".into(),
+                instruction: "Run only step one".into(),
+            })
+            .expect("first step run begins");
+        assert_eq!(first.attempt, 1);
+        assert_eq!(first.model_tier, "small");
+        assert_eq!(first.expected_paths, vec!["src/first.rs", "src/shared.rs"]);
+        assert!(store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: plan_id.clone(),
+                plan_step_id: first_step_id.clone(),
+                acp_session_id: "acp-2".into(),
+                instruction: "Duplicate open run".into(),
+            })
+            .is_err());
+        assert!(store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: plan_id.clone(),
+                plan_step_id: second_step_id.clone(),
+                acp_session_id: "acp-2".into(),
+                instruction: "Skip ahead".into(),
+            })
+            .is_err());
+        store
+            .finalize_task_plan_step_run(&first.id, "failed", None, Some("offline"))
+            .expect("failure remains retryable");
+        let retry = store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: plan_id.clone(),
+                plan_step_id: first_step_id,
+                acp_session_id: "acp-3".into(),
+                instruction: "Retry only step one".into(),
+            })
+            .expect("retry begins");
+        assert_eq!(retry.attempt, 2);
+        store
+            .finalize_task_plan_step_run(&retry.id, "sent", Some("end_turn"), None)
+            .expect("retry sent");
+        let accepted = store
+            .accept_task_plan_step_run(&retry.id)
+            .expect("first step accepted");
+        assert_eq!(accepted.status, "accepted");
+        let still_execution = store.task(&task.id).expect("task remains readable");
+        assert_eq!(still_execution.current_phase, "execution");
+        assert_eq!(still_execution.status, "in_progress");
+
+        let second = store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: plan_id.clone(),
+                plan_step_id: second_step_id,
+                acp_session_id: "acp-4".into(),
+                instruction: "Run only step two".into(),
+            })
+            .expect("second step now begins");
+        assert_eq!(second.step_order_index, 1);
+        assert_eq!(second.model_tier, "high");
+        assert!(store
+            .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+                task_id: task.id.clone(),
+                plan_version_id: "another-plan".into(),
+                plan_step_id: second.plan_step_id.clone(),
+                acp_session_id: "acp-5".into(),
+                instruction: "Cross plan run".into(),
+            })
+            .is_err());
+        let runs = store
+            .list_task_plan_step_runs(&task.id)
+            .expect("step runs listed");
+        assert_eq!(runs.len(), 3);
+        assert_eq!(
+            runs.iter().map(|run| run.attempt).collect::<Vec<_>>(),
+            vec![1, 2, 1]
+        );
     }
 
     #[test]
