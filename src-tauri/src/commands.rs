@@ -7,9 +7,10 @@ use crate::{
     },
     adapters::{AgentDoctorReport, AgentRegistry, SystemBinaryResolver, SystemVersionRunner},
     delivery::{
+        capture_git_workspace_snapshot, compare_git_workspace_snapshots,
         inspect_git_delivery_readiness as inspect_git_delivery_readiness_for_repo,
         list_git_delivery_provenance_history as list_git_delivery_provenance_history_for_repo,
-        GitDeliveryProvenanceHistoryEntry, GitDeliveryReadinessInfo,
+        GitDeliveryProvenanceHistoryEntry, GitDeliveryReadinessInfo, GitWorkspaceVerificationInfo,
     },
     errors::{AppError, AppResult},
     knowledge::{
@@ -58,6 +59,7 @@ pub struct TaskContextDispatchResultInfo {
 pub struct TaskPhaseRunResultInfo {
     pub prompt_result: AcpPromptResult,
     pub receipt: TaskPhaseRunReceiptInfo,
+    pub workspace_verification: Option<GitWorkspaceVerificationInfo>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -750,6 +752,30 @@ pub async fn send_task_phase_prompt(
     store_state: State<'_, ProjectStore>,
     request: CreateTaskPhaseRunRequest,
 ) -> AppResult<TaskPhaseRunResultInfo> {
+    let task_id = request.task_id.clone();
+    let phase = request.phase.clone();
+    let verification_baseline = if phase == "execution" {
+        let manager = Arc::clone(manager_state.inner());
+        let session_id = request.acp_session_id.clone();
+        let workspace = run_acp_task(move || {
+            manager
+                .list_sessions()?
+                .into_iter()
+                .find(|session| session.id == session_id)
+                .map(|session| session.cwd)
+                .ok_or_else(|| AppError::InvalidInput("active ACP session not found".into()))
+        })
+        .await;
+        Some(match workspace {
+            Ok(path) => {
+                let snapshot = capture_git_workspace_snapshot(&path);
+                (path, snapshot)
+            }
+            Err(error) => (PathBuf::from("Unavailable ACP workspace"), Err(error)),
+        })
+    } else {
+        None
+    };
     let receipt = store_state.begin_task_phase_run(request)?;
     let receipt_id = receipt.id.clone();
     let instruction = receipt.instruction.clone();
@@ -757,15 +783,36 @@ pub async fn send_task_phase_prompt(
     let manager = Arc::clone(manager_state.inner());
     match run_acp_task(move || manager.send_prompt(&acp_session_id, &instruction)).await {
         Ok(prompt_result) => {
-            let receipt = store_state.finalize_task_phase_run(
+            let mut receipt = store_state.finalize_task_phase_run(
                 &receipt_id,
                 "sent",
                 Some(&prompt_result.stop_reason),
                 None,
             )?;
+            let workspace_verification = verification_baseline.map(|(workspace, before)| {
+                compare_git_workspace_snapshots(
+                    task_id,
+                    phase,
+                    &workspace,
+                    before,
+                    capture_git_workspace_snapshot(&workspace),
+                )
+            });
+            if let Some(verification) = workspace_verification.as_ref() {
+                let changed_files_json = serde_json::to_string(&verification.changed_files)
+                    .map_err(|error| AppError::Storage(error.to_string()))?;
+                receipt = store_state.record_task_phase_run_verification(
+                    &receipt_id,
+                    &verification.status,
+                    &verification.workspace_path,
+                    &changed_files_json,
+                    verification.error.as_deref(),
+                )?;
+            }
             Ok(TaskPhaseRunResultInfo {
                 prompt_result,
                 receipt,
+                workspace_verification,
             })
         }
         Err(error) => {

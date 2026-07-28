@@ -1,6 +1,10 @@
 use crate::errors::{AppError, AppResult};
 use serde::Serialize;
 use std::{
+    collections::hash_map::DefaultHasher,
+    fs,
+    hash::{Hash, Hasher},
+    io::Read,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -10,12 +14,108 @@ const MAX_CHANGED_FILES: usize = 20;
 const MAX_NOTE_PREVIEW_LENGTH: usize = 240;
 const MAX_PROVENANCE_HISTORY: usize = 8;
 const MAX_RATIONALE_PREVIEW_LENGTH: usize = 180;
+const MAX_UNTRACKED_FINGERPRINT_BYTES: u64 = 1_048_576;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitDeliveryChangedFileInfo {
     pub status: String,
     pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorkspaceVerificationInfo {
+    pub task_id: String,
+    pub phase: String,
+    pub workspace_path: String,
+    pub status: String,
+    pub changed_files: Vec<GitDeliveryChangedFileInfo>,
+    pub error: Option<String>,
+}
+
+pub(crate) struct GitWorkspaceSnapshot {
+    fingerprint: u64,
+    changed_files: Vec<GitDeliveryChangedFileInfo>,
+}
+
+pub(crate) fn capture_git_workspace_snapshot(path: &Path) -> AppResult<GitWorkspaceSnapshot> {
+    let path = normalize_repository_path(path.to_path_buf())?;
+    ensure_git_repository(&path)?;
+    let status = git_stdout(
+        &path,
+        &["status", "--porcelain=v1", "--untracked-files=normal"],
+    )?;
+    let diff = git_stdout(&path, &["diff", "HEAD", "--binary", "--no-ext-diff"])?;
+    let mut hasher = DefaultHasher::new();
+    status.hash(&mut hasher);
+    diff.hash(&mut hasher);
+    for file in parse_porcelain_status(&status)
+        .into_iter()
+        .filter(|file| file.status == "??")
+    {
+        file.path.hash(&mut hasher);
+        if let Ok(metadata) = fs::metadata(path.join(&file.path)) {
+            metadata.len().hash(&mut hasher);
+            metadata.modified().ok().hash(&mut hasher);
+            if metadata.is_file() {
+                let mut bytes = Vec::new();
+                if fs::File::open(path.join(&file.path))
+                    .map(|file| file.take(MAX_UNTRACKED_FINGERPRINT_BYTES))
+                    .and_then(|mut file| file.read_to_end(&mut bytes))
+                    .is_ok()
+                {
+                    bytes.hash(&mut hasher);
+                }
+            }
+        }
+    }
+    Ok(GitWorkspaceSnapshot {
+        fingerprint: hasher.finish(),
+        changed_files: parse_porcelain_status(&status),
+    })
+}
+
+pub(crate) fn compare_git_workspace_snapshots(
+    task_id: String,
+    phase: String,
+    workspace_path: &Path,
+    before: AppResult<GitWorkspaceSnapshot>,
+    after: AppResult<GitWorkspaceSnapshot>,
+) -> GitWorkspaceVerificationInfo {
+    match (before, after) {
+        (Ok(before), Ok(after)) => GitWorkspaceVerificationInfo {
+            task_id,
+            phase,
+            workspace_path: workspace_path.display().to_string(),
+            status: if before.fingerprint == after.fingerprint {
+                "unchanged"
+            } else {
+                "changed"
+            }
+            .into(),
+            changed_files: after
+                .changed_files
+                .into_iter()
+                .take(MAX_CHANGED_FILES)
+                .collect(),
+            error: None,
+        },
+        (before, after) => GitWorkspaceVerificationInfo {
+            task_id,
+            phase,
+            workspace_path: workspace_path.display().to_string(),
+            status: "unavailable".into(),
+            changed_files: Vec::new(),
+            error: Some(
+                after
+                    .err()
+                    .or_else(|| before.err())
+                    .map(|error| error.to_string())
+                    .unwrap_or_else(|| "Git workspace verification failed".into()),
+            ),
+        },
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -379,6 +479,49 @@ mod tests {
             .any(|file| file.path == "TODO.md" && file.status == "??"));
         assert!(!readiness.head_provenance.present);
         let _ = fs::remove_dir_all(path);
+    }
+
+    #[test]
+    fn distinguishes_changed_unchanged_and_unavailable_execution_workspaces() {
+        let path = temp_delivery_repo("execution-verification");
+        initialize_repo(&path);
+        let before = capture_git_workspace_snapshot(&path);
+        let unchanged = compare_git_workspace_snapshots(
+            "task".into(),
+            "execution".into(),
+            &path,
+            before,
+            capture_git_workspace_snapshot(&path),
+        );
+        assert_eq!(unchanged.status, "unchanged");
+
+        let before = capture_git_workspace_snapshot(&path);
+        fs::write(path.join("README.md"), "# Delivery\n\nImplemented.\n").expect("change written");
+        let changed = compare_git_workspace_snapshots(
+            "task".into(),
+            "execution".into(),
+            &path,
+            before,
+            capture_git_workspace_snapshot(&path),
+        );
+        assert_eq!(changed.status, "changed");
+        assert!(changed
+            .changed_files
+            .iter()
+            .any(|file| file.path == "README.md"));
+
+        let not_git = temp_delivery_repo("execution-unavailable");
+        let unavailable = compare_git_workspace_snapshots(
+            "task".into(),
+            "execution".into(),
+            &not_git,
+            capture_git_workspace_snapshot(&not_git),
+            capture_git_workspace_snapshot(&not_git),
+        );
+        assert_eq!(unavailable.status, "unavailable");
+        assert!(unavailable.error.is_some());
+        let _ = fs::remove_dir_all(path);
+        let _ = fs::remove_dir_all(not_git);
     }
 
     #[test]

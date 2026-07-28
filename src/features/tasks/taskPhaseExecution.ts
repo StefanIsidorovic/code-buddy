@@ -1,4 +1,5 @@
-import type { TaskInfo, TaskPhaseInfo } from "../../types/domain";
+import type { GitDeliveryChangedFileInfo, GitWorkspaceVerificationInfo, TaskInfo,
+  TaskPhaseInfo, TaskPhaseRunReceiptInfo } from "../../types/domain";
 
 const phaseBoundaries: Record<TaskPhaseInfo["phase"], string> = {
   analysis: "Investigate the request, constraints, affected code, risks, and unknowns. Do not implement changes.",
@@ -15,4 +16,36 @@ export function buildTaskPhaseExecutionPrompt(task: TaskInfo) {
     "Use the existing conversation and reviewed context. Return a focused phase result in the transcript.",
     "Do not complete the phase, advance the Task, or claim evidence was persisted; AIadne keeps those as explicit user-controlled gates.",
   ].join("\n\n");
+}
+
+export function executionVerificationForTask(
+  task: TaskInfo,
+  receipts: TaskPhaseRunReceiptInfo[],
+  live: GitWorkspaceVerificationInfo | null,
+) {
+  if (live?.taskId === task.id && live.phase === "execution") return live;
+  const receipt = [...receipts].reverse().find(({ phase, status }) =>
+    phase === "execution" && status === "sent");
+  if (!receipt?.verificationStatus || !receipt.verificationWorkspacePath) return null;
+  return {
+    taskId: task.id,
+    phase: "execution",
+    workspacePath: receipt.verificationWorkspacePath,
+    status: receipt.verificationStatus,
+    changedFiles: parseChangedFiles(receipt.verificationChangedFilesJson),
+    error: receipt.verificationError,
+  } satisfies GitWorkspaceVerificationInfo;
+}
+
+function parseChangedFiles(value: string | null): GitDeliveryChangedFileInfo[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is GitDeliveryChangedFileInfo =>
+      !!item && typeof item === "object"
+      && "status" in item && typeof item.status === "string"
+      && "path" in item && typeof item.path === "string") : [];
+  } catch {
+    return [];
+  }
 }

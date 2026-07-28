@@ -5244,6 +5244,12 @@ summary:focus-visible {
   font-size: 0.78rem; font-weight: 400; line-height: 1.35; text-transform: none;
   overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .task-artifact-list ul { display: grid; gap: 0.45rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
+.task-execution-verification { display: grid; gap: 0.35rem; padding: 0.7rem; border: 1px solid var(--warning);
+  border-radius: 0.7rem; background: var(--warning-soft); overflow-wrap: anywhere; }
+.task-execution-verification[data-status="changed"] { border-color: var(--color-primary);
+  background: var(--color-primary-soft); }
+.task-execution-verification span, .task-execution-verification small { color: var(--muted); }
+.task-execution-verification ul { display: grid; gap: 0.25rem; margin: 0; padding-left: 1.2rem; }
 
 @media (max-width: 760px) {
   .acp-workspace-body { display: flex; flex-direction: column; overflow: visible; }

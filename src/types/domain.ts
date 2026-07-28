@@ -435,10 +435,27 @@ export type TaskPhaseRunReceiptInfo = {
   id: string; taskId: string; transcriptSessionId: string; sequence: number;
   phase: TaskPhaseInfo["phase"]; acpSessionId: string; instruction: string;
   status: "pending" | "sent" | "failed"; stopReason: string | null; error: string | null;
+  verificationStatus: "changed" | "unchanged" | "unavailable" | null;
+  verificationWorkspacePath: string | null;
+  verificationChangedFilesJson: string | null;
+  verificationError: string | null;
   createdAt: number; updatedAt: number;
 };
 
-export type TaskPhaseRunResultInfo = { promptResult: AcpPromptResult; receipt: TaskPhaseRunReceiptInfo };
+export type GitWorkspaceVerificationInfo = {
+  taskId: string;
+  phase: TaskPhaseInfo["phase"];
+  workspacePath: string;
+  status: "changed" | "unchanged" | "unavailable";
+  changedFiles: GitDeliveryChangedFileInfo[];
+  error: string | null;
+};
+
+export type TaskPhaseRunResultInfo = {
+  promptResult: AcpPromptResult;
+  receipt: TaskPhaseRunReceiptInfo;
+  workspaceVerification: GitWorkspaceVerificationInfo | null;
+};
 
 export type GitDeliveryChangedFileInfo = {
   status: string;

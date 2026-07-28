@@ -37,6 +37,7 @@ import { TaskPhasePanel } from "./features/tasks/TaskPhasePanel";
 import { TaskPhaseRunHistoryPanel } from "./features/tasks/TaskPhaseRunHistoryPanel";
 import { useTaskPhaseWorkflow } from "./features/tasks/useTaskPhaseWorkflow";
 import { useTaskPhaseRunHistory } from "./features/tasks/useTaskPhaseRunHistory";
+import { executionVerificationForTask } from "./features/tasks/taskPhaseExecution";
 import { TaskDispatchHistoryPanel } from "./features/tasks/TaskDispatchHistoryPanel";
 import { TaskRecoveryNotice } from "./features/tasks/TaskRecoveryNotice";
 import { TaskAgentReportsPanel } from "./features/tasks/TaskAgentReportsPanel";
@@ -161,6 +162,7 @@ function App() {
   const { candidates: acpRegistryCandidates, registryError: acpRegistryError,
     registryLoading: acpRegistryLoading, selectedCandidateId: selectedAcpCandidateId,
     session: acpSession, events: acpEvents, promptResult: acpPromptResult,
+    workspaceVerification: acpWorkspaceVerification,
     promptBusy: acpPromptBusy, expanded: acpControlsExpanded, usable: canUseAcpSession,
     canStartSelected: canStartSelectedAcpCandidate, statusLabel: acpStatusLabel,
     permissions: acpPermissions, resumeError: acpResumeError, respondPermission: respondAcpPermission,
@@ -199,6 +201,9 @@ function App() {
   const hasCurrentPhaseRun = taskPhase.hasCompletedRun || !!activeTask &&
     taskPhaseRuns.receipts.some((receipt) =>
       receipt.phase === activeTask.currentPhase && receipt.status === "sent");
+  const executionVerification = activeTask
+    ? executionVerificationForTask(activeTask, taskPhaseRuns.receipts, acpWorkspaceVerification)
+    : null;
   const workspaceNavigation = useWorkspaceNavigation();
   const projectInitializationFactGroups = useMemo(
     () => groupInitializationFacts(projectInitializationFacts),
@@ -410,6 +415,7 @@ function App() {
             canRunAgent={canUseAcpSession}
             agentRunning={acpPromptBusy}
             hasPhaseRun={hasCurrentPhaseRun}
+            workspaceVerification={executionVerification}
             evidenceReviewed={taskPhase.evidenceReviewed} onChangeKind={taskPhase.changeKind}
             onChangeContent={taskPhase.changeContent} onToggleSource={taskPhase.toggleSource}
             onToggleAllSources={taskPhase.toggleAllSources}

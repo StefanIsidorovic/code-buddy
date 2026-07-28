@@ -15,11 +15,11 @@
 - Plan item 34.1 is committed as f311ff9: Task steps 1–4 are framed, helper explanations share one visual language, and tracker requirements use emphasized status chips.
 - Plan item 34.2 was committed as 1406827, then found invalid because absent ACP metadata hid usable models such as GPT-5.5.
 - Plan item 34.3 is committed as 2fc0466: every option advertised by the active ACP agent is visible/selectable again, while unadvertised IDs remain rejected.
-- Plan item 35.1 is active: completed phases need a read-only historical view.
-- Plan item 35.2 follows: execution needs repository-derived workspace/change verification rather than trusting agent prose.
+- Plan item 35.1 is committed as b315d4f: completed phases expose immutable evidence history.
+- Plan item 35.2 is complete pending commit: execution persists exact ACP workspace and pre/post Git verification, restores it after refresh, and blocks completion after unchanged/unavailable agent runs.
 
 ## Next Step
-- Implement, verify and commit 35.1, then 35.2.
+- Commit 35.2 with provenance, then test the execution flow in a real complete Git checkout.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

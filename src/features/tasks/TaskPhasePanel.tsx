@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo, TranscriptEventInfo } from "../../types/domain";
+import type { GitWorkspaceVerificationInfo, TaskInfo, TaskPhaseArtifactInfo, TaskPhaseInfo,
+  TranscriptEventInfo } from "../../types/domain";
 import { buildTaskPhaseExecutionPrompt } from "./taskPhaseExecution";
 import { taskPhaseReviewCriteria } from "./taskPhaseReview";
 import { TaskPhaseGuide } from "./TaskPhaseGuide";
@@ -8,6 +9,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   sourceEvents: TranscriptEventInfo[]; selectedSourceIds: string[]; kind: string; content: string;
   error: string | null; loading: boolean; onChangeKind: (value: string) => void;
   canRunAgent: boolean; agentRunning: boolean; hasPhaseRun: boolean; evidenceReviewed: boolean;
+  workspaceVerification: GitWorkspaceVerificationInfo | null;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onToggleAllSources: (selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
@@ -16,6 +18,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
 
 export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, selectedSourceIds,
   kind, content, error, loading, canRunAgent, agentRunning, hasPhaseRun, evidenceReviewed,
+  workspaceVerification,
   onChangeKind, onChangeContent, onToggleSource, onToggleAllSources,
   onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
@@ -28,6 +31,11 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   const hasDraft = !!content.trim();
   const hasProvenance = selectedSourceIds.length > 0;
   const canSaveEvidence = hasDraft && hasProvenance;
+  const currentExecutionVerification = task.currentPhase === "execution"
+    && workspaceVerification?.taskId === task.id && workspaceVerification.phase === "execution"
+    ? workspaceVerification : null;
+  const executionBlocked = !!currentExecutionVerification
+    && currentExecutionVerification.status !== "changed";
   const agentInstruction = buildTaskPhaseExecutionPrompt(task);
   const nextPhase = task.phases.find(({ phaseIndex }) => phaseIndex === (currentPhase?.phaseIndex ?? -1) + 1)?.phase;
   return <section className="task-phase-panel" aria-labelledby="task-phase-title">
@@ -122,11 +130,28 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           the phase criteria.</small>}
       </fieldset>
       <fieldset className="task-phase-step"><legend>Step 4 · Complete phase</legend>
+      {task.currentPhase === "execution" && hasPhaseRun ? <div className="task-execution-verification"
+        data-status={currentExecutionVerification?.status ?? "missing"} role="status">
+        <strong>{currentExecutionVerification?.status === "changed"
+          ? "Repository changes verified"
+          : currentExecutionVerification?.status === "unchanged"
+            ? "No repository change detected"
+            : "Repository verification unavailable"}</strong>
+        {currentExecutionVerification ? <><span>Workspace: {currentExecutionVerification.workspacePath}</span>
+          {currentExecutionVerification.changedFiles.length > 0
+            ? <ul>{currentExecutionVerification.changedFiles.map((file) =>
+              <li key={`${file.status}:${file.path}`}><code>{file.status}</code> {file.path}</li>)}</ul> : null}
+          {currentExecutionVerification.error ? <small>{currentExecutionVerification.error}</small> : null}</>
+          : <span>This run has no repository-derived verification result.</span>}
+      </div> : null}
       <button className="primary-action" type="button" onClick={onComplete}
-        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed}>{nextPhase
+        disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed || executionBlocked}>{nextPhase
           ? `Complete ${task.currentPhase} & show ${nextPhase}` : `Complete ${task.currentPhase} & finish task`}</button>
       <small className="task-helper-card">Completes only the current phase. The next phase is
         revealed but never started automatically.</small>
+      {executionBlocked ? <small className="task-helper-card">Execution cannot be completed from
+        this local run until AIadne verifies a repository change. Fix the workspace/Git problem,
+        make the approved change, then rerun execution.</small> : null}
       </fieldset>
     </div> : null}
     <div className="task-artifact-list" aria-label={viewingCurrentPhase

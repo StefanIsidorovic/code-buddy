@@ -9,6 +9,7 @@ import type {
   KnowledgeItemInfo,
   TaskContextDispatchResultInfo,
   TaskInfo,
+  GitWorkspaceVerificationInfo,
   TaskPhaseRunResultInfo,
   TranscriptEventInfo,
   TranscriptSessionInfo,
@@ -52,6 +53,7 @@ export function useAcpRuntime({
   const [source, setSource] = useState<string | null>(null);
   const [events, setEvents] = useState<AcpSessionEvent[]>([]);
   const [promptResult, setPromptResult] = useState<AcpPromptResult | null>(null);
+  const [workspaceVerification, setWorkspaceVerification] = useState<GitWorkspaceVerificationInfo | null>(null);
   const [promptBusy, setPromptBusy] = useState(false);
   const promptInFlight = useRef(false);
   const eventDrain = useAcpEventDrain({ append: (next) => setEvents((current) => [...current, ...next]),
@@ -190,6 +192,7 @@ export function useAcpRuntime({
           acpSessionId: session.id, instruction },
       });
       setPromptResult(result.promptResult);
+      setWorkspaceVerification(result.workspaceVerification);
       await eventDrain.drain(session.id, transcriptId, true);
       const responseEventIds = eventDrain.capturedPhaseEventIds();
       if (responseEventIds.length > 0) await invokeCommand<void>("link_task_phase_run_events", {
@@ -220,10 +223,7 @@ export function useAcpRuntime({
     const all = (await invokeCommand<AcpSessionInfo[]>("list_acp_sessions")) ?? [];
     const running = all.filter(({ state }) => state === "running");
     for (const value of running) {
-      await invokeCommand<AcpSessionInfo>("stop_acp_session", {
-        sessionId: value.id,
-        force: false,
-      });
+      await invokeCommand<AcpSessionInfo>("stop_acp_session", { sessionId: value.id, force: false });
     }
     if (running.length > 0) {
       setSession(null);
@@ -236,7 +236,7 @@ export function useAcpRuntime({
   }
   return {
     candidates, registryError, registryLoading, selectedCandidateId, session, events, prompt,
-    promptResult, promptBusy, expanded, usable, canStartSelected, statusLabel, refreshRegistry,
+    promptResult, workspaceVerification, promptBusy, expanded, usable, canStartSelected, statusLabel, refreshRegistry,
     permissions: permission.permissions, respondPermission: permission.respond, startSelected,
     changeModel, sendPrompt, sendPhasePrompt, resumeTranscript, resumeError: recovery.error, resumingSessionId: recovery.resumingSessionId, drain,
     stop, stopAllForDelete,

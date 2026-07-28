@@ -160,6 +160,8 @@ describe("useAcpRuntime", () => {
       }
       if (command === "send_task_phase_prompt") return Promise.resolve({
         promptResult: { sessionId: "acp1", stopReason: "end_turn" }, receipt: { id: "run1" },
+        workspaceVerification: { taskId: "task1", phase: "execution", workspacePath: "/repo",
+          status: "changed", changedFiles: [{ status: "M", path: "src/index.ts" }], error: null },
       });
       return Promise.resolve([]);
     });
@@ -215,6 +217,8 @@ describe("useAcpRuntime", () => {
       if (command === "start_acp_registry_session") return Promise.resolve(session);
       if (command === "send_task_phase_prompt") return Promise.resolve({
         promptResult: { sessionId: "acp1", stopReason: "end_turn" }, receipt: { id: "run1" },
+        workspaceVerification: { taskId: "task1", phase: "execution", workspacePath: "/repo",
+          status: "changed", changedFiles: [{ status: "M", path: "src/index.ts" }], error: null },
       });
       if (command === "drain_acp_events") return Promise.resolve([{ kind: "agent_message", content: "Analysis result" }]);
       return Promise.resolve([]);
@@ -237,6 +241,9 @@ describe("useAcpRuntime", () => {
       taskId: "task1", receiptId: "run1", transcriptEventIds: ["event1"],
     } });
     expect(result.current.prompt).toBe("Explain this change");
+    expect(result.current.workspaceVerification).toMatchObject({
+      status: "changed", workspacePath: "/repo",
+    });
     unmount();
   });
 

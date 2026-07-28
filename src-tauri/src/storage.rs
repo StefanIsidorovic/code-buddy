@@ -433,6 +433,10 @@ pub struct TaskPhaseRunReceiptInfo {
     pub status: String,
     pub stop_reason: Option<String>,
     pub error: Option<String>,
+    pub verification_status: Option<String>,
+    pub verification_workspace_path: Option<String>,
+    pub verification_changed_files_json: Option<String>,
+    pub verification_error: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -2547,6 +2551,45 @@ impl ProjectStore {
         self.task_phase_run_receipt(receipt_id)
     }
 
+    pub fn record_task_phase_run_verification(
+        &self,
+        receipt_id: &str,
+        status: &str,
+        workspace_path: &str,
+        changed_files_json: &str,
+        error: Option<&str>,
+    ) -> AppResult<TaskPhaseRunReceiptInfo> {
+        if !matches!(status, "changed" | "unchanged" | "unavailable") {
+            return Err(AppError::InvalidInput(
+                "phase run verification status is invalid".into(),
+            ));
+        }
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_phase_run_receipts SET verification_status = ?2,
+                 verification_workspace_path = ?3, verification_changed_files_json = ?4,
+                 verification_error = ?5, updated_at = ?6
+                 WHERE id = ?1 AND status = 'sent'",
+                params![
+                    receipt_id,
+                    status,
+                    workspace_path,
+                    changed_files_json,
+                    error,
+                    unix_timestamp()?
+                ],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "sent phase run receipt is required for verification".into(),
+            ));
+        }
+        drop(connection);
+        self.task_phase_run_receipt(receipt_id)
+    }
+
     pub fn list_task_phase_run_receipts(
         &self,
         task_id: &str,
@@ -2672,7 +2715,9 @@ impl ProjectStore {
         self.connection()?
             .query_row(
                 "SELECT id, task_id, transcript_session_id, sequence, phase, acp_session_id,
-             instruction, status, stop_reason, error, created_at, updated_at
+             instruction, status, stop_reason, error, created_at, updated_at,
+             verification_status, verification_workspace_path,
+             verification_changed_files_json, verification_error
              FROM task_phase_run_receipts WHERE id = ?1",
                 [receipt_id],
                 |row| {
@@ -2689,6 +2734,10 @@ impl ProjectStore {
                         error: row.get(9)?,
                         created_at: row.get(10)?,
                         updated_at: row.get(11)?,
+                        verification_status: row.get(12)?,
+                        verification_workspace_path: row.get(13)?,
+                        verification_changed_files_json: row.get(14)?,
+                        verification_error: row.get(15)?,
                     })
                 },
             )
@@ -2896,6 +2945,26 @@ impl ProjectStore {
                     "current phase requires at least one evidence artifact before completion"
                         .to_string(),
                 ));
+            }
+            if current_phase == "execution" {
+                let latest_verification: Option<Option<String>> = transaction
+                    .query_row(
+                        "SELECT verification_status FROM task_phase_run_receipts
+                         WHERE task_id = ?1 AND phase = 'execution' AND status = 'sent'
+                         ORDER BY sequence DESC LIMIT 1",
+                        [task_id],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(storage_error)?;
+                if latest_verification.is_some()
+                    && latest_verification.flatten().as_deref() != Some("changed")
+                {
+                    return Err(AppError::InvalidInput(
+                        "execution completion requires a verified repository change from the latest phase run"
+                            .into(),
+                    ));
+                }
             }
             transaction
                 .execute(
@@ -3504,6 +3573,10 @@ impl ProjectStore {
                     status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed')),
                     stop_reason TEXT,
                     error TEXT,
+                    verification_status TEXT,
+                    verification_workspace_path TEXT,
+                    verification_changed_files_json TEXT,
+                    verification_error TEXT,
                     created_at INTEGER NOT NULL,
                     updated_at INTEGER NOT NULL,
                     UNIQUE(task_id, sequence)
@@ -3569,6 +3642,30 @@ impl ProjectStore {
             "project_initialization_summaries",
             "claims_json",
             "TEXT NOT NULL DEFAULT '[]'",
+        )?;
+        ensure_table_column(
+            &connection,
+            "task_phase_run_receipts",
+            "verification_status",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "task_phase_run_receipts",
+            "verification_workspace_path",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "task_phase_run_receipts",
+            "verification_changed_files_json",
+            "TEXT",
+        )?;
+        ensure_table_column(
+            &connection,
+            "task_phase_run_receipts",
+            "verification_error",
+            "TEXT",
         )?;
         ensure_table_column(
             &connection,
@@ -7600,6 +7697,45 @@ mod tests {
                     source_transcript_event_ids: vec![events[1].id.clone()],
                 })
                 .expect("phase artifact created");
+            if phase == "execution" {
+                let run = store
+                    .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                        task_id: task.id.clone(),
+                        transcript_session_id: transcript.id.clone(),
+                        phase: phase.to_string(),
+                        acp_session_id: "acp-execution".into(),
+                        instruction: "Implement only the plan".into(),
+                    })
+                    .expect("execution run started");
+                store
+                    .finalize_task_phase_run(&run.id, "sent", Some("end_turn"), None)
+                    .expect("execution run finalized");
+                store
+                    .record_task_phase_run_verification(
+                        &run.id,
+                        "unchanged",
+                        "/workspace/repo",
+                        "[]",
+                        None,
+                    )
+                    .expect("unchanged verification persisted");
+                let blocked = store
+                    .transition_task_phase(TransitionTaskPhaseRequest {
+                        task_id: task.id.clone(),
+                        action: "complete".to_string(),
+                    })
+                    .expect_err("unverified execution rejected");
+                assert!(blocked.to_string().contains("verified repository change"));
+                store
+                    .record_task_phase_run_verification(
+                        &run.id,
+                        "changed",
+                        "/workspace/repo",
+                        r#"[{"status":"M","path":"src/lib.rs"}]"#,
+                        None,
+                    )
+                    .expect("changed verification persisted");
+            }
             transitioned = store
                 .transition_task_phase(TransitionTaskPhaseRequest {
                     task_id: task.id.clone(),
@@ -7678,6 +7814,20 @@ mod tests {
             .expect("run finalized");
         assert_eq!(sent.status, "sent");
         assert_eq!(sent.stop_reason.as_deref(), Some("end_turn"));
+        let verified = store
+            .record_task_phase_run_verification(
+                &first.id,
+                "changed",
+                "/workspace/repo",
+                r#"[{"status":"M","path":"src/lib.rs"}]"#,
+                None,
+            )
+            .expect("verification persisted");
+        assert_eq!(verified.verification_status.as_deref(), Some("changed"));
+        assert_eq!(
+            verified.verification_workspace_path.as_deref(),
+            Some("/workspace/repo")
+        );
         let response_events = store
             .append_transcript_events(
                 &transcript.id,

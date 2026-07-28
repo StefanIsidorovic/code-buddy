@@ -4,24 +4,24 @@
 
 ### 35.1. Add read-only completed phase history
 - objective: let users inspect completed Task phases without reopening or mutating their immutable workflow state.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/tasks/TaskPhasePanel.tsx; related tests; src/App.css if required; working_knowledge/current/*.
 - affected units: phase tracker interaction, historical artifact presentation, current-phase editor visibility.
 - expected changes: make completed phase tracker items selectable; show their saved artifacts in a clearly read-only view; retain all start/run/save/review/complete controls exclusively for the canonical current phase.
 - acceptance criteria: completed phases are keyboard-accessible; selecting one never changes Task state; historical evidence and provenance counts are visible; returning to the current phase restores its pending/in-progress UI; no backend transition is added.
 - required tests: completed selection/read-only rendering/current-phase return; existing Task phase regressions; frontend audit/typecheck/full tests/build; diff hygiene.
 - review status: passed after 1 cycle; completed/current tracker entries are accessible buttons, completed selection exposes only immutable evidence/provenance counts, pending phases remain inert, and current-phase controls return without any backend transition.
-- commit: pending.
+- commit: b315d4f.
 
 ### 35.2. Verify execution changes in the ACP workspace
 - objective: distinguish an execution agent response from a repository implementation verified by AIadne.
-- status: pending after 35.1.
+- status: complete pending commit.
 - files: src-tauri/src/delivery.rs; src-tauri/src/commands.rs; src-tauri/src/storage.rs if persistence is required; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; src/features/tasks/*; App composition/tests; working_knowledge/current/*.
 - affected units: execution phase-run pre/post repository inspection, run result contract, workspace identity, execution completion gate and evidence UI.
 - expected changes: capture the active ACP session workspace and a bounded pre/post Git fingerprint/status; return and display verification separately from agent prose; treat invalid/incomplete Git metadata as unavailable; prevent a locally observed unverified implementation claim from silently presenting as verified.
 - acceptance criteria: execution shows the exact inspected workspace; changed files are derived from the repository rather than agent text; unchanged and unavailable states are explicit; analysis/planning/review runs remain unaffected; execution completion cannot imply verified implementation when the latest local run has no verifiable repository change.
 - required tests: changed/unchanged/non-Git backend inspection; typed orchestration; execution UI/gate states; existing Task/ACP/App regressions; frontend and Rust full gates; diff hygiene.
-- review status: pending.
+- review status: passed after 2 cycles; cycle 1 added pre/post Git verification and visible workspace/result states; cycle 2 made verification durable on the phase-run receipt, enforced it in the backend transition gate, restored it after refresh, bounded untracked-file fingerprint reads, and kept manual execution without an agent run valid.
 - commit: pending.
 
 ### 34.3. Restore all ACP-advertised coding models

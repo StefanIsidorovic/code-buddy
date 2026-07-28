@@ -4,7 +4,9 @@ import type { TaskPhaseRunReceiptInfo } from "../../types/domain";
 import { TaskPhaseRunHistoryPanel } from "./TaskPhaseRunHistoryPanel";
 const receipt: TaskPhaseRunReceiptInfo = { id: "r1", taskId: "t1", transcriptSessionId: "s1", sequence: 0,
   phase: "analysis", acpSessionId: "acp1", instruction: "Analyze only", status: "pending",
-  stopReason: null, error: null, createdAt: 1_785_000_000, updatedAt: 1_785_000_000 };
+  stopReason: null, error: null, verificationStatus: null, verificationWorkspacePath: null,
+  verificationChangedFilesJson: null, verificationError: null,
+  createdAt: 1_785_000_000, updatedAt: 1_785_000_000 };
 function props(overrides = {}) { return { receipts: [receipt], loading: false, error: null,
   resolutionReceiptId: null, resolutionReason: "", onRefresh: vi.fn(), onOpenResolution: vi.fn(),
   onChangeResolutionReason: vi.fn(), onCancelResolution: vi.fn(), onResolve: vi.fn(), ...overrides }; }

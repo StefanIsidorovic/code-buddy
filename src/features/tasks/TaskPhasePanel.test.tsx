@@ -18,6 +18,7 @@ const artifact: TaskPhaseArtifactInfo = { id: "a1", taskId: "t1", phase: "analys
 function props(overrides = {}) { return { task, artifacts: [], currentPhase: phases[0], sourceEvents: [event],
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
   canRunAgent: true, agentRunning: false, hasPhaseRun: false, evidenceReviewed: false,
+  workspaceVerification: null,
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
   onToggleAllSources: vi.fn(),
   onStart: vi.fn(), onComplete: vi.fn(), onRunAndPrepare: vi.fn(), onPrepareCompletion: vi.fn(),
@@ -138,6 +139,27 @@ describe("TaskPhasePanel", () => {
     render(<TaskPhasePanel {...props({ task: reviewTask, currentPhase: reviewPhase,
       artifacts: [{ ...artifact, phase: "review" }], evidenceReviewed: true })} />);
     expect(screen.getByRole("button", { name: "Complete review & finish task" })).toBeEnabled();
+  });
+  it("separates execution prose from repository verification and blocks an unchanged run", () => {
+    const executionPhase = { ...phases[2], status: "in_progress" as const, startedAt: 2 };
+    const executionTask = { ...task, currentPhase: "execution" as const,
+      phases: phases.map((phase) => phase.phase === "execution" ? executionPhase : phase) };
+    const executionArtifact = { ...artifact, phase: "execution" as const };
+    const verification = { taskId: "t1", phase: "execution" as const, workspacePath: "/repo",
+      status: "unchanged" as const, changedFiles: [], error: null };
+    const view = render(<TaskPhasePanel {...props({ task: executionTask, currentPhase: executionPhase,
+      artifacts: [executionArtifact], evidenceReviewed: true, hasPhaseRun: true,
+      workspaceVerification: verification })} />);
+    expect(screen.getByText("No repository change detected")).toBeInTheDocument();
+    expect(screen.getByText("Workspace: /repo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeDisabled();
+    view.rerender(<TaskPhasePanel {...props({ task: executionTask, currentPhase: executionPhase,
+      artifacts: [executionArtifact], evidenceReviewed: true, hasPhaseRun: true,
+      workspaceVerification: { ...verification, status: "changed",
+        changedFiles: [{ status: "M", path: "src/index.ts" }] } })} />);
+    expect(screen.getByText("Repository changes verified")).toBeInTheDocument();
+    expect(screen.getByText("src/index.ts")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete execution & show review" })).toBeEnabled();
   });
   it("locks a repeated phase run after a successful receipt", () => {
     render(<TaskPhasePanel {...props({ hasPhaseRun: true })} />);
