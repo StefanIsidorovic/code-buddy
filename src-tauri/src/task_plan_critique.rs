@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::task_plan::TaskPlanFindingInfo;
+use crate::{storage::TaskPlanVersionInfo, task_plan::TaskPlanFindingInfo};
 
 const MAX_PRIMARY_ISSUES: usize = 3;
 
@@ -17,6 +17,76 @@ pub struct TaskPlanCritiqueIssue {
 #[serde(rename_all = "camelCase")]
 struct CritiqueEnvelope {
     issues: Vec<TaskPlanCritiqueIssue>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CritiqueContext<'a> {
+    plan_version: i64,
+    requirements: Vec<CritiqueRequirement<'a>>,
+    steps: Vec<CritiqueStep<'a>>,
+    findings: &'a [TaskPlanFindingInfo],
+}
+
+#[derive(Serialize)]
+struct CritiqueRequirement<'a> {
+    id: &'a str,
+    text: &'a str,
+    kind: &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CritiqueStep<'a> {
+    id: &'a str,
+    order_index: i64,
+    title: &'a str,
+    description: &'a str,
+    acceptance_criteria: &'a [String],
+    expected_paths: &'a [String],
+    satisfies: &'a [String],
+}
+
+pub fn critique_instruction(
+    plan: &TaskPlanVersionInfo,
+    findings: &[TaskPlanFindingInfo],
+) -> Result<String, serde_json::Error> {
+    let context = CritiqueContext {
+        plan_version: plan.version,
+        requirements: plan
+            .requirements
+            .iter()
+            .map(|item| CritiqueRequirement {
+                id: &item.id,
+                text: &item.text,
+                kind: &item.kind,
+            })
+            .collect(),
+        steps: plan
+            .steps
+            .iter()
+            .map(|item| CritiqueStep {
+                id: &item.id,
+                order_index: item.order_index,
+                title: &item.title,
+                description: &item.description,
+                acceptance_criteria: &item.acceptance_criteria,
+                expected_paths: &item.expected_paths,
+                satisfies: &item.satisfies,
+            })
+            .collect(),
+        findings,
+    };
+    let context_json = serde_json::to_string(&context)?;
+    Ok(format!(
+        "Critique only the deterministic findings in the supplied structured plan context.\n\
+         Return JSON only: {{\"issues\":[{{\"findingIds\":[\"exact persisted finding ID\"],\
+         \"explanation\":\"short impact\",\"proposedRepair\":\"specific plan edit\"}}]}}.\n\
+         Return at most {MAX_PRIMARY_ISSUES} issues, ordered by user impact. Every issue must cite \
+         at least one exact finding ID from the context. Do not invent findings, inspect files, \
+         execute code, rewrite the plan, or claim a repair was applied.\n\
+         CONTEXT_JSON:\n{context_json}"
+    ))
 }
 
 pub fn grounded_issues(
@@ -62,6 +132,7 @@ fn json_object(response: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::{TaskPlanRequirementInfo, TaskPlanStepInfo};
 
     fn finding(id: &str) -> TaskPlanFindingInfo {
         TaskPlanFindingInfo {
@@ -72,6 +143,49 @@ mod tests {
             requirement_id: Some("REQ-1".into()),
             step_ids: Vec::new(),
         }
+    }
+
+    fn plan() -> TaskPlanVersionInfo {
+        TaskPlanVersionInfo {
+            id: "private-plan-id".into(),
+            task_id: "private-task-id".into(),
+            version: 2,
+            status: "draft".into(),
+            source_artifact_id: "private-artifact-id".into(),
+            created_at: 42,
+            approved_at: None,
+            requirements: vec![TaskPlanRequirementInfo {
+                id: "REQ-1".into(),
+                text: "Retry remains safe".into(),
+                kind: "constraint".into(),
+                order_index: 0,
+            }],
+            steps: vec![TaskPlanStepInfo {
+                id: "step-1".into(),
+                order_index: 0,
+                title: "Add retry guard".into(),
+                description: "Reject duplicate work".into(),
+                kind: "implementation".into(),
+                complexity: 2,
+                acceptance_criteria: vec!["Duplicate work is rejected".into()],
+                expected_paths: vec!["src/retry.rs".into()],
+                satisfies: vec!["REQ-1".into()],
+            }],
+        }
+    }
+
+    #[test]
+    fn builds_a_bounded_context_with_an_explicit_grounding_contract() {
+        let instruction =
+            critique_instruction(&plan(), &[finding("GAP:REQ-1")]).expect("context serializes");
+        assert!(instruction.contains("\"planVersion\":2"));
+        assert!(instruction.contains("\"id\":\"GAP:REQ-1\""));
+        assert!(instruction.contains("at most 3 issues"));
+        assert!(instruction.contains("Every issue must cite at least one exact finding ID"));
+        assert!(!instruction.contains("private-task-id"));
+        assert!(!instruction.contains("private-artifact-id"));
+        assert!(!instruction.contains("\"complexity\""));
+        assert!(!instruction.contains("\"createdAt\""));
     }
 
     #[test]
