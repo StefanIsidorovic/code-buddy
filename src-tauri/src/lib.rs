@@ -11,6 +11,7 @@ pub mod storage;
 pub mod synthesis;
 pub mod task;
 pub mod task_plan;
+pub mod task_plan_critique;
 
 use acp::AcpSessionManager;
 use session::SessionManager;
