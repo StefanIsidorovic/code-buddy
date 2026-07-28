@@ -2,16 +2,38 @@
 
 ## Active Plan
 
+### 34.1. Standardize Task phase step presentation
+- objective: frame every Task phase step consistently, standardize explanatory copy styling, and emphasize tracker readiness without changing workflow gates.
+- status: complete pending commit.
+- files: src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhaseGuide.tsx; related tests; src/App.css; working_knowledge/current/*.
+- affected units: evidence editor grouping, review/completion grouping, helper copy presentation, tracker readiness chips, responsive layout.
+- expected changes: wrap Save evidence, Review and Complete as fieldsets matching Step 1; apply one reusable helper-card style to explanatory copy; render required/ready tracker facts as bold colored chips.
+- acceptance criteria: steps 1–4 are visually distinct and ordered; targeted explanations share the Manual path visual language; missing readiness is emphasized without looking successful; ready requirements use the success treatment; all existing action locks remain unchanged.
+- required tests: step region presence/conditional review; helper style regression; required/ready chip states; existing Task panel behavior; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 1 cycle; steps 1–4 are consistently framed, review remains visibly locked until persisted evidence exists, helper copy uses one sentence-case dashed-card treatment, readiness uses bold amber/green chips, and every existing action lock remains unchanged.
+- commit: pending.
+
+### 34.2. Expose authoritative ACP model availability
+- objective: stop offering coding models that the active ACP runtime/configuration cannot actually use.
+- status: pending research after 34.1.
+- files: src-tauri/src/acp.rs; src-tauri/src/commands.rs if required; src/types/domain.ts; src/features/runtime/useAcpRuntime.ts; src/features/runtime/AcpRuntimePanel.tsx; related tests; working_knowledge/current/*.
+- affected units: ACP model metadata parsing, runtime compatibility/config discovery, typed availability reason, model selector filtering/fallback.
+- expected changes: extend the backend-owned model contract with a real configured/available signal or a validated session capability result; show only usable choices while retaining the active model and an actionable reason when none are selectable.
+- acceptance criteria: frontend never guesses from synthesis catalog or hardcoded model names; every hidden model has a backend-derived reason; current session state remains valid; unsupported agents without availability metadata degrade safely.
+- required tests: configured/unconfigured parsing; current-model fallback; selector filtering and empty state; set-model regression; frontend and Rust gates.
+- review status: pending.
+- commit: pending.
+
 ### 33.3. Consolidate Next step into the phase tracker
 - objective: preserve precise next-action guidance while removing the separate space-heavy Next step card.
-- status: complete pending commit.
+- status: complete.
 - files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhasePanel.tsx; related tests; src/App.css; working_knowledge/current/*.
 - affected units: derived next-action copy, evidence readiness indicators, sticky guidance layout, live status semantics.
 - expected changes: pass evidence text/provenance/run readiness into the guide; render one compact Next row and readiness list inside the tracker; remove the separate card and unused styles.
 - acceptance criteria: only one sticky guidance block remains; every prior Next step state remains communicated; text/provenance requirements remain visible before evidence persistence; saved/reviewed states stay phase-aware; no orchestration/backend changes.
 - required tests: empty/run/draft/provenance/saved/reviewed guidance transitions; absence of separate card; existing Task panel regressions; frontend audit/typecheck/full tests/build; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 moved the more precise readiness derivation into the guide and removed the duplicate card/styles; cycle 2 updated stale wording coverage, added an explicit separate-card absence regression, and confirmed one live compact guidance source with no state/backend changes.
-- commit: pending.
+- commit: 1dfde7a.
 
 ### 33.2. Keep phase guidance visible and phase-specific
 - objective: keep the phase tracker and Next step guidance visible during Task scrolling and make the current phase outcome visibly distinct.

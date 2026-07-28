@@ -29,6 +29,11 @@ describe("TaskPhasePanel", () => {
     expect(screen.getByRole("heading", { name: "Task phases" })).toBeInTheDocument();
     expect(screen.getByLabelText("Current phase guidance")).toContainElement(screen.getByRole("status"));
     expect(document.querySelector(".task-next-step")).not.toBeInTheDocument();
+    expect(screen.getByText("Step 2 · Save evidence")).toBeInTheDocument();
+    expect(screen.getByText("Step 3 · Review evidence")).toBeInTheDocument();
+    expect(screen.getByText("Step 4 · Complete phase")).toBeInTheDocument();
+    expect(screen.getByText(/Classifies this saved phase result/)).toHaveClass("task-helper-card");
+    expect(screen.getByText(/The durable conclusion for this phase/)).toHaveClass("task-helper-card");
     fireEvent.change(screen.getByLabelText(/Evidence type/), { target: { value: "risk" } });
     fireEvent.change(screen.getByLabelText(/^Phase evidence/), { target: { value: "Risk found" } });
     fireEvent.click(screen.getByText("Transcript provenance"));
@@ -49,6 +54,7 @@ describe("TaskPhasePanel", () => {
   it("locks completion without an artifact and enables it with persisted evidence", () => {
     const value = props(); const view = render(<TaskPhasePanel {...value} />);
     expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeDisabled();
+    expect(screen.getByText(/Save phase evidence before reviewing/)).toHaveClass("task-helper-card");
     view.rerender(<TaskPhasePanel {...props({ artifacts: [artifact], evidenceReviewed: true })} />);
     expect(screen.getByRole("button", { name: "Complete analysis & show planning" })).toBeEnabled();
     expect(within(screen.getByLabelText("Current phase artifacts"))

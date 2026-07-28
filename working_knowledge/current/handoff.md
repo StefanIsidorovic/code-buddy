@@ -11,10 +11,12 @@
 - Plan item 32.1 is committed as 85abec3: Project Autopilot atomically prepares pending Summary decisions, preserves explicit decisions, validates sources, and leaves publication behind one Approve Summary click.
 - Plan item 33.1 is committed as 8c4afd5: Task progress shows four real steps, evidence creation exposes agent-assisted and manual paths, and latest-run restoration appears only after a run.
 - Plan item 33.2 is committed as ce985e2: desktop Task guidance is sticky, mobile keeps normal flow, and every canonical phase states its distinct expected outcome.
-- Plan item 33.3 is complete pending commit: the sticky tracker owns precise Next guidance and readiness indicators; the separate space-heavy Next step card and its CSS are removed.
+- Plan item 33.3 is committed as 1dfde7a: the sticky tracker owns precise Next guidance and readiness indicators; the separate space-heavy Next step card and its CSS are removed.
+- Plan item 34.1 is complete pending commit: Task steps 1–4 are framed, helper explanations share one visual language, and tracker requirements use emphasized status chips.
 
 ## Next Step
-- Commit 33.3 with a provenance note.
+- Commit 34.1 with a provenance note.
+- Research and implement 34.2 only with an authoritative ACP model availability signal; do not cross-filter against synthesis API profiles.
 - Extend Project Autopilot into a resumable Facts → Markdown → Summary state machine; keep Task Autopilot separate.
 
 ## Commands To Re-Run

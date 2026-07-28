@@ -43,9 +43,11 @@ describe("TaskPhaseGuide", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Review the prepared evidence text/);
     expect(screen.getByText("Evidence text: required")).toBeInTheDocument();
     expect(screen.getByText("Transcript provenance: select at least one event")).toBeInTheDocument();
+    expect(screen.getByText("Evidence text: required")).toHaveAttribute("data-complete", "false");
     view.rerender(<TaskPhaseGuide {...props} hasEvidenceText provenanceCount={2} />);
     expect(screen.getByRole("status")).toHaveTextContent(/ready. Save phase evidence/);
     expect(screen.getByText("Evidence text: ready")).toBeInTheDocument();
     expect(screen.getByText("Transcript provenance: 2 selected")).toBeInTheDocument();
+    expect(screen.getByText("Evidence text: ready")).toHaveAttribute("data-complete", "true");
   });
 });

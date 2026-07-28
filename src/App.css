@@ -5205,11 +5205,21 @@ summary:focus-visible {
   gap: 0.35rem 0.75rem; padding-top: 0.1rem; }
 .task-phase-next ul { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem;
   margin: 0; padding: 0; list-style: none; }
-.task-phase-next li { color: var(--muted); font-size: 0.72rem; }
-.task-phase-next li[data-complete="true"] { color: var(--mint-strong); font-weight: 650; }
+.task-phase-next li { padding: 0.3rem 0.5rem; border: 1px solid var(--border-strong);
+  border-radius: 999px; background: var(--butter); color: var(--ink-strong);
+  font-size: 0.72rem; font-weight: 700; }
+.task-phase-next li[data-complete="true"] { border-color: var(--mint);
+  background: var(--mint-soft); color: var(--mint-strong); }
 .task-artifact-editor { display: grid; gap: 0.7rem; }
-.task-artifact-editor > label { display: grid; gap: 0.35rem; }
+.task-artifact-editor label { display: grid; gap: 0.35rem; }
 .task-artifact-editor fieldset { display: grid; gap: 0.4rem; }
+.task-phase-step { padding: .75rem; border: 1px solid var(--border); border-radius: .65rem; }
+.task-phase-step > legend { padding: 0 .35rem; color: var(--ink-strong);
+  font-size: .82rem; font-weight: 700; }
+.task-helper-card { display: grid; gap: .2rem; margin: .2rem 0 0; padding: .65rem;
+  border: 1px dashed var(--border-subtle); border-radius: .55rem;
+  background: var(--surface-subtle); color: var(--muted); font-size: .76rem;
+  font-weight: 400; line-height: 1.4; text-transform: none; }
 .task-provenance-picker { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 0.7rem; }
 .task-provenance-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding: 0.75rem; cursor: pointer; font-weight: 650; }
@@ -5254,8 +5264,7 @@ summary:focus-visible {
 .task-phase-run { display: grid; gap: .45rem; padding: .75rem; border: 1px solid var(--border); border-radius: .65rem; }
 .task-phase-run > legend { padding: 0 .35rem; color: var(--ink-strong); font-size: .82rem; font-weight: 700; }
 .task-phase-run > p { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
-.task-manual-evidence-path { display: grid; gap: .2rem; margin-top: .2rem; padding: .65rem;
-  border: 1px dashed var(--border-subtle); border-radius: .55rem; background: var(--surface-subtle); }
+.task-manual-evidence-path { display: grid; gap: .2rem; }
 .task-manual-evidence-path span { color: var(--muted); font-size: .76rem; line-height: 1.4; }
 .task-phase-run details { border: 1px solid var(--border-subtle); border-radius: 0.55rem;
   background: var(--surface-subtle); }

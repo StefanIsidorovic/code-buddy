@@ -57,23 +57,27 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
           disabled={!canRunAgent || agentRunning || loading || hasPhaseRun}
           onClick={() => onRunAndPrepare(agentInstruction)}>{agentRunning ? "Running phase…"
             : hasPhaseRun ? `${task.currentPhase} agent run finished` : `Run agent for ${task.currentPhase}`}</button>
-        {!canRunAgent ? <small>Start an ACP session to run this phase.</small> : null}
-        {hasPhaseRun ? <small>The agent response is ready below for review and saving.</small> : null}
-        <div className="task-manual-evidence-path"><strong>Manual path</strong>
+        {!canRunAgent ? <small className="task-helper-card">Start an ACP session to run this phase.</small> : null}
+        {hasPhaseRun ? <small className="task-helper-card">The agent response is ready below for review and saving.</small> : null}
+        <div className="task-manual-evidence-path task-helper-card"><strong>Manual path</strong>
           <span>Skip the agent and write evidence directly below, then choose its transcript provenance.</span></div>
       </fieldset>
+      <fieldset className="task-phase-step"><legend>Step 2 · Save evidence</legend>
       <label>Evidence type<select value={kind} onChange={(event) => onChangeKind(event.target.value)}>
         <option value="summary">Summary</option><option value="finding">Finding</option>
         <option value="risk">Risk</option><option value="decision">Decision</option>
         <option value="implementation_note">Implementation note</option>
         <option value="test_result">Test result</option>
-      </select><small>Classifies this saved phase result so later context can identify its purpose.</small></label>
+      </select><small className="task-helper-card">Classifies this saved phase result so later
+        context can identify its purpose.</small></label>
       <label>Phase evidence<textarea rows={3} value={content} placeholder="Write the result worth carrying into the next phase…"
         onChange={(event) => onChangeContent(event.target.value)} />
-        <small>The durable conclusion for this phase. You can edit the prepared agent response before saving.</small></label>
+        <small className="task-helper-card">The durable conclusion for this phase. You can edit
+          the prepared agent response before saving.</small></label>
       {hasPhaseRun ? <><button type="button" onClick={onPrepareCompletion}
         disabled={loading || agentRunning}>Restore latest agent draft</button>
-        <small>Reloads the latest linked agent response and its provenance into this editable draft.</small></> : null}
+        <small className="task-helper-card">Reloads the latest linked agent response and its
+          provenance into this editable draft.</small></> : null}
       <details key={hasPhaseRun || hasProvenance ? "provenance-open" : "provenance-closed"}
         className="task-provenance-picker" open={hasPhaseRun || hasProvenance ? true : undefined}>
         <summary><span>Transcript provenance</span>
@@ -92,18 +96,27 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       </details>
       <button type="button" onClick={onCreateArtifact} disabled={loading || !kind.trim()
         || !canSaveEvidence}>Save phase evidence</button>
-      {!canSaveEvidence ? <small role="note">To enable Save phase evidence, add evidence text and select
-        at least one supporting transcript event.</small> : null}
-      <small>Saves this text as an immutable Task artifact linked to the selected transcript events.
-        It does not complete the phase.</small>
-      {phaseArtifacts.length > 0 ? <fieldset className="task-phase-review"><legend>Review checkpoint</legend>
+      {!canSaveEvidence ? <small className="task-helper-card" role="note">To enable Save phase
+        evidence, add evidence text and select at least one supporting transcript event.</small> : null}
+      <small className="task-helper-card">Saves this text as an immutable Task artifact linked to
+        the selected transcript events. It does not complete the phase.</small>
+      </fieldset>
+      <fieldset className="task-phase-step task-phase-review"><legend>Step 3 · Review evidence</legend>
+      {phaseArtifacts.length > 0 ? <>
         <ul>{taskPhaseReviewCriteria[task.currentPhase].map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
         <label><input type="checkbox" checked={evidenceReviewed}
           onChange={(event) => onAcknowledgeEvidenceReview(event.target.checked)} />
-          I reviewed the persisted evidence against these criteria.</label></fieldset> : null}
+          I reviewed the persisted evidence against these criteria.</label></>
+        : <small className="task-helper-card">Save phase evidence before reviewing it against
+          the phase criteria.</small>}
+      </fieldset>
+      <fieldset className="task-phase-step"><legend>Step 4 · Complete phase</legend>
       <button className="primary-action" type="button" onClick={onComplete}
         disabled={loading || phaseArtifacts.length === 0 || !evidenceReviewed}>{nextPhase
           ? `Complete ${task.currentPhase} & show ${nextPhase}` : `Complete ${task.currentPhase} & finish task`}</button>
+      <small className="task-helper-card">Completes only the current phase. The next phase is
+        revealed but never started automatically.</small>
+      </fieldset>
     </div> : null}
     <div className="task-artifact-list" aria-label="Current phase artifacts"><strong>Current phase artifacts</strong>
       {phaseArtifacts.length === 0 ? <p>No artifacts yet.</p> : <ul>{phaseArtifacts.map((artifact) =>
