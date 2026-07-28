@@ -447,8 +447,8 @@ function App() {
               critique={taskPlan.critique}
               canRunCritique={!!selectedAcpCandidateId
                 && !!(selectedRepository?.path ?? selectedProject?.path)}
-              sourceArtifactId={[...taskPhase.artifacts].reverse()
-                .find(({ phase }) => phase === "planning")?.id ?? null}
+              sourceArtifact={[...taskPhase.artifacts].reverse()
+                .find(({ phase }) => phase === "planning") ?? null}
               onCreate={(artifactId, draft) => void taskPlan.create(artifactId, draft)}
               onEvaluate={(versionId) => void taskPlan.evaluate(versionId)}
               onRunCritique={() => void taskPlan.runCritique()}

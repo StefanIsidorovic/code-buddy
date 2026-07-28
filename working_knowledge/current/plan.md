@@ -67,6 +67,16 @@
 - required tests: backend not-ready/ready/cross-project gates; UI pending/in-progress/ready cases; frontend/Rust gates and diff hygiene.
 - review status: passed after 2 cycles; cycle 1 added storage and presentation gates and exposed legacy test fixtures that violated the new invariant; cycle 2 made readiness fixtures explicit and directly proved missing, cross-project, legacy in-progress and same-project ready behavior.
 
+### 37.4g. Generate structured plan drafts from planning evidence
+- objective: make agent-generated structured plans the default planning UX while preserving manual editing and explicit approval.
+- status: complete pending commit.
+- files: src/features/tasks/taskPhaseExecution.ts; src/features/tasks/taskPlanDraft.ts; src/features/tasks/TaskPlanEditor.tsx; src/App.tsx; colocated tests; working_knowledge/current/*.
+- affected units: planning phase output contract, evidence-to-draft parsing, local plan editor state.
+- expected changes: request one bounded JSON plan block from the planning agent; strictly parse validated drafts from saved planning evidence; auto-fill only a pristine editor; expose explicit restoration without auto-saving or auto-approval.
+- acceptance criteria: valid planning evidence fills the form; malformed evidence degrades to manual entry; existing user edits are not overwritten; approval remains explicit and immutable.
+- required tests: planning-only prompt contract; valid/malformed/reference parser cases; auto-fill, manual-preservation and restore editor behavior; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 added the strict planning contract, parser and pristine auto-fill; cycle 2 made every manual edit path dirty, added explicit invalid-evidence guidance and confirmed restoration is opt-in.
+
 ### 37.5. Add safe parallel execution waves
 - objective: allow independent small-model steps to run concurrently without sharing mutable Git state.
 - status: deferred until 37.4 is proven.

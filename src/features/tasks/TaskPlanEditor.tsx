@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import type { TaskPlanCritiqueInfo, TaskPlanDraft, TaskPlanEvaluationInfo,
+import type { TaskPhaseArtifactInfo, TaskPlanCritiqueInfo, TaskPlanDraft, TaskPlanEvaluationInfo,
   TaskPlanVersionInfo } from "../../types/domain";
 import { TaskPlanCritiquePanel } from "./TaskPlanCritiquePanel";
 import { TaskPlanEvaluationPanel } from "./TaskPlanEvaluationPanel";
+import { parseTaskPlanDraft } from "./taskPlanDraft";
 
 type RequirementDraft = { id: string; text: string; kind: string };
 type StepDraft = { title: string; description: string; kind: string; complexity: number;
   criteria: string; paths: string; satisfies: string };
 interface Props {
-  sourceArtifactId: string | null;
+  sourceArtifact: TaskPhaseArtifactInfo | null;
   versions: TaskPlanVersionInfo[];
   loading: boolean;
   error: string | null;
@@ -28,31 +29,44 @@ const step = (): StepDraft => ({ title: "", description: "", kind: "implementati
   complexity: 2, criteria: "", paths: "", satisfies: "REQ-1" });
 const lines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
 const commaList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+const editRequirements = (draft: TaskPlanDraft): RequirementDraft[] =>
+  draft.requirements.map(({ id, text, kind }) => ({ id, text, kind }));
+const editSteps = (draft: TaskPlanDraft): StepDraft[] => draft.steps.map((item) => ({
+  title: item.title, description: item.description, kind: item.kind, complexity: item.complexity,
+  criteria: item.acceptanceCriteria.join("\n"), paths: item.expectedPaths.join(", "),
+  satisfies: item.satisfies.join(", "),
+}));
 
-export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, evaluation, critique,
+export function TaskPlanEditor({ sourceArtifact, versions, loading, error, evaluation, critique,
   canRunCritique, onCreate, onEvaluate, onRunCritique, onApplyRepairs, onApprove }: Props) {
   const [requirements, setRequirements] = useState<RequirementDraft[]>([requirement(0)]);
   const [steps, setSteps] = useState<StepDraft[]>([step()]);
+  const [dirty, setDirty] = useState(false);
+  const [generated, setGenerated] = useState(false);
   const approved = versions.find(({ status }) => status === "approved") ?? null;
   const latest = versions[versions.length - 1] ?? null;
+  const evidenceDraft = sourceArtifact ? parseTaskPlanDraft(sourceArtifact.content) : null;
+  const applyDraft = (draft: TaskPlanDraft, isGenerated: boolean) => {
+    setRequirements(editRequirements(draft)); setSteps(editSteps(draft));
+    setGenerated(isGenerated); setDirty(false);
+  };
   useEffect(() => {
     if (!latest || latest.status === "approved") return;
-    setRequirements(latest.requirements.map(({ id, text, kind }) => ({ id, text, kind })));
-    setSteps(latest.steps.map((item) => ({
-      title: item.title, description: item.description, kind: item.kind,
-      complexity: item.complexity, criteria: item.acceptanceCriteria.join("\n"),
-      paths: item.expectedPaths.join(", "), satisfies: item.satisfies.join(", "),
-    })));
+    applyDraft(latest, false);
   }, [latest?.id, latest?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!evidenceDraft || latest || dirty) return;
+    applyDraft(evidenceDraft, true);
+  }, [sourceArtifact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const valid = requirements.every((item) => item.id.trim() && item.text.trim())
     && steps.every((item) => item.title.trim() && item.description.trim() && item.criteria.trim()
       && (item.kind === "infrastructure" || item.satisfies.trim()));
   const updateRequirement = (index: number, patch: Partial<RequirementDraft>) =>
-    setRequirements((current) => current.map((item, itemIndex) =>
-      itemIndex === index ? { ...item, ...patch } : item));
+    { setDirty(true); setGenerated(false); setRequirements((current) => current.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, ...patch } : item)); };
   const updateStep = (index: number, patch: Partial<StepDraft>) =>
-    setSteps((current) => current.map((item, itemIndex) =>
-      itemIndex === index ? { ...item, ...patch } : item));
+    { setDirty(true); setGenerated(false); setSteps((current) => current.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, ...patch } : item)); };
 
   if (approved) return <section className="task-plan-editor" aria-labelledby="structured-plan-title">
     <div><h4 id="structured-plan-title">Approved implementation plan</h4>
@@ -69,6 +83,13 @@ export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, eva
       <span>{versions.length} draft version(s)</span></div>
     <p className="task-helper-card">Turn the saved planning evidence into requirements and ordered
       implementation steps. Saving creates an immutable version; approval locks the chosen version.</p>
+    {generated ? <p className="state-notice success" role="status"><strong>Agent-generated draft</strong>
+      <span>Review and edit it before saving a plan version.</span></p> : null}
+    {evidenceDraft && !generated ? <button type="button"
+      onClick={() => applyDraft(evidenceDraft, true)}>Restore from planning evidence</button> : null}
+    {sourceArtifact && !evidenceDraft && !latest ? <p className="task-helper-card" role="note">
+      This planning evidence has no valid structured draft. Fill the form manually or rerun the
+      planning agent to generate one.</p> : null}
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     <fieldset><legend>Requirements</legend>
       {requirements.map((item, index) => <div className="task-plan-row" key={index}>
@@ -82,11 +103,16 @@ export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, eva
         <input aria-label={`Requirement ${index + 1} text`} value={item.text}
           placeholder="One testable assertion"
           onChange={(event) => updateRequirement(index, { text: event.target.value })} />
-        {requirements.length > 1 ? <button type="button" onClick={() =>
-          setRequirements((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remove</button> : null}
+        {requirements.length > 1 ? <button type="button" onClick={() => {
+          setDirty(true); setGenerated(false);
+          setRequirements((current) => current.filter((_, itemIndex) => itemIndex !== index));
+        }}>Remove</button> : null}
       </div>)}
-      <button type="button" onClick={() => setRequirements((current) =>
-        [...current, requirement(current.length)])}>Add requirement</button>
+      <button type="button" onClick={() => {
+        setDirty(true); setGenerated(false);
+        setRequirements((current) => [...current, requirement(current.length)]);
+      }}>
+        Add requirement</button>
     </fieldset>
     <fieldset><legend>Ordered steps</legend>
       {steps.map((item, index) => <div className="task-plan-step-draft" key={index}>
@@ -111,20 +137,24 @@ export function TaskPlanEditor({ sourceArtifactId, versions, loading, error, eva
         <input aria-label={`Step ${index + 1} requirements`} value={item.satisfies}
           placeholder="Requirement IDs, comma separated"
           onChange={(event) => updateStep(index, { satisfies: event.target.value })} />
-        {steps.length > 1 ? <button type="button" onClick={() =>
-          setSteps((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remove step</button> : null}
+        {steps.length > 1 ? <button type="button" onClick={() => {
+          setDirty(true); setGenerated(false);
+          setSteps((current) => current.filter((_, itemIndex) => itemIndex !== index));
+        }}>Remove step</button> : null}
       </div>)}
-      <button type="button" onClick={() => setSteps((current) => [...current, step()])}>Add step</button>
+      <button type="button" onClick={() => {
+        setDirty(true); setGenerated(false); setSteps((current) => [...current, step()]);
+      }}>Add step</button>
     </fieldset>
-    <button type="button" disabled={loading || !sourceArtifactId || !valid} onClick={() => {
-      if (!sourceArtifactId) return;
-      onCreate(sourceArtifactId, { requirements, steps: steps.map((item) => ({
+    <button type="button" disabled={loading || !sourceArtifact || !valid} onClick={() => {
+      if (!sourceArtifact) return;
+      onCreate(sourceArtifact.id, { requirements, steps: steps.map((item) => ({
         title: item.title, description: item.description, kind: item.kind, complexity: item.complexity,
         acceptanceCriteria: lines(item.criteria), expectedPaths: commaList(item.paths),
         satisfies: commaList(item.satisfies),
       })) });
     }}>Save new plan version</button>
-    {!sourceArtifactId ? <small className="task-helper-card">Save planning evidence before creating
+    {!sourceArtifact ? <small className="task-helper-card">Save planning evidence before creating
       its structured plan.</small> : null}
     {latest ? <TaskPlanEvaluationPanel plan={latest} evaluation={evaluation} loading={loading}
       onEvaluate={onEvaluate} /> : null}

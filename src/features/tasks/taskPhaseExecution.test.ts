@@ -17,6 +17,13 @@ describe("buildTaskPhaseExecutionPrompt", () => {
     expect(prompt).toContain(boundary);
     expect(prompt).toContain("explicit user-controlled gates");
   });
+  it("adds a machine-readable draft contract only to planning", () => {
+    const planning = buildTaskPhaseExecutionPrompt({ ...base, currentPhase: "planning" });
+    expect(planning).toContain("```json fenced object");
+    expect(planning).toContain('"acceptanceCriteria"');
+    expect(buildTaskPhaseExecutionPrompt({ ...base, currentPhase: "analysis" }))
+      .not.toContain("```json fenced object");
+  });
 });
 
 describe("executionVerificationForTask", () => {
