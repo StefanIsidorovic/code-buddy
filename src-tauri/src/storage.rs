@@ -3309,6 +3309,7 @@ impl ProjectStore {
         }
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(storage_error)?;
+        require_task_project_knowledge_ready(&transaction, task_id)?;
         let (owned_transcript, current_phase): (String, String) = transaction
             .query_row(
                 "SELECT transcript_session_id, current_phase FROM tasks WHERE id = ?1",
@@ -3473,6 +3474,7 @@ impl ProjectStore {
 
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(storage_error)?;
+        require_task_project_knowledge_ready(&transaction, task_id)?;
         let phase_state: Option<(String, String)> = transaction
             .query_row(
                 "SELECT tasks.current_phase, phases.status FROM tasks
@@ -4202,6 +4204,7 @@ impl ProjectStore {
                     "only a pending current phase can start".to_string(),
                 ));
             }
+            require_task_project_knowledge_ready(&transaction, task_id)?;
             transaction
                 .execute(
                     "UPDATE task_phases SET status = 'in_progress', started_at = ?1
@@ -5232,6 +5235,45 @@ impl ProjectStore {
         Ok(())
     }
 
+    #[cfg(test)]
+    pub(crate) fn seed_ready_project_knowledge(&self, project_id: &str) {
+        let initialization_id = Uuid::new_v4().to_string();
+        let summary_id = Uuid::new_v4().to_string();
+        let unit_id = Uuid::new_v4().to_string();
+        let connection = self.connection().expect("test store opens");
+        connection
+            .execute(
+                "INSERT INTO project_initialization_runs
+             (id, project_id, status, created_at, updated_at)
+             VALUES (?1, ?2, 'summary', 1, 1)",
+                params![initialization_id, project_id],
+            )
+            .expect("test initialization inserted");
+        connection
+            .execute(
+                "INSERT INTO project_initialization_summaries
+             (id, initialization_id, status, project_purpose, repository_map, repository_roles,
+              build_test_matrix, fragile_areas, do_not_touch_rules, agent_working_rules,
+              open_questions, claims_json, fact_count, markdown_finding_count, guardrail_count,
+              requested_model_parameters_json, knowledge_schema_version, generation_engine,
+              created_at, approved_at)
+             VALUES (?1, ?2, 'approved', 'purpose', 'map', 'roles', 'tests', 'fragile',
+              'rules', 'agent rules', 'questions', '[]', 1, 1, 1, '[]', 1, 'test', 1, 1)",
+                params![summary_id, initialization_id],
+            )
+            .expect("test summary inserted");
+        connection
+            .execute(
+                "INSERT INTO knowledge_units
+             (id, project_id, initialization_id, derived_from_summary_id, kind, topic, content,
+              scope, status, confidence, schema_version, created_at)
+             VALUES (?1, ?2, ?3, ?4, 'purpose', 'project_purpose', 'purpose',
+              'project', 'active', 100, 1, 1)",
+                params![unit_id, project_id, initialization_id, summary_id],
+            )
+            .expect("test knowledge unit inserted");
+    }
+
     fn connection(&self) -> AppResult<MutexGuard<'_, Connection>> {
         self.connection
             .lock()
@@ -5635,6 +5677,33 @@ fn require_project_initialization(
         return Err(AppError::InvalidInput(format!(
             "project initialization not found: {initialization_id}"
         )));
+    }
+    Ok(())
+}
+
+fn require_task_project_knowledge_ready(connection: &Connection, task_id: &str) -> AppResult<()> {
+    let ready: bool = connection
+        .query_row(
+            "SELECT EXISTS(
+                SELECT 1
+                FROM tasks
+                JOIN project_initialization_runs runs
+                  ON runs.project_id = tasks.project_id
+                JOIN project_initialization_summaries summaries
+                  ON summaries.initialization_id = runs.id AND summaries.status = 'approved'
+                JOIN knowledge_units units
+                  ON units.derived_from_summary_id = summaries.id
+                 AND units.project_id = tasks.project_id AND units.status = 'active'
+                WHERE tasks.id = ?1
+             )",
+            [task_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if !ready {
+        return Err(AppError::InvalidInput(
+            "initialize and approve Project Knowledge before starting Task work".into(),
+        ));
     }
     Ok(())
 }
@@ -8665,6 +8734,76 @@ mod tests {
     }
 
     #[test]
+    fn gates_task_work_on_approved_project_knowledge_for_the_same_project() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "Task project".into(),
+                path: temp_project_path("task-readiness"),
+            })
+            .expect("project created");
+        let other = store
+            .create_project(CreateProjectRequest {
+                name: "Other project".into(),
+                path: temp_project_path("other-readiness"),
+            })
+            .expect("other project created");
+        store.seed_ready_project_knowledge(&other.id);
+        let transcript = store
+            .create_transcript_session(CreateTranscriptSessionRequest {
+                project_id: Some(project.id.clone()),
+                runtime: "acp".into(),
+                source: "Codex".into(),
+                title: None,
+            })
+            .expect("transcript created");
+        let task = store
+            .create_task(CreateTaskRequest {
+                project_id: project.id.clone(),
+                transcript_session_id: transcript.id.clone(),
+                original_prompt: "Do gated work".into(),
+            })
+            .expect("task created");
+        let error = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id.clone(),
+                action: "start".into(),
+            })
+            .expect_err("another project's knowledge cannot start the Task");
+        assert!(matches!(error, AppError::InvalidInput(message)
+            if message.contains("Project Knowledge")));
+
+        store.connection().expect("connection").execute(
+            "UPDATE task_phases SET status = 'in_progress' WHERE task_id = ?1 AND phase = 'analysis'",
+            [&task.id],
+        ).expect("legacy in-progress fixture");
+        let run_error = store
+            .begin_task_phase_run(CreateTaskPhaseRunRequest {
+                task_id: task.id.clone(),
+                transcript_session_id: transcript.id,
+                phase: "analysis".into(),
+                acp_session_id: "acp".into(),
+                instruction: "Analyze".into(),
+            })
+            .expect_err("legacy in-progress Task remains gated");
+        assert!(matches!(run_error, AppError::InvalidInput(message)
+            if message.contains("Project Knowledge")));
+
+        store.connection().expect("connection").execute(
+            "UPDATE task_phases SET status = 'pending' WHERE task_id = ?1 AND phase = 'analysis'",
+            [&task.id],
+        ).expect("pending fixture restored");
+        store.seed_ready_project_knowledge(&project.id);
+        let started = store
+            .transition_task_phase(TransitionTaskPhaseRequest {
+                task_id: task.id,
+                action: "start".into(),
+            })
+            .expect("same-project knowledge starts the Task");
+        assert_eq!(started.phases[0].status, "in_progress");
+    }
+
+    #[test]
     fn creates_tasks_with_canonical_phases_and_lists_them_by_project() {
         let store = ProjectStore::in_memory().expect("store opens");
         let project = store
@@ -8744,6 +8883,7 @@ mod tests {
                 path: temp_project_path("structured-planning"),
             })
             .expect("project created");
+        store.seed_ready_project_knowledge(&project.id);
         let transcript = store
             .create_transcript_session(CreateTranscriptSessionRequest {
                 project_id: Some(project.id.clone()),
@@ -9106,6 +9246,7 @@ mod tests {
                 path: temp_project_path("task-agent-reports"),
             })
             .expect("project created");
+        store.seed_ready_project_knowledge(&project.id);
         let executor = store
             .create_transcript_session(CreateTranscriptSessionRequest {
                 project_id: Some(project.id.clone()),
@@ -9316,6 +9457,7 @@ mod tests {
                 path: temp_project_path("task-agent-report-transcript"),
             })
             .expect("project created");
+        store.seed_ready_project_knowledge(&project.id);
         let executor = store
             .create_transcript_session(CreateTranscriptSessionRequest {
                 project_id: Some(project.id.clone()),
@@ -9435,6 +9577,7 @@ mod tests {
                 path: temp_project_path("task-phase-artifacts"),
             })
             .expect("project created");
+        store.seed_ready_project_knowledge(&project.id);
         let transcript = store
             .create_transcript_session(CreateTranscriptSessionRequest {
                 project_id: Some(project.id.clone()),
@@ -9710,6 +9853,7 @@ mod tests {
                 path: temp_project_path("phase-run"),
             })
             .expect("project created");
+        store.seed_ready_project_knowledge(&project.id);
         let transcript = store
             .create_transcript_session(CreateTranscriptSessionRequest {
                 project_id: Some(project.id.clone()),
@@ -9879,6 +10023,7 @@ mod tests {
                 path: temp_project_path("plan-step-runs"),
             })
             .expect("project created");
+        store.seed_ready_project_knowledge(&project.id);
         let transcript = store
             .create_transcript_session(CreateTranscriptSessionRequest {
                 project_id: Some(project.id.clone()),

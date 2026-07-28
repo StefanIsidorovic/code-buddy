@@ -430,6 +430,9 @@ function App() {
             workspaceVerification={executionVerification}
             agentWorkspacePath={acpSession?.cwd ?? null}
             expectedWorkspacePath={selectedRepository?.path ?? selectedProject?.path ?? null}
+            projectKnowledgeReady={projectInitializationSummary?.status === "approved"
+              && projectInitializationKnowledgeUnits.some((unit) => unit.status === "active")}
+            onInitializeProjectKnowledge={() => workspaceNavigation.changeView("knowledge")}
             planningPlanApproved={taskPlan.approved !== null}
             executionStepsComplete={taskSteps.allAccepted}
             executionPanel={<TaskExecutionStepsPanel plan={taskPlan.approved}

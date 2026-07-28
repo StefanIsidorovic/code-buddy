@@ -1615,6 +1615,7 @@ mod tests {
                     path: project_path.clone(),
                 })
                 .expect("project created");
+            store.seed_ready_project_knowledge(&project.id);
             let transcript = store
                 .create_transcript_session(CreateTranscriptSessionRequest {
                     project_id: Some(project.id.clone()),
@@ -1851,6 +1852,7 @@ mod tests {
                     path: project_path.clone(),
                 })
                 .expect("project created");
+            store.seed_ready_project_knowledge(&project.id);
             let executor = store
                 .create_transcript_session(CreateTranscriptSessionRequest {
                     project_id: Some(project.id.clone()),

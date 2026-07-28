@@ -19,6 +19,7 @@ function props(overrides = {}) { return { task, artifacts: [], currentPhase: pha
   selectedSourceIds: [], kind: "summary", content: "", error: null, loading: false,
   canRunAgent: true, agentRunning: false, hasPhaseRun: false, evidenceReviewed: false,
   workspaceVerification: null,
+  projectKnowledgeReady: true, onInitializeProjectKnowledge: vi.fn(),
   agentWorkspacePath: "/repo", expectedWorkspacePath: "/repo",
   onChangeKind: vi.fn(), onChangeContent: vi.fn(), onToggleSource: vi.fn(), onCreateArtifact: vi.fn(),
   onToggleAllSources: vi.fn(),
@@ -67,6 +68,19 @@ describe("TaskPhasePanel", () => {
       error: "Gate failed" }); render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByRole("button", { name: "Start analysis" }));
     expect(value.onStart).toHaveBeenCalledOnce(); expect(screen.getByRole("alert")).toHaveTextContent("Gate failed");
+  });
+  it("keeps the Task saved but blocks pending and legacy in-progress work until Project Knowledge is ready", () => {
+    const pending = { ...phases[0], status: "pending", startedAt: null };
+    const value = props({ currentPhase: pending, projectKnowledgeReady: false });
+    const view = render(<TaskPhasePanel {...value} />);
+    expect(screen.queryByRole("button", { name: "Start analysis" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Project Knowledge is required");
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Project Knowledge" }));
+    expect(value.onInitializeProjectKnowledge).toHaveBeenCalledOnce();
+    view.rerender(<TaskPhasePanel {...props({ projectKnowledgeReady: false })} />);
+    expect(screen.queryByRole("button", { name: "Run agent for analysis" })).not.toBeInTheDocument();
+    view.rerender(<TaskPhasePanel {...props()} />);
+    expect(screen.getByRole("button", { name: "Run agent for analysis" })).toBeInTheDocument();
   });
   it("shows completed phases as read-only history and returns to the current phase", () => {
     const planningPhase = { ...phases[1], status: "in_progress" as const, startedAt: 2 };

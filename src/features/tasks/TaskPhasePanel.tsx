@@ -14,6 +14,7 @@ interface Props { task: TaskInfo; artifacts: TaskPhaseArtifactInfo[]; currentPha
   agentWorkspacePath: string | null; expectedWorkspacePath: string | null;
   planningPanel?: ReactNode; planningPlanApproved?: boolean;
   executionPanel?: ReactNode; executionStepsComplete?: boolean;
+  projectKnowledgeReady: boolean; onInitializeProjectKnowledge: () => void;
   onChangeContent: (value: string) => void; onToggleSource: (id: string, selected: boolean) => void;
   onToggleAllSources: (selected: boolean) => void;
   onCreateArtifact: () => void; onStart: () => void; onComplete: () => void;
@@ -26,6 +27,7 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
   agentWorkspacePath, expectedWorkspacePath,
   planningPanel, planningPlanApproved = false,
   executionPanel, executionStepsComplete = false,
+  projectKnowledgeReady, onInitializeProjectKnowledge,
   onChangeKind, onChangeContent, onToggleSource, onToggleAllSources,
   onCreateArtifact, onStart, onComplete, onRunAndPrepare, onPrepareCompletion,
   onAcknowledgeEvidenceReview }: Props) {
@@ -84,9 +86,18 @@ export function TaskPhasePanel({ task, artifacts, currentPhase, sourceEvents, se
       <small>Stop the ACP session, select the repository, then start a new ACP session before
         running this phase.</small>
     </div> : null}
-    {viewingCurrentPhase && currentPhase?.status === "pending" ? <button className="primary-action" type="button"
+    {viewingCurrentPhase && !projectKnowledgeReady ? <div className="state-notice prerequisite" role="alert">
+      <strong>Project Knowledge is required</strong>
+      <p>Initialize and approve Project Knowledge before starting or running this Task.
+        The Task stays saved while you complete that prerequisite.</p>
+      <button type="button" onClick={onInitializeProjectKnowledge}>
+        Initialize Project Knowledge
+      </button>
+    </div> : null}
+    {viewingCurrentPhase && projectKnowledgeReady && currentPhase?.status === "pending"
+      ? <button className="primary-action" type="button"
       disabled={loading} onClick={onStart}>Start {task.currentPhase}</button> : null}
-    {inProgress && viewingCurrentPhase ? <div className="task-artifact-editor">
+    {inProgress && viewingCurrentPhase && projectKnowledgeReady ? <div className="task-artifact-editor">
       {usingStepExecution ? executionPanel : null}
       <fieldset className="task-phase-run"><legend>Step 1 · Create phase evidence</legend>
         {usingStepExecution ? <><strong>Evidence from accepted plan steps</strong>
