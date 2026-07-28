@@ -28,22 +28,24 @@ use crate::{
         CreateKnowledgeItemRequest, CreateProjectInitializationRequest,
         CreateProjectRepositoryRequest, CreateProjectRequest, CreateTaskAgentReportRequest,
         CreateTaskAgentReportTranscriptRequest, CreateTaskContextDispatchRequest,
-        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskPlanVersionRequest,
-        CreateTaskRequest, CreateTranscriptSessionRequest, EvaluateTaskPlanRequest,
-        GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo, KnowledgeUnitInfo,
-        LinkTaskPhaseRunEventsRequest, ProjectInfo, ProjectInitializationFactInfo,
-        ProjectInitializationGuardrailInfo, ProjectInitializationInfo,
-        ProjectInitializationMarkdownFindingInfo, ProjectInitializationSummaryInfo,
-        ProjectRepositoryInfo, ProjectStore, RegenerateProjectInitializationSummarySectionRequest,
-        RenameTranscriptSessionRequest, ResolveTaskContextDispatchRequest,
-        ResolveTaskPhaseRunRequest, ReviewProjectInitializationSummaryClaimRequest,
-        SaveProjectInitializationGuardrailsRequest, TaskAgentReportInfo,
-        TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo, TaskInfo,
-        TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanEvaluationInfo,
-        TaskPlanVersionInfo, TranscriptAcpIdentityInfo, TranscriptEventInfo, TranscriptEventInput,
-        TranscriptSessionInfo, TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
+        CreateTaskPhaseArtifactRequest, CreateTaskPhaseRunRequest, CreateTaskPlanCritiqueRequest,
+        CreateTaskPlanVersionRequest, CreateTaskRequest, CreateTranscriptSessionRequest,
+        EvaluateTaskPlanRequest, GenerateProjectInitializationSummaryRequest, KnowledgeItemInfo,
+        KnowledgeUnitInfo, LinkTaskPhaseRunEventsRequest, ProjectInfo,
+        ProjectInitializationFactInfo, ProjectInitializationGuardrailInfo,
+        ProjectInitializationInfo, ProjectInitializationMarkdownFindingInfo,
+        ProjectInitializationSummaryInfo, ProjectRepositoryInfo, ProjectStore,
+        RegenerateProjectInitializationSummarySectionRequest, RenameTranscriptSessionRequest,
+        ResolveTaskContextDispatchRequest, ResolveTaskPhaseRunRequest,
+        ReviewProjectInitializationSummaryClaimRequest, SaveProjectInitializationGuardrailsRequest,
+        TaskAgentReportInfo, TaskAgentReportTranscriptInfo, TaskContextDispatchReceiptInfo,
+        TaskInfo, TaskPhaseArtifactInfo, TaskPhaseRunReceiptInfo, TaskPlanCritiqueInfo,
+        TaskPlanEvaluationInfo, TaskPlanVersionInfo, TranscriptAcpIdentityInfo,
+        TranscriptEventInfo, TranscriptEventInput, TranscriptSessionInfo,
+        TransitionTaskPhaseRequest, UpdateTaskComplexityRequest,
     },
     synthesis::SynthesisProviderRegistry,
+    task_plan_critique::critique_instruction,
 };
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
@@ -79,6 +81,24 @@ pub struct RunTaskAgentReportResultInfo {
     pub prompt_result: AcpPromptResult,
     pub transcript_session: TranscriptSessionInfo,
     pub report: TaskAgentReportInfo,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunTaskPlanCritiqueRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub evaluation_id: String,
+    pub candidate_id: String,
+    pub cwd: PathBuf,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunTaskPlanCritiqueResultInfo {
+    pub critique: TaskPlanCritiqueInfo,
+    pub cached: bool,
+    pub prompt_result: Option<AcpPromptResult>,
 }
 
 #[tauri::command]
@@ -516,6 +536,46 @@ pub fn get_task_plan_evaluation(
     plan_version_id: String,
 ) -> AppResult<Option<TaskPlanEvaluationInfo>> {
     state.task_plan_evaluation(&plan_version_id)
+}
+
+#[tauri::command]
+pub async fn run_task_plan_critique(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    request: RunTaskPlanCritiqueRequest,
+) -> AppResult<RunTaskPlanCritiqueResultInfo> {
+    let (plan, evaluation) = validated_plan_critique_context(store_state.inner(), &request)?;
+    if let Some(cached) = store_state.task_plan_critique(&evaluation.id)? {
+        return Ok(RunTaskPlanCritiqueResultInfo {
+            critique: cached,
+            cached: true,
+            prompt_result: None,
+        });
+    }
+    let instruction = critique_instruction(&plan, &evaluation.findings)
+        .map_err(|error| AppError::Storage(error.to_string()))?;
+    let candidate_id = request.candidate_id.trim().to_string();
+    if candidate_id.is_empty() {
+        return Err(AppError::InvalidInput(
+            "plan critique requires an ACP candidate".into(),
+        ));
+    }
+    let start_request = StartAcpRegistrySessionRequest {
+        candidate_id,
+        cwd: Some(request.cwd.clone()),
+        workspace_isolation: Some(AcpWorkspaceIsolation::SnapshotSandbox),
+    };
+    let manager = Arc::clone(manager_state.inner());
+    let start_manager = Arc::clone(&manager);
+    let session = run_acp_task(move || start_manager.start_registry_session(start_request)).await?;
+    run_task_plan_critique_against_session(
+        manager,
+        store_state.inner(),
+        request,
+        session,
+        instruction,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1004,6 +1064,85 @@ fn validate_task_agent_report_run(task: &TaskInfo, phase: &str, role: &str) -> A
         ));
     }
     Ok(())
+}
+
+fn validated_plan_critique_context(
+    store: &ProjectStore,
+    request: &RunTaskPlanCritiqueRequest,
+) -> AppResult<(TaskPlanVersionInfo, TaskPlanEvaluationInfo)> {
+    let task = store.task(&request.task_id)?;
+    let planning_in_progress = task.status == "in_progress"
+        && task.current_phase == "planning"
+        && task
+            .phases
+            .iter()
+            .any(|phase| phase.phase == "planning" && phase.status == "in_progress");
+    if !planning_in_progress {
+        return Err(AppError::InvalidInput(
+            "plan critique may only run during the in-progress planning phase".into(),
+        ));
+    }
+    let plan = store
+        .list_task_plan_versions(&task.id)?
+        .into_iter()
+        .find(|plan| plan.id == request.plan_version_id && plan.status == "draft")
+        .ok_or_else(|| {
+            AppError::InvalidInput("plan critique requires a draft from the selected task".into())
+        })?;
+    let evaluation = store
+        .task_plan_evaluation(&plan.id)?
+        .filter(|item| item.id == request.evaluation_id && item.task_id == task.id)
+        .ok_or_else(|| {
+            AppError::InvalidInput(
+                "plan critique requires the persisted evaluation for this plan version".into(),
+            )
+        })?;
+    Ok((plan, evaluation))
+}
+
+async fn run_task_plan_critique_against_session(
+    manager: Arc<AcpSessionManager>,
+    store: &ProjectStore,
+    request: RunTaskPlanCritiqueRequest,
+    session: AcpSessionInfo,
+    instruction: String,
+) -> AppResult<RunTaskPlanCritiqueResultInfo> {
+    let acp_session_id = session.id.clone();
+    let prompt_manager = Arc::clone(&manager);
+    let instruction_for_prompt = instruction.clone();
+    let result = async {
+        let prompt_result = run_acp_task(move || {
+            prompt_manager.send_prompt(&acp_session_id, &instruction_for_prompt)
+        })
+        .await?;
+        let drain_session_id = session.id.clone();
+        let drain_manager = Arc::clone(&manager);
+        let events = run_acp_task(move || drain_manager.drain_events(&drain_session_id)).await?;
+        let response =
+            task_agent_report_content(&task_agent_transcript_events(&instruction, events))?;
+        let critique = store.create_task_plan_critique(CreateTaskPlanCritiqueRequest {
+            task_id: request.task_id,
+            plan_version_id: request.plan_version_id,
+            evaluation_id: request.evaluation_id,
+            source: request.candidate_id,
+            response,
+        })?;
+        Ok(RunTaskPlanCritiqueResultInfo {
+            critique,
+            cached: false,
+            prompt_result: Some(prompt_result),
+        })
+    }
+    .await;
+    let cleanup_session_id = session.id;
+    let cleanup_manager = Arc::clone(&manager);
+    let cleanup =
+        run_acp_task(move || cleanup_manager.stop_and_remove_session(&cleanup_session_id, true))
+            .await;
+    if result.is_err() {
+        let _ = cleanup;
+    }
+    result
 }
 
 fn task_agent_report_instruction(task: &TaskInfo, phase: &str, role: &str) -> String {
