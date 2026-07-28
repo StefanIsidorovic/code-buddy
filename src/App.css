@@ -5185,7 +5185,7 @@ summary:focus-visible {
 .task-operating-model span { color: var(--muted); font-size: 0.76rem; line-height: 1.35; }
 .task-phase-guide { display: grid; gap: 0.55rem; padding: 0.75rem; border: 1px solid var(--border-subtle);
   border-radius: 0.8rem; background: var(--surface-subtle); }
-.task-phase-guide ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.35rem;
+.task-phase-guide ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem;
   margin: 0; padding: 0; list-style: none; }
 .task-phase-guide li { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.05rem 0.4rem;
   align-items: center; padding: 0.45rem; border-radius: 0.55rem; color: var(--muted); }
@@ -5242,6 +5242,11 @@ summary:focus-visible {
   .acp-workspace-tabs button small { display: none; }
 }
 .task-phase-run { display: grid; gap: .45rem; padding: .75rem; border: 1px solid var(--border); border-radius: .65rem; }
+.task-phase-run > legend { padding: 0 .35rem; color: var(--ink-strong); font-size: .82rem; font-weight: 700; }
+.task-phase-run > p { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+.task-manual-evidence-path { display: grid; gap: .2rem; margin-top: .2rem; padding: .65rem;
+  border: 1px dashed var(--border-subtle); border-radius: .55rem; background: var(--surface-subtle); }
+.task-manual-evidence-path span { color: var(--muted); font-size: .76rem; line-height: 1.4; }
 .task-phase-run details { border: 1px solid var(--border-subtle); border-radius: 0.55rem;
   background: var(--surface-subtle); }
 .task-phase-run summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;

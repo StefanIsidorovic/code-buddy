@@ -2,16 +2,27 @@
 
 ## Active Plan
 
+### 33.1. Make phase evidence creation explicit
+- objective: remove the misleading Run/Prepare pseudo-phases and present agent-assisted versus manual evidence creation as two clear paths inside each canonical Task phase.
+- status: complete pending commit.
+- files: src/features/tasks/TaskPhaseGuide.tsx; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.css; working_knowledge/current/*.
+- affected units: phase progress labels, current-step guidance, controlled phase-run presentation, manual evidence discoverability, latest-run recovery copy.
+- expected changes: show four real user steps; rename the agent action to Run agent for phase; label Step 1 Create phase evidence; expose manual authoring as an equal path; rename standalone preparation as recovery rather than a normal step.
+- acceptance criteria: users no longer see Run or Prepare as separate phase steps; the UI explains that agent execution produces a draft while manual evidence remains available without ACP; Save, Review and Complete remain unchanged authoritative gates; no backend or orchestration behavior changes.
+- required tests: guide status/label tests; panel agent/manual path, ACP lock, recovery and completion regressions; frontend audit/typecheck/full tests/build; diff hygiene.
+- review status: passed after 1 cycle; the four displayed steps now match the durable workflow gates, agent-assisted and manual evidence paths remain simultaneously discoverable, ACP absence locks only agent execution, recovery appears only when meaningful, and no orchestration/backend authority changed.
+- commit: pending.
+
 ### 32.1. Prepare Summary review with Project Autopilot
 - objective: replace repetitive per-claim decisions with one safe, atomic preparation action while retaining one explicit human publication gate.
-- status: complete pending commit.
+- status: complete.
 - files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/features/initialization/useProjectInitializationWorkflow.ts; src/features/initialization/InitializationDetailsDialog.tsx; src/App.tsx; related Rust/frontend tests; working_knowledge/current/*.
 - affected units: draft Summary claim state transition, typed Tauri command, stale-safe initialization orchestration, Summary approval preview and action locks.
 - expected changes: atomically accept generated non-question claims and defer Open Questions; reject approved or malformed Summary inputs; expose a visible Autopilot policy and one preparation action; retain Approve Summary as the only publication authority boundary.
 - acceptance criteria: no user must click every claim; Autopilot preparation never publishes Knowledge Units; approved summaries remain immutable; after preparation the draft has zero pending claims and exactly one explicit approval action remains; late responses cannot replace another Summary.
 - required tests: backend batch decision success and approved-state rejection; hook payload/stale response; dialog policy/loading/prepared states; App wiring; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy; diff hygiene.
 - review status: passed after 2 cycles; cycle 1 found that batch preparation could overwrite explicit human decisions and defer source validation until approval; cycle 2 preserves every non-pending decision, applies the existing publication validator before persistence, keeps approval as the only publication boundary, and covers the typed orchestration and visible one-gate UX.
-- commit: pending.
+- commit: 85abec3.
 
 ### 31.2. Make approved Summary review read-only
 - objective: stop approved legacy Summary snapshots from rendering actionable pending claim controls that the backend must reject.

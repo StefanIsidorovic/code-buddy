@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: e4783f7 step 31.2: make approved summaries read-only
-- worktree: plan item 32.1 complete pending commit
-- relevant files: Summary Autopilot storage command, initialization orchestration, Summary review UX/tests, active knowledge
+- head: 85abec3 step 32.1: prepare summary review with autopilot
+- worktree: plan item 33.1 complete pending commit
+- relevant files: Task phase guide/panel/tests, Task workflow styling, active knowledge
 
 ## Current Task
-- request: add Claude Buddy-style autopilot while preserving an explicit Project Knowledge publication gate
+- request: remove confusing Run & prepare pseudo-phase and make evidence creation accessible
 - phase: validation
-- active plan step: 32.1
+- active plan step: 33.1
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -31,3 +31,4 @@
 - 2026-07-28: frontend audit, typecheck, 269 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied, feature Tauri-boundary check, file-size check and git diff hygiene all pass for plan item 31.1.
 - 2026-07-28: targeted approved Summary dialog/App tests and legacy approved storage regression pass for plan item 31.2.
 - 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build, Rust fmt, 122 Rust tests, clippy with warnings denied and diff hygiene pass for plan item 32.1; two known App async timing tests required a clean rerun and then passed.
+- 2026-07-28: frontend audit, typecheck, 271 frontend tests, production build and diff hygiene pass for the presentation-only plan item 33.1.

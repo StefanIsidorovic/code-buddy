@@ -41,7 +41,7 @@ describe("TaskPhasePanel", () => {
     fireEvent.click(screen.getByText("How this Task works"));
     expect(screen.getByText(/output stays visible beside every view/)).toBeInTheDocument();
     expect(screen.getByText("Use this view to save evidence, review it, and complete one phase at a time.")).toBeInTheDocument();
-    expect(screen.getByText("Optional helper: it drafts evidence, but never saves or completes the phase.")).toBeInTheDocument();
+    expect(screen.getByText(/Run the agent for this phase, or write evidence manually/)).toBeInTheDocument();
     expect(screen.getByText(/read-only advisor\/reviewer reports/)).toBeInTheDocument();
   });
   it("locks completion without an artifact and enables it with persisted evidence", () => {
@@ -61,19 +61,21 @@ describe("TaskPhasePanel", () => {
     const value = props(); render(<TaskPhasePanel {...value} />);
     fireEvent.click(screen.getByText("Exact agent instruction"));
     expect(screen.getByText(/Run only the analysis phase/)).toHaveTextContent(task.originalPrompt);
-    fireEvent.click(screen.getByRole("button", { name: "Run & prepare analysis" }));
+    expect(screen.getByText("Step 1 · Create phase evidence")).toBeInTheDocument();
+    expect(screen.getByText(/Skip the agent and write evidence directly below/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run agent for analysis" }));
     expect(value.onRunAndPrepare).toHaveBeenCalledWith(expect.stringContaining("Do not complete the phase"));
   });
   it("locks agent execution without a usable ACP session", () => {
     render(<TaskPhasePanel {...props({ canRunAgent: false })} />);
-    expect(screen.getByRole("button", { name: "Run & prepare analysis" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Run agent for analysis" })).toBeDisabled();
     expect(screen.getByText("Start an ACP session to run this phase.")).toBeInTheDocument();
   });
   it("offers explicit completion preparation without claiming persistence", () => {
     const value = props(); const view = render(<TaskPhasePanel {...value} />);
-    expect(screen.getByRole("button", { name: "Prepare evidence from latest run" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Restore latest agent draft" })).not.toBeInTheDocument();
     view.rerender(<TaskPhasePanel {...value} hasPhaseRun />);
-    fireEvent.click(screen.getByRole("button", { name: "Prepare evidence from latest run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore latest agent draft" }));
     expect(value.onPrepareCompletion).toHaveBeenCalledOnce();
     expect(screen.getByText(/Reloads the latest linked agent response/)).toBeInTheDocument();
   });
@@ -116,6 +118,6 @@ describe("TaskPhasePanel", () => {
   });
   it("locks a repeated phase run after a successful receipt", () => {
     render(<TaskPhasePanel {...props({ hasPhaseRun: true })} />);
-    expect(screen.getByRole("button", { name: "analysis run finished" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "analysis agent run finished" })).toBeDisabled();
   });
 });
