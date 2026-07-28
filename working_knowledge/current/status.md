@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 8daafa9 step 37.4f: gate tasks on project knowledge
+- head: c5e8e9c step 37.4g: generate structured plan drafts
 - worktree: clean before final working-knowledge synchronization
-- relevant files: one-click Project Knowledge approval and authoritative Task readiness gates
+- relevant files: planning output contract, strict evidence parser and pristine structured-plan auto-fill
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: complete
-- active plan step: 37.4f complete; 37.5 next
+- active plan step: 37.4g complete; 37.5 next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.4g auto-fills a pristine structured-plan editor from validated planning evidence while preserving manual edits and explicit approval; frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass.
 - 2026-07-29: plan items 37.4e–f add atomic one-click Project Knowledge approval and same-project readiness gates for phase starts, phase runs and structured step runs; frontend audit, typecheck, 298 frontend tests, production build, Rust fmt, 136 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4d adds per-step execution/review UX and requires all approved steps before execution completion; frontend audit, typecheck, 297 frontend tests, production build, Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.4c persists write-once repository verification and scope review per step; Rust fmt, 134 Rust tests, clippy with warnings denied and diff hygiene pass.

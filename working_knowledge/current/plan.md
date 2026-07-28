@@ -15,7 +15,7 @@
 
 ### 37.2. Add deterministic plan evaluation
 - objective: identify actionable plan defects cheaply before any implementation agent runs.
-- status: complete pending commit.
+- status: complete; committed as c5e8e9c.
 - affected units: coverage matrix, structural findings and planning completion gate.
 - expected changes: evaluate requirement gaps, unmapped steps, empty criteria, invalid requirement references, ordering hazards and expected-path collisions without a model; persist a version-addressed evaluation result.
 - acceptance criteria: findings have stable IDs and exact evidence; blocking defects prevent approval; evaluation is repeatable for the same plan version; no free-form model judgment is presented as deterministic fact.

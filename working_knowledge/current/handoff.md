@@ -1,7 +1,9 @@
 # Handoff
 
 ## Current State
-- Plan items 37.4a–f are committed through `8daafa9`.
+- Plan items 37.4a–g are committed through `c5e8e9c`.
+- New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
+- Malformed or legacy prose evidence keeps the manual editor available with rerun guidance; user edits are never replaced without explicit Restore.
 - Project Autopilot can approve pending generated claims and publish Project Knowledge in one action; manual review remains available.
 - Task phase start, phase-agent run and structured step run require approved, active Knowledge Units from the Task's own project.
 - A blocked Task remains saved and shows a direct Initialize Project Knowledge action; legacy in-progress Tasks cannot bypass storage checks.
@@ -10,7 +12,7 @@
 - The old monolithic execution action is absent for structured plans.
 - Execution completion requires every approved plan step to be accepted; legacy Tasks without structured plans retain the previous verification fallback.
 - Frontend ownership follows the modern frontend skill: presentation component + feature hook + shared contracts + typed gateway; App remains composition-only.
-- Frontend audit, typecheck, 298 frontend tests, production build, Rust fmt, 136 Rust tests, clippy with warnings denied and diff hygiene pass.
+- Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
 - Begin 37.5a: model explicit step dependencies and derive deterministic serial/parallel execution waves before creating isolated worktrees.
