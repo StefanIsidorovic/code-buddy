@@ -34,7 +34,7 @@ function props(overrides: Partial<InitializationDetailsDialogProps> = {}): Initi
     knowledgeUnits: [], knowledgeUnitsError: null,
     knowledgeUnitsLoading: false, markdownFindings: [], summary: null, view: "facts",
     onApproveSummary: vi.fn(), onReviewSummaryClaim: vi.fn(),
-    onPrepareSummaryAutopilot: vi.fn(),
+    onApproveSummaryAutopilot: vi.fn(),
     onRegenerateSummarySection: vi.fn(), onClose: vi.fn(), ...overrides };
 }
 
@@ -86,18 +86,18 @@ describe("initialization details dialog", () => {
       "Edited purpose [source: README.md]", "Incorrect scope");
   });
 
-  it("prepares pending claims with Autopilot while retaining final approval", () => {
+  it("approves all pending claims with Autopilot in one action", () => {
     const pending = { ...summary, claims: [{ ...summary.claims[0], status: "pending" as const }] };
     const value = props({ view: "summary", summary: pending });
     const { rerender } = render(<InitializationDetailsDialog {...value} />);
-    fireEvent.click(screen.getByRole("button", { name: "Prepare review with Autopilot" }));
-    expect(value.onPrepareSummaryAutopilot).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Approve all with Autopilot" }));
+    expect(value.onApproveSummaryAutopilot).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Approve Summary" })).toBeDisabled();
     rerender(<InitializationDetailsDialog {...value} initializeLoading />);
-    expect(screen.getByRole("button", { name: "Preparing…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Approving…" })).toBeDisabled();
     rerender(<InitializationDetailsDialog {...value} summary={summary} />);
     expect(screen.getByText("Ready for final approval")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Prepare review with Autopilot" }))
+    expect(screen.queryByRole("button", { name: "Approve all with Autopilot" }))
       .not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Approve Summary" })).toBeEnabled();
   });

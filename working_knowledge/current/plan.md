@@ -47,6 +47,24 @@
 - 37.4d review status: passed after 2 cycles; execution renders ordered approved steps with tier/scope/verification/review state, dispatches only the next step through a stale-safe feature hook, blocks workspace mismatches in UI and backend, removes the monolithic execution action, and completes execution only when every approved step is accepted.
 - 37.4d required tests: next-step and review action locks; out-of-scope presentation; stale Task response; dispatch/review payloads; Task phase completion wiring; backend all-steps gate and cross-project workspace rejection; frontend/Rust gates and diff hygiene.
 
+### 37.4e. Add one-click Project Knowledge approval
+- objective: let users initialize generated Project Knowledge without reviewing every claim individually.
+- status: in progress.
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/features/initialization/useProjectInitializationWorkflow.ts; src/features/initialization/InitializationDetailsDialog.tsx; src/features/initialization/InitializationDetailsDialog.test.tsx; src/App.tsx; related Rust tests.
+- affected units: summary claim decisions, Knowledge Unit publication, initialization review modal.
+- expected changes: atomically accept pending non-question claims, defer pending Open Questions, validate and publish the resulting Knowledge Units, and expose one explicit Autopilot approval action while retaining manual review.
+- acceptance criteria: one action produces an approved read-only summary and published units; existing decisions are preserved; invalid payloads roll back; approved summaries cannot be reprocessed.
+- required tests: atomic storage success and rejection; UI callback/loading/approved states; frontend/Rust gates and diff hygiene.
+
+### 37.4f. Gate Task work on ready Project Knowledge
+- objective: prevent Task analysis and agent execution before its project has approved, published Project Knowledge.
+- status: pending.
+- files: src-tauri/src/storage.rs; src/features/tasks/TaskPhasePanel.tsx; src/features/tasks/TaskPhasePanel.test.tsx; src/App.tsx; related Rust tests.
+- affected units: Task phase start, phase-run creation, Task prerequisite presentation and workspace navigation.
+- expected changes: enforce readiness in storage for phase starts and phase runs; show a direct Project Knowledge prerequisite and navigation action in Task UI.
+- acceptance criteria: draft Tasks remain saved but cannot start; legacy in-progress Tasks cannot run an agent; a different project's approval does not satisfy the gate; approval immediately enables the normal flow.
+- required tests: backend not-ready/ready/cross-project gates; UI pending/in-progress/ready cases; frontend/Rust gates and diff hygiene.
+
 ### 37.5. Add safe parallel execution waves
 - objective: allow independent small-model steps to run concurrently without sharing mutable Git state.
 - status: deferred until 37.4 is proven.

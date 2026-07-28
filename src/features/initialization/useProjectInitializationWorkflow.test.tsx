@@ -104,18 +104,20 @@ describe("useProjectInitializationWorkflow", () => {
     expect(evidence.setSummary).toHaveBeenCalledWith("i1", reviewed);
   });
 
-  it("prepares the current Summary with Autopilot through one typed command", async () => {
-    const prepared = { ...summary, claims: [{ id: "c1", section: "project_purpose", claimIndex: 0,
+  it("approves and refreshes the current Summary with Autopilot through one typed command", async () => {
+    const approved = { ...summary, status: "approved" as const, approvedAt: 2,
+      claims: [{ id: "c1", section: "project_purpose", claimIndex: 0,
       originalContent: "Purpose", content: "Purpose", status: "accepted" as const,
       rejectionReason: null }] };
-    invoke.mockResolvedValueOnce(prepared);
+    invoke.mockResolvedValueOnce(approved);
     const { result, evidence, notify } = setup();
-    await act(() => result.current.prepareSummaryAutopilot());
-    expect(invoke).toHaveBeenCalledWith("prepare_project_initialization_summary_autopilot",
+    await act(() => result.current.approveSummaryAutopilot());
+    expect(invoke).toHaveBeenCalledWith("approve_project_initialization_summary_autopilot",
       { summaryId: "s1" });
-    expect(evidence.setSummary).toHaveBeenCalledWith("i1", prepared);
+    expect(evidence.setSummary).toHaveBeenCalledWith("i1", approved);
+    expect(evidence.refreshUnits).toHaveBeenCalledWith("i1");
     expect(notify).toHaveBeenCalledWith("success",
-      "Autopilot prepared the Summary for final approval.");
+      "Autopilot approved and published Project Knowledge.");
   });
 
   it("regenerates one Summary section through the current Summary identity", async () => {

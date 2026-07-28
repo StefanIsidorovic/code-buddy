@@ -7,6 +7,7 @@ export type TauriCommand =
   | "approve_project_initialization_summary"
   | "approve_task_plan_version"
   | "prepare_project_initialization_summary_autopilot"
+  | "approve_project_initialization_summary_autopilot"
   | "review_project_initialization_summary_claim"
   | "review_task_plan_step_run"
   | "attach_knowledge_to_transcript_session"

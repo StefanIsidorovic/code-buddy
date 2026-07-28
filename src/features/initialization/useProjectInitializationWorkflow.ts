@@ -122,16 +122,17 @@ export function useProjectInitializationWorkflow(options: Options) {
       evidence.setSummary(value.initializationId, value);
     } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
   }
-  async function prepareSummaryAutopilot() {
-    if (!summary) { notify("error", "Generate a summary before preparing it with Autopilot."); return; }
+  async function approveSummaryAutopilot() {
+    if (!summary) { notify("error", "Generate a summary before approving it with Autopilot."); return; }
     const summaryId = summary.id;
     setLoading(true);
     try {
       const value = await invokeCommand<ProjectInitializationSummaryInfo>(
-        "prepare_project_initialization_summary_autopilot", { summaryId });
+        "approve_project_initialization_summary_autopilot", { summaryId });
       if (summaryIdRef.current !== summaryId) return;
       evidence.setSummary(value.initializationId, value);
-      notify("success", "Autopilot prepared the Summary for final approval.");
+      await evidence.refreshUnits(value.initializationId);
+      notify("success", "Autopilot approved and published Project Knowledge.");
     } catch (reason) { notify("error", errorText(reason)); } finally { setLoading(false); }
   }
   async function regenerateSummarySection(section: string) {
@@ -154,7 +155,7 @@ export function useProjectInitializationWorkflow(options: Options) {
     scope, repositoryId, kind, pathPattern, content, drafts, openDialog, closeDialog, toggleRepository,
     createInitialization, collectFacts, analyzeMarkdown, openInterview, closeInterview, addGuardrail,
     removeGuardrail: (index: number) => setDrafts((current) => current.filter((_, item) => item !== index)),
-    saveGuardrails, generateSummary, approveSummary, reviewSummaryClaim, prepareSummaryAutopilot,
+    saveGuardrails, generateSummary, approveSummary, reviewSummaryClaim, approveSummaryAutopilot,
     regenerateSummarySection,
     setDetailsView, changeScope: setScope,
     changeRepositoryId: setRepositoryId, changeKind: setKind, changePathPattern: setPathPattern, changeContent: setContent };

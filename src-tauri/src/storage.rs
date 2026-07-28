@@ -1658,6 +1658,91 @@ impl ProjectStore {
             .ok_or_else(|| AppError::Storage("autopilot-prepared summary was not found".into()))
     }
 
+    pub fn approve_project_initialization_summary_autopilot(
+        &self,
+        summary_id: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let summary_id = summary_id.trim();
+        if summary_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary id must not be empty".to_string(),
+            ));
+        }
+        let now = unix_timestamp()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(storage_error)?;
+        let mut summary = project_initialization_summary_by_id(&transaction, summary_id)?
+            .ok_or_else(|| {
+                AppError::InvalidInput(format!(
+                    "project initialization summary not found: {summary_id}"
+                ))
+            })?;
+        if summary.status == "approved" {
+            return Err(AppError::InvalidInput(
+                "approved summaries cannot be approved by autopilot".into(),
+            ));
+        }
+        if summary.claims.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary has no claims to approve".into(),
+            ));
+        }
+        for claim in &mut summary.claims {
+            if claim.content.trim().is_empty() {
+                return Err(AppError::InvalidInput(
+                    "summary claims must not be empty".into(),
+                ));
+            }
+            if claim.status == "pending" {
+                claim.status = if claim.section == "open_questions" {
+                    "deferred"
+                } else {
+                    "accepted"
+                }
+                .to_string();
+                claim.rejection_reason = None;
+            }
+        }
+        let project_id: String = transaction
+            .query_row(
+                "SELECT project_id FROM project_initialization_runs WHERE id = ?1",
+                params![&summary.initialization_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let knowledge_units = build_knowledge_units(&summary, &project_id, now)?;
+        let claims_json = serde_json::to_string(&summary.claims)
+            .map_err(|err| AppError::Storage(err.to_string()))?;
+        transaction
+            .execute(
+                "UPDATE project_initialization_summaries
+                 SET claims_json = ?1, status = 'approved', approved_at = ?2 WHERE id = ?3",
+                params![claims_json, now, summary_id],
+            )
+            .map_err(storage_error)?;
+        transaction
+            .execute(
+                "DELETE FROM knowledge_units WHERE derived_from_summary_id = ?1",
+                params![summary_id],
+            )
+            .map_err(storage_error)?;
+        for unit in &knowledge_units {
+            insert_knowledge_unit(&transaction, unit)?;
+        }
+        transaction
+            .execute(
+                "UPDATE project_initialization_runs SET status = 'summary', updated_at = ?1
+                 WHERE id = ?2",
+                params![now, summary.initialization_id],
+            )
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+        drop(connection);
+        let connection = self.connection()?;
+        project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| AppError::Storage("autopilot-approved summary was not found".into()))
+    }
+
     pub fn list_project_initialization_knowledge_units(
         &self,
         initialization_id: &str,
@@ -7960,6 +8045,61 @@ mod tests {
             .expect("initializations listed")
             .remove(0);
         assert_eq!(listed_initialization.status, "summary");
+    }
+
+    #[test]
+    fn autopilot_approves_and_publishes_project_initialization_summary_atomically() {
+        let store = ProjectStore::in_memory().expect("store opens");
+        let project = store
+            .create_project(CreateProjectRequest {
+                name: "AIadne".to_string(),
+                path: temp_project_path("autopilot-summary-approval"),
+            })
+            .expect("project created");
+        let repository = store
+            .list_project_repositories(&project.id)
+            .expect("repositories listed")
+            .remove(0);
+        let initialization = store
+            .create_project_initialization(CreateProjectInitializationRequest {
+                project_id: project.id,
+                repository_ids: vec![repository.id],
+            })
+            .expect("initialization created");
+        let context = store
+            .prepare_project_initialization_synthesis(GenerateProjectInitializationSummaryRequest {
+                initialization_id: initialization.id.clone(),
+                model_profile_id: DEFAULT_SYNTHESIS_MODEL_PROFILE_ID.to_string(),
+            })
+            .expect("synthesis prepared");
+        let summary = store
+            .persist_project_initialization_summary(
+                &context,
+                test_knowledge_draft(),
+                OPENAI_RESPONSES_GENERATION_ENGINE,
+            )
+            .expect("summary persisted");
+
+        let approved = store
+            .approve_project_initialization_summary_autopilot(&summary.id)
+            .expect("autopilot approves summary");
+        assert_eq!(approved.status, "approved");
+        assert!(approved.approved_at.is_some());
+        assert!(approved.claims.iter().all(|claim| claim.status
+            == if claim.section == "open_questions" {
+                "deferred"
+            } else {
+                "accepted"
+            }));
+        let units = store
+            .list_project_initialization_knowledge_units(&initialization.id)
+            .expect("knowledge units listed");
+        assert_eq!(units.len(), 7);
+        assert!(units.iter().all(|unit| unit.status == "active"));
+        let repeated = store
+            .approve_project_initialization_summary_autopilot(&summary.id)
+            .expect_err("approved summary remains immutable");
+        assert!(matches!(repeated, AppError::InvalidInput(_)));
     }
 
     #[test]
