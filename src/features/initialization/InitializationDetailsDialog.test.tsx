@@ -34,6 +34,7 @@ function props(overrides: Partial<InitializationDetailsDialogProps> = {}): Initi
     knowledgeUnits: [], knowledgeUnitsError: null,
     knowledgeUnitsLoading: false, markdownFindings: [], summary: null, view: "facts",
     onApproveSummary: vi.fn(), onReviewSummaryClaim: vi.fn(),
+    onPrepareSummaryAutopilot: vi.fn(),
     onRegenerateSummarySection: vi.fn(), onClose: vi.fn(), ...overrides };
 }
 
@@ -83,6 +84,22 @@ describe("initialization details dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reject" }));
     expect(value.onReviewSummaryClaim).toHaveBeenCalledWith("c1", "rejected",
       "Edited purpose [source: README.md]", "Incorrect scope");
+  });
+
+  it("prepares pending claims with Autopilot while retaining final approval", () => {
+    const pending = { ...summary, claims: [{ ...summary.claims[0], status: "pending" as const }] };
+    const value = props({ view: "summary", summary: pending });
+    const { rerender } = render(<InitializationDetailsDialog {...value} />);
+    fireEvent.click(screen.getByRole("button", { name: "Prepare review with Autopilot" }));
+    expect(value.onPrepareSummaryAutopilot).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Approve Summary" })).toBeDisabled();
+    rerender(<InitializationDetailsDialog {...value} initializeLoading />);
+    expect(screen.getByRole("button", { name: "Preparing…" })).toBeDisabled();
+    rerender(<InitializationDetailsDialog {...value} summary={summary} />);
+    expect(screen.getByText("Ready for final approval")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prepare review with Autopilot" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve Summary" })).toBeEnabled();
   });
 
   it("orders approved Knowledge Unit loading, error, empty, and populated states", () => {

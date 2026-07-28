@@ -404,6 +404,14 @@ pub fn review_project_initialization_summary_claim(
 }
 
 #[tauri::command]
+pub fn prepare_project_initialization_summary_autopilot(
+    state: State<'_, ProjectStore>,
+    summary_id: String,
+) -> AppResult<ProjectInitializationSummaryInfo> {
+    state.prepare_project_initialization_summary_autopilot(&summary_id)
+}
+
+#[tauri::command]
 pub fn create_transcript_session(
     state: State<'_, ProjectStore>,
     request: CreateTranscriptSessionRequest,

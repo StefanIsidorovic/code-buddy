@@ -26,6 +26,7 @@ export type InitializationDetailsDialogProps = {
   onApproveSummary: () => void;
   onReviewSummaryClaim: (claimId: string, status: "accepted" | "rejected" | "deferred",
     content: string, rejectionReason: string | null) => void;
+  onPrepareSummaryAutopilot: () => void;
   onRegenerateSummarySection: (section: string) => void;
   onClose: () => void;
 };
@@ -121,7 +122,7 @@ function PublishedUnits(props: Pick<InitializationDetailsDialogProps,
 
 function SummaryDetails(props: InitializationDetailsDialogProps) {
   const { summary, initializeLoading, regeneratingSection, onApproveSummary,
-    onReviewSummaryClaim, onRegenerateSummarySection, onClose } = props;
+    onReviewSummaryClaim, onPrepareSummaryAutopilot, onRegenerateSummarySection, onClose } = props;
   if (!summary) return <StateNotice kind="prerequisite" title="No summary available for review"
     description="Generate a Summary draft before opening the detailed review." />;
   const sections = [
@@ -167,6 +168,17 @@ function SummaryDetails(props: InitializationDetailsDialogProps) {
         <div className="knowledge-unit-preview-heading"><div><span>Approval preview</span>
           <h3>{acceptedCount} claim(s) will be published</h3></div>
           <strong>{pendingCount} pending</strong></div>
+        {pendingCount > 0 ? <div className="state-notice prerequisite">
+          <strong>Project Autopilot</strong>
+          <p>Accepts pending generated knowledge claims and defers pending Open Questions.
+            Existing decisions stay unchanged. It does not publish anything; you will still
+            confirm Approve Summary once.</p>
+          <button type="button" disabled={initializeLoading}
+            onClick={onPrepareSummaryAutopilot}>
+            {initializeLoading ? "Preparing…" : "Prepare review with Autopilot"}
+          </button>
+        </div> : <StateNotice kind="success" title="Ready for final approval"
+          description="All claims have decisions. Review the preview, then approve once to publish." />}
         <ul>{claims.map((claim) => <SummaryClaimReview key={claim.id}
           claim={claim} loading={initializeLoading} onReview={onReviewSummaryClaim} />)}</ul>
       </section> : null}

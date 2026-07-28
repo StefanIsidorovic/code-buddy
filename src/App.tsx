@@ -131,6 +131,7 @@ function App() {
     generateSummary: generateProjectInitializationSummary,
     approveSummary: approveProjectInitializationSummary,
     reviewSummaryClaim: reviewProjectInitializationSummaryClaim,
+    prepareSummaryAutopilot: prepareProjectInitializationSummaryAutopilot,
     regenerateSummarySection: regenerateProjectInitializationSummarySection,
     setDetailsView: setInitializeDetailsView,
     changeScope: setInterviewScope, changeRepositoryId: setInterviewRepositoryId,
@@ -534,6 +535,7 @@ function App() {
           onApproveSummary={() => void approveProjectInitializationSummary()}
           onReviewSummaryClaim={(claimId, status, content, reason) =>
             void reviewProjectInitializationSummaryClaim(claimId, status, content, reason)}
+          onPrepareSummaryAutopilot={() => void prepareProjectInitializationSummaryAutopilot()}
           onRegenerateSummarySection={(section) =>
             void regenerateProjectInitializationSummarySection(section)}
           onClose={() => setInitializeDetailsView(null)}

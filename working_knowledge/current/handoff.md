@@ -7,11 +7,12 @@
 - Task shows a visible Next step card with evidence-text and provenance requirements.
 - Transcript provenance opens automatically after a successful run or first selection.
 - Save phase evidence explains why it is disabled and enables only when evidence text and provenance are both ready.
-- Plan item 31.2 is complete pending commit: approved Summary snapshots are read-only, legacy approved claims derive final accepted/deferred states, and invalid review/regenerate controls are absent.
+- Plan item 31.2 is committed as e4783f7: approved Summary snapshots are read-only, legacy approved claims derive final accepted/deferred states, and invalid review/regenerate controls are absent.
+- Plan item 32.1 is complete pending commit: Project Autopilot atomically prepares pending Summary decisions, preserves explicit decisions, validates sources, and leaves publication behind one Approve Summary click.
 
 ## Next Step
-- Commit 31.2 with a provenance note.
-- Define Project Autopilot first, following Buddy's resumable facts/docs/interview/synthesis/approval state-machine with one explicit human checkpoint; keep Task Autopilot separate.
+- Commit 32.1 with a provenance note.
+- Extend Project Autopilot into a resumable Facts → Markdown → Summary state machine; keep Task Autopilot separate.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: check frontend architecture.

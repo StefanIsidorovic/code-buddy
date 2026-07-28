@@ -4,6 +4,7 @@ export type TauriCommand =
   | "analyze_project_initialization_markdown"
   | "append_transcript_events"
   | "approve_project_initialization_summary"
+  | "prepare_project_initialization_summary_autopilot"
   | "review_project_initialization_summary_claim"
   | "attach_knowledge_to_transcript_session"
   | "collect_project_initialization_facts"

@@ -104,6 +104,20 @@ describe("useProjectInitializationWorkflow", () => {
     expect(evidence.setSummary).toHaveBeenCalledWith("i1", reviewed);
   });
 
+  it("prepares the current Summary with Autopilot through one typed command", async () => {
+    const prepared = { ...summary, claims: [{ id: "c1", section: "project_purpose", claimIndex: 0,
+      originalContent: "Purpose", content: "Purpose", status: "accepted" as const,
+      rejectionReason: null }] };
+    invoke.mockResolvedValueOnce(prepared);
+    const { result, evidence, notify } = setup();
+    await act(() => result.current.prepareSummaryAutopilot());
+    expect(invoke).toHaveBeenCalledWith("prepare_project_initialization_summary_autopilot",
+      { summaryId: "s1" });
+    expect(evidence.setSummary).toHaveBeenCalledWith("i1", prepared);
+    expect(notify).toHaveBeenCalledWith("success",
+      "Autopilot prepared the Summary for final approval.");
+  });
+
   it("regenerates one Summary section through the current Summary identity", async () => {
     const regenerated = { ...summary, projectPurpose: "New purpose", claims: [] };
     invoke.mockResolvedValueOnce(regenerated);

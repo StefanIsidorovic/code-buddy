@@ -2,16 +2,27 @@
 
 ## Active Plan
 
+### 32.1. Prepare Summary review with Project Autopilot
+- objective: replace repetitive per-claim decisions with one safe, atomic preparation action while retaining one explicit human publication gate.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; src/features/initialization/useProjectInitializationWorkflow.ts; src/features/initialization/InitializationDetailsDialog.tsx; src/App.tsx; related Rust/frontend tests; working_knowledge/current/*.
+- affected units: draft Summary claim state transition, typed Tauri command, stale-safe initialization orchestration, Summary approval preview and action locks.
+- expected changes: atomically accept generated non-question claims and defer Open Questions; reject approved or malformed Summary inputs; expose a visible Autopilot policy and one preparation action; retain Approve Summary as the only publication authority boundary.
+- acceptance criteria: no user must click every claim; Autopilot preparation never publishes Knowledge Units; approved summaries remain immutable; after preparation the draft has zero pending claims and exactly one explicit approval action remains; late responses cannot replace another Summary.
+- required tests: backend batch decision success and approved-state rejection; hook payload/stale response; dialog policy/loading/prepared states; App wiring; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy; diff hygiene.
+- review status: passed after 2 cycles; cycle 1 found that batch preparation could overwrite explicit human decisions and defer source validation until approval; cycle 2 preserves every non-pending decision, applies the existing publication validator before persistence, keeps approval as the only publication boundary, and covers the typed orchestration and visible one-gate UX.
+- commit: pending.
+
 ### 31.2. Make approved Summary review read-only
 - objective: stop approved legacy Summary snapshots from rendering actionable pending claim controls that the backend must reject.
-- status: complete pending commit.
+- status: complete.
 - files: src-tauri/src/storage.rs; src/features/initialization/InitializationDetailsDialog.tsx; related Rust/frontend tests; working_knowledge/current/*.
 - affected units: legacy claim derivation, approved Summary presentation, regeneration/review action visibility.
 - expected changes: derive accepted/deferred states for approved rows without persisted claim JSON; render approved Summary sections and Published Units as a read-only snapshot; omit all claim decisions and regeneration actions.
 - acceptance criteria: an approved legacy Summary never displays pending review controls; no review/regeneration callback can be triggered; draft Summary behavior remains unchanged; published units remain visible.
 - required tests: legacy approved claim derivation; approved dialog action absence; draft regression; full frontend/Rust gates; diff hygiene.
 - review status: passed after 1 cycle; the screenshot path is covered directly, approved legacy rows derive final states, draft review remains interactive, and no new frontend/backend authority was introduced.
-- commit: pending.
+- commit: e4783f7.
 
 ### 31.1. Keep a completed phase run locked and reveal the evidence path
 - objective: prevent a successful Run & prepare from becoming runnable again when receipt refresh lags, and make the next evidence actions discoverable.

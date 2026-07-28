@@ -1412,6 +1412,69 @@ impl ProjectStore {
             .ok_or_else(|| AppError::Storage("reviewed summary was not found".into()))
     }
 
+    pub fn prepare_project_initialization_summary_autopilot(
+        &self,
+        summary_id: &str,
+    ) -> AppResult<ProjectInitializationSummaryInfo> {
+        let summary_id = summary_id.trim();
+        if summary_id.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary id must not be empty".to_string(),
+            ));
+        }
+        let connection = self.connection()?;
+        let mut summary = project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| {
+                AppError::InvalidInput(format!(
+                    "project initialization summary not found: {summary_id}"
+                ))
+            })?;
+        if summary.status == "approved" {
+            return Err(AppError::InvalidInput(
+                "approved summaries cannot be prepared by autopilot".into(),
+            ));
+        }
+        if summary.claims.is_empty() {
+            return Err(AppError::InvalidInput(
+                "summary has no claims to prepare".into(),
+            ));
+        }
+        for claim in &mut summary.claims {
+            if claim.content.trim().is_empty() {
+                return Err(AppError::InvalidInput(
+                    "summary claims must not be empty".into(),
+                ));
+            }
+            if claim.status == "pending" {
+                claim.status = if claim.section == "open_questions" {
+                    "deferred"
+                } else {
+                    "accepted"
+                }
+                .to_string();
+                claim.rejection_reason = None;
+            }
+        }
+        let project_id: String = connection
+            .query_row(
+                "SELECT project_id FROM project_initialization_runs WHERE id = ?1",
+                params![&summary.initialization_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        build_knowledge_units(&summary, &project_id, unix_timestamp()?)?;
+        let claims_json = serde_json::to_string(&summary.claims)
+            .map_err(|err| AppError::Storage(err.to_string()))?;
+        connection
+            .execute(
+                "UPDATE project_initialization_summaries SET claims_json = ?1 WHERE id = ?2",
+                params![claims_json, summary_id],
+            )
+            .map_err(storage_error)?;
+        project_initialization_summary_by_id(&connection, summary_id)?
+            .ok_or_else(|| AppError::Storage("autopilot-prepared summary was not found".into()))
+    }
+
     pub fn list_project_initialization_knowledge_units(
         &self,
         initialization_id: &str,
@@ -6452,7 +6515,17 @@ mod tests {
             )
             .expect_err("rejection reason required");
         assert!(matches!(rejection_error, AppError::InvalidInput(_)));
-        let reviewed = review_summary_for_approval(&store, &summary);
+        let reviewed = store
+            .prepare_project_initialization_summary_autopilot(&summary.id)
+            .expect("autopilot prepares summary");
+        assert!(reviewed.claims.iter().all(|claim| {
+            claim.status
+                == if claim.section == "open_questions" {
+                    "deferred"
+                } else {
+                    "accepted"
+                }
+        }));
         let purpose_claim = reviewed
             .claims
             .iter()
@@ -6490,6 +6563,10 @@ mod tests {
         assert_eq!(approved.id, summary.id);
         assert_eq!(approved.status, "approved");
         assert!(approved.approved_at.is_some());
+        let autopilot_error = store
+            .prepare_project_initialization_summary_autopilot(&summary.id)
+            .expect_err("approved summary remains immutable");
+        assert!(matches!(autopilot_error, AppError::InvalidInput(_)));
         store
             .connection()
             .expect("connection")
