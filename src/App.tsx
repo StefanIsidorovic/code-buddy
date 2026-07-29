@@ -443,8 +443,12 @@ function App() {
               actionRunId={taskSteps.actionRunId} error={taskSteps.error}
               cleanupWarnings={taskSteps.cleanupWarnings}
               waveEvaluation={taskSteps.waveEvaluation}
+              autopilotEnabled={taskSteps.autopilotEnabled}
+              autopilotState={taskSteps.autopilotState}
+              autopilotMessage={taskSteps.autopilotMessage}
               onRun={() => void taskSteps.dispatch()}
               onRetryWaveEvaluation={() => void taskSteps.retryWaveEvaluation()}
+              onAutopilotChange={taskSteps.setAutopilotEnabled}
               onReview={(runId, decision, note) => void taskSteps.review(runId, decision, note)}
               onIntegrate={(runId) => void taskSteps.integrate(runId)} />}
             planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}

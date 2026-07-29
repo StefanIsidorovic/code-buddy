@@ -6,6 +6,7 @@ import type { IntegrateTaskPlanStepRunResultInfo, IsolatedTaskPlanStepRunResultI
   TaskPlanVersionInfo } from "../../types/domain";
 import { currentTaskExecutionWave, dispatchableWaveSteps, isCompletedTaskPlanStepRun }
   from "./taskExecutionWaves";
+import { useTaskAutopilot } from "./useTaskAutopilot";
 
 interface Options {
   task: TaskInfo | null;
@@ -30,17 +31,22 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
   const requestId = useRef(0);
   const taskIdRef = useRef(task?.id ?? null);
   taskIdRef.current = task?.id ?? null;
+  const autopilot = useTaskAutopilot({
+    task, taskIdRef, refresh, setRuns, setCleanupWarnings,
+  });
 
   async function refresh() {
-    if (!task) return;
+    if (!task) return [];
     const taskId = task.id;
     const request = ++requestId.current;
     setLoading(true);
     try {
       const value = await invokeCommand<TaskPlanStepRunInfo[]>("list_task_plan_step_runs", { taskId });
       if (request === requestId.current && taskIdRef.current === taskId) setRuns(value ?? []);
+      return value ?? [];
     } catch (reason) {
       if (request === requestId.current && taskIdRef.current === taskId) setError(errorText(reason));
+      return [];
     } finally {
       if (request === requestId.current && taskIdRef.current === taskId) setLoading(false);
     }
@@ -69,7 +75,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
       : null;
 
   async function evaluateWave(waveNumber = currentWave?.number ?? null) {
-    if (!task || !plan || !candidateId || !repositoryPath || waveNumber === null) return;
+    if (!task || !plan || !candidateId || !repositoryPath || waveNumber === null) return null;
     const taskId = task.id;
     setWaveEvaluation({ status: "running", waveNumber, report: null, error: null });
     try {
@@ -80,12 +86,14 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
       if (taskIdRef.current === taskId) {
         setWaveEvaluation({ status: "ready", waveNumber, report: result.report, error: null });
       }
+      return taskIdRef.current === taskId ? result.report : null;
     } catch (reason) {
       if (taskIdRef.current === taskId) {
         setWaveEvaluation({
           status: "unavailable", waveNumber, report: null, error: errorText(reason),
         });
       }
+      return null;
     }
   }
 
@@ -96,10 +104,12 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
     const waveNumber = currentWave?.number ?? 1;
     setLoading(true);
     setError(null);
+    autopilot.resetForWave();
     const queued: Record<string, "queued" | "running"> = {};
     for (const step of waveSteps) queued[step.id] = "queued";
     setDispatchStates(queued);
     const failures: string[] = [];
+    const settledReceipts: TaskPlanStepRunInfo[] = [];
     let cursor = 0;
     async function worker() {
       while (cursor < waveSteps.length) {
@@ -114,6 +124,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
               candidateId, repositoryPath } },
           );
           if (taskIdRef.current === taskId) {
+            settledReceipts.push(result.receipt);
             setRuns((current) => [...current.filter((run) => run.id !== result.receipt.id),
               result.receipt]);
           }
@@ -134,10 +145,14 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
     if (taskIdRef.current === taskId) {
       if (failures.length) {
         setError(`Wave started with ${failures.length} failure(s). ${failures.join(" ")}`);
-        await refresh();
       }
     }
-    if (taskIdRef.current === taskId) await evaluateWave(waveNumber);
+    let durableRuns = settledReceipts;
+    if (failures.length && taskIdRef.current === taskId) durableRuns = await refresh();
+    const report = taskIdRef.current === taskId ? await evaluateWave(waveNumber) : null;
+    if (report && autopilot.enabled && taskIdRef.current === taskId) {
+      await autopilot.apply(report, durableRuns);
+    }
     if (taskIdRef.current === taskId) {
       setLoading(false);
       setDispatchStates({});
@@ -198,5 +213,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
 
   return { runs, currentWave, waveSteps, nextStep, allAccepted, runBlockedReason, loading,
     dispatchStates, actionRunId, cleanupWarnings, error, waveEvaluation, dispatch: dispatchWave,
-    retryWaveEvaluation: evaluateWave, review, integrate, refresh };
+    retryWaveEvaluation: evaluateWave, review, integrate, refresh,
+    autopilotEnabled: autopilot.enabled, setAutopilotEnabled: autopilot.setEnabled,
+    autopilotState: autopilot.state, autopilotMessage: autopilot.message };
 }

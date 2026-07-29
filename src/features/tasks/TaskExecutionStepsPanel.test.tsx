@@ -163,4 +163,23 @@ describe("TaskExecutionStepsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry evaluation" }));
     expect(retry).toHaveBeenCalledOnce();
   });
+
+  it("requires explicit guarded autopilot opt-in and exposes stop state", () => {
+    const onChange = vi.fn();
+    const view = render(<TaskExecutionStepsPanel plan={plan} runs={[]}
+      nextStep={plan.steps[0]} runBlockedReason={null} loading={false}
+      actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
+      onReview={vi.fn()} onIntegrate={vi.fn()} autopilotEnabled={false}
+      onAutopilotChange={onChange} />);
+    fireEvent.click(screen.getByLabelText("Guarded autopilot for this Task"));
+    expect(onChange).toHaveBeenCalledWith(true);
+    expect(screen.getByText(/Stops on the first failure/)).toBeInTheDocument();
+    view.rerender(<TaskExecutionStepsPanel plan={plan} runs={[]}
+      nextStep={plan.steps[0]} runBlockedReason={null} loading={false}
+      actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
+      onReview={vi.fn()} onIntegrate={vi.fn()} autopilotEnabled
+      autopilotState="stopped" autopilotMessage="Autopilot stopped: integration failed."
+      onAutopilotChange={onChange} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("integration failed");
+  });
 });

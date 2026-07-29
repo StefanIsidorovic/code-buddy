@@ -18,15 +18,20 @@ interface Props {
   cleanupWarnings: Record<string, string>;
   error: string | null;
   waveEvaluation?: WaveEvaluationState | null;
+  autopilotEnabled?: boolean;
+  autopilotState?: "idle" | "running" | "completed" | "stopped";
+  autopilotMessage?: string | null;
   onRun: () => void;
   onRetryWaveEvaluation?: () => void;
+  onAutopilotChange?: (enabled: boolean) => void;
   onReview: (runId: string, decision: "accept" | "reject", note: string) => void;
   onIntegrate: (runId: string) => void;
 }
 
 export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, nextStep,
   runBlockedReason, loading, dispatchStates = {}, actionRunId, cleanupWarnings, error, onRun,
-  waveEvaluation = null, onRetryWaveEvaluation, onReview, onIntegrate }: Props) {
+  waveEvaluation = null, autopilotEnabled = false, autopilotState = "idle",
+  autopilotMessage = null, onRetryWaveEvaluation, onAutopilotChange, onReview, onIntegrate }: Props) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   if (!plan) return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <h4 id="execution-steps-title">Approved plan steps</h4>
@@ -40,6 +45,18 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
       <span>{runs.filter(isCompletedTaskPlanStepRun).length}/{plan.steps.length} completed</span>
     </div></div>
     {error ? <p className="error-message" role="alert">{error}</p> : null}
+    <div className="task-helper-card" data-status={autopilotState}>
+      <label><input type="checkbox" checked={autopilotEnabled}
+        disabled={autopilotState === "running" || loading}
+        onChange={(event) => onAutopilotChange?.(event.target.checked)} />
+        Guarded autopilot for this Task
+      </label>
+      <small>Opt-in. Automatically accepts and serially integrates only grounded pass runs with
+        available within-scope repository verification. Stops on the first failure.</small>
+      {autopilotMessage ? <span role={autopilotState === "stopped" ? "alert" : "status"}>
+        {autopilotMessage}
+      </span> : null}
+    </div>
     {waveEvaluation ? <div className="task-helper-card" data-status={waveEvaluation.status}>
       <strong>Wave {waveEvaluation.waveNumber} evaluation</strong>
       {waveEvaluation.status === "running"
@@ -147,9 +164,11 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
           <label>Review note<textarea rows={2} value={note}
             onChange={(event) => setNotes((current) => ({ ...current, [run.id]: event.target.value }))} /></label>
           <div className="task-step-review-actions">
-            <button type="button" disabled={!canAccept || actionRunId === run.id}
+            <button type="button" disabled={!canAccept || actionRunId === run.id
+              || autopilotState === "running"}
               onClick={() => onReview(run.id, "accept", note)}>Accept step</button>
-            <button type="button" disabled={!note.trim() || actionRunId === run.id}
+            <button type="button" disabled={!note.trim() || actionRunId === run.id
+              || autopilotState === "running"}
               onClick={() => onReview(run.id, "reject", note)}>Reject & retry</button>
           </div>
           {!canAccept ? <small>Accept requires available within-scope Git verification and a review note.</small> : null}

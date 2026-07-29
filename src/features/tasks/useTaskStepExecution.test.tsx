@@ -266,4 +266,88 @@ describe("useTaskStepExecution", () => {
     await act(() => dispatch);
     expect(result.current.waveEvaluation).toBeNull();
   });
+
+  it("runs explicit guarded autopilot serial review and integration for grounded pass", async () => {
+    const isolated = { ...sent, isolationId: "isolation-1" } as TaskPlanStepRunInfo;
+    const accepted: TaskPlanStepRunInfo = {
+      ...isolated, status: "accepted", reviewStatus: "accepted",
+    };
+    const integrated = { ...accepted, integrationStatus: "integrated",
+      integratedCommitSha: "abc123" } as TaskPlanStepRunInfo;
+    invoke.mockImplementation((command) => {
+      if (!command || command === "list_task_plan_step_runs") return Promise.resolve([]);
+      if (command === "send_isolated_task_plan_step_prompt") return Promise.resolve({
+        receipt: isolated, executorSession: {}, promptResult: {}, workspaceVerification: {},
+      });
+      if (command === "run_task_wave_evaluation") return Promise.resolve({
+        promptResult: {}, transcriptSession: {}, report: {
+          id: "evaluation-1",
+          content: JSON.stringify({ runs: [{ runId: "run-1", verdict: "pass",
+            summary: "Within scope", evidence: [] }], overall: "pass",
+          recommendation: "Accept the grounded run." }),
+        },
+      });
+      if (command === "review_task_plan_step_run") return Promise.resolve(accepted);
+      if (command === "integrate_task_plan_step_run") return Promise.resolve({
+        receipt: integrated, cleanupError: null,
+      });
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan, candidateId: "codex", repositoryPath: "/repo",
+    }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.setAutopilotEnabled(true));
+    await act(() => result.current.dispatch());
+    expect(invoke).toHaveBeenCalledWith("review_task_plan_step_run", { request: {
+      taskId: "task-1", runId: "run-1", decision: "accept",
+      note: "Guarded autopilot accepted grounded pass from evaluator report evaluation-1.",
+    } });
+    expect(invoke).toHaveBeenCalledWith("integrate_task_plan_step_run", {
+      request: { taskId: "task-1", runId: "run-1" },
+    });
+    expect(result.current.runs).toEqual([integrated]);
+    expect(result.current.autopilotState).toBe("completed");
+    expect(result.current.autopilotMessage).toContain("completed 1 safe run");
+  });
+
+  it("stops guarded autopilot before the next run when review fails", async () => {
+    const receipts = [
+      { ...sent, id: "run-1", planStepId: "step-1" },
+      { ...sent, id: "run-2", planStepId: "step-2", stepOrderIndex: 1 },
+    ] as TaskPlanStepRunInfo[];
+    invoke.mockImplementation((command, args) => {
+      if (!command || command === "list_task_plan_step_runs") return Promise.resolve([]);
+      if (command === "send_isolated_task_plan_step_prompt") {
+        const request = args?.request as { planStepId?: string } | undefined;
+        return Promise.resolve({
+          receipt: request?.planStepId === "step-2" ? receipts[1] : receipts[0],
+          executorSession: {}, promptResult: {}, workspaceVerification: {},
+        });
+      }
+      if (command === "run_task_wave_evaluation") return Promise.resolve({
+        promptResult: {}, transcriptSession: {}, report: {
+          id: "evaluation-2",
+          content: JSON.stringify({ runs: receipts.map((run) => ({
+            runId: run.id, verdict: "pass", summary: "Safe", evidence: [],
+          })), overall: "pass", recommendation: "Accept both." }),
+        },
+      });
+      if (command === "review_task_plan_step_run") {
+        return Promise.reject(new Error("review conflict"));
+      }
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan: parallelPlan, candidateId: "codex", repositoryPath: "/repo",
+    }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.setAutopilotEnabled(true));
+    await act(() => result.current.dispatch());
+    expect(invoke.mock.calls.filter(([command]) =>
+      command === "review_task_plan_step_run")).toHaveLength(1);
+    expect(invoke).not.toHaveBeenCalledWith("integrate_task_plan_step_run", expect.anything());
+    expect(result.current.autopilotState).toBe("stopped");
+    expect(result.current.autopilotMessage).toContain("review conflict");
+  });
 });
