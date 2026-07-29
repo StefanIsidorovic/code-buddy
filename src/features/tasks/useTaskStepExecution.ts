@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
-import type { IntegrateTaskPlanStepRunResultInfo, TaskInfo, TaskPlanStepRunInfo, TaskPlanStepRunResultInfo,
+import type { IntegrateTaskPlanStepRunResultInfo, IsolatedTaskPlanStepRunResultInfo, TaskInfo, TaskPlanStepRunInfo,
   TaskPlanVersionInfo } from "../../types/domain";
 
 interface Options {
   task: TaskInfo | null;
   plan: TaskPlanVersionInfo | null;
-  acpSessionId: string | null;
-  onDispatchSettled: () => Promise<void>;
+  candidateId: string | null;
+  repositoryPath: string | null;
 }
 
-export function useTaskStepExecution({ task, plan, acpSessionId, onDispatchSettled }: Options) {
+export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }: Options) {
   const [runs, setRuns] = useState<TaskPlanStepRunInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionRunId, setActionRunId] = useState<string | null>(null);
@@ -49,20 +49,26 @@ export function useTaskStepExecution({ task, plan, acpSessionId, onDispatchSettl
     !runs.some((run) => run.planStepId === step.id && run.status === "accepted"
       && (!run.isolationId || run.integrationStatus === "integrated"))) ?? null;
   const allAccepted = !!plan && plan.steps.length > 0 && !nextStep;
+  const runBlockedReason = !candidateId
+    ? "Select an available ACP coding agent to run the next isolated step."
+    : !repositoryPath
+      ? "Select a registered project repository to run the next isolated step."
+      : null;
 
   async function dispatch() {
-    if (!task || !plan || !nextStep || !acpSessionId) return;
+    if (!task || !plan || !nextStep || !candidateId || !repositoryPath) return;
     const taskId = task.id;
     setLoading(true);
     setError(null);
     try {
-      const result = await invokeCommand<TaskPlanStepRunResultInfo>("send_task_plan_step_prompt", {
-        request: { taskId, planVersionId: plan.id, planStepId: nextStep.id, acpSessionId },
-      });
+      const result = await invokeCommand<IsolatedTaskPlanStepRunResultInfo>(
+        "send_isolated_task_plan_step_prompt",
+        { request: { taskId, planVersionId: plan.id, planStepId: nextStep.id,
+          candidateId, repositoryPath } },
+      );
       if (taskIdRef.current === taskId) {
         setRuns((current) => [...current, result.receipt]);
       }
-      await onDispatchSettled();
     } catch (reason) {
       if (taskIdRef.current === taskId) {
         setError(errorText(reason));
@@ -125,6 +131,6 @@ export function useTaskStepExecution({ task, plan, acpSessionId, onDispatchSettl
     }
   }
 
-  return { runs, nextStep, allAccepted, loading, actionRunId, cleanupWarnings, error,
+  return { runs, nextStep, allAccepted, runBlockedReason, loading, actionRunId, cleanupWarnings, error,
     dispatch, review, integrate, refresh };
 }

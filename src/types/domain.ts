@@ -581,6 +581,13 @@ export type TaskPlanStepRunResultInfo = {
   workspaceVerification: GitWorkspaceVerificationInfo;
 };
 
+export type IsolatedTaskPlanStepRunResultInfo = {
+  executorSession: AcpSessionInfo;
+  promptResult: AcpPromptResult;
+  receipt: TaskPlanStepRunInfo;
+  workspaceVerification: GitWorkspaceVerificationInfo;
+};
+
 export type IntegrateTaskPlanStepRunResultInfo = {
   receipt: TaskPlanStepRunInfo;
   cleanupError: string | null;

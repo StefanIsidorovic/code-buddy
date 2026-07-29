@@ -208,8 +208,8 @@ function App() {
     cwd: selectedRepository?.path ?? selectedProject?.path,
   });
   const taskSteps = useTaskStepExecution({ task: activeTask, plan: taskPlan.approved,
-    acpSessionId: canUseAcpSession ? acpSession?.id ?? null : null,
-    onDispatchSettled: async () => { await drainAcpEvents(); } });
+    candidateId: selectedAcpCandidateId,
+    repositoryPath: selectedRepository?.path ?? null });
   const hasCurrentPhaseRun = taskPhase.hasCompletedRun || !!activeTask &&
     taskPhaseRuns.receipts.some((receipt) =>
       receipt.phase === activeTask.currentPhase && receipt.status === "sent");
@@ -437,8 +437,7 @@ function App() {
             executionStepsComplete={taskSteps.allAccepted}
             executionPanel={<TaskExecutionStepsPanel plan={taskPlan.approved}
               runs={taskSteps.runs} nextStep={taskSteps.nextStep}
-              canRun={canUseAcpSession && acpSession?.cwd ===
-                (selectedRepository?.path ?? selectedProject?.path)}
+              runBlockedReason={taskSteps.runBlockedReason}
               loading={taskSteps.loading} actionRunId={taskSteps.actionRunId} error={taskSteps.error}
               cleanupWarnings={taskSteps.cleanupWarnings}
               onRun={() => void taskSteps.dispatch()}

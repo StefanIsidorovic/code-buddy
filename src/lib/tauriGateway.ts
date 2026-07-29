@@ -74,6 +74,7 @@ export type TauriCommand =
   | "send_acp_prompt"
   | "send_acp_prompt_with_context"
   | "send_task_phase_prompt"
+  | "send_isolated_task_plan_step_prompt"
   | "send_task_plan_step_prompt"
   | "set_acp_model"
   | "start_acp_registry_session"

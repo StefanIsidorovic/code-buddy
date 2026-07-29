@@ -22,28 +22,30 @@ describe("useTaskStepExecution", () => {
   it("dispatches the next step and persists explicit review", async () => {
     invoke.mockImplementation((command) => {
       if (command === "list_task_plan_step_runs") return Promise.resolve([]);
-      if (command === "send_task_plan_step_prompt") return Promise.resolve({
-        receipt: sent, promptResult: { stopReason: "end_turn" },
+      if (command === "send_isolated_task_plan_step_prompt") return Promise.resolve({
+        receipt: { ...sent, isolationId: "isolation-1" },
+        executorSession: { id: "isolated-acp-1", cwd: "/tmp/isolation-1" },
+        promptResult: { stopReason: "end_turn" },
         workspaceVerification: { status: "changed" },
       });
-      return Promise.resolve({ ...sent, status: "accepted", reviewStatus: "accepted" });
+      return Promise.resolve({ ...sent, status: "accepted", reviewStatus: "accepted",
+        isolationId: "isolation-1" });
     });
-    const settled = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => useTaskStepExecution({
-      task, plan, acpSessionId: "acp-1", onDispatchSettled: settled,
+      task, plan, candidateId: "codex", repositoryPath: "/repo",
     }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(() => result.current.dispatch());
-    expect(invoke).toHaveBeenCalledWith("send_task_plan_step_prompt", { request: {
-      taskId: "task-1", planVersionId: "plan-1", planStepId: "step-1", acpSessionId: "acp-1",
+    expect(invoke).toHaveBeenCalledWith("send_isolated_task_plan_step_prompt", { request: {
+      taskId: "task-1", planVersionId: "plan-1", planStepId: "step-1",
+      candidateId: "codex", repositoryPath: "/repo",
     } });
-    expect(result.current.runs).toEqual([sent]);
-    expect(settled).toHaveBeenCalledOnce();
+    expect(result.current.runs).toEqual([{ ...sent, isolationId: "isolation-1" }]);
     await act(() => result.current.review("run-1", "accept", "Reviewed Git scope"));
     expect(invoke).toHaveBeenCalledWith("review_task_plan_step_run", { request: {
       taskId: "task-1", runId: "run-1", decision: "accept", note: "Reviewed Git scope",
     } });
-    expect(result.current.allAccepted).toBe(true);
+    expect(result.current.allAccepted).toBe(false);
   });
 
   it("ignores a late run list from the previously selected Task", async () => {
@@ -52,7 +54,7 @@ describe("useTaskStepExecution", () => {
     invoke.mockImplementation((_command, args) =>
       args?.taskId === "task-1" ? old : Promise.resolve([]));
     const { result, rerender } = renderHook(({ selected }) => useTaskStepExecution({
-      task: selected, plan: null, acpSessionId: null, onDispatchSettled: vi.fn(),
+      task: selected, plan: null, candidateId: null, repositoryPath: null,
     }), { initialProps: { selected: task } });
     rerender({ selected: { ...task, id: "task-2" } });
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("list_task_plan_step_runs", {
@@ -76,7 +78,7 @@ describe("useTaskStepExecution", () => {
       return Promise.reject(new Error(`unexpected ${command}`));
     });
     const { result } = renderHook(() => useTaskStepExecution({
-      task, plan, acpSessionId: null, onDispatchSettled: vi.fn(),
+      task, plan, candidateId: null, repositoryPath: null,
     }));
     await waitFor(() => expect(result.current.runs).toEqual([isolated]));
     expect(result.current.allAccepted).toBe(false);
@@ -106,12 +108,32 @@ describe("useTaskStepExecution", () => {
       return Promise.reject(new Error("integration failed"));
     });
     const { result } = renderHook(() => useTaskStepExecution({
-      task, plan, acpSessionId: null, onDispatchSettled: vi.fn(),
+      task, plan, candidateId: null, repositoryPath: null,
     }));
     await waitFor(() => expect(result.current.runs).toEqual([isolated]));
     await act(() => result.current.integrate("run-1"));
     expect(result.current.runs).toEqual([conflicted]);
     expect(result.current.error).toBe("integration failed");
     expect(result.current.actionRunId).toBeNull();
+  });
+
+  it("blocks isolated dispatch until both candidate and registered repository are selected", async () => {
+    invoke.mockImplementation((command) => {
+      if (!command || command === "list_task_plan_step_runs") return Promise.resolve([]);
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result, rerender } = renderHook(({ candidateId, repositoryPath }) =>
+      useTaskStepExecution({ task, plan, candidateId, repositoryPath }), {
+      initialProps: { candidateId: null as string | null, repositoryPath: null as string | null },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.runBlockedReason).toMatch(/coding agent/);
+    await act(() => result.current.dispatch());
+    expect(invoke).not.toHaveBeenCalledWith("send_isolated_task_plan_step_prompt",
+      expect.anything());
+    rerender({ candidateId: "codex", repositoryPath: null });
+    expect(result.current.runBlockedReason).toMatch(/registered project repository/);
+    rerender({ candidateId: "codex", repositoryPath: "/repo" });
+    expect(result.current.runBlockedReason).toBeNull();
   });
 });

@@ -28,12 +28,12 @@ describe("TaskExecutionStepsPanel", () => {
   it("runs only the next step and requires a review note before acceptance", () => {
     const onRun = vi.fn(); const onReview = vi.fn();
     const view = render(<TaskExecutionStepsPanel plan={plan} runs={[]} nextStep={plan.steps[0]}
-      canRun loading={false} actionRunId={null} error={null}
+      runBlockedReason={null} loading={false} actionRunId={null} error={null}
       cleanupWarnings={{}} onRun={onRun} onReview={onReview} onIntegrate={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Run this step" }));
     expect(onRun).toHaveBeenCalledOnce();
     view.rerender(<TaskExecutionStepsPanel plan={plan} runs={[sent]} nextStep={plan.steps[0]}
-      canRun loading={false} actionRunId={null} error={null}
+      runBlockedReason={null} loading={false} actionRunId={null} error={null}
       cleanupWarnings={{}} onRun={onRun} onReview={onReview} onIntegrate={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Accept step" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Review note"), { target: { value: "Scope verified" } });
@@ -48,7 +48,8 @@ describe("TaskExecutionStepsPanel", () => {
   it("shows scope violations and prevents acceptance while allowing rejection", () => {
     const onReview = vi.fn();
     render(<TaskExecutionStepsPanel plan={plan} runs={[{ ...sent, scopeStatus: "out_of_scope",
-      scopeViolations: ["src/other.ts"] }]} nextStep={plan.steps[0]} canRun loading={false}
+      scopeViolations: ["src/other.ts"] }]} nextStep={plan.steps[0]}
+      runBlockedReason={null} loading={false}
       actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
       onReview={onReview} onIntegrate={vi.fn()} />);
 
@@ -67,13 +68,15 @@ describe("TaskExecutionStepsPanel", () => {
       isolationBranch: "aiadne/task-1/step-1/attempt-1-isolation-1",
       isolationBaseSha: "aaaaaaaa", integrationStatus: null };
     const view = render(<TaskExecutionStepsPanel plan={plan} runs={[isolated]}
-      nextStep={plan.steps[0]} canRun loading={false} actionRunId={null} error={null}
+      nextStep={plan.steps[0]} runBlockedReason={null} loading={false}
+      actionRunId={null} error={null}
       cleanupWarnings={{}} onRun={vi.fn()} onReview={vi.fn()} onIntegrate={onIntegrate} />);
     fireEvent.click(screen.getByRole("button", { name: "Integrate accepted step" }));
     expect(onIntegrate).toHaveBeenCalledWith("run-1");
     view.rerender(<TaskExecutionStepsPanel plan={plan} runs={[{ ...isolated,
       integrationStatus: "integrated", isolatedCommitSha: "bbbbbbbb",
-      integratedCommitSha: "cccccccc" }]} nextStep={plan.steps[1]} canRun loading={false}
+      integratedCommitSha: "cccccccc" }]} nextStep={plan.steps[1]}
+      runBlockedReason={null} loading={false}
       actionRunId={null} error={null} cleanupWarnings={{ "run-1": "session already stopped" }}
       onRun={vi.fn()} onReview={vi.fn()} onIntegrate={onIntegrate} />);
     expect(screen.queryByRole("button", { name: "Integrate accepted step" })).not.toBeInTheDocument();
@@ -86,12 +89,22 @@ describe("TaskExecutionStepsPanel", () => {
   it("shows a durable integration conflict without offering a duplicate action", () => {
     render(<TaskExecutionStepsPanel plan={plan} runs={[{ ...sent, status: "accepted",
       reviewStatus: "accepted", isolationId: "isolation-1", integrationStatus: "conflicted",
-      integrationError: "cherry-pick conflict" }]} nextStep={plan.steps[0]} canRun loading={false}
+      integrationError: "cherry-pick conflict" }]} nextStep={plan.steps[0]}
+      runBlockedReason={null} loading={false}
       actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
       onReview={vi.fn()} onIntegrate={vi.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent(
       "cherry-pick conflict. Isolation retained for recovery",
     );
     expect(screen.queryByRole("button", { name: "Integrate accepted step" })).not.toBeInTheDocument();
+  });
+
+  it("explains why an isolated step cannot start", () => {
+    render(<TaskExecutionStepsPanel plan={plan} runs={[]} nextStep={plan.steps[0]}
+      runBlockedReason="Select a registered project repository to run the next isolated step."
+      loading={false} actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
+      onReview={vi.fn()} onIntegrate={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Run this step" })).toBeDisabled();
+    expect(screen.getByText(/registered project repository/)).toBeInTheDocument();
   });
 });

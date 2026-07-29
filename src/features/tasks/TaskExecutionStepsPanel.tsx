@@ -6,7 +6,7 @@ interface Props {
   plan: TaskPlanVersionInfo | null;
   runs: TaskPlanStepRunInfo[];
   nextStep: TaskPlanStepInfo | null;
-  canRun: boolean;
+  runBlockedReason: string | null;
   loading: boolean;
   actionRunId: string | null;
   cleanupWarnings: Record<string, string>;
@@ -16,7 +16,7 @@ interface Props {
   onIntegrate: (runId: string) => void;
 }
 
-export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading, actionRunId,
+export function TaskExecutionStepsPanel({ plan, runs, nextStep, runBlockedReason, loading, actionRunId,
   cleanupWarnings, error, onRun, onReview, onIntegrate }: Props) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   if (!plan) return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
@@ -79,7 +79,7 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
             attention: {cleanupWarnings[run.id]}</p> : null}
         </div> : null}
         {isNext && (!run || run.status === "failed") ? <button type="button"
-          className="primary-action" disabled={!canRun || loading} onClick={onRun}>
+          className="primary-action" disabled={!!runBlockedReason || loading} onClick={onRun}>
           {loading ? "Running step…" : run?.status === "failed" ? "Retry this step" : "Run this step"}
         </button> : null}
         {run?.status === "sent" ? <fieldset><legend>Review this step</legend>
@@ -101,6 +101,6 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
           </button> : null}
       </li>;
     })}</ol>
-    {!canRun && nextStep ? <p className="task-helper-card">Start a matching ACP session to run the next step.</p> : null}
+    {runBlockedReason && nextStep ? <p className="task-helper-card">{runBlockedReason}</p> : null}
   </section>;
 }
