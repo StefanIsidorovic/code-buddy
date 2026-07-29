@@ -15,6 +15,7 @@
 - Backend derives immutable dependency/scope-safe execution waves inside atomic run reservation; independent same-wave runs may coexist while later waves and duplicate open attempts remain blocked.
 - Execution now starts every dispatchable current-wave step from one action with concurrency three, exposes queued/running state per step, preserves partial successes, and keeps later waves locked until isolated acceptance is integrated.
 - Accepted within-scope `unchanged` verification is a completed no-change result; the integration action now cleans its isolation without creating a commit and recovers previously recorded empty-diff conflicts.
+- Backend command `run_task_wave_evaluation` starts a snapshot-isolated reviewer only for the current settled execution wave and binds its prompt to exact persisted run evidence, approved plan identity and a repository owned by the Task project.
 - Planning evidence now reconstructs same-kind streamed chunks exactly, and the strict plan parser can recover already-saved fenced JSON with drain-inserted line breaks; the observed Formily artifact auto-fills after UI reload.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
@@ -30,7 +31,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5e.1: run one read-only, evidence-bound evaluator after a wave settles and surface pass/needs-attention recommendations without automatic mutation or integration.
+- Continue 37.5e.1: automatically trigger the evidence-bound evaluator after a wave settles, then surface its pass/needs-attention state without automatic mutation or integration.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
@@ -43,3 +44,4 @@
 - Wave preview is derived information, not durable execution authority; backend dispatch remains intentionally serial.
 - Tier labels are requirements, not concrete ACP model IDs, until adapters expose a mapping.
 - Preserve the explicit Accept/Reject gate when adding autopilot; automation needs separately visible authority.
+- The evaluator endpoint exists, but no frontend code triggers or renders it yet; do not count automatic wave evaluation complete until both behaviors and stale/missing-evaluator recovery are tested.
