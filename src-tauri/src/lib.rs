@@ -114,6 +114,7 @@ pub fn run() {
             commands::list_task_plan_step_runs,
             commands::review_task_plan_step_run,
             commands::send_task_plan_step_prompt,
+            commands::send_isolated_task_plan_step_prompt,
             commands::set_acp_model,
             commands::drain_acp_events,
             commands::list_acp_permissions,

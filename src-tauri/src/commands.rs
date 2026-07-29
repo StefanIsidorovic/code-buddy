@@ -48,9 +48,11 @@ use crate::{
     },
     synthesis::SynthesisProviderRegistry,
     task_plan_critique::critique_instruction,
+    task_worktree::{prepare_task_step_worktree, remove_task_step_worktree},
 };
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,9 +78,28 @@ pub struct SendTaskPlanStepRequest {
     pub acp_session_id: String,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendIsolatedTaskPlanStepRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub plan_step_id: String,
+    pub candidate_id: String,
+    pub repository_path: PathBuf,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskPlanStepRunResultInfo {
+    pub prompt_result: AcpPromptResult,
+    pub receipt: TaskPlanStepRunInfo,
+    pub workspace_verification: GitWorkspaceVerificationInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IsolatedTaskPlanStepRunResultInfo {
+    pub executor_session: AcpSessionInfo,
     pub prompt_result: AcpPromptResult,
     pub receipt: TaskPlanStepRunInfo,
     pub workspace_verification: GitWorkspaceVerificationInfo,
@@ -1001,6 +1022,168 @@ pub async fn send_task_plan_step_prompt(
     .await
 }
 
+#[tauri::command]
+pub async fn send_isolated_task_plan_step_prompt(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    request: SendIsolatedTaskPlanStepRequest,
+) -> AppResult<IsolatedTaskPlanStepRunResultInfo> {
+    let candidate_id = request.candidate_id.trim().to_string();
+    if candidate_id.is_empty() {
+        return Err(AppError::InvalidInput(
+            "isolated step dispatch requires an ACP candidate".into(),
+        ));
+    }
+    send_isolated_task_plan_step_prompt_with_starter(
+        Arc::clone(manager_state.inner()),
+        store_state.inner(),
+        request,
+        move |manager, cwd| {
+            manager.start_registry_session(StartAcpRegistrySessionRequest {
+                candidate_id,
+                cwd: Some(cwd),
+                workspace_isolation: None,
+            })
+        },
+    )
+    .await
+}
+
+async fn send_isolated_task_plan_step_prompt_with_starter<F>(
+    manager: Arc<AcpSessionManager>,
+    store: &ProjectStore,
+    request: SendIsolatedTaskPlanStepRequest,
+    starter: F,
+) -> AppResult<IsolatedTaskPlanStepRunResultInfo>
+where
+    F: FnOnce(Arc<AcpSessionManager>, PathBuf) -> AppResult<AcpSessionInfo> + Send + 'static,
+{
+    let task = store.task(&request.task_id)?;
+    let plan = store
+        .list_task_plan_versions(&task.id)?
+        .into_iter()
+        .find(|plan| plan.id == request.plan_version_id && plan.status == "approved")
+        .ok_or_else(|| {
+            AppError::InvalidInput(
+                "isolated dispatch requires the selected Task's approved plan".into(),
+            )
+        })?;
+    let step = plan
+        .steps
+        .iter()
+        .find(|step| step.id == request.plan_step_id)
+        .cloned()
+        .ok_or_else(|| {
+            AppError::InvalidInput(
+                "isolated dispatch requires a step from the approved plan".into(),
+            )
+        })?;
+    if !store
+        .list_project_repositories(&task.project_id)?
+        .iter()
+        .any(|repository| repository.path == request.repository_path)
+    {
+        return Err(AppError::InvalidInput(
+            "isolated dispatch repository does not belong to the Task project".into(),
+        ));
+    }
+    let attempt = store
+        .list_task_plan_step_runs(&task.id)?
+        .iter()
+        .filter(|run| run.plan_step_id == step.id)
+        .map(|run| run.attempt)
+        .max()
+        .unwrap_or(0)
+        + 1;
+    let isolation = prepare_task_step_worktree(
+        &request.repository_path,
+        &task.id,
+        (step.order_index + 1) as usize,
+        attempt as usize,
+        &Uuid::new_v4().to_string(),
+    )?;
+    let start_manager = Arc::clone(&manager);
+    let start_path = isolation.worktree_path.clone();
+    let executor_session = match run_acp_task(move || starter(start_manager, start_path)).await {
+        Ok(session) => session,
+        Err(error) => {
+            let _ = remove_task_step_worktree(&isolation);
+            return Err(error);
+        }
+    };
+    let instruction = task_plan_step_instruction(&task, &plan, &step);
+    let receipt = match store.begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
+        task_id: task.id.clone(),
+        plan_version_id: plan.id,
+        plan_step_id: step.id,
+        acp_session_id: executor_session.id.clone(),
+        instruction: instruction.clone(),
+    }) {
+        Ok(receipt) => receipt,
+        Err(error) => {
+            let _ = manager.stop_and_remove_session(&executor_session.id, true);
+            let _ = remove_task_step_worktree(&isolation);
+            return Err(error);
+        }
+    };
+    if let Err(error) = store.record_task_plan_step_run_isolation(&receipt.id, &isolation) {
+        let _ = store.finalize_task_plan_step_run(
+            &receipt.id,
+            "failed",
+            None,
+            Some(&error.to_string()),
+        );
+        let _ = manager.stop_and_remove_session(&executor_session.id, true);
+        let _ = remove_task_step_worktree(&isolation);
+        return Err(error);
+    }
+    let before = capture_git_workspace_snapshot(&isolation.worktree_path);
+    let receipt_id = receipt.id;
+    let acp_session_id = executor_session.id.clone();
+    let prompt_manager = Arc::clone(&manager);
+    match run_acp_task(move || prompt_manager.send_prompt(&acp_session_id, &instruction)).await {
+        Ok(prompt_result) => {
+            store.finalize_task_plan_step_run(
+                &receipt_id,
+                "sent",
+                Some(&prompt_result.stop_reason),
+                None,
+            )?;
+            let workspace_verification = compare_git_workspace_snapshots(
+                task.id,
+                "execution".into(),
+                &isolation.worktree_path,
+                before,
+                capture_git_workspace_snapshot(&isolation.worktree_path),
+            );
+            let touched_files_json = serde_json::to_string(&workspace_verification.touched_files)
+                .map_err(|error| AppError::Storage(error.to_string()))?;
+            let receipt = store.record_task_plan_step_run_verification(
+                &receipt_id,
+                &workspace_verification.status,
+                &workspace_verification.workspace_path,
+                &touched_files_json,
+                workspace_verification.error.as_deref(),
+            )?;
+            Ok(IsolatedTaskPlanStepRunResultInfo {
+                executor_session,
+                prompt_result,
+                receipt,
+                workspace_verification,
+            })
+        }
+        Err(error) => {
+            store.finalize_task_plan_step_run(
+                &receipt_id,
+                "failed",
+                None,
+                Some(&error.to_string()),
+            )?;
+            Err(error)
+        }
+    }
+}
+
 async fn send_task_plan_step_prompt_with_manager(
     manager: Arc<AcpSessionManager>,
     store: &ProjectStore,
@@ -1819,7 +2002,7 @@ mod tests {
                 &store,
                 SendTaskPlanStepRequest {
                     task_id: task.id.clone(),
-                    plan_version_id: plan.id,
+                    plan_version_id: plan.id.clone(),
                     plan_step_id: plan.steps[1].id.clone(),
                     acp_session_id: stopped.id,
                 },
@@ -1836,6 +2019,134 @@ mod tests {
                 .error
                 .as_deref()
                 .is_some_and(|error| !error.is_empty()));
+            let worktrees = || {
+                std::process::Command::new("git")
+                    .current_dir(&project_path)
+                    .args(["worktree", "list", "--porcelain"])
+                    .output()
+                    .expect("worktrees listed")
+                    .stdout
+            };
+            let unregistered = send_isolated_task_plan_step_prompt_with_starter(
+                Arc::clone(&manager),
+                &store,
+                SendIsolatedTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    plan_step_id: plan.steps[1].id.clone(),
+                    candidate_id: "fake".into(),
+                    repository_path: PathBuf::from("/unregistered/repository"),
+                },
+                |_manager, _cwd| panic!("starter must not run for an unregistered repository"),
+            )
+            .await
+            .expect_err("unregistered repository rejected before startup");
+            assert!(unregistered.to_string().contains("does not belong"));
+            let before_start_failure = worktrees();
+            let startup_error = send_isolated_task_plan_step_prompt_with_starter(
+                Arc::clone(&manager),
+                &store,
+                SendIsolatedTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    plan_step_id: plan.steps[1].id.clone(),
+                    candidate_id: "fake".into(),
+                    repository_path: project_path.clone(),
+                },
+                |_manager, _cwd| Err(AppError::Acp("startup failed".into())),
+            )
+            .await
+            .expect_err("startup failure rolls isolation back");
+            assert!(startup_error.to_string().contains("startup failed"));
+            assert_eq!(worktrees(), before_start_failure);
+
+            let prompt_error = send_isolated_task_plan_step_prompt_with_starter(
+                Arc::clone(&manager),
+                &store,
+                SendIsolatedTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    plan_step_id: plan.steps[1].id.clone(),
+                    candidate_id: "fake".into(),
+                    repository_path: project_path.clone(),
+                },
+                |manager, cwd| {
+                    let session = manager
+                        .start_fake_session(StartFakeAcpSessionRequest { cwd: Some(cwd) })?;
+                    manager.stop_session(&session.id, true)?;
+                    Ok(session)
+                },
+            )
+            .await
+            .expect_err("prompt failure retains recovery state");
+            assert!(!prompt_error.to_string().is_empty());
+            let retained = store
+                .list_task_plan_step_runs(&task.id)
+                .expect("retained run listed")
+                .into_iter()
+                .last()
+                .expect("retained run");
+            assert_eq!(retained.status, "failed");
+            let retained_isolation = crate::task_worktree::TaskStepWorktreeInfo {
+                isolation_id: retained.isolation_id.expect("retained isolation id"),
+                repository_path: project_path.clone(),
+                worktree_path: PathBuf::from(
+                    retained.isolation_worktree_path.expect("retained worktree"),
+                ),
+                branch: retained.isolation_branch.expect("retained branch"),
+                base_sha: retained.isolation_base_sha.expect("retained base"),
+            };
+            assert!(retained_isolation.worktree_path.exists());
+            manager
+                .stop_and_remove_session(&retained.acp_session_id, true)
+                .expect("failed isolated executor removed");
+            remove_task_step_worktree(&retained_isolation)
+                .expect("retained isolation explicitly cleaned");
+            let isolated = send_isolated_task_plan_step_prompt_with_starter(
+                Arc::clone(&manager),
+                &store,
+                SendIsolatedTaskPlanStepRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id,
+                    plan_step_id: plan.steps[1].id.clone(),
+                    candidate_id: "fake".into(),
+                    repository_path: project_path.clone(),
+                },
+                |manager, cwd| {
+                    manager.start_fake_session(StartFakeAcpSessionRequest { cwd: Some(cwd) })
+                },
+            )
+            .await
+            .expect("isolated retry succeeds");
+            assert_eq!(
+                isolated.executor_session.cwd,
+                PathBuf::from(
+                    isolated
+                        .receipt
+                        .isolation_worktree_path
+                        .as_deref()
+                        .expect("worktree persisted")
+                )
+            );
+            assert_eq!(
+                isolated.receipt.isolation_repository_path.as_deref(),
+                project_path.to_str()
+            );
+            assert_eq!(
+                isolated.receipt.verification_workspace_path,
+                isolated.receipt.isolation_worktree_path
+            );
+            let isolation = crate::task_worktree::TaskStepWorktreeInfo {
+                isolation_id: isolated.receipt.isolation_id.clone().expect("isolation id"),
+                repository_path: project_path.clone(),
+                worktree_path: isolated.executor_session.cwd.clone(),
+                branch: isolated.receipt.isolation_branch.clone().expect("branch"),
+                base_sha: isolated.receipt.isolation_base_sha.clone().expect("base"),
+            };
+            manager
+                .stop_and_remove_session(&isolated.executor_session.id, true)
+                .expect("isolated executor stops");
+            remove_task_step_worktree(&isolation).expect("isolated worktree removed");
             manager
                 .stop_and_remove_session(&session.id, true)
                 .expect("fake executor stops");

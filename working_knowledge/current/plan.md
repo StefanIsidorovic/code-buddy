@@ -116,6 +116,14 @@
 - acceptance criteria: descriptors round-trip; second or finalized writes fail; invalid descriptors fail without mutation; isolated verification cannot use another workspace; non-isolated legacy runs remain compatible.
 - required tests: write-once round-trip; descriptor validation; wrong-workspace verification; legacy null fields; migration; Rust fmt/test/clippy and diff hygiene.
 
+#### 37.5b.3. Dispatch one owned isolated step
+- objective: run one approved step through a dedicated ACP session whose cwd is its durable worktree.
+- status: complete pending commit.
+- files: src-tauri/src/commands.rs; src-tauri/src/lib.rs; related command tests; working_knowledge/current/*.
+- expected changes: validate the selected project repository and approved step, prepare a unique worktree, start a dedicated ACP candidate there, persist receipt ownership before sending, verify the exact workspace, and apply phase-aware rollback.
+- acceptance criteria: prompt dispatch happens only after durable ownership; startup/reservation failures remove session/worktree; prompt failures retain recovery state; successful receipts expose the exact ACP cwd and isolation descriptor; shared checkout is never the executor cwd.
+- required tests: fake isolated success; receipt/session/worktree identity; registered-repository rejection; pre-send rollback; prompt-failure retention; command registration; Rust fmt/test/clippy and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.
