@@ -213,11 +213,13 @@
 
 #### 37.5e.1. Evaluate a completed wave automatically
 - objective: reduce manual review load by producing one structured evaluator verdict per completed execution wave.
-- status: in progress; backend evidence-bound evaluator committed, automatic frontend trigger and recommendation UI remain.
+- status: complete.
+- commits: dd7668b; 8bac275.
 - files: backend secondary-agent report orchestration; execution hook/panel; typed contracts; related tests; working_knowledge/current/*.
 - expected changes: dispatch a read-only evaluator after all wave workers finish, bind findings to exact step receipts and verification, and present pass/needs-attention recommendations without granting mutation or integration authority.
 - acceptance criteria: evaluator cannot edit the repository; every finding names its step/run evidence; partial worker failures remain explicit; user may accept recommendations or review manually.
 - required tests: all-pass wave; mixed failure; stale Task; missing evaluator; provenance binding; frontend and Rust full gates.
+- review status: passed after 2 implementation slices; the backend binds snapshot-isolated evaluation to exact persisted wave evidence and project ownership, while the frontend triggers after workers settle, ignores stale results, preserves mixed-failure evidence and exposes recommendation or retry without granting review/integration authority.
 
 ##### 37.5e.1a. Bind evaluator authority to persisted wave evidence
 - status: complete.
