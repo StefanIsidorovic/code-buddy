@@ -92,6 +92,14 @@
 - acceptance criteria: dependencies round-trip immutably; invalid graphs fail atomically; generated and manual drafts can declare earlier step keys; existing plans remain readable.
 - required tests: storage validation/round-trip; migration default; parser/editor payload; Rust/frontend gates and diff hygiene.
 
+#### 37.5a.2. Derive deterministic execution waves
+- objective: preview safe execution groups from immutable dependencies and declared write scopes before enabling concurrency.
+- status: complete pending commit.
+- files: src/features/tasks/taskExecutionWaves.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; related tests; working_knowledge/current/*.
+- expected changes: group dependency-ready steps only when declared write scopes cannot overlap; serialize ambiguous or colliding scopes; present stable wave membership and safety rationale during execution.
+- acceptance criteria: output is stable by plan order; dependencies unlock later waves; overlapping directory/glob scopes never share a wave; empty scopes serialize; UI does not imply concurrency is already enabled.
+- required tests: independent grouping; dependency chain; exact/directory/glob collision; missing scope; accessible execution preview; full frontend gates and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.

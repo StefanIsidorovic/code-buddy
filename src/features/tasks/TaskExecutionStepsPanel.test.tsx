@@ -3,12 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import type { TaskPlanStepRunInfo, TaskPlanVersionInfo } from "../../types/domain";
 import { TaskExecutionStepsPanel } from "./TaskExecutionStepsPanel";
 
-const plan = { id: "plan-1", status: "approved", steps: [
+const plan: TaskPlanVersionInfo = { id: "plan-1", taskId: "task-1", version: 1,
+  status: "approved", sourceArtifactId: "artifact-1", requirements: [],
+  createdAt: 1, approvedAt: 1, steps: [
   { id: "step-1", orderIndex: 0, title: "Implement cache", description: "Change cache",
-    complexity: 2, acceptanceCriteria: ["Tests pass"], expectedPaths: ["src/cache.ts"] },
+    kind: "implementation", complexity: 2, acceptanceCriteria: ["Tests pass"],
+    expectedPaths: ["src/cache.ts"], satisfies: [], dependsOn: [] },
   { id: "step-2", orderIndex: 1, title: "Verify cache", description: "Run checks",
-    complexity: 1, acceptanceCriteria: ["Checks recorded"], expectedPaths: [] },
-] } as TaskPlanVersionInfo;
+    kind: "infrastructure", complexity: 1, acceptanceCriteria: ["Checks recorded"],
+    expectedPaths: [], satisfies: [], dependsOn: ["STEP-1"] },
+] };
 const sent = { id: "run-1", planStepId: "step-1", attempt: 1, status: "sent",
   modelTier: "small", verificationStatus: "changed", scopeStatus: "within_scope",
   verificationChangedFiles: ["src/cache.ts"], scopeViolations: [], error: null,
@@ -32,6 +36,10 @@ describe("TaskExecutionStepsPanel", () => {
     fireEvent.change(screen.getByLabelText("Review note"), { target: { value: "Scope verified" } });
     fireEvent.click(screen.getByRole("button", { name: "Accept step" }));
     expect(onReview).toHaveBeenCalledWith("run-1", "accept", "Scope verified");
+    fireEvent.click(screen.getByText("Execution waves · 2"));
+    expect(screen.getByText("Wave 1 · serial")).toBeInTheDocument();
+    expect(screen.getByText("Wave 2 · serial")).toBeInTheDocument();
+    expect(screen.getByText(/Runs remain serial/)).toBeInTheDocument();
   });
 
   it("shows scope violations and prevents acceptance while allowing rejection", () => {

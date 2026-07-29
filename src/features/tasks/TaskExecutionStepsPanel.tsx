@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { TaskPlanStepInfo, TaskPlanStepRunInfo, TaskPlanVersionInfo } from "../../types/domain";
+import { deriveTaskExecutionWaves } from "./taskExecutionWaves";
 
 interface Props {
   plan: TaskPlanVersionInfo | null;
@@ -20,11 +21,22 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
     <h4 id="execution-steps-title">Approved plan steps</h4>
     <p className="task-helper-card">Execution needs an approved structured plan.</p>
   </section>;
+  const waves = deriveTaskExecutionWaves(plan.steps);
   return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <div className="doctor-heading"><div><h4 id="execution-steps-title">Approved plan steps</h4>
       <span>{runs.filter(({ status }) => status === "accepted").length}/{plan.steps.length} accepted</span>
     </div></div>
     {error ? <p className="error-message" role="alert">{error}</p> : null}
+    <details className="task-helper-card">
+      <summary>Execution waves · {waves.length}</summary>
+      <ol>{waves.map((wave) => <li key={wave.number}>
+        <strong>Wave {wave.number} · {wave.parallel ? "parallel-ready" : "serial"}</strong>
+        <span>{wave.steps.map((step) => `Step ${step.orderIndex + 1}`).join(", ")}</span>
+        <small>{wave.reason}</small>
+      </li>)}</ol>
+      <small>This is a deterministic safety preview. Runs remain serial until isolated Git
+        worktrees and integration gates are enabled.</small>
+    </details>
     <ol>{plan.steps.map((step) => {
       const attempts = runs.filter((run) => run.planStepId === step.id);
       const run = attempts[attempts.length - 1] ?? null;
