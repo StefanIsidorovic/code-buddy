@@ -38,10 +38,12 @@ pub fn prepare_task_step_worktree(
         ));
     }
     let repository_path = canonical_repository_root(repository_path)?;
-    if !git(&repository_path, &["status", "--porcelain"])?.is_empty() {
-        return Err(AppError::InvalidInput(
-            "parallel step isolation requires a clean source repository".into(),
-        ));
+    let source_status = git(&repository_path, &["status", "--porcelain"])?;
+    if !source_status.is_empty() {
+        return Err(AppError::InvalidInput(dirty_source_error(
+            "parallel step isolation",
+            &source_status,
+        )));
     }
     let identity = safe_identity(isolation_id)?;
     let task = safe_identity(task_id)?;
@@ -94,6 +96,31 @@ pub fn prepare_task_step_worktree(
         branch,
         base_sha,
     })
+}
+
+fn dirty_source_error(operation: &str, status: &str) -> String {
+    const SHOWN_PATH_LIMIT: usize = 5;
+    let paths = status
+        .lines()
+        .filter_map(|line| line.get(3..))
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .collect::<Vec<_>>();
+    let shown = paths
+        .iter()
+        .take(SHOWN_PATH_LIMIT)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(", ");
+    let remainder = paths.len().saturating_sub(SHOWN_PATH_LIMIT);
+    let suffix = if remainder == 0 {
+        String::new()
+    } else {
+        format!(" (+{remainder} more)")
+    };
+    format!(
+        "{operation} requires a clean source repository. Commit, stash, or discard existing changes first: {shown}{suffix}"
+    )
 }
 
 pub fn remove_task_step_worktree(info: &TaskStepWorktreeInfo) -> AppResult<()> {
@@ -335,7 +362,10 @@ mod tests {
         fs::write(repository.join("dirty.txt"), "dirty").expect("dirty file");
         let dirty = prepare_task_step_worktree(&repository, "task-123", 1, 1, "dirty-run")
             .expect_err("dirty repository rejected");
-        assert!(dirty.to_string().contains("clean source"));
+        let message = dirty.to_string();
+        assert!(message.contains("clean source"));
+        assert!(message.contains("Commit, stash, or discard"));
+        assert!(message.contains("dirty.txt"));
         fs::remove_file(repository.join("dirty.txt")).expect("remove dirty file");
 
         let info = prepare_task_step_worktree(&repository, "task-123", 1, 1, "same-run")
