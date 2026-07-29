@@ -3,6 +3,7 @@ import type { TaskPlanStepInfo, TaskPlanStepRunInfo, TaskPlanVersionInfo } from 
 import { deriveTaskExecutionWaves, isCompletedTaskPlanStepRun, type TaskExecutionWave }
   from "./taskExecutionWaves";
 import type { WaveEvaluationState } from "./useTaskStepExecution";
+import { deriveTaskWaveReviewQueue } from "./taskWaveReviewQueue";
 
 interface Props {
   plan: TaskPlanVersionInfo | null;
@@ -32,6 +33,8 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
     <p className="task-helper-card">Execution needs an approved structured plan.</p>
   </section>;
   const waves = deriveTaskExecutionWaves(plan.steps);
+  const reviewQueue = waveEvaluation?.status === "ready"
+    ? deriveTaskWaveReviewQueue(waveEvaluation.report.content, runs) : null;
   return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <div className="doctor-heading"><div><h4 id="execution-steps-title">Approved plan steps</h4>
       <span>{runs.filter(isCompletedTaskPlanStepRun).length}/{plan.steps.length} completed</span>
@@ -42,9 +45,29 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
       {waveEvaluation.status === "running"
         ? <span role="status">Evaluator is checking the settled worker evidence…</span> : null}
       {waveEvaluation.status === "ready" ? <>
-        <span role="status">Read-only evaluation is ready. Manual review and integration remain
-          explicit.</span>
-        <details><summary>Show evaluator recommendation</summary>
+        <span role="status">{reviewQueue
+          ? `Read-only evaluation is ready · ${reviewQueue.items.length} grounded review item(s).`
+          : "Read-only evaluation is ready, but no grounded review items could be parsed."}
+          {" "}Manual review and integration remain explicit.</span>
+        {reviewQueue ? <section aria-labelledby="wave-review-queue-title">
+          <h5 id="wave-review-queue-title">Wave review queue</h5>
+          <p><strong>{reviewQueue.overall === "pass" ? "Pass recommended" : "Attention required"}</strong>
+            {" "}· {reviewQueue.recommendation}</p>
+          <ol>{reviewQueue.items.map((item) => {
+            const step = plan.steps.find(({ id }) => id === item.planStepId);
+            return <li key={item.runId} data-verdict={item.verdict}>
+              <a href={`#task-step-${item.planStepId}`}>
+                Step {item.stepOrderIndex + 1}{step ? ` · ${step.title}` : ""}
+              </a>
+              <strong>{item.verdict === "pass" ? "Pass" : "Needs attention"}</strong>
+              <span>{item.summary}</span>
+              {item.evidence.length ? <ul>{item.evidence.map((evidence) =>
+                <li key={evidence}>{evidence}</li>)}</ul> : null}
+              <small>Recommendation only · run {item.runId}</small>
+            </li>;
+          })}</ol>
+        </section> : null}
+        <details><summary>Show raw evaluator response</summary>
           <p>{waveEvaluation.report.content}</p>
         </details>
       </> : null}
@@ -85,7 +108,7 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
       const noChange = run?.status === "accepted" && run.verificationStatus === "unchanged";
       const canAccept = run?.status === "sent" && run.scopeStatus === "within_scope"
         && run.verificationStatus !== "unavailable" && !!note.trim();
-      return <li key={step.id} aria-current={isNext ? "step" : undefined}
+      return <li key={step.id} id={`task-step-${step.id}`} aria-current={isNext ? "step" : undefined}
         data-status={dispatchState ?? run?.status ?? (isWaveReady ? "ready" : "waiting")}>
         <header><span>{step.orderIndex + 1}</span><div><strong>{step.title}</strong>
           <small>{dispatchState ?? run?.status ?? (isWaveReady ? "ready" : "waiting")}

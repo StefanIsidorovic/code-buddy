@@ -139,12 +139,18 @@ describe("TaskExecutionStepsPanel", () => {
         status: "ready", waveNumber: 1, error: null,
         report: { id: "report-1", taskId: "task-1", phase: "execution", sequence: 1,
           role: "reviewer", transcriptSessionId: "transcript-1",
-          content: "PASS run-1 — verification is within scope.",
+          content: JSON.stringify({ runs: [{ runId: "run-1", verdict: "pass",
+            summary: "Verification is within scope.", evidence: ["scope: within_scope"] }],
+          overall: "pass", recommendation: "Review and accept run-1 if the evidence is sufficient." }),
           sourceTranscriptEventIds: ["event-1"], createdAt: 1 },
       }} onRetryWaveEvaluation={retry} />);
-    expect(screen.getByText(/Read-only evaluation is ready/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Show evaluator recommendation"));
-    expect(screen.getByText(/PASS run-1/)).toBeInTheDocument();
+    expect(screen.getByText(/1 grounded review item/)).toBeInTheDocument();
+    expect(screen.getByText("Pass recommended")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Step 1 · Implement cache" }))
+      .toHaveAttribute("href", "#task-step-step-1");
+    expect(screen.getByText("Recommendation only · run run-1")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Show raw evaluator response"));
+    expect(screen.getByText(/\"runId\":\"run-1\"/)).toBeInTheDocument();
     view.rerender(<TaskExecutionStepsPanel plan={plan} runs={[sent]}
       nextStep={plan.steps[0]} runBlockedReason={null} loading={false}
       actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}

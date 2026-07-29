@@ -1754,10 +1754,13 @@ fn task_wave_evaluator_instruction(
          Approved plan: {plan_id}\n\
          Exact current-wave evidence:\n{evidence}\n\n\
          Do not modify files, Git state, Task state, reviews, evidence, or integration state.\n\
-         Evaluate only these runs. For each STEP/run pair return PASS or NEEDS_ATTENTION, \
-         cite the exact run id and observed verification/scope evidence, identify worker failures \
-         and missing evidence, then give one overall recommendation. Never claim a check that is \
-         absent above.",
+         Evaluate only these runs. Return JSON only with this exact shape: \
+         {{\"runs\":[{{\"runId\":\"exact persisted run ID\",\"verdict\":\"pass or needs_attention\",\
+         \"summary\":\"short recommendation\",\"evidence\":[\"exact observed verification or scope fact\"]}}],\
+         \"overall\":\"pass or needs_attention\",\"recommendation\":\"one bounded next action\"}}. \
+         Include exactly one item for every supplied run ID. Cite only observed verification, scope, \
+         changed-file, status, or error facts above. A worker failure or missing evidence must be \
+         needs_attention. Never claim a check that is absent above and never wrap the JSON in prose.",
         original = task.original_prompt.trim(),
         plan_id = plan.id,
         evidence = evidence.join("\n"),
@@ -2232,6 +2235,9 @@ mod tests {
             assert!(evaluator_instruction.contains("STEP-1"));
             assert!(!evaluator_instruction.contains("STEP-2 /"));
             assert!(evaluator_instruction.contains("Do not modify files, Git state"));
+            assert!(evaluator_instruction.contains("\"verdict\":\"pass or needs_attention\""));
+            assert!(evaluator_instruction
+                .contains("Include exactly one item for every supplied run ID"));
             let wrong_evaluator_path = temp_command_project_path("wrong-evaluator-workspace");
             let evaluator_error = task_wave_evaluator_instruction(
                 &store,
