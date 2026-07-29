@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { TaskPlanStepInfo, TaskPlanStepRunInfo, TaskPlanVersionInfo } from "../../types/domain";
 import { deriveTaskExecutionWaves, isCompletedTaskPlanStepRun, type TaskExecutionWave }
   from "./taskExecutionWaves";
+import type { WaveEvaluationState } from "./useTaskStepExecution";
 
 interface Props {
   plan: TaskPlanVersionInfo | null;
@@ -15,14 +16,16 @@ interface Props {
   actionRunId: string | null;
   cleanupWarnings: Record<string, string>;
   error: string | null;
+  waveEvaluation?: WaveEvaluationState | null;
   onRun: () => void;
+  onRetryWaveEvaluation?: () => void;
   onReview: (runId: string, decision: "accept" | "reject", note: string) => void;
   onIntegrate: (runId: string) => void;
 }
 
 export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, nextStep,
   runBlockedReason, loading, dispatchStates = {}, actionRunId, cleanupWarnings, error, onRun,
-  onReview, onIntegrate }: Props) {
+  waveEvaluation = null, onRetryWaveEvaluation, onReview, onIntegrate }: Props) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   if (!plan) return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <h4 id="execution-steps-title">Approved plan steps</h4>
@@ -34,6 +37,25 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
       <span>{runs.filter(isCompletedTaskPlanStepRun).length}/{plan.steps.length} completed</span>
     </div></div>
     {error ? <p className="error-message" role="alert">{error}</p> : null}
+    {waveEvaluation ? <div className="task-helper-card" data-status={waveEvaluation.status}>
+      <strong>Wave {waveEvaluation.waveNumber} evaluation</strong>
+      {waveEvaluation.status === "running"
+        ? <span role="status">Evaluator is checking the settled worker evidence…</span> : null}
+      {waveEvaluation.status === "ready" ? <>
+        <span role="status">Read-only evaluation is ready. Manual review and integration remain
+          explicit.</span>
+        <details><summary>Show evaluator recommendation</summary>
+          <p>{waveEvaluation.report.content}</p>
+        </details>
+      </> : null}
+      {waveEvaluation.status === "unavailable" ? <>
+        <span role="alert">Evaluation unavailable: {waveEvaluation.error}. Worker results are
+          preserved for manual review.</span>
+        {onRetryWaveEvaluation ? <button type="button" onClick={onRetryWaveEvaluation}>
+          Retry evaluation
+        </button> : null}
+      </> : null}
+    </div> : null}
     <details className="task-helper-card">
       <summary>Execution waves · {waves.length}</summary>
       <ol>{waves.map((wave) => <li key={wave.number}>

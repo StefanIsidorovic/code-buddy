@@ -442,7 +442,9 @@ function App() {
               loading={taskSteps.loading} dispatchStates={taskSteps.dispatchStates}
               actionRunId={taskSteps.actionRunId} error={taskSteps.error}
               cleanupWarnings={taskSteps.cleanupWarnings}
+              waveEvaluation={taskSteps.waveEvaluation}
               onRun={() => void taskSteps.dispatch()}
+              onRetryWaveEvaluation={() => void taskSteps.retryWaveEvaluation()}
               onReview={(runId, decision, note) => void taskSteps.review(runId, decision, note)}
               onIntegrate={(runId) => void taskSteps.integrate(runId)} />}
             planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}

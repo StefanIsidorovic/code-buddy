@@ -129,4 +129,32 @@ describe("TaskExecutionStepsPanel", () => {
     expect(screen.getByRole("button", { name: "Run wave 1 · 1 step" })).toBeDisabled();
     expect(screen.getByText(/registered project repository/)).toBeInTheDocument();
   });
+
+  it("shows evaluator recommendations and an independent unavailable recovery path", () => {
+    const retry = vi.fn();
+    const view = render(<TaskExecutionStepsPanel plan={plan} runs={[sent]}
+      nextStep={plan.steps[0]} runBlockedReason={null} loading={false}
+      actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
+      onReview={vi.fn()} onIntegrate={vi.fn()} waveEvaluation={{
+        status: "ready", waveNumber: 1, error: null,
+        report: { id: "report-1", taskId: "task-1", phase: "execution", sequence: 1,
+          role: "reviewer", transcriptSessionId: "transcript-1",
+          content: "PASS run-1 — verification is within scope.",
+          sourceTranscriptEventIds: ["event-1"], createdAt: 1 },
+      }} onRetryWaveEvaluation={retry} />);
+    expect(screen.getByText(/Read-only evaluation is ready/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Show evaluator recommendation"));
+    expect(screen.getByText(/PASS run-1/)).toBeInTheDocument();
+    view.rerender(<TaskExecutionStepsPanel plan={plan} runs={[sent]}
+      nextStep={plan.steps[0]} runBlockedReason={null} loading={false}
+      actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
+      onReview={vi.fn()} onIntegrate={vi.fn()} waveEvaluation={{
+        status: "unavailable", waveNumber: 1, report: null, error: "reviewer offline",
+      }} onRetryWaveEvaluation={retry} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Worker results are preserved for manual review",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry evaluation" }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
 });

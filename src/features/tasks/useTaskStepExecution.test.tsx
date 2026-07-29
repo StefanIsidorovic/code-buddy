@@ -26,6 +26,7 @@ describe("useTaskStepExecution", () => {
 
   it("dispatches the next step and persists explicit review", async () => {
     invoke.mockImplementation((command) => {
+      if (!command) return Promise.resolve([]);
       if (command === "list_task_plan_step_runs") return Promise.resolve([]);
       if (command === "send_isolated_task_plan_step_prompt") return Promise.resolve({
         receipt: { ...sent, isolationId: "isolation-1" },
@@ -177,5 +178,92 @@ describe("useTaskStepExecution", () => {
     expect(result.current.runs).toEqual([sent, failed]);
     expect(result.current.error).toContain("Step 2: worker offline");
     expect(result.current.currentWave?.number).toBe(1);
+  });
+
+  it("automatically evaluates a settled wave with exact Task and repository identity", async () => {
+    const report = { id: "report-1", taskId: "task-1", phase: "execution", sequence: 1,
+      role: "reviewer", transcriptSessionId: "transcript-1", content: "PASS run-1",
+      sourceTranscriptEventIds: ["event-1"], createdAt: 1 };
+    invoke.mockImplementation((command) => {
+      if (!command) return Promise.resolve([]);
+      if (command === "list_task_plan_step_runs") return Promise.resolve([]);
+      if (command === "send_isolated_task_plan_step_prompt") return Promise.resolve({
+        receipt: sent, executorSession: {}, promptResult: {}, workspaceVerification: {},
+      });
+      if (command === "run_task_wave_evaluation") return Promise.resolve({
+        promptResult: {}, transcriptSession: {}, report,
+      });
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan, candidateId: "codex", repositoryPath: "/repo",
+    }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.dispatch());
+    expect(invoke).toHaveBeenCalledWith("run_task_wave_evaluation", { request: {
+      taskId: "task-1", planVersionId: "plan-1", candidateId: "codex", cwd: "/repo",
+    } });
+    expect(result.current.waveEvaluation).toEqual({
+      status: "ready", waveNumber: 1, report, error: null,
+    });
+  });
+
+  it("preserves worker results when evaluation is unavailable and allows retry", async () => {
+    let evaluations = 0;
+    invoke.mockImplementation((command) => {
+      if (!command) return Promise.resolve([]);
+      if (command === "list_task_plan_step_runs") return Promise.resolve([]);
+      if (command === "send_isolated_task_plan_step_prompt") return Promise.resolve({
+        receipt: sent, executorSession: {}, promptResult: {}, workspaceVerification: {},
+      });
+      if (command === "run_task_wave_evaluation") {
+        evaluations += 1;
+        if (evaluations === 1) return Promise.reject(new Error("reviewer offline"));
+        return Promise.resolve({ promptResult: {}, transcriptSession: {}, report: {
+          id: "report-2", content: "NEEDS_ATTENTION run-1",
+        } });
+      }
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan, candidateId: "codex", repositoryPath: "/repo",
+    }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.dispatch());
+    expect(result.current.runs).toEqual([sent]);
+    expect(result.current.waveEvaluation).toEqual({
+      status: "unavailable", waveNumber: 1, report: null, error: "reviewer offline",
+    });
+    await act(() => result.current.retryWaveEvaluation());
+    expect(result.current.waveEvaluation?.status).toBe("ready");
+  });
+
+  it("ignores an evaluator result that arrives after the selected Task changes", async () => {
+    let resolveEvaluation!: (value: unknown) => void;
+    const pendingEvaluation = new Promise((resolve) => { resolveEvaluation = resolve; });
+    invoke.mockImplementation((command) => {
+      if (!command || command === "list_task_plan_step_runs") return Promise.resolve([]);
+      if (command === "send_isolated_task_plan_step_prompt") return Promise.resolve({
+        receipt: sent, executorSession: {}, promptResult: {}, workspaceVerification: {},
+      });
+      if (command === "run_task_wave_evaluation") return pendingEvaluation;
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const secondTask = { ...task, id: "task-2" };
+    const secondPlan = { ...plan, id: "plan-2", taskId: "task-2" };
+    const { result, rerender } = renderHook(({ selectedTask, selectedPlan }) =>
+      useTaskStepExecution({
+        task: selectedTask, plan: selectedPlan, candidateId: "codex", repositoryPath: "/repo",
+      }), { initialProps: { selectedTask: task, selectedPlan: plan } });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    let dispatch!: Promise<void>;
+    act(() => { dispatch = result.current.dispatch(); });
+    await waitFor(() => expect(result.current.waveEvaluation?.status).toBe("running"));
+    rerender({ selectedTask: secondTask, selectedPlan: secondPlan });
+    await act(async () => resolveEvaluation({
+      promptResult: {}, transcriptSession: {}, report: { id: "stale-report" },
+    }));
+    await act(() => dispatch);
+    expect(result.current.waveEvaluation).toBeNull();
   });
 });

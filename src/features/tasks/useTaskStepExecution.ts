@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
-import type { IntegrateTaskPlanStepRunResultInfo, IsolatedTaskPlanStepRunResultInfo, TaskInfo, TaskPlanStepRunInfo,
+import type { IntegrateTaskPlanStepRunResultInfo, IsolatedTaskPlanStepRunResultInfo,
+  RunTaskAgentReportResultInfo, TaskAgentReportInfo, TaskInfo, TaskPlanStepRunInfo,
   TaskPlanVersionInfo } from "../../types/domain";
 import { currentTaskExecutionWave, dispatchableWaveSteps, isCompletedTaskPlanStepRun }
   from "./taskExecutionWaves";
@@ -13,6 +14,11 @@ interface Options {
   repositoryPath: string | null;
 }
 
+export type WaveEvaluationState =
+  | { status: "running"; waveNumber: number; report: null; error: null }
+  | { status: "ready"; waveNumber: number; report: TaskAgentReportInfo; error: null }
+  | { status: "unavailable"; waveNumber: number; report: null; error: string };
+
 export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }: Options) {
   const [runs, setRuns] = useState<TaskPlanStepRunInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -20,6 +26,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
   const [actionRunId, setActionRunId] = useState<string | null>(null);
   const [cleanupWarnings, setCleanupWarnings] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [waveEvaluation, setWaveEvaluation] = useState<WaveEvaluationState | null>(null);
   const requestId = useRef(0);
   const taskIdRef = useRef(task?.id ?? null);
   taskIdRef.current = task?.id ?? null;
@@ -45,6 +52,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
     setActionRunId(null);
     setDispatchStates({});
     setCleanupWarnings({});
+    setWaveEvaluation(null);
     if (task) void refresh();
     else requestId.current += 1;
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -60,10 +68,32 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
       ? "Select a registered project repository to run the next isolated step."
       : null;
 
+  async function evaluateWave(waveNumber = currentWave?.number ?? null) {
+    if (!task || !plan || !candidateId || !repositoryPath || waveNumber === null) return;
+    const taskId = task.id;
+    setWaveEvaluation({ status: "running", waveNumber, report: null, error: null });
+    try {
+      const result = await invokeCommand<RunTaskAgentReportResultInfo>(
+        "run_task_wave_evaluation",
+        { request: { taskId, planVersionId: plan.id, candidateId, cwd: repositoryPath } },
+      );
+      if (taskIdRef.current === taskId) {
+        setWaveEvaluation({ status: "ready", waveNumber, report: result.report, error: null });
+      }
+    } catch (reason) {
+      if (taskIdRef.current === taskId) {
+        setWaveEvaluation({
+          status: "unavailable", waveNumber, report: null, error: errorText(reason),
+        });
+      }
+    }
+  }
+
   async function dispatchWave() {
     if (!task || !plan || !waveSteps.length || !candidateId || !repositoryPath) return;
     const taskId = task.id;
     const planId = plan.id;
+    const waveNumber = currentWave?.number ?? 1;
     setLoading(true);
     setError(null);
     const queued: Record<string, "queued" | "running"> = {};
@@ -107,6 +137,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
         await refresh();
       }
     }
+    if (taskIdRef.current === taskId) await evaluateWave(waveNumber);
     if (taskIdRef.current === taskId) {
       setLoading(false);
       setDispatchStates({});
@@ -166,6 +197,6 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
   }
 
   return { runs, currentWave, waveSteps, nextStep, allAccepted, runBlockedReason, loading,
-    dispatchStates, actionRunId, cleanupWarnings, error, dispatch: dispatchWave,
-    review, integrate, refresh };
+    dispatchStates, actionRunId, cleanupWarnings, error, waveEvaluation, dispatch: dispatchWave,
+    retryWaveEvaluation: evaluateWave, review, integrate, refresh };
 }
