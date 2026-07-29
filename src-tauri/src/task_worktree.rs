@@ -18,6 +18,13 @@ pub struct TaskStepWorktreeInfo {
     pub base_sha: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskStepIntegrationInfo {
+    pub isolated_commit_sha: String,
+    pub integrated_commit_sha: String,
+}
+
 pub fn prepare_task_step_worktree(
     repository_path: &Path,
     task_id: &str,
@@ -110,6 +117,108 @@ pub fn remove_task_step_worktree(info: &TaskStepWorktreeInfo) -> AppResult<()> {
     )?;
     run_git(&repository_path, &["branch", "-D", &info.branch])?;
     Ok(())
+}
+
+pub fn integrate_task_step_worktree(
+    info: &TaskStepWorktreeInfo,
+    task_id: &str,
+    plan_step_id: &str,
+    run_id: &str,
+) -> AppResult<TaskStepIntegrationInfo> {
+    let repository_path = canonical_repository_root(&info.repository_path)?;
+    validate_owned_worktree(info)?;
+    if !git(&repository_path, &["status", "--porcelain"])?.is_empty() {
+        return Err(AppError::InvalidInput(
+            "isolated integration requires a clean source repository".into(),
+        ));
+    }
+    if git(&info.worktree_path, &["branch", "--show-current"])? != info.branch {
+        return Err(AppError::InvalidInput(
+            "isolated integration branch does not match its descriptor".into(),
+        ));
+    }
+    if git(&info.worktree_path, &["rev-parse", "HEAD"])? != info.base_sha {
+        return Err(AppError::InvalidInput(
+            "isolated step must not create commits before AIadne integration".into(),
+        ));
+    }
+    if git(&info.worktree_path, &["status", "--porcelain"])?.is_empty() {
+        return Err(AppError::InvalidInput(
+            "isolated integration requires repository changes".into(),
+        ));
+    }
+    let task_id = safe_identity(task_id)?;
+    let plan_step_id = safe_identity(plan_step_id)?;
+    let run_id = safe_identity(run_id)?;
+    run_git(&info.worktree_path, &["add", "-A"])?;
+    let subject = format!("aiadne: integrate {plan_step_id}");
+    run_git(
+        &info.worktree_path,
+        &[
+            "-c",
+            "user.name=AIadne",
+            "-c",
+            "user.email=aiadne@local.invalid",
+            "commit",
+            "-m",
+            &subject,
+        ],
+    )?;
+    let isolated_commit_sha = git(&info.worktree_path, &["rev-parse", "HEAD"])?;
+    let provenance = serde_json::json!({
+        "task_id": task_id,
+        "plan_step_id": plan_step_id,
+        "run_id": run_id,
+        "base_sha": info.base_sha,
+        "source": "aiadne-isolated-step"
+    })
+    .to_string();
+    add_provenance_note(&info.worktree_path, &isolated_commit_sha, &provenance)?;
+
+    if !git(&repository_path, &["status", "--porcelain"])?.is_empty() {
+        return Err(AppError::InvalidInput(
+            "source repository changed before isolated integration".into(),
+        ));
+    }
+    if let Err(error) = run_git(&repository_path, &["cherry-pick", &isolated_commit_sha]) {
+        let _ = run_git(&repository_path, &["cherry-pick", "--abort"]);
+        return Err(AppError::InvalidInput(format!(
+            "isolated step integration conflicted and was aborted: {error}"
+        )));
+    }
+    let integrated_commit_sha = git(&repository_path, &["rev-parse", "HEAD"])?;
+    add_provenance_note(&repository_path, &integrated_commit_sha, &provenance)?;
+    Ok(TaskStepIntegrationInfo {
+        isolated_commit_sha,
+        integrated_commit_sha,
+    })
+}
+
+fn validate_owned_worktree(info: &TaskStepWorktreeInfo) -> AppResult<()> {
+    let expected_root = std::env::temp_dir().join(WORKTREE_ROOT);
+    if info.worktree_path.parent() != Some(expected_root.as_path())
+        || !info.branch.starts_with("aiadne/")
+        || !info.worktree_path.is_dir()
+    {
+        return Err(AppError::InvalidInput(
+            "worktree is outside AIadne isolation ownership".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn add_provenance_note(repository_path: &Path, commit: &str, note: &str) -> AppResult<()> {
+    run_git(
+        repository_path,
+        &[
+            "notes",
+            "--ref=refs/notes/provenance",
+            "add",
+            "-m",
+            note,
+            commit,
+        ],
+    )
 }
 
 fn canonical_repository_root(path: &Path) -> AppResult<PathBuf> {
@@ -256,6 +365,99 @@ mod tests {
         .expect_err("non-AIadne target rejected");
         assert!(unsafe_cleanup.to_string().contains("refusing"));
         assert!(repository.exists());
+        let _ = fs::remove_dir_all(repository);
+    }
+
+    #[test]
+    fn commits_and_integrates_isolated_changes_after_source_advances() {
+        let repository = repository("integration");
+        let info = prepare_task_step_worktree(&repository, "task-123", 1, 1, "integration-run")
+            .expect("worktree prepared");
+        fs::write(info.worktree_path.join("step.txt"), "step\n").expect("step edit");
+        fs::write(repository.join("source.txt"), "source\n").expect("source edit");
+        run_git(&repository, &["add", "source.txt"]).expect("source add");
+        run_git(&repository, &["commit", "-q", "-m", "source advanced"]).expect("source commit");
+
+        let integrated = integrate_task_step_worktree(&info, "task-123", "step-1", "run-123")
+            .expect("step integrated");
+        assert_ne!(
+            integrated.isolated_commit_sha,
+            integrated.integrated_commit_sha
+        );
+        assert_eq!(
+            fs::read_to_string(repository.join("step.txt")).expect("integrated file"),
+            "step\n"
+        );
+        let note = git(
+            &repository,
+            &[
+                "notes",
+                "--ref=refs/notes/provenance",
+                "show",
+                &integrated.integrated_commit_sha,
+            ],
+        )
+        .expect("provenance note");
+        assert!(note.contains(r#""plan_step_id":"step-1""#));
+        remove_task_step_worktree(&info).expect("cleanup");
+        let _ = fs::remove_dir_all(repository);
+    }
+
+    #[test]
+    fn rejects_empty_changes_and_aborts_conflicting_integration() {
+        let repository = repository("conflict");
+        let empty = prepare_task_step_worktree(&repository, "task-123", 1, 1, "empty-run")
+            .expect("empty worktree");
+        assert!(integrate_task_step_worktree(&empty, "task-123", "step-1", "empty-run",).is_err());
+        remove_task_step_worktree(&empty).expect("empty cleanup");
+
+        let precommitted =
+            prepare_task_step_worktree(&repository, "task-123", 1, 2, "precommitted-run")
+                .expect("precommitted worktree");
+        fs::write(precommitted.worktree_path.join("agent.txt"), "agent\n").expect("agent edit");
+        run_git(&precommitted.worktree_path, &["add", "agent.txt"]).expect("agent add");
+        run_git(
+            &precommitted.worktree_path,
+            &[
+                "-c",
+                "user.name=Agent",
+                "-c",
+                "user.email=agent@example.test",
+                "commit",
+                "-q",
+                "-m",
+                "agent commit",
+            ],
+        )
+        .expect("agent commit");
+        let precommitted_error =
+            integrate_task_step_worktree(&precommitted, "task-123", "step-1", "precommitted-run")
+                .expect_err("agent commit rejected");
+        assert!(precommitted_error
+            .to_string()
+            .contains("must not create commits"));
+        remove_task_step_worktree(&precommitted).expect("precommitted cleanup");
+
+        let conflict = prepare_task_step_worktree(&repository, "task-123", 1, 3, "conflict-run")
+            .expect("conflict worktree");
+        fs::write(conflict.worktree_path.join("README.md"), "isolated\n").expect("isolated edit");
+        fs::write(repository.join("README.md"), "source\n").expect("source edit");
+        run_git(&repository, &["add", "README.md"]).expect("source add");
+        run_git(&repository, &["commit", "-q", "-m", "conflicting source"]).expect("source commit");
+        let source_head = git(&repository, &["rev-parse", "HEAD"]).expect("source head");
+
+        let error = integrate_task_step_worktree(&conflict, "task-123", "step-1", "conflict-run")
+            .expect_err("conflict blocked");
+        assert!(error.to_string().contains("conflicted and was aborted"));
+        assert_eq!(
+            git(&repository, &["rev-parse", "HEAD"]).expect("head"),
+            source_head
+        );
+        assert!(git(&repository, &["status", "--porcelain"])
+            .expect("status")
+            .is_empty());
+        assert!(conflict.worktree_path.exists());
+        remove_task_step_worktree(&conflict).expect("conflict cleanup");
         let _ = fs::remove_dir_all(repository);
     }
 }

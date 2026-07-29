@@ -124,6 +124,14 @@
 - acceptance criteria: prompt dispatch happens only after durable ownership; startup/reservation failures remove session/worktree; prompt failures retain recovery state; successful receipts expose the exact ACP cwd and isolation descriptor; shared checkout is never the executor cwd.
 - required tests: fake isolated success; receipt/session/worktree identity; registered-repository rejection; pre-send rollback; prompt-failure retention; command registration; Rust fmt/test/clippy and diff hygiene.
 
+#### 37.5c.1. Commit and serially integrate isolated changes
+- objective: turn reviewed isolated work into a provenance-backed source commit without automatic conflict resolution.
+- status: complete pending commit.
+- files: src-tauri/src/task_worktree.rs; related tests; working_knowledge/current/*.
+- expected changes: require a clean source and uncommitted isolated diff, let AIadne create the isolated commit, attach Task/step/run/base provenance, cherry-pick serially, abort conflicts, and retain the worktree for explicit cleanup/recovery.
+- acceptance criteria: agent-created commits are rejected; empty changes are rejected; source advancement with non-overlapping changes integrates; conflicts restore the original clean source HEAD; both successful SHAs are returned and the source commit has provenance.
+- required tests: successful integration after source advancement; provenance note; empty diff; precommitted worktree; conflict abort and retained isolation; Rust fmt/test/clippy and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.
