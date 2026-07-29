@@ -551,6 +551,15 @@ export type TaskPlanStepRunInfo = {
   modelTier: "small" | "mid" | "high";
   modelTierRationale: string;
   expectedPaths: string[];
+  isolationId: string | null;
+  isolationRepositoryPath: string | null;
+  isolationWorktreePath: string | null;
+  isolationBranch: string | null;
+  isolationBaseSha: string | null;
+  integrationStatus: "pending" | "integrated" | "conflicted" | null;
+  isolatedCommitSha: string | null;
+  integratedCommitSha: string | null;
+  integrationError: string | null;
   status: "pending" | "sent" | "failed" | "accepted";
   stopReason: string | null;
   error: string | null;
@@ -570,6 +579,11 @@ export type TaskPlanStepRunResultInfo = {
   promptResult: AcpPromptResult;
   receipt: TaskPlanStepRunInfo;
   workspaceVerification: GitWorkspaceVerificationInfo;
+};
+
+export type IntegrateTaskPlanStepRunResultInfo = {
+  receipt: TaskPlanStepRunInfo;
+  cleanupError: string | null;
 };
 
 export type TaskPhaseRunResultInfo = {

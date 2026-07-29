@@ -9,13 +9,15 @@ interface Props {
   canRun: boolean;
   loading: boolean;
   actionRunId: string | null;
+  cleanupWarnings: Record<string, string>;
   error: string | null;
   onRun: () => void;
   onReview: (runId: string, decision: "accept" | "reject", note: string) => void;
+  onIntegrate: (runId: string) => void;
 }
 
 export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading, actionRunId,
-  error, onRun, onReview }: Props) {
+  cleanupWarnings, error, onRun, onReview, onIntegrate }: Props) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   if (!plan) return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <h4 id="execution-steps-title">Approved plan steps</h4>
@@ -24,7 +26,8 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
   const waves = deriveTaskExecutionWaves(plan.steps);
   return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <div className="doctor-heading"><div><h4 id="execution-steps-title">Approved plan steps</h4>
-      <span>{runs.filter(({ status }) => status === "accepted").length}/{plan.steps.length} accepted</span>
+      <span>{runs.filter((run) => run.status === "accepted"
+        && (!run.isolationId || run.integrationStatus === "integrated")).length}/{plan.steps.length} completed</span>
     </div></div>
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     <details className="task-helper-card">
@@ -34,8 +37,8 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
         <span>{wave.steps.map((step) => `Step ${step.orderIndex + 1}`).join(", ")}</span>
         <small>{wave.reason}</small>
       </li>)}</ol>
-      <small>This is a deterministic safety preview. Runs remain serial until isolated Git
-        worktrees and integration gates are enabled.</small>
+      <small>This is a deterministic safety preview. Runs are still dispatched serially;
+        future isolated wave runs will also integrate one at a time.</small>
     </details>
     <ol>{plan.steps.map((step) => {
       const attempts = runs.filter((run) => run.planStepId === step.id);
@@ -65,6 +68,15 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
           {run.scopeViolations.length > 0 ? <p role="alert">Outside expected scope:
             {" "}{run.scopeViolations.join(", ")}</p> : null}
           {run.error ? <p role="alert">{run.error}</p> : null}
+          {run.integrationStatus === "integrated" ? <p role="status">Integrated commit{" "}
+            <code>{run.integratedCommitSha}</code></p> : null}
+          {run.integrationStatus === "conflicted" ? <p role="alert">Integration conflicted:
+            {" "}{run.integrationError}. Isolation retained
+            {run.isolationWorktreePath ? <> at <code>{run.isolationWorktreePath}</code></> : null}
+            {" "}for recovery.</p> : null}
+          {run.integrationStatus === "pending" ? <p role="status">Integration is pending.</p> : null}
+          {cleanupWarnings[run.id] ? <p role="alert">Integrated successfully, but cleanup needs
+            attention: {cleanupWarnings[run.id]}</p> : null}
         </div> : null}
         {isNext && (!run || run.status === "failed") ? <button type="button"
           className="primary-action" disabled={!canRun || loading} onClick={onRun}>
@@ -81,6 +93,12 @@ export function TaskExecutionStepsPanel({ plan, runs, nextStep, canRun, loading,
           </div>
           {!canAccept ? <small>Accept requires available within-scope Git verification and a review note.</small> : null}
         </fieldset> : null}
+        {run?.status === "accepted" && run.isolationId && !run.integrationStatus
+          ? <button type="button" className="primary-action"
+            disabled={actionRunId !== null || loading}
+            onClick={() => onIntegrate(run.id)}>
+            {actionRunId === run.id ? "Integrating step…" : "Integrate accepted step"}
+          </button> : null}
       </li>;
     })}</ol>
     {!canRun && nextStep ? <p className="task-helper-card">Start a matching ACP session to run the next step.</p> : null}

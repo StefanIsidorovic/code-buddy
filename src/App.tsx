@@ -440,8 +440,10 @@ function App() {
               canRun={canUseAcpSession && acpSession?.cwd ===
                 (selectedRepository?.path ?? selectedProject?.path)}
               loading={taskSteps.loading} actionRunId={taskSteps.actionRunId} error={taskSteps.error}
+              cleanupWarnings={taskSteps.cleanupWarnings}
               onRun={() => void taskSteps.dispatch()}
-              onReview={(runId, decision, note) => void taskSteps.review(runId, decision, note)} />}
+              onReview={(runId, decision, note) => void taskSteps.review(runId, decision, note)}
+              onIntegrate={(runId) => void taskSteps.integrate(runId)} />}
             planningPanel={<TaskPlanEditor versions={taskPlan.versions} loading={taskPlan.loading}
               error={taskPlan.error} evaluation={taskPlan.evaluation}
               critique={taskPlan.critique}

@@ -61,4 +61,57 @@ describe("useTaskStepExecution", () => {
     await act(async () => resolveOld([sent]));
     expect(result.current.runs).toEqual([]);
   });
+
+  it("integrates an accepted isolated run and preserves a cleanup warning", async () => {
+    const isolated = { ...sent, status: "accepted", reviewStatus: "accepted",
+      isolationId: "isolation-1", integrationStatus: null } as TaskPlanStepRunInfo;
+    const integrated = { ...isolated, integrationStatus: "integrated",
+      isolatedCommitSha: "aaaaaaaa", integratedCommitSha: "bbbbbbbb" } as TaskPlanStepRunInfo;
+    invoke.mockImplementation((command) => {
+      if (!command) return Promise.resolve([]);
+      if (command === "list_task_plan_step_runs") return Promise.resolve([isolated]);
+      if (command === "integrate_task_plan_step_run") return Promise.resolve({
+        receipt: integrated, cleanupError: "session already stopped",
+      });
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan, acpSessionId: null, onDispatchSettled: vi.fn(),
+    }));
+    await waitFor(() => expect(result.current.runs).toEqual([isolated]));
+    expect(result.current.allAccepted).toBe(false);
+    await act(() => result.current.integrate("run-1"));
+    expect(invoke).toHaveBeenCalledWith("integrate_task_plan_step_run", {
+      request: { taskId: "task-1", runId: "run-1" },
+    });
+    expect(result.current.runs).toEqual([integrated]);
+    expect(result.current.cleanupWarnings).toEqual({
+      "run-1": "session already stopped",
+    });
+    expect(result.current.allAccepted).toBe(true);
+  });
+
+  it("refreshes durable conflicted state after integration fails", async () => {
+    const isolated = { ...sent, status: "accepted", reviewStatus: "accepted",
+      isolationId: "isolation-1", integrationStatus: null } as TaskPlanStepRunInfo;
+    const conflicted = { ...isolated, integrationStatus: "conflicted",
+      integrationError: "cherry-pick conflict" } as TaskPlanStepRunInfo;
+    let lists = 0;
+    invoke.mockImplementation((command) => {
+      if (!command) return Promise.resolve([]);
+      if (command === "list_task_plan_step_runs") {
+        lists += 1;
+        return Promise.resolve(lists === 1 ? [isolated] : [conflicted]);
+      }
+      return Promise.reject(new Error("integration failed"));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan, acpSessionId: null, onDispatchSettled: vi.fn(),
+    }));
+    await waitFor(() => expect(result.current.runs).toEqual([isolated]));
+    await act(() => result.current.integrate("run-1"));
+    expect(result.current.runs).toEqual([conflicted]);
+    expect(result.current.error).toBe("integration failed");
+    expect(result.current.actionRunId).toBeNull();
+  });
 });

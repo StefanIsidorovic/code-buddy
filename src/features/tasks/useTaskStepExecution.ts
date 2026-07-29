@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
-import type { TaskInfo, TaskPlanStepRunInfo, TaskPlanStepRunResultInfo,
+import type { IntegrateTaskPlanStepRunResultInfo, TaskInfo, TaskPlanStepRunInfo, TaskPlanStepRunResultInfo,
   TaskPlanVersionInfo } from "../../types/domain";
 
 interface Options {
@@ -15,6 +15,7 @@ export function useTaskStepExecution({ task, plan, acpSessionId, onDispatchSettl
   const [runs, setRuns] = useState<TaskPlanStepRunInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionRunId, setActionRunId] = useState<string | null>(null);
+  const [cleanupWarnings, setCleanupWarnings] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
   const taskIdRef = useRef(task?.id ?? null);
@@ -39,12 +40,14 @@ export function useTaskStepExecution({ task, plan, acpSessionId, onDispatchSettl
     setRuns([]);
     setError(null);
     setActionRunId(null);
+    setCleanupWarnings({});
     if (task) void refresh();
     else requestId.current += 1;
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nextStep = plan?.steps.find((step) =>
-    !runs.some((run) => run.planStepId === step.id && run.status === "accepted")) ?? null;
+    !runs.some((run) => run.planStepId === step.id && run.status === "accepted"
+      && (!run.isolationId || run.integrationStatus === "integrated"))) ?? null;
   const allAccepted = !!plan && plan.steps.length > 0 && !nextStep;
 
   async function dispatch() {
@@ -89,6 +92,39 @@ export function useTaskStepExecution({ task, plan, acpSessionId, onDispatchSettl
     }
   }
 
-  return { runs, nextStep, allAccepted, loading, actionRunId, error,
-    dispatch, review, refresh };
+  async function integrate(runId: string) {
+    if (!task || actionRunId) return;
+    const taskId = task.id;
+    setActionRunId(runId);
+    setError(null);
+    setCleanupWarnings((current) => {
+      const next = { ...current };
+      delete next[runId];
+      return next;
+    });
+    try {
+      const result = await invokeCommand<IntegrateTaskPlanStepRunResultInfo>(
+        "integrate_task_plan_step_run",
+        { request: { taskId, runId } },
+      );
+      if (taskIdRef.current === taskId) {
+        setRuns((current) => current.map((run) =>
+          run.id === result.receipt.id ? result.receipt : run));
+        const cleanupError = result.cleanupError;
+        if (cleanupError) {
+          setCleanupWarnings((current) => ({ ...current, [runId]: cleanupError }));
+        }
+      }
+    } catch (reason) {
+      if (taskIdRef.current === taskId) {
+        setError(errorText(reason));
+        await refresh();
+      }
+    } finally {
+      if (taskIdRef.current === taskId) setActionRunId(null);
+    }
+  }
+
+  return { runs, nextStep, allAccepted, loading, actionRunId, cleanupWarnings, error,
+    dispatch, review, integrate, refresh };
 }
