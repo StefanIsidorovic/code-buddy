@@ -227,6 +227,14 @@
 - result: a snapshot-isolated reviewer receives only the exact current incomplete wave, approved plan identity, settled run IDs, verification/scope/integration facts, changed files and errors; its cwd must be a repository registered to the Task project.
 - review status: passed after 2 cycles; cycle 1 established exact receipt-bound read-only evidence, and cycle 2 added backend project/repository ownership enforcement before ACP startup.
 
+#### 37.5e.2. Ground evaluator recommendations into the review queue
+- objective: turn one wave report into a short navigable per-run queue without granting the evaluator decision authority.
+- status: complete.
+- commit: 711e413.
+- result: the evaluator returns bounded JSON; the frontend accepts only known unique run IDs, links recommendations to exact plan steps, derives displayed evidence from persisted run receipts and forces objective failures, unavailable checks or scope violations to remain `Needs attention`.
+- acceptance criteria: malformed, unknown and duplicate claims are dropped; model evidence cannot replace repository facts; queue ordering prioritizes attention; raw response remains inspectable; Accept/Reject and integration remain explicit.
+- review status: passed after 2 cycles; cycle 1 established the structured grounded queue, while cycle 2 removed model-authored evidence authority and prevented false-pass recommendations from hiding persisted blockers.
+
 #### 37.4g.1. Repair streamed planning auto-fill
 - objective: preserve structured planning JSON across periodic ACP drains and recover already-saved artifacts corrupted at chunk boundaries.
 - status: complete.

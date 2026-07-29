@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 8bac275 step 37.5e.1: evaluate settled waves automatically
+- head: 711e413 step 37.5e.2: ground evaluator review queue
 - worktree: clean before final working-knowledge synchronization
 - relevant files: deterministic waves, owned isolated ACP dispatch, provenance-backed serial Git integration and durable integration receipts
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5e.1 complete; evaluator recommendations into the review queue next
+- active plan step: 37.5e.2 complete; explicit autopilot review/integration policy next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5e.2 grounds structured evaluator recommendations to known unique run IDs, displays only persisted receipt evidence, prioritizes attention and prevents objective blockers from being mislabeled pass; frontend audit, typecheck, 333 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5e.1 automatically evaluates each freshly settled execution wave in a read-only snapshot, shows recommendation/retry state, preserves worker results on evaluator failure and rejects stale Task results; frontend audit, typecheck, 329 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5e.1a adds a snapshot-isolated execution-wave evaluator bound to the exact approved plan, current settled wave receipts and a repository registered to the Task project; Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: verified no-change completion 37.5d.3.1 lets accepted unchanged steps complete without a fake commit, recovers legacy empty-diff conflicts, cleans retained isolation through the existing action, and unlocks scheduler/UI gates; frontend audit, typecheck, 325 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
