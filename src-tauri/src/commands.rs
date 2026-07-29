@@ -48,7 +48,10 @@ use crate::{
     },
     synthesis::SynthesisProviderRegistry,
     task_plan_critique::critique_instruction,
-    task_worktree::{prepare_task_step_worktree, remove_task_step_worktree},
+    task_worktree::{
+        integrate_task_step_worktree, prepare_task_step_worktree, remove_task_step_worktree,
+        TaskStepWorktreeInfo,
+    },
 };
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
@@ -103,6 +106,20 @@ pub struct IsolatedTaskPlanStepRunResultInfo {
     pub prompt_result: AcpPromptResult,
     pub receipt: TaskPlanStepRunInfo,
     pub workspace_verification: GitWorkspaceVerificationInfo,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrateTaskPlanStepRunRequest {
+    pub task_id: String,
+    pub run_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrateTaskPlanStepRunResultInfo {
+    pub receipt: TaskPlanStepRunInfo,
+    pub cleanup_error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -1006,6 +1023,71 @@ pub fn review_task_plan_step_run(
     request: ReviewTaskPlanStepRunRequest,
 ) -> AppResult<TaskPlanStepRunInfo> {
     state.review_task_plan_step_run(request)
+}
+
+#[tauri::command]
+pub async fn integrate_task_plan_step_run(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    request: IntegrateTaskPlanStepRunRequest,
+) -> AppResult<IntegrateTaskPlanStepRunResultInfo> {
+    let pending =
+        store_state.begin_task_plan_step_run_integration(&request.task_id, &request.run_id)?;
+    let isolation = task_step_worktree_from_run(&pending)?;
+    let integration = match integrate_task_step_worktree(
+        &isolation,
+        &pending.task_id,
+        &pending.plan_step_id,
+        &pending.id,
+    ) {
+        Ok(integration) => integration,
+        Err(error) => {
+            store_state.finalize_task_plan_step_run_integration(
+                &pending.id,
+                "conflicted",
+                None,
+                None,
+                Some(&error.to_string()),
+            )?;
+            return Err(error);
+        }
+    };
+    let receipt = store_state.finalize_task_plan_step_run_integration(
+        &pending.id,
+        "integrated",
+        Some(&integration.isolated_commit_sha),
+        Some(&integration.integrated_commit_sha),
+        None,
+    )?;
+
+    let cleanup_manager = Arc::clone(manager_state.inner());
+    let cleanup_session_id = pending.acp_session_id.clone();
+    let session_cleanup =
+        run_acp_task(move || cleanup_manager.stop_and_remove_session(&cleanup_session_id, true))
+            .await;
+    let cleanup_error = match session_cleanup {
+        Ok(_) => remove_task_step_worktree(&isolation).err(),
+        Err(error) => Some(error),
+    }
+    .map(|error| error.to_string());
+
+    Ok(IntegrateTaskPlanStepRunResultInfo {
+        receipt,
+        cleanup_error,
+    })
+}
+
+fn task_step_worktree_from_run(run: &TaskPlanStepRunInfo) -> AppResult<TaskStepWorktreeInfo> {
+    let missing = || {
+        AppError::InvalidInput("step run does not contain a complete isolation descriptor".into())
+    };
+    Ok(TaskStepWorktreeInfo {
+        isolation_id: run.isolation_id.clone().ok_or_else(missing)?,
+        repository_path: PathBuf::from(run.isolation_repository_path.clone().ok_or_else(missing)?),
+        worktree_path: PathBuf::from(run.isolation_worktree_path.clone().ok_or_else(missing)?),
+        branch: run.isolation_branch.clone().ok_or_else(missing)?,
+        base_sha: run.isolation_base_sha.clone().ok_or_else(missing)?,
+    })
 }
 
 #[tauri::command]

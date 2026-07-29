@@ -473,6 +473,10 @@ pub struct TaskPlanStepRunInfo {
     pub isolation_worktree_path: Option<String>,
     pub isolation_branch: Option<String>,
     pub isolation_base_sha: Option<String>,
+    pub integration_status: Option<String>,
+    pub isolated_commit_sha: Option<String>,
+    pub integrated_commit_sha: Option<String>,
+    pub integration_error: Option<String>,
     pub status: String,
     pub stop_reason: Option<String>,
     pub error: Option<String>,
@@ -3687,6 +3691,93 @@ impl ProjectStore {
         self.task_plan_step_run(run_id)
     }
 
+    pub fn begin_task_plan_step_run_integration(
+        &self,
+        task_id: &str,
+        run_id: &str,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_plan_step_runs SET integration_status = 'pending',
+                 integration_error = NULL, updated_at = ?3
+                 WHERE id = ?1 AND task_id = ?2 AND status = 'accepted'
+                   AND isolation_id IS NOT NULL
+                   AND isolation_repository_path IS NOT NULL
+                   AND isolation_worktree_path IS NOT NULL
+                   AND isolation_branch IS NOT NULL
+                   AND isolation_base_sha IS NOT NULL
+                   AND integration_status IS NULL",
+                params![run_id.trim(), task_id.trim(), unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "accepted isolated step run without an integration attempt is required".into(),
+            ));
+        }
+        drop(connection);
+        self.task_plan_step_run(run_id.trim())
+    }
+
+    pub fn finalize_task_plan_step_run_integration(
+        &self,
+        run_id: &str,
+        status: &str,
+        isolated_commit_sha: Option<&str>,
+        integrated_commit_sha: Option<&str>,
+        error: Option<&str>,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        let valid_sha = |value: Option<&str>| {
+            value.is_some_and(|sha| {
+                (7..=64).contains(&sha.len())
+                    && sha.chars().all(|character| character.is_ascii_hexdigit())
+            })
+        };
+        let valid = match status {
+            "integrated" => {
+                valid_sha(isolated_commit_sha)
+                    && valid_sha(integrated_commit_sha)
+                    && error.is_none()
+            }
+            "conflicted" => {
+                isolated_commit_sha.is_none_or(|_| valid_sha(isolated_commit_sha))
+                    && integrated_commit_sha.is_none()
+                    && error.is_some_and(|message| !message.trim().is_empty())
+            }
+            _ => false,
+        };
+        if !valid {
+            return Err(AppError::InvalidInput(
+                "step integration result is invalid".into(),
+            ));
+        }
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_plan_step_runs SET integration_status = ?2,
+                 isolated_commit_sha = ?3, integrated_commit_sha = ?4,
+                 integration_error = ?5, updated_at = ?6
+                 WHERE id = ?1 AND integration_status = 'pending'",
+                params![
+                    run_id.trim(),
+                    status,
+                    isolated_commit_sha,
+                    integrated_commit_sha,
+                    error,
+                    unix_timestamp()?
+                ],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "pending step integration is required".into(),
+            ));
+        }
+        drop(connection);
+        self.task_plan_step_run(run_id.trim())
+    }
+
     pub fn record_task_plan_step_run_verification(
         &self,
         run_id: &str,
@@ -3929,6 +4020,8 @@ impl ProjectStore {
                  expected_paths_json, status, stop_reason, error,
                  isolation_id, isolation_repository_path, isolation_worktree_path,
                  isolation_branch, isolation_base_sha,
+                 integration_status, isolated_commit_sha, integrated_commit_sha,
+                 integration_error,
                  verification_status, verification_workspace_path,
                  verification_changed_files_json, verification_error,
                  scope_status, scope_violations_json, review_status, review_note,
@@ -3958,10 +4051,14 @@ impl ProjectStore {
                         isolation_worktree_path: row.get(16)?,
                         isolation_branch: row.get(17)?,
                         isolation_base_sha: row.get(18)?,
-                        verification_status: row.get(19)?,
-                        verification_workspace_path: row.get(20)?,
+                        integration_status: row.get(19)?,
+                        isolated_commit_sha: row.get(20)?,
+                        integrated_commit_sha: row.get(21)?,
+                        integration_error: row.get(22)?,
+                        verification_status: row.get(23)?,
+                        verification_workspace_path: row.get(24)?,
                         verification_changed_files: row
-                            .get::<_, Option<String>>(21)?
+                            .get::<_, Option<String>>(25)?
                             .and_then(|value| {
                                 serde_json::from_str::<Vec<serde_json::Value>>(&value).ok()
                             })
@@ -3973,16 +4070,16 @@ impl ProjectStore {
                                     .map(ToString::to_string)
                             })
                             .collect(),
-                        verification_error: row.get(22)?,
-                        scope_status: row.get(23)?,
+                        verification_error: row.get(26)?,
+                        scope_status: row.get(27)?,
                         scope_violations: row
-                            .get::<_, Option<String>>(24)?
+                            .get::<_, Option<String>>(28)?
                             .and_then(|value| serde_json::from_str(&value).ok())
                             .unwrap_or_default(),
-                        review_status: row.get(25)?,
-                        review_note: row.get(26)?,
-                        created_at: row.get(27)?,
-                        updated_at: row.get(28)?,
+                        review_status: row.get(29)?,
+                        review_note: row.get(30)?,
+                        created_at: row.get(31)?,
+                        updated_at: row.get(32)?,
                     })
                 },
             )
@@ -5117,6 +5214,10 @@ impl ProjectStore {
                     isolation_worktree_path TEXT,
                     isolation_branch TEXT,
                     isolation_base_sha TEXT,
+                    integration_status TEXT CHECK(integration_status IN ('pending', 'integrated', 'conflicted')),
+                    isolated_commit_sha TEXT,
+                    integrated_commit_sha TEXT,
+                    integration_error TEXT,
                     status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed', 'accepted')),
                     stop_reason TEXT,
                     error TEXT,
@@ -5201,6 +5302,10 @@ impl ProjectStore {
             ("isolation_worktree_path", "TEXT"),
             ("isolation_branch", "TEXT"),
             ("isolation_base_sha", "TEXT"),
+            ("integration_status", "TEXT"),
+            ("isolated_commit_sha", "TEXT"),
+            ("integrated_commit_sha", "TEXT"),
+            ("integration_error", "TEXT"),
             ("verification_status", "TEXT"),
             ("verification_workspace_path", "TEXT"),
             ("verification_changed_files_json", "TEXT"),
@@ -10361,6 +10466,53 @@ mod tests {
             })
             .expect("first step accepted");
         assert_eq!(accepted.status, "accepted");
+        assert!(accepted.integration_status.is_none());
+        assert!(store
+            .begin_task_plan_step_run_integration("another-task", &accepted.id)
+            .is_err());
+        let integration = store
+            .begin_task_plan_step_run_integration(&task.id, &accepted.id)
+            .expect("accepted isolated run begins integration");
+        assert_eq!(integration.integration_status.as_deref(), Some("pending"));
+        assert!(store
+            .begin_task_plan_step_run_integration(&task.id, &accepted.id)
+            .is_err());
+        assert!(store
+            .finalize_task_plan_step_run_integration(
+                &accepted.id,
+                "integrated",
+                None,
+                Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                None,
+            )
+            .is_err());
+        let integrated = store
+            .finalize_task_plan_step_run_integration(
+                &accepted.id,
+                "integrated",
+                Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                None,
+            )
+            .expect("integration result persists");
+        assert_eq!(integrated.integration_status.as_deref(), Some("integrated"));
+        assert_eq!(
+            integrated.isolated_commit_sha.as_deref(),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        );
+        assert_eq!(
+            integrated.integrated_commit_sha.as_deref(),
+            Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        );
+        assert!(store
+            .finalize_task_plan_step_run_integration(
+                &accepted.id,
+                "conflicted",
+                None,
+                None,
+                Some("late conflict"),
+            )
+            .is_err());
         let still_execution = store.task(&task.id).expect("task remains readable");
         assert_eq!(still_execution.current_phase, "execution");
         assert_eq!(still_execution.status, "in_progress");

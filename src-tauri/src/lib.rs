@@ -113,6 +113,7 @@ pub fn run() {
             commands::send_task_phase_prompt,
             commands::list_task_plan_step_runs,
             commands::review_task_plan_step_run,
+            commands::integrate_task_plan_step_run,
             commands::send_task_plan_step_prompt,
             commands::send_isolated_task_plan_step_prompt,
             commands::set_acp_model,
