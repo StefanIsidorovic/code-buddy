@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { TaskPlanStepInfo, TaskPlanStepRunInfo, TaskPlanVersionInfo } from "../../types/domain";
-import { deriveTaskExecutionWaves, type TaskExecutionWave } from "./taskExecutionWaves";
+import { deriveTaskExecutionWaves, isCompletedTaskPlanStepRun, type TaskExecutionWave }
+  from "./taskExecutionWaves";
 
 interface Props {
   plan: TaskPlanVersionInfo | null;
@@ -30,8 +31,7 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
   const waves = deriveTaskExecutionWaves(plan.steps);
   return <section className="task-execution-steps" aria-labelledby="execution-steps-title">
     <div className="doctor-heading"><div><h4 id="execution-steps-title">Approved plan steps</h4>
-      <span>{runs.filter((run) => run.status === "accepted"
-        && (!run.isolationId || run.integrationStatus === "integrated")).length}/{plan.steps.length} completed</span>
+      <span>{runs.filter(isCompletedTaskPlanStepRun).length}/{plan.steps.length} completed</span>
     </div></div>
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     <details className="task-helper-card">
@@ -60,6 +60,7 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
       const isNext = nextStep?.id === step.id;
       const dispatchState = dispatchStates[step.id];
       const isWaveReady = waveSteps?.some(({ id }) => id === step.id) ?? false;
+      const noChange = run?.status === "accepted" && run.verificationStatus === "unchanged";
       const canAccept = run?.status === "sent" && run.scopeStatus === "within_scope"
         && run.verificationStatus !== "unavailable" && !!note.trim();
       return <li key={step.id} aria-current={isNext ? "step" : undefined}
@@ -85,9 +86,11 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
           {run.scopeViolations.length > 0 ? <p role="alert">Outside expected scope:
             {" "}{run.scopeViolations.join(", ")}</p> : null}
           {run.error ? <p role="alert">{run.error}</p> : null}
-          {run.integrationStatus === "integrated" ? <p role="status">Integrated commit{" "}
+          {noChange ? <p role="status">Completed — verification confirmed that no repository
+            changes were required.</p> : null}
+          {!noChange && run.integrationStatus === "integrated" ? <p role="status">Integrated commit{" "}
             <code>{run.integratedCommitSha}</code></p> : null}
-          {run.integrationStatus === "conflicted" ? <p role="alert">Integration conflicted:
+          {!noChange && run.integrationStatus === "conflicted" ? <p role="alert">Integration conflicted:
             {" "}{run.integrationError}. Isolation retained
             {run.isolationWorktreePath ? <> at <code>{run.isolationWorktreePath}</code></> : null}
             {" "}for recovery.</p> : null}
@@ -106,11 +109,13 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
           </div>
           {!canAccept ? <small>Accept requires available within-scope Git verification and a review note.</small> : null}
         </fieldset> : null}
-        {run?.status === "accepted" && run.isolationId && !run.integrationStatus
+        {run?.status === "accepted" && run.isolationId
+          && (noChange ? run.integrationStatus !== "integrated" : !run.integrationStatus)
           ? <button type="button" className="primary-action"
             disabled={actionRunId !== null || loading}
             onClick={() => onIntegrate(run.id)}>
-            {actionRunId === run.id ? "Integrating step…" : "Integrate accepted step"}
+            {actionRunId === run.id ? (noChange ? "Finalizing step…" : "Integrating step…")
+              : noChange ? "Finalize no-change step" : "Integrate accepted step"}
           </button> : null}
       </li>;
     })}</ol>

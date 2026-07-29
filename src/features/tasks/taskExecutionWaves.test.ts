@@ -60,4 +60,13 @@ describe("deriveTaskExecutionWaves", () => {
       accepted("step-1", true), accepted("step-2", true),
     ])?.number).toBe(2);
   });
+
+  it("treats an accepted unchanged run as completed without integration", () => {
+    const steps = [step(0, ["src/cache/**"]), step(1, ["docs/**"], ["STEP-1"])];
+    const noChange = {
+      planStepId: "step-1", status: "accepted", verificationStatus: "unchanged",
+      isolationId: "isolation", integrationStatus: "conflicted",
+    } as TaskPlanStepRunInfo;
+    expect(currentTaskExecutionWave(steps, [noChange])?.number).toBe(2);
+  });
 });

@@ -3,7 +3,8 @@ import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
 import type { IntegrateTaskPlanStepRunResultInfo, IsolatedTaskPlanStepRunResultInfo, TaskInfo, TaskPlanStepRunInfo,
   TaskPlanVersionInfo } from "../../types/domain";
-import { currentTaskExecutionWave, dispatchableWaveSteps } from "./taskExecutionWaves";
+import { currentTaskExecutionWave, dispatchableWaveSteps, isCompletedTaskPlanStepRun }
+  from "./taskExecutionWaves";
 
 interface Options {
   task: TaskInfo | null;
@@ -51,8 +52,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
   const currentWave = plan ? currentTaskExecutionWave(plan.steps, runs) : null;
   const waveSteps = dispatchableWaveSteps(currentWave, runs);
   const nextStep = currentWave?.steps.find((step) =>
-    !runs.some((run) => run.planStepId === step.id && run.status === "accepted"
-      && (!run.isolationId || run.integrationStatus === "integrated"))) ?? null;
+    !runs.some((run) => run.planStepId === step.id && isCompletedTaskPlanStepRun(run))) ?? null;
   const allAccepted = !!plan && plan.steps.length > 0 && !currentWave;
   const runBlockedReason = !candidateId
     ? "Select an available ACP coding agent to run the next isolated step."

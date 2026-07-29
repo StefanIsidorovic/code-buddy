@@ -3573,7 +3573,9 @@ impl ProjectStore {
                      FROM task_plan_step_runs runs
                      WHERE runs.task_id = ?1 AND runs.plan_version_id = ?2
                        AND runs.status = 'accepted'
-                       AND (runs.isolation_id IS NULL OR runs.integration_status = 'integrated')",
+                       AND (runs.verification_status = 'unchanged'
+                         OR runs.isolation_id IS NULL
+                         OR runs.integration_status = 'integrated')",
                 )
                 .map_err(storage_error)?;
             let keys = statement
@@ -3757,6 +3759,32 @@ impl ProjectStore {
         }
         drop(connection);
         self.task_plan_step_run(run_id.trim())
+    }
+
+    pub fn finalize_task_plan_step_run_no_change(
+        &self,
+        task_id: &str,
+        run_id: &str,
+    ) -> AppResult<Option<TaskPlanStepRunInfo>> {
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_plan_step_runs SET integration_status = 'integrated',
+                 isolated_commit_sha = NULL, integrated_commit_sha = NULL,
+                 integration_error = NULL, updated_at = ?3
+                 WHERE id = ?1 AND task_id = ?2 AND status = 'accepted'
+                   AND verification_status = 'unchanged'
+                   AND scope_status = 'within_scope'
+                   AND isolation_id IS NOT NULL
+                   AND (integration_status IS NULL OR integration_status = 'conflicted')",
+                params![run_id.trim(), task_id.trim(), unix_timestamp()?],
+            )
+            .map_err(storage_error)?;
+        drop(connection);
+        if changed == 0 {
+            return Ok(None);
+        }
+        self.task_plan_step_run(run_id.trim()).map(Some)
     }
 
     pub fn finalize_task_plan_step_run_integration(
@@ -10515,6 +10543,36 @@ mod tests {
             .expect("first step accepted");
         assert_eq!(accepted.status, "accepted");
         assert!(accepted.integration_status.is_none());
+        {
+            let connection = store.connection().expect("connection");
+            connection
+                .execute(
+                    "UPDATE task_plan_step_runs
+                     SET verification_status = 'unchanged',
+                         integration_status = 'conflicted',
+                         integration_error = 'isolated integration requires repository changes'
+                     WHERE id = ?1",
+                    [&accepted.id],
+                )
+                .expect("legacy no-change conflict prepared");
+        }
+        let no_change = store
+            .finalize_task_plan_step_run_no_change(&task.id, &accepted.id)
+            .expect("no-change completion succeeds")
+            .expect("accepted unchanged isolation matched");
+        assert_eq!(no_change.integration_status.as_deref(), Some("integrated"));
+        assert!(no_change.integration_error.is_none());
+        {
+            let connection = store.connection().expect("connection");
+            connection
+                .execute(
+                    "UPDATE task_plan_step_runs SET verification_status = 'changed',
+                         integration_status = NULL
+                     WHERE id = ?1",
+                    [&accepted.id],
+                )
+                .expect("changed integration fixture restored");
+        }
         assert!(store
             .begin_task_plan_step_run_integration("another-task", &accepted.id)
             .is_err());

@@ -1031,6 +1031,26 @@ pub async fn integrate_task_plan_step_run(
     store_state: State<'_, ProjectStore>,
     request: IntegrateTaskPlanStepRunRequest,
 ) -> AppResult<IntegrateTaskPlanStepRunResultInfo> {
+    if let Some(receipt) =
+        store_state.finalize_task_plan_step_run_no_change(&request.task_id, &request.run_id)?
+    {
+        let isolation = task_step_worktree_from_run(&receipt)?;
+        let cleanup_manager = Arc::clone(manager_state.inner());
+        let cleanup_session_id = receipt.acp_session_id.clone();
+        let session_cleanup = run_acp_task(move || {
+            cleanup_manager.stop_and_remove_session(&cleanup_session_id, true)
+        })
+        .await;
+        let cleanup_error = match session_cleanup {
+            Ok(_) => remove_task_step_worktree(&isolation).err(),
+            Err(error) => Some(error),
+        }
+        .map(|error| error.to_string());
+        return Ok(IntegrateTaskPlanStepRunResultInfo {
+            receipt,
+            cleanup_error,
+        });
+    }
     let pending =
         store_state.begin_task_plan_step_run_integration(&request.task_id, &request.run_id)?;
     let isolation = task_step_worktree_from_run(&pending)?;

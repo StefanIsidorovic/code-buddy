@@ -103,6 +103,22 @@ describe("TaskExecutionStepsPanel", () => {
     expect(screen.queryByRole("button", { name: "Integrate accepted step" })).not.toBeInTheDocument();
   });
 
+  it("finalizes an accepted unchanged step without presenting a Git conflict", () => {
+    const onIntegrate = vi.fn();
+    render(<TaskExecutionStepsPanel plan={plan} runs={[{ ...sent, status: "accepted",
+      reviewStatus: "accepted", verificationStatus: "unchanged", isolationId: "isolation-1",
+      integrationStatus: "conflicted",
+      integrationError: "isolated integration requires repository changes" }]}
+      currentWave={deriveTaskExecutionWaves(plan.steps)[1]} waveSteps={[]}
+      nextStep={plan.steps[1]} runBlockedReason={null} loading={false}
+      actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
+      onReview={vi.fn()} onIntegrate={onIntegrate} />);
+    expect(screen.getByText(/no repository changes were required/)).toBeInTheDocument();
+    expect(screen.queryByText(/Integration conflicted/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Finalize no-change step" }));
+    expect(onIntegrate).toHaveBeenCalledWith("run-1");
+  });
+
   it("explains why an isolated step cannot start", () => {
     const currentWave = deriveTaskExecutionWaves(plan.steps)[0];
     render(<TaskExecutionStepsPanel plan={plan} runs={[]} nextStep={plan.steps[0]}

@@ -64,11 +64,15 @@ export function currentTaskExecutionWave(
   steps: TaskPlanStepInfo[],
   runs: TaskPlanStepRunInfo[],
 ): TaskExecutionWave | null {
-  const completed = new Set(runs.filter((run) => run.status === "accepted"
-    && (!run.isolationId || run.integrationStatus === "integrated"))
+  const completed = new Set(runs.filter(isCompletedTaskPlanStepRun)
     .map((run) => run.planStepId));
   return deriveTaskExecutionWaves(steps)
     .find((wave) => wave.steps.some((step) => !completed.has(step.id))) ?? null;
+}
+
+export function isCompletedTaskPlanStepRun(run: TaskPlanStepRunInfo): boolean {
+  return run.status === "accepted" && (run.verificationStatus === "unchanged"
+    || !run.isolationId || run.integrationStatus === "integrated");
 }
 
 export function dispatchableWaveSteps(
