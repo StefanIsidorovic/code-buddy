@@ -162,6 +162,16 @@
 - required tests: isolated command payload/result; prerequisite lock; receipt identity; review/integration sequence; stale response; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy and diff hygiene.
 - review status: passed after 2 cycles; cycle 1 replaced shared-session dispatch with candidate/repository-owned isolation and actionable readiness, while cycle 2 removed the stale shared-session event drain and found no App ownership, stale-Task, completion-gate or shared-checkout regression.
 
+#### 37.5d.1.1. Explain dirty-source isolation blockers
+- objective: preserve the clean-source isolation gate while telling the user exactly what blocks execution and how to proceed.
+- status: complete.
+- commit: f92a9c1.
+- files: src-tauri/src/task_worktree.rs; working_knowledge/current/*.
+- expected changes: include a bounded list of dirty source paths and explicit commit, stash or discard guidance in the isolation error.
+- acceptance criteria: dirty repositories remain rejected; the error names the blocking path without unbounded output; clean repositories remain unaffected.
+- required tests: dirty tracked/untracked path diagnostics; full Rust fmt/test/clippy and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 retained the safety boundary and bounded output, while cycle 2 found no worktree creation, clean-source or path-reporting regression.
+
 #### 37.5d.2. Persist backend wave eligibility
 - objective: make parallel-ready membership a backend-enforced execution authority instead of a frontend preview.
 - status: planned.
