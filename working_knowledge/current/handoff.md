@@ -7,6 +7,7 @@
 - Backend now has a tested internal primitive for clean-HEAD AIadne branch/worktree creation, rollback and guarded cleanup; it is not yet exposed as a command or connected to ACP dispatch.
 - Step-run receipts now persist one optional write-once isolation descriptor and reject repository verification from any other workspace.
 - Backend command `send_isolated_task_plan_step_prompt` now starts a dedicated ACP candidate in that worktree, records ownership before prompt send, and verifies the exact isolated cwd.
+- Backend integration primitive now creates provenance-backed AIadne commits and serially cherry-picks them; conflicts restore the original clean source HEAD and retain isolation.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
 - Malformed or legacy prose evidence keeps the manual editor available with rerun guidance; user edits are never replaced without explicit Restore.
@@ -21,7 +22,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5c: commit accepted isolated worktree changes with provenance, integrate them serially into the source branch, stop/cleanup the executor, and block conflicts without auto-resolution.
+- Begin 37.5c.2: persist integration pending/integrated/conflicted state on the accepted run, expose a guarded command, then stop the owned ACP session and cleanup only after the integrated status is durable.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
