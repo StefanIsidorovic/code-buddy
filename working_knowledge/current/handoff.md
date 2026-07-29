@@ -4,6 +4,7 @@
 - Plan steps persist validated `dependsOn` links; generated and manual drafts can declare only earlier `STEP-N` keys.
 - Execution derives deterministic waves from satisfied dependencies and conservative non-overlapping path scopes.
 - The execution panel exposes wave membership and rationale, while explicitly retaining serial runs until isolation/integration is implemented.
+- Backend now has a tested internal primitive for clean-HEAD AIadne branch/worktree creation, rollback and guarded cleanup; it is not yet exposed as a command or connected to ACP dispatch.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
 - Malformed or legacy prose evidence keeps the manual editor available with rerun guidance; user edits are never replaced without explicit Restore.
@@ -18,7 +19,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5b: run `parallel-ready` wave steps in separate Git worktrees/branches, then integrate successful results serially with explicit conflict and revalidation gates.
+- Begin 37.5b.2: persist the worktree descriptor on one step attempt and start an owned ACP session inside that exact worktree before dispatch.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
