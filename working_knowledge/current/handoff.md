@@ -1,6 +1,9 @@
 # Handoff
 
 ## Current State
+- Plan steps persist validated `dependsOn` links; generated and manual drafts can declare only earlier `STEP-N` keys.
+- Execution derives deterministic waves from satisfied dependencies and conservative non-overlapping path scopes.
+- The execution panel exposes wave membership and rationale, while explicitly retaining serial runs until isolation/integration is implemented.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
 - Malformed or legacy prose evidence keeps the manual editor available with rerun guidance; user edits are never replaced without explicit Restore.
@@ -15,7 +18,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5a: model explicit step dependencies and derive deterministic serial/parallel execution waves before creating isolated worktrees.
+- Begin 37.5b: run `parallel-ready` wave steps in separate Git worktrees/branches, then integrate successful results serially with explicit conflict and revalidation gates.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
@@ -25,5 +28,6 @@
 
 ## Watchouts
 - Do not run parallel steps in the shared worktree.
+- Wave preview is derived information, not durable execution authority; backend dispatch remains intentionally serial.
 - Tier labels are requirements, not concrete ACP model IDs, until adapters expose a mapping.
 - Preserve the explicit Accept/Reject gate when adding autopilot; automation needs separately visible authority.
