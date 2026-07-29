@@ -436,9 +436,11 @@ function App() {
             planningPlanApproved={taskPlan.approved !== null}
             executionStepsComplete={taskSteps.allAccepted}
             executionPanel={<TaskExecutionStepsPanel plan={taskPlan.approved}
-              runs={taskSteps.runs} nextStep={taskSteps.nextStep}
+              runs={taskSteps.runs} currentWave={taskSteps.currentWave}
+              waveSteps={taskSteps.waveSteps} nextStep={taskSteps.nextStep}
               runBlockedReason={taskSteps.runBlockedReason}
-              loading={taskSteps.loading} actionRunId={taskSteps.actionRunId} error={taskSteps.error}
+              loading={taskSteps.loading} dispatchStates={taskSteps.dispatchStates}
+              actionRunId={taskSteps.actionRunId} error={taskSteps.error}
               cleanupWarnings={taskSteps.cleanupWarnings}
               onRun={() => void taskSteps.dispatch()}
               onReview={(runId, decision, note) => void taskSteps.review(runId, decision, note)}

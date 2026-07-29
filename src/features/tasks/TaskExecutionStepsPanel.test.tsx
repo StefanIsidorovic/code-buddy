@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskPlanStepRunInfo, TaskPlanVersionInfo } from "../../types/domain";
 import { TaskExecutionStepsPanel } from "./TaskExecutionStepsPanel";
+import { deriveTaskExecutionWaves } from "./taskExecutionWaves";
 
 const plan: TaskPlanVersionInfo = { id: "plan-1", taskId: "task-1", version: 1,
   status: "approved", sourceArtifactId: "artifact-1", requirements: [],
@@ -25,14 +26,17 @@ const sent = { id: "run-1", planStepId: "step-1", attempt: 1, status: "sent",
   reviewStatus: null, reviewNote: null, createdAt: 1, updatedAt: 1 } satisfies TaskPlanStepRunInfo;
 
 describe("TaskExecutionStepsPanel", () => {
-  it("runs only the next step and requires a review note before acceptance", () => {
+  it("launches the current wave and requires a review note before acceptance", () => {
     const onRun = vi.fn(); const onReview = vi.fn();
+    const currentWave = deriveTaskExecutionWaves(plan.steps)[0];
     const view = render(<TaskExecutionStepsPanel plan={plan} runs={[]} nextStep={plan.steps[0]}
+      currentWave={currentWave} waveSteps={currentWave.steps} dispatchStates={{}}
       runBlockedReason={null} loading={false} actionRunId={null} error={null}
       cleanupWarnings={{}} onRun={onRun} onReview={onReview} onIntegrate={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Run this step" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run wave 1 · 1 step" }));
     expect(onRun).toHaveBeenCalledOnce();
     view.rerender(<TaskExecutionStepsPanel plan={plan} runs={[sent]} nextStep={plan.steps[0]}
+      currentWave={currentWave} waveSteps={[]} dispatchStates={{}}
       runBlockedReason={null} loading={false} actionRunId={null} error={null}
       cleanupWarnings={{}} onRun={onRun} onReview={onReview} onIntegrate={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Accept step" })).toBeDisabled();
@@ -42,7 +46,7 @@ describe("TaskExecutionStepsPanel", () => {
     fireEvent.click(screen.getByText("Execution waves · 2"));
     expect(screen.getByText("Wave 1 · serial")).toBeInTheDocument();
     expect(screen.getByText("Wave 2 · serial")).toBeInTheDocument();
-    expect(screen.getByText(/Runs are still dispatched serially/)).toBeInTheDocument();
+    expect(screen.getByText(/up to three workers/)).toBeInTheDocument();
   });
 
   it("shows scope violations and prevents acceptance while allowing rejection", () => {
@@ -100,11 +104,13 @@ describe("TaskExecutionStepsPanel", () => {
   });
 
   it("explains why an isolated step cannot start", () => {
+    const currentWave = deriveTaskExecutionWaves(plan.steps)[0];
     render(<TaskExecutionStepsPanel plan={plan} runs={[]} nextStep={plan.steps[0]}
+      currentWave={currentWave} waveSteps={currentWave.steps} dispatchStates={{}}
       runBlockedReason="Select a registered project repository to run the next isolated step."
       loading={false} actionRunId={null} error={null} cleanupWarnings={{}} onRun={vi.fn()}
       onReview={vi.fn()} onIntegrate={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Run this step" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Run wave 1 · 1 step" })).toBeDisabled();
     expect(screen.getByText(/registered project repository/)).toBeInTheDocument();
   });
 });

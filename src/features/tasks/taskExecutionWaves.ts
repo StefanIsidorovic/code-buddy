@@ -1,4 +1,4 @@
-import type { TaskPlanStepInfo } from "../../types/domain";
+import type { TaskPlanStepInfo, TaskPlanStepRunInfo } from "../../types/domain";
 
 export type TaskExecutionWave = {
   number: number;
@@ -27,7 +27,7 @@ export function deriveTaskExecutionWaves(steps: TaskPlanStepInfo[]): TaskExecuti
 
   while (pending.length) {
     const ready = pending.filter((step) =>
-      step.dependsOn.every((dependency) => completed.has(dependency)));
+      (step.dependsOn ?? []).every((dependency) => completed.has(dependency)));
     const candidates = ready.length ? ready : [pending[0]];
     const selected: TaskPlanStepInfo[] = [];
 
@@ -58,4 +58,27 @@ export function deriveTaskExecutionWaves(steps: TaskPlanStepInfo[]): TaskExecuti
   }
 
   return waves;
+}
+
+export function currentTaskExecutionWave(
+  steps: TaskPlanStepInfo[],
+  runs: TaskPlanStepRunInfo[],
+): TaskExecutionWave | null {
+  const completed = new Set(runs.filter((run) => run.status === "accepted"
+    && (!run.isolationId || run.integrationStatus === "integrated"))
+    .map((run) => run.planStepId));
+  return deriveTaskExecutionWaves(steps)
+    .find((wave) => wave.steps.some((step) => !completed.has(step.id))) ?? null;
+}
+
+export function dispatchableWaveSteps(
+  wave: TaskExecutionWave | null,
+  runs: TaskPlanStepRunInfo[],
+): TaskPlanStepInfo[] {
+  if (!wave) return [];
+  return wave.steps.filter((step) => {
+    const attempts = runs.filter((run) => run.planStepId === step.id);
+    const latest = attempts[attempts.length - 1];
+    return !latest || latest.status === "failed";
+  });
 }

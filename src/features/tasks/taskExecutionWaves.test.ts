@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { TaskPlanStepInfo } from "../../types/domain";
-import { deriveTaskExecutionWaves } from "./taskExecutionWaves";
+import type { TaskPlanStepInfo, TaskPlanStepRunInfo } from "../../types/domain";
+import { currentTaskExecutionWave, deriveTaskExecutionWaves, dispatchableWaveSteps }
+  from "./taskExecutionWaves";
 
 const step = (orderIndex: number, expectedPaths: string[], dependsOn: string[] = []):
 TaskPlanStepInfo => ({
@@ -39,5 +40,24 @@ describe("deriveTaskExecutionWaves", () => {
     expect(waves.map((wave) => wave.steps.map(({ id }) => id)))
       .toEqual([["step-1"], ["step-2"]]);
     expect(waves[0].reason).toContain("no declared write scope");
+  });
+
+  it("keeps later waves locked until every current-wave step is integrated", () => {
+    const steps = [
+      step(0, ["src/cache/**"]),
+      step(1, ["src/auth/**"]),
+      step(2, ["src/app.ts"], ["STEP-1", "STEP-2"]),
+    ];
+    const accepted = (planStepId: string, integrated: boolean) => ({
+      planStepId, status: "accepted", isolationId: "isolation",
+      integrationStatus: integrated ? "integrated" : null,
+    }) as TaskPlanStepRunInfo;
+    const partial = [accepted("step-1", true), accepted("step-2", false)];
+    const current = currentTaskExecutionWave(steps, partial);
+    expect(current?.number).toBe(1);
+    expect(dispatchableWaveSteps(current, partial)).toEqual([]);
+    expect(currentTaskExecutionWave(steps, [
+      accepted("step-1", true), accepted("step-2", true),
+    ])?.number).toBe(2);
   });
 });

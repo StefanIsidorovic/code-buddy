@@ -3572,7 +3572,8 @@ impl ProjectStore {
                     "SELECT DISTINCT runs.step_order_index
                      FROM task_plan_step_runs runs
                      WHERE runs.task_id = ?1 AND runs.plan_version_id = ?2
-                       AND runs.status = 'accepted'",
+                       AND runs.status = 'accepted'
+                       AND (runs.isolation_id IS NULL OR runs.integration_status = 'integrated')",
                 )
                 .map_err(storage_error)?;
             let keys = statement

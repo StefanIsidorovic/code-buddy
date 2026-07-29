@@ -15,6 +15,11 @@ const plan = { id: "plan-1", taskId: "task-1", status: "approved", steps: [
 const sent = { id: "run-1", taskId: "task-1", planVersionId: "plan-1",
   planStepId: "step-1", status: "sent", scopeStatus: "within_scope",
   verificationStatus: "changed" } as TaskPlanStepRunInfo;
+const parallelPlan = { ...plan, steps: [
+  { ...plan.steps[0], dependsOn: [] },
+  { ...plan.steps[0], id: "step-2", orderIndex: 1, title: "Document",
+    expectedPaths: ["docs/a.md"], dependsOn: [] },
+] } as TaskPlanVersionInfo;
 
 describe("useTaskStepExecution", () => {
   beforeEach(() => invoke.mockReset());
@@ -135,5 +140,42 @@ describe("useTaskStepExecution", () => {
     expect(result.current.runBlockedReason).toMatch(/registered project repository/);
     rerender({ candidateId: "codex", repositoryPath: "/repo" });
     expect(result.current.runBlockedReason).toBeNull();
+  });
+
+  it("dispatches every current-wave step and preserves partial success", async () => {
+    const failed = { ...sent, id: "run-2", planStepId: "step-2", status: "failed",
+      error: "worker offline" } as TaskPlanStepRunInfo;
+    let lists = 0;
+    invoke.mockImplementation((command, args) => {
+      if (!command) return Promise.resolve([]);
+      if (command === "list_task_plan_step_runs") {
+        lists += 1;
+        return Promise.resolve(lists === 1 ? [] : [sent, failed]);
+      }
+      if (command === "send_isolated_task_plan_step_prompt") {
+        const request = args?.request;
+        const stepId = request && typeof request === "object" && "planStepId" in request
+          ? request.planStepId : null;
+        if (stepId === "step-2") return Promise.reject(new Error("worker offline"));
+        return Promise.resolve({
+          receipt: sent, executorSession: {}, promptResult: {}, workspaceVerification: {},
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${command}`));
+    });
+    const { result } = renderHook(() => useTaskStepExecution({
+      task, plan: parallelPlan, candidateId: "codex", repositoryPath: "/repo",
+    }));
+    await waitFor(() => expect(result.current.waveSteps).toHaveLength(2));
+    await act(() => result.current.dispatch());
+    expect(invoke).toHaveBeenCalledWith("send_isolated_task_plan_step_prompt", {
+      request: expect.objectContaining({ planStepId: "step-1" }),
+    });
+    expect(invoke).toHaveBeenCalledWith("send_isolated_task_plan_step_prompt", {
+      request: expect.objectContaining({ planStepId: "step-2" }),
+    });
+    expect(result.current.runs).toEqual([sent, failed]);
+    expect(result.current.error).toContain("Step 2: worker offline");
+    expect(result.current.currentWave?.number).toBe(1);
   });
 });

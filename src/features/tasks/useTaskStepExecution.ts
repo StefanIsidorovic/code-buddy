@@ -3,6 +3,7 @@ import { errorText } from "../../lib/presentation";
 import { invokeCommand } from "../../lib/tauriGateway";
 import type { IntegrateTaskPlanStepRunResultInfo, IsolatedTaskPlanStepRunResultInfo, TaskInfo, TaskPlanStepRunInfo,
   TaskPlanVersionInfo } from "../../types/domain";
+import { currentTaskExecutionWave, dispatchableWaveSteps } from "./taskExecutionWaves";
 
 interface Options {
   task: TaskInfo | null;
@@ -14,6 +15,7 @@ interface Options {
 export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }: Options) {
   const [runs, setRuns] = useState<TaskPlanStepRunInfo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dispatchStates, setDispatchStates] = useState<Record<string, "queued" | "running">>({});
   const [actionRunId, setActionRunId] = useState<string | null>(null);
   const [cleanupWarnings, setCleanupWarnings] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -40,42 +42,74 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
     setRuns([]);
     setError(null);
     setActionRunId(null);
+    setDispatchStates({});
     setCleanupWarnings({});
     if (task) void refresh();
     else requestId.current += 1;
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const nextStep = plan?.steps.find((step) =>
+  const currentWave = plan ? currentTaskExecutionWave(plan.steps, runs) : null;
+  const waveSteps = dispatchableWaveSteps(currentWave, runs);
+  const nextStep = currentWave?.steps.find((step) =>
     !runs.some((run) => run.planStepId === step.id && run.status === "accepted"
       && (!run.isolationId || run.integrationStatus === "integrated"))) ?? null;
-  const allAccepted = !!plan && plan.steps.length > 0 && !nextStep;
+  const allAccepted = !!plan && plan.steps.length > 0 && !currentWave;
   const runBlockedReason = !candidateId
     ? "Select an available ACP coding agent to run the next isolated step."
     : !repositoryPath
       ? "Select a registered project repository to run the next isolated step."
       : null;
 
-  async function dispatch() {
-    if (!task || !plan || !nextStep || !candidateId || !repositoryPath) return;
+  async function dispatchWave() {
+    if (!task || !plan || !waveSteps.length || !candidateId || !repositoryPath) return;
     const taskId = task.id;
+    const planId = plan.id;
     setLoading(true);
     setError(null);
-    try {
-      const result = await invokeCommand<IsolatedTaskPlanStepRunResultInfo>(
-        "send_isolated_task_plan_step_prompt",
-        { request: { taskId, planVersionId: plan.id, planStepId: nextStep.id,
-          candidateId, repositoryPath } },
-      );
-      if (taskIdRef.current === taskId) {
-        setRuns((current) => [...current, result.receipt]);
+    const queued: Record<string, "queued" | "running"> = {};
+    for (const step of waveSteps) queued[step.id] = "queued";
+    setDispatchStates(queued);
+    const failures: string[] = [];
+    let cursor = 0;
+    async function worker() {
+      while (cursor < waveSteps.length) {
+        const step = waveSteps[cursor++];
+        if (taskIdRef.current === taskId) {
+          setDispatchStates((current) => ({ ...current, [step.id]: "running" }));
+        }
+        try {
+          const result = await invokeCommand<IsolatedTaskPlanStepRunResultInfo>(
+            "send_isolated_task_plan_step_prompt",
+            { request: { taskId, planVersionId: planId, planStepId: step.id,
+              candidateId, repositoryPath } },
+          );
+          if (taskIdRef.current === taskId) {
+            setRuns((current) => [...current.filter((run) => run.id !== result.receipt.id),
+              result.receipt]);
+          }
+        } catch (reason) {
+          failures.push(`Step ${step.orderIndex + 1}: ${errorText(reason)}`);
+        } finally {
+          if (taskIdRef.current === taskId) {
+            setDispatchStates((current) => {
+              const next = { ...current };
+              delete next[step.id];
+              return next;
+            });
+          }
+        }
       }
-    } catch (reason) {
-      if (taskIdRef.current === taskId) {
-        setError(errorText(reason));
+    }
+    await Promise.all(Array.from({ length: Math.min(3, waveSteps.length) }, () => worker()));
+    if (taskIdRef.current === taskId) {
+      if (failures.length) {
+        setError(`Wave started with ${failures.length} failure(s). ${failures.join(" ")}`);
         await refresh();
       }
-    } finally {
-      if (taskIdRef.current === taskId) setLoading(false);
+    }
+    if (taskIdRef.current === taskId) {
+      setLoading(false);
+      setDispatchStates({});
     }
   }
 
@@ -131,6 +165,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
     }
   }
 
-  return { runs, nextStep, allAccepted, runBlockedReason, loading, actionRunId, cleanupWarnings, error,
-    dispatch, review, integrate, refresh };
+  return { runs, currentWave, waveSteps, nextStep, allAccepted, runBlockedReason, loading,
+    dispatchStates, actionRunId, cleanupWarnings, error, dispatch: dispatchWave,
+    review, integrate, refresh };
 }
