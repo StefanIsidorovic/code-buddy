@@ -12,6 +12,7 @@ pub mod synthesis;
 pub mod task;
 pub mod task_plan;
 pub mod task_plan_critique;
+pub mod task_worktree;
 
 use acp::AcpSessionManager;
 use session::SessionManager;

@@ -100,6 +100,14 @@
 - acceptance criteria: output is stable by plan order; dependencies unlock later waves; overlapping directory/glob scopes never share a wave; empty scopes serialize; UI does not imply concurrency is already enabled.
 - required tests: independent grouping; dependency chain; exact/directory/glob collision; missing scope; accessible execution preview; full frontend gates and diff hygiene.
 
+#### 37.5b.1. Create isolated step worktrees
+- objective: guarantee that one execution step cannot mutate the user's shared checkout.
+- status: complete pending commit.
+- files: src-tauri/src/task_worktree.rs; src-tauri/src/lib.rs; working_knowledge/current/*.
+- expected changes: create a clean-HEAD detached worktree outside the repository, switch it to a unique AIadne-owned branch, expose its repository/path/branch/base descriptor, and provide guarded internal cleanup.
+- acceptance criteria: dirty source repositories are rejected; identities cannot traverse paths or collide; isolated edits do not affect the source checkout; cleanup refuses non-AIadne paths/branches.
+- required tests: clean creation; branch/base identity; dirty rejection; duplicate identity; checkout isolation; guarded cleanup; Rust fmt/test/clippy and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.
