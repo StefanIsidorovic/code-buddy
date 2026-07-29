@@ -9,8 +9,38 @@ export function parseTaskPlanDraft(evidence: string): TaskPlanDraft | null {
   try {
     return validateDraft(JSON.parse(match[1]));
   } catch {
-    return null;
+    try {
+      return validateDraft(JSON.parse(repairStreamedJsonStrings(match[1])));
+    } catch {
+      return null;
+    }
   }
+}
+
+function repairStreamedJsonStrings(value: string) {
+  let output = "";
+  let cursor = 0;
+  while (cursor < value.length) {
+    if (value[cursor] !== "\"") {
+      output += value[cursor++];
+      continue;
+    }
+    const start = cursor++;
+    let escaped = false;
+    while (cursor < value.length) {
+      const character = value[cursor++];
+      if (character === "\"" && !escaped) break;
+      escaped = character === "\\" && !escaped;
+      if (character !== "\\") escaped = false;
+    }
+    const quoted = value.slice(start, cursor);
+    let after = cursor;
+    while (after < value.length && /\s/.test(value[after])) after += 1;
+    const isKey = value[after] === ":";
+    const replacement = isKey ? "" : " ";
+    output += quoted.replace(/\s*[\r\n]+\s*/g, replacement);
+  }
+  return output;
 }
 
 function validateDraft(value: unknown): TaskPlanDraft | null {

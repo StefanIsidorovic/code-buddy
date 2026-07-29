@@ -6,6 +6,22 @@ import type { TaskInfo, TaskPhaseArtifactInfo, TranscriptEventInfo } from "../..
 interface Options { task: TaskInfo | null; sourceEvents: TranscriptEventInfo[]; upsertTask: (task: TaskInfo) => void;
   runAgent: (taskId: string, instruction: string) => Promise<boolean>; onRunSettled: (taskId: string) => Promise<void> }
 
+export function preparePhaseResponseText(events: TranscriptEventInfo[]) {
+  return events.reduce((prepared, event) => {
+    if (!event.content) return prepared;
+    const previous = prepared[prepared.length - 1];
+    if (previous?.kind === event.kind) {
+      previous.content += event.content;
+    } else {
+      prepared.push({ kind: event.kind, content: event.content });
+    }
+    return prepared;
+  }, [] as Array<Pick<TranscriptEventInfo, "kind" | "content">>)
+    .map(({ content }) => content.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent, onRunSettled }: Options) {
   const [artifacts, setArtifacts] = useState<TaskPhaseArtifactInfo[]>([]);
   const [kind, setKind] = useState("summary"); const [content, setContent] = useState("");
@@ -32,7 +48,7 @@ export function useTaskPhaseWorkflow({ task, sourceEvents, upsertTask, runAgent,
     try { const events = await invokeCommand<TranscriptEventInfo[]>("latest_task_phase_run_response_events", { taskId });
       if (taskIdRef.current !== taskId) return; if (events.length === 0) {
         setError("Run the current phase first; no persisted linked response is available."); return; }
-      setContent(events.map(({ content: value }) => value.trim()).filter(Boolean).join("\n\n"));
+      setContent(preparePhaseResponseText(events));
       setSourceIds(events.map(({ id }) => id)); setEvidenceReviewed(false); }
     catch (reason) { if (taskIdRef.current === taskId) setError(errorText(reason)); }
     finally { if (taskIdRef.current === taskId) setLoading(false); } }

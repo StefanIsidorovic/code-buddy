@@ -14,6 +14,14 @@ describe("parseTaskPlanDraft", () => {
       .toEqual(valid);
   });
 
+  it("repairs streamed line breaks inside JSON keys and string values", () => {
+    const streamed = JSON.stringify(valid, null, 2)
+      .replace("\"acceptanceCriteria\"", "\"accept\n\nanceCriteria\"")
+      .replace("Cache remains bounded", "Cache remains\n\nbounded");
+    expect(parseTaskPlanDraft(`Planning result\n\`\`\`json\n${streamed}\n\`\`\``))
+      .toEqual(valid);
+  });
+
   it.each([
     "ordinary planning prose",
     "```json\nnot json\n```",

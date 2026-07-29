@@ -80,6 +80,23 @@ describe("TaskPlanEditor", () => {
     expect(onCreate).toHaveBeenCalledWith("artifact-1", generated);
   });
 
+  it("automatically fills from a saved streamed artifact with split JSON tokens", () => {
+    const streamed = JSON.stringify(generated, null, 2)
+      .replace("\"acceptanceCriteria\"", "\"accept\n\nanceCriteria\"")
+      .replace("\"dependsOn\"", "\"dependsOn\n\n\"");
+    render(<TaskPlanEditor sourceArtifact={artifact(`\`\`\`json\n${streamed}\n\`\`\``)}
+      versions={[]} loading={false} error={null} evaluation={null} critique={null}
+      canRunCritique={false} onCreate={vi.fn()} onEvaluate={vi.fn()}
+      onRunCritique={vi.fn()} onApplyRepairs={vi.fn()} onApprove={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Agent-generated draft");
+    expect(screen.getByLabelText("Requirement 1 text")).toHaveValue(
+      "The cache remains bounded",
+    );
+    expect(screen.getByLabelText("Step 1 acceptance criteria")).toHaveValue(
+      "Cache evicts oldest entry\nFocused tests pass",
+    );
+  });
+
   it("preserves manual edits when newer evidence arrives and restores only on request", () => {
     const common = { versions: [], loading: false, error: null, evaluation: null, critique: null,
       canRunCritique: false, onCreate: vi.fn(), onEvaluate: vi.fn(), onRunCritique: vi.fn(),

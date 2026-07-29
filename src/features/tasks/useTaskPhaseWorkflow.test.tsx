@@ -67,6 +67,21 @@ describe("useTaskPhaseWorkflow", () => {
     expect(result.current.sourceIds).toEqual(["e1", "e3"]);
     expect(result.current.content).toBe("Evidence\n\nRisk check");
   });
+  it("reassembles adjacent streamed response chunks without corrupting tokens", async () => {
+    const chunks = [
+      { ...source, id: "e4", content: "```json\n{\"accept" },
+      { ...source, id: "e5", sequence: 2, content: "anceCriteria\":[\"Pass\"]}\n```" },
+    ];
+    invoke.mockImplementation((command) => command === "latest_task_phase_run_response_events"
+      ? Promise.resolve(chunks) : Promise.resolve([]));
+    const { result } = renderHook(() => useTaskPhaseWorkflow({ task, sourceEvents: chunks,
+      upsertTask: vi.fn(), runAgent, onRunSettled }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.prepareCompletion());
+    expect(result.current.content).toBe(
+      "```json\n{\"acceptanceCriteria\":[\"Pass\"]}\n```",
+    );
+  });
   it("runs, refreshes receipts, then prepares the linked draft", async () => {
     const order: string[] = [];
     runAgent.mockImplementation(async () => { order.push("run"); return true; });
