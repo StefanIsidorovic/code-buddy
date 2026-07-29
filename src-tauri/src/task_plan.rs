@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-use crate::storage::TaskPlanVersionInfo;
+use crate::storage::{TaskPlanStepInfo, TaskPlanVersionInfo};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,6 +12,95 @@ pub struct TaskPlanFindingInfo {
     pub message: String,
     pub requirement_id: Option<String>,
     pub step_ids: Vec<String>,
+}
+
+pub fn eligible_execution_step_ids(
+    plan: &TaskPlanVersionInfo,
+    accepted_step_keys: &HashSet<String>,
+) -> Vec<String> {
+    execution_waves(plan)
+        .into_iter()
+        .find(|wave| {
+            wave.iter()
+                .any(|step| !accepted_step_keys.contains(&step_key(step.order_index)))
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|step| !accepted_step_keys.contains(&step_key(step.order_index)))
+        .map(|step| step.id.clone())
+        .collect()
+}
+
+fn execution_waves(plan: &TaskPlanVersionInfo) -> Vec<Vec<&TaskPlanStepInfo>> {
+    let mut pending = plan.steps.iter().collect::<Vec<_>>();
+    pending.sort_by_key(|step| step.order_index);
+    let mut completed = HashSet::new();
+    let mut waves = Vec::new();
+    while !pending.is_empty() {
+        let ready = pending
+            .iter()
+            .copied()
+            .filter(|step| {
+                step.depends_on
+                    .iter()
+                    .all(|dependency| completed.contains(dependency))
+            })
+            .collect::<Vec<_>>();
+        let candidates = if ready.is_empty() {
+            pending.first().copied().into_iter().collect::<Vec<_>>()
+        } else {
+            ready
+        };
+        let mut selected = Vec::new();
+        for candidate in candidates {
+            let has_declared_scope = !candidate.expected_paths.is_empty();
+            let compatible = has_declared_scope
+                && selected.iter().all(|step: &&TaskPlanStepInfo| {
+                    !step.expected_paths.is_empty()
+                        && !scopes_overlap(&step.expected_paths, &candidate.expected_paths)
+                });
+            if selected.is_empty() || compatible {
+                selected.push(candidate);
+            }
+            if !has_declared_scope && selected.len() == 1 {
+                break;
+            }
+        }
+        for step in &selected {
+            completed.insert(step_key(step.order_index));
+            pending.retain(|pending_step| pending_step.id != step.id);
+        }
+        waves.push(selected);
+    }
+    waves
+}
+
+fn step_key(order_index: i64) -> String {
+    format!("STEP-{}", order_index + 1)
+}
+
+fn scopes_overlap(left: &[String], right: &[String]) -> bool {
+    left.iter().any(|left_path| {
+        right.iter().any(|right_path| {
+            let left_prefix = scope_prefix(left_path);
+            let right_prefix = scope_prefix(right_path);
+            left_prefix.is_empty()
+                || right_prefix.is_empty()
+                || left_prefix == right_prefix
+                || left_prefix.starts_with(&format!("{right_prefix}/"))
+                || right_prefix.starts_with(&format!("{left_prefix}/"))
+        })
+    })
+}
+
+fn scope_prefix(value: &str) -> &str {
+    let value = value.trim().strip_prefix("./").unwrap_or(value.trim());
+    let wildcard = value
+        .char_indices()
+        .find(|(_, character)| matches!(character, '*' | '?' | '[' | '{'))
+        .map(|(index, _)| index)
+        .unwrap_or(value.len());
+    value[..wildcard].trim_end_matches('/')
 }
 
 pub fn evaluate(plan: &TaskPlanVersionInfo) -> (String, Vec<TaskPlanFindingInfo>) {
@@ -174,5 +263,84 @@ mod tests {
         let (verdict, findings) = evaluate(&value);
         assert_eq!(verdict, "flags");
         assert_eq!(findings[0].id, "PATH_COLLISION:src/**");
+    }
+
+    #[test]
+    fn derives_dependency_and_scope_safe_execution_eligibility() {
+        let mut value = plan();
+        value.requirements.pop();
+        value.steps[0].expected_paths = vec!["src/auth/**".into()];
+        value.steps.push(TaskPlanStepInfo {
+            id: "step-2".into(),
+            order_index: 1,
+            title: "Independent".into(),
+            description: "Change docs".into(),
+            kind: "implementation".into(),
+            complexity: 2,
+            acceptance_criteria: vec!["Pass".into()],
+            expected_paths: vec!["docs/**".into()],
+            satisfies: vec!["REQ-1".into()],
+            depends_on: vec![],
+        });
+        value.steps.push(TaskPlanStepInfo {
+            id: "step-3".into(),
+            order_index: 2,
+            title: "Overlapping".into(),
+            description: "Change auth tests".into(),
+            kind: "implementation".into(),
+            complexity: 2,
+            acceptance_criteria: vec!["Pass".into()],
+            expected_paths: vec!["src/auth/tests/**".into()],
+            satisfies: vec!["REQ-1".into()],
+            depends_on: vec![],
+        });
+        value.steps.push(TaskPlanStepInfo {
+            id: "step-4".into(),
+            order_index: 3,
+            title: "Dependent".into(),
+            description: "Use auth change".into(),
+            kind: "implementation".into(),
+            complexity: 2,
+            acceptance_criteria: vec!["Pass".into()],
+            expected_paths: vec!["src/client/**".into()],
+            satisfies: vec!["REQ-1".into()],
+            depends_on: vec!["STEP-1".into()],
+        });
+
+        assert_eq!(
+            eligible_execution_step_ids(&value, &HashSet::new()),
+            ["step-1", "step-2"]
+        );
+        assert_eq!(
+            eligible_execution_step_ids(&value, &HashSet::from(["STEP-1".into()])),
+            ["step-2"]
+        );
+        assert_eq!(
+            eligible_execution_step_ids(&value, &HashSet::from(["STEP-1".into(), "STEP-2".into()])),
+            ["step-3", "step-4"]
+        );
+    }
+
+    #[test]
+    fn serializes_missing_write_scope() {
+        let mut value = plan();
+        value.requirements.pop();
+        value.steps.push(TaskPlanStepInfo {
+            id: "step-2".into(),
+            order_index: 1,
+            title: "Scoped".into(),
+            description: "Change docs".into(),
+            kind: "implementation".into(),
+            complexity: 2,
+            acceptance_criteria: vec!["Pass".into()],
+            expected_paths: vec!["docs/**".into()],
+            satisfies: vec!["REQ-1".into()],
+            depends_on: vec![],
+        });
+
+        assert_eq!(
+            eligible_execution_step_ids(&value, &HashSet::new()),
+            ["step-1"]
+        );
     }
 }
