@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 9337160 step 37.5c.3: expose isolated step integration
+- head: c7c09c2 step 37.5d.1: route steps through isolation
 - worktree: clean before final working-knowledge synchronization
 - relevant files: deterministic waves, owned isolated ACP dispatch, provenance-backed serial Git integration and durable integration receipts
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5c.3 complete; route user-facing step dispatch through owned isolation next
+- active plan step: 37.5d.1 complete; backend-enforced wave eligibility next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5d.1 routes structured Execution through a dedicated ACP candidate in an owned worktree, replaces shared-session readiness with candidate/repository prerequisites and removes unrelated shared-session event draining; frontend audit, typecheck, 318 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5c.3 adds typed accepted-step integration UX, blocks isolated completion until durable integration, and distinguishes conflict and cleanup warning states; frontend audit, typecheck, 316 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5c.2 persists accepted-run-only pending/integrated/conflicted state, successful isolated/source SHAs and cleanup warnings behind a guarded command; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5c.1 lets AIadne commit isolated diffs, attach provenance, integrate serially after source advancement, and abort conflicts without source mutation; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.

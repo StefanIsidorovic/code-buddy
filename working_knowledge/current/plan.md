@@ -154,11 +154,21 @@
 
 #### 37.5d.1. Route Execution through owned isolated dispatch
 - objective: make the user-facing step workflow create the isolated receipts that the integration gate consumes.
-- status: planned.
+- status: complete.
+- commit: c7c09c2.
 - files: src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/useTaskStepExecution.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; src/App.tsx; related tests; working_knowledge/current/*.
 - expected changes: dispatch the next approved step with ACP candidate and registered repository identity, return executor-session ownership and isolated verification, keep the shared-checkout command as a legacy backend path, and explain when isolation prerequisites are missing.
 - acceptance criteria: normal structured Execution never mutates the shared checkout; successful UI runs carry isolation identity; missing candidate/repository blocks with actionable copy; review then integration unlocks the next step; stale Task results remain ignored.
 - required tests: isolated command payload/result; prerequisite lock; receipt identity; review/integration sequence; stale response; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 replaced shared-session dispatch with candidate/repository-owned isolation and actionable readiness, while cycle 2 removed the stale shared-session event drain and found no App ownership, stale-Task, completion-gate or shared-checkout regression.
+
+#### 37.5d.2. Persist backend wave eligibility
+- objective: make parallel-ready membership a backend-enforced execution authority instead of a frontend preview.
+- status: planned.
+- files: src-tauri/src/storage.rs; src-tauri/src/task_plan.rs; src-tauri/src/commands.rs; related tests; working_knowledge/current/*.
+- expected changes: derive dependency/scope-safe ready steps from the approved immutable plan, permit concurrent pending runs only inside the same eligible wave, reject stale or overlapping reservations, and retain serialized review/integration order.
+- acceptance criteria: backend never trusts a frontend wave number; unmet dependencies and overlapping/missing scopes serialize; independent ready steps can reserve separate owned worktrees; duplicate/open attempts fail atomically; acceptance and integration remain deterministic.
+- required tests: independent same-wave reservations; dependency block; overlap/missing-scope serialization; duplicate/stale rejection; ordered acceptance/integration compatibility; Rust fmt/test/clippy and diff hygiene.
 
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.

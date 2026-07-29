@@ -10,6 +10,7 @@
 - Backend integration primitive now creates provenance-backed AIadne commits and serially cherry-picks them; conflicts restore the original clean source HEAD and retain isolation.
 - Accepted isolated runs now persist pending/integrated/conflicted integration state; the guarded command stores successful SHAs before stopping the ACP session and cleaning the worktree, and returns cleanup warnings without erasing integrated truth.
 - Execution now exposes integration only for accepted isolated receipts, keeps the next step locked until durable integration, and shows integrated commit, retained-conflict recovery path and cleanup warning states.
+- User-facing Run step now always dispatches through `send_isolated_task_plan_step_prompt` with the selected ACP candidate and registered repository; the shared-checkout step command is backend-only legacy compatibility.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
 - Malformed or legacy prose evidence keeps the manual editor available with rerun guidance; user edits are never replaced without explicit Restore.
@@ -24,7 +25,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5d.1: route the user-facing structured-step Run action through `send_isolated_task_plan_step_prompt` using the selected ACP candidate and registered repository.
+- Begin 37.5d.2: move wave eligibility into backend reservation rules so independent approved steps may own worktrees concurrently without trusting frontend preview state.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
