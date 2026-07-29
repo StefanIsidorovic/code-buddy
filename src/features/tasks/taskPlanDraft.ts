@@ -25,21 +25,29 @@ function validateDraft(value: unknown): TaskPlanDraft | null {
   const typedRequirements = requirements.filter((item): item is NonNullable<typeof item> => !!item);
   const ids = new Set(typedRequirements.map(({ id }) => id));
   if (ids.size !== typedRequirements.length) return null;
-  const steps = value.steps.map((item) => {
+  const steps = value.steps.map((item, index) => {
+    const dependsOn = record(item) && Array.isArray(item.dependsOn) ? item.dependsOn : [];
     if (!record(item) || !text(item.title) || !text(item.description) || !text(item.kind)
       || !stepKinds.has(item.kind) || typeof item.complexity !== "number"
       || !Number.isInteger(item.complexity) || item.complexity < 1 || item.complexity > 5
       || !strings(item.acceptanceCriteria, true) || !strings(item.expectedPaths)
-      || !strings(item.satisfies)) return null;
+      || !strings(item.satisfies) || !strings(dependsOn)) return null;
     const satisfies = item.satisfies.map((entry) => entry.trim());
+    const dependencies = dependsOn.map((entry) => entry.trim().toUpperCase());
+    const validDependencies = dependencies.every((dependency) => {
+      const order = Number(dependency.replace(/^STEP-/, ""));
+      return /^STEP-\d+$/.test(dependency) && order > 0 && order <= index;
+    });
     if (satisfies.some((id) => !ids.has(id))
-      || item.kind !== "infrastructure" && satisfies.length === 0) return null;
+      || item.kind !== "infrastructure" && satisfies.length === 0
+      || !validDependencies) return null;
     return {
       title: item.title.trim(), description: item.description.trim(), kind: item.kind,
       complexity: item.complexity,
       acceptanceCriteria: item.acceptanceCriteria.map((entry) => entry.trim()),
       expectedPaths: item.expectedPaths.map((entry) => entry.trim()),
       satisfies,
+      dependsOn: dependencies,
     };
   });
   if (steps.some((item) => !item)) return null;

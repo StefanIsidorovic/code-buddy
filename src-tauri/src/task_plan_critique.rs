@@ -250,6 +250,7 @@ pub fn repair_draft(
             acceptance_criteria: item.acceptance_criteria.clone(),
             expected_paths: item.expected_paths.clone(),
             satisfies: item.satisfies.clone(),
+            depends_on: item.depends_on.clone(),
         })
         .collect::<Vec<_>>();
     for repair in issues.iter().flat_map(|issue| &issue.repairs) {
@@ -271,6 +272,7 @@ pub fn repair_draft(
                     acceptance_criteria: acceptance_criteria.clone(),
                     expected_paths: expected_paths.clone(),
                     satisfies: satisfies.clone(),
+                    depends_on: Vec::new(),
                 });
             }
             TaskPlanRepair::SetStepExpectedPaths {
@@ -347,6 +349,7 @@ mod tests {
                 acceptance_criteria: vec!["Duplicate work is rejected".into()],
                 expected_paths: vec!["src/retry.rs".into()],
                 satisfies: vec!["REQ-1".into()],
+                depends_on: vec![],
             }],
         }
     }

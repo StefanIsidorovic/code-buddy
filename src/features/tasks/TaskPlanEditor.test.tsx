@@ -12,7 +12,7 @@ const generated = {
   steps: [{ title: "Bound the cache", description: "Implement deterministic eviction",
     kind: "implementation", complexity: 2,
     acceptanceCriteria: ["Cache evicts oldest entry", "Focused tests pass"],
-    expectedPaths: ["src/cache.ts"], satisfies: ["REQ-1"] }],
+    expectedPaths: ["src/cache.ts"], satisfies: ["REQ-1"], dependsOn: [] }],
 };
 const evidence = () => artifact(`Summary\n\`\`\`json\n${JSON.stringify(generated)}\n\`\`\``);
 
@@ -43,7 +43,7 @@ describe("TaskPlanEditor", () => {
         title: "Bound the cache", description: "Implement deterministic eviction",
         kind: "implementation", complexity: 2,
         acceptanceCriteria: ["Cache evicts oldest entry", "Focused tests pass"],
-        expectedPaths: [], satisfies: ["REQ-1"],
+        expectedPaths: [], satisfies: ["REQ-1"], dependsOn: [],
       }],
     });
   });
@@ -55,7 +55,7 @@ describe("TaskPlanEditor", () => {
       requirements: [{ id: "REQ-1", text: "Bounded", kind: "functional", orderIndex: 0 }],
       steps: [{ id: "step-1", orderIndex: 0, title: "Bound cache", description: "Add eviction",
         kind: "implementation", complexity: 2, acceptanceCriteria: ["Pass"],
-        expectedPaths: ["src/**"], satisfies: ["REQ-1"] }],
+        expectedPaths: ["src/**"], satisfies: ["REQ-1"], dependsOn: [] }],
     } as TaskPlanVersionInfo;
     render(<TaskPlanEditor sourceArtifact={artifact()} versions={[approved]} loading={false}
       error={null} evaluation={null} critique={null} canRunCritique={false}

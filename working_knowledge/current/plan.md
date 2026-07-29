@@ -84,6 +84,14 @@
 - expected changes: derive runnable waves only from explicit dependencies and non-overlapping write scopes; run every step in its own Git worktree/branch; integrate completed wave results serially and revalidate after merge.
 - acceptance criteria: shared-worktree parallel writes are impossible; ambiguous dependencies or overlapping scopes force serialization; conflicts never auto-resolve; downstream steps consume only integrated upstream commits.
 
+#### 37.5a.1. Persist explicit step dependencies
+- objective: give immutable plan steps a validated dependency graph before any parallel scheduler exists.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; src-tauri/src/task_plan.rs; src-tauri/src/task_plan_critique.rs; src-tauri/src/commands.rs; src/types/domain.ts; src/features/tasks/taskPlanDraft.ts; src/features/tasks/taskPhaseExecution.ts; src/features/tasks/TaskPlanEditor.tsx; related tests.
+- expected changes: persist `dependsOn` step keys, reject unknown/self/forward dependencies, migrate legacy rows to empty dependencies, and preserve links through critique-derived versions.
+- acceptance criteria: dependencies round-trip immutably; invalid graphs fail atomically; generated and manual drafts can declare earlier step keys; existing plans remain readable.
+- required tests: storage validation/round-trip; migration default; parser/editor payload; Rust/frontend gates and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.

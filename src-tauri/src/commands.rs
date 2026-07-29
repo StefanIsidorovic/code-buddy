@@ -1583,6 +1583,7 @@ mod tests {
             acceptance_criteria: vec!["Unauthorized requests are rejected".into()],
             expected_paths: vec!["src/auth.ts".into()],
             satisfies: vec!["REQ-AUTH".into()],
+            depends_on: vec![],
         };
 
         let instruction = task_plan_step_instruction(&task, &plan, &step);
@@ -1695,6 +1696,7 @@ mod tests {
                             acceptance_criteria: vec!["Focused check passes".into()],
                             expected_paths: vec!["src/bounded.rs".into()],
                             satisfies: vec!["REQ-1".into()],
+                            depends_on: vec![],
                         },
                         TaskPlanStepInput {
                             title: "Verify bounded change".into(),
@@ -1704,6 +1706,7 @@ mod tests {
                             acceptance_criteria: vec!["Verification is recorded".into()],
                             expected_paths: vec![],
                             satisfies: vec![],
+                            depends_on: vec!["STEP-1".into()],
                         },
                     ],
                 })

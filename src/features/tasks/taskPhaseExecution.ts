@@ -9,8 +9,8 @@ const phaseBoundaries: Record<TaskPhaseInfo["phase"], string> = {
 };
 
 const planningOutputContract = `End the planning result with exactly one \`\`\`json fenced object:
-{"requirements":[{"id":"REQ-1","text":"one testable assertion","kind":"functional|constraint|non_functional|out_of_scope"}],"steps":[{"title":"verb-first title","description":"what changes","kind":"implementation|infrastructure","complexity":1,"acceptanceCriteria":["observable result"],"expectedPaths":["relative/path"],"satisfies":["REQ-1"]}]}
-Use complexity integers 1-5. Every implementation step must satisfy at least one declared requirement. Do not omit arrays.`;
+{"requirements":[{"id":"REQ-1","text":"one testable assertion","kind":"functional|constraint|non_functional|out_of_scope"}],"steps":[{"title":"verb-first title","description":"what changes","kind":"implementation|infrastructure","complexity":1,"acceptanceCriteria":["observable result"],"expectedPaths":["relative/path"],"satisfies":["REQ-1"],"dependsOn":[]}]}
+Use complexity integers 1-5. Dependencies use earlier keys such as STEP-1. Every implementation step must satisfy at least one declared requirement. Do not omit arrays.`;
 
 export function buildTaskPhaseExecutionPrompt(task: TaskInfo) {
   return [

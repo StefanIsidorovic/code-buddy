@@ -426,6 +426,7 @@ export type TaskPlanStepInfo = {
   acceptanceCriteria: string[];
   expectedPaths: string[];
   satisfies: string[];
+  dependsOn: string[];
 };
 
 export type TaskPlanVersionInfo = {
@@ -443,7 +444,8 @@ export type TaskPlanVersionInfo = {
 export type TaskPlanDraft = {
   requirements: Array<{ id: string; text: string; kind: string }>;
   steps: Array<{ title: string; description: string; kind: string; complexity: number;
-    acceptanceCriteria: string[]; expectedPaths: string[]; satisfies: string[] }>;
+    acceptanceCriteria: string[]; expectedPaths: string[]; satisfies: string[];
+    dependsOn?: string[] }>;
 };
 
 export type TaskPlanFindingInfo = {

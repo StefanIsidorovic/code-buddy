@@ -369,6 +369,8 @@ pub struct TaskPlanStepInput {
     pub acceptance_criteria: Vec<String>,
     pub expected_paths: Vec<String>,
     pub satisfies: Vec<String>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -415,6 +417,7 @@ pub struct TaskPlanStepInfo {
     pub acceptance_criteria: Vec<String>,
     pub expected_paths: Vec<String>,
     pub satisfies: Vec<String>,
+    pub depends_on: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -2329,18 +2332,26 @@ impl ProjectStore {
             let expected_paths = normalized_non_empty(item.expected_paths);
             let satisfies = normalized_non_empty(item.satisfies)
                 .into_iter().map(|id| id.to_uppercase()).collect::<Vec<_>>();
+            let depends_on = normalized_non_empty(item.depends_on)
+                .into_iter().map(|id| id.to_uppercase()).collect::<Vec<_>>();
+            let valid_dependencies = depends_on.iter().all(|dependency| {
+                dependency.strip_prefix("STEP-")
+                    .and_then(|value| value.parse::<usize>().ok())
+                    .is_some_and(|order| order > 0 && order <= index)
+            });
             if title.is_empty() || description.is_empty()
                 || !matches!(kind.as_str(), "implementation" | "infrastructure")
                 || !(1..=5).contains(&item.complexity)
                 || acceptance_criteria.is_empty()
                 || kind == "implementation" && satisfies.is_empty()
-                || satisfies.iter().any(|id| !declared_ids.contains(id)) {
+                || satisfies.iter().any(|id| !declared_ids.contains(id))
+                || !valid_dependencies {
                 return Err(AppError::InvalidInput(
                     "steps need title, description, complexity 1-5, criteria, and valid requirement links".into(),
                 ));
             }
             Ok((index as i64, title, description, kind, item.complexity,
-                acceptance_criteria, expected_paths, satisfies))
+                acceptance_criteria, expected_paths, satisfies, depends_on))
         }).collect::<AppResult<Vec<_>>>()?;
 
         let mut connection = self.connection()?;
@@ -2408,13 +2419,15 @@ impl ProjectStore {
                 )
                 .map_err(storage_error)?;
         }
-        for (order, title, description, kind, complexity, criteria, paths, satisfies) in steps {
+        for (order, title, description, kind, complexity, criteria, paths, satisfies, depends_on) in
+            steps
+        {
             transaction
                 .execute(
                     "INSERT INTO task_plan_steps
                  (id, plan_version_id, order_index, title, description, kind, complexity,
-                  acceptance_criteria_json, expected_paths_json, satisfies_json)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                  acceptance_criteria_json, expected_paths_json, satisfies_json, depends_on_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                     params![
                         Uuid::new_v4().to_string(),
                         id,
@@ -2425,7 +2438,8 @@ impl ProjectStore {
                         complexity,
                         json_string_list(&criteria)?,
                         json_string_list(&paths)?,
-                        json_string_list(&satisfies)?
+                        json_string_list(&satisfies)?,
+                        json_string_list(&depends_on)?
                     ],
                 )
                 .map_err(storage_error)?;
@@ -2823,7 +2837,7 @@ impl ProjectStore {
         let mut steps = connection
             .prepare(
                 "SELECT id, order_index, title, description, kind, complexity,
-                    acceptance_criteria_json, expected_paths_json, satisfies_json
+                    acceptance_criteria_json, expected_paths_json, satisfies_json, depends_on_json
              FROM task_plan_steps WHERE plan_version_id = ?1 ORDER BY order_index ASC",
             )
             .map_err(storage_error)?;
@@ -2839,6 +2853,7 @@ impl ProjectStore {
                     acceptance_criteria: json_string_list_from_row(row, 6)?,
                     expected_paths: json_string_list_from_row(row, 7)?,
                     satisfies: json_string_list_from_row(row, 8)?,
+                    depends_on: json_string_list_from_row(row, 9)?,
                 })
             })
             .map_err(storage_error)?
@@ -4898,6 +4913,7 @@ impl ProjectStore {
                     acceptance_criteria_json TEXT NOT NULL,
                     expected_paths_json TEXT NOT NULL,
                     satisfies_json TEXT NOT NULL,
+                    depends_on_json TEXT NOT NULL DEFAULT '[]',
                     UNIQUE(plan_version_id, order_index)
                 );
 
@@ -5084,6 +5100,12 @@ impl ProjectStore {
             .map_err(storage_error)?;
 
         let connection = self.connection()?;
+        ensure_table_column(
+            &connection,
+            "task_plan_steps",
+            "depends_on_json",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
         ensure_table_column(
             &connection,
             "project_initialization_summaries",
@@ -8968,12 +8990,49 @@ mod tests {
                 acceptance_criteria: vec!["Focused tests pass".into()],
                 expected_paths: vec!["src/**".into()],
                 satisfies: vec!["req-1".into()],
+                depends_on: vec![],
             }],
         };
         let first = store
             .create_task_plan_version(request)
             .expect("first version created");
         let second = store
+            .create_task_plan_version(CreateTaskPlanVersionRequest {
+                task_id: task.id.clone(),
+                source_artifact_id: artifact.id.clone(),
+                requirements: vec![TaskPlanRequirementInput {
+                    id: "REQ-1".into(),
+                    text: "The behavior is implemented safely".into(),
+                    kind: "functional".into(),
+                }],
+                steps: vec![
+                    TaskPlanStepInput {
+                        title: "Implement and verify behavior".into(),
+                        description: "Change only the module".into(),
+                        kind: "implementation".into(),
+                        complexity: 3,
+                        acceptance_criteria: vec![
+                            "Focused tests pass".into(),
+                            "No unrelated diff".into(),
+                        ],
+                        expected_paths: vec!["src/**".into()],
+                        satisfies: vec!["REQ-1".into()],
+                        depends_on: vec![],
+                    },
+                    TaskPlanStepInput {
+                        title: "Verify behavior".into(),
+                        description: "Run focused checks".into(),
+                        kind: "infrastructure".into(),
+                        complexity: 1,
+                        acceptance_criteria: vec!["Checks pass".into()],
+                        expected_paths: vec![],
+                        satisfies: vec![],
+                        depends_on: vec!["STEP-1".into()],
+                    },
+                ],
+            })
+            .expect("second version created");
+        let invalid_dependency = store
             .create_task_plan_version(CreateTaskPlanVersionRequest {
                 task_id: task.id.clone(),
                 source_artifact_id: artifact.id,
@@ -8983,22 +9042,22 @@ mod tests {
                     kind: "functional".into(),
                 }],
                 steps: vec![TaskPlanStepInput {
-                    title: "Implement and verify behavior".into(),
-                    description: "Change only the module".into(),
+                    title: "Invalid first step".into(),
+                    description: "Cannot depend on itself".into(),
                     kind: "implementation".into(),
-                    complexity: 3,
-                    acceptance_criteria: vec![
-                        "Focused tests pass".into(),
-                        "No unrelated diff".into(),
-                    ],
-                    expected_paths: vec!["src/**".into()],
+                    complexity: 1,
+                    acceptance_criteria: vec!["Rejected atomically".into()],
+                    expected_paths: vec![],
                     satisfies: vec!["REQ-1".into()],
+                    depends_on: vec!["STEP-1".into()],
                 }],
             })
-            .expect("second version created");
+            .expect_err("self and forward dependencies rejected");
+        assert!(matches!(invalid_dependency, AppError::InvalidInput(_)));
         assert_eq!(first.version, 1);
         assert_eq!(second.version, 2);
         assert_eq!(first.requirements[0].id, "REQ-1");
+        assert_eq!(second.steps[1].depends_on, vec!["STEP-1"]);
         assert_eq!(second.steps[0].complexity, 3);
         let blocked_evaluation = store
             .evaluate_task_plan(EvaluateTaskPlanRequest {
@@ -9167,6 +9226,7 @@ mod tests {
                         acceptance_criteria: vec!["Done".into()],
                         expected_paths: vec![],
                         satisfies: vec!["REQ-1".into()],
+                        depends_on: vec![],
                     }],
                 })
                 .is_err(),
@@ -9228,6 +9288,7 @@ mod tests {
                 acceptance_criteria: vec!["Done".into()],
                 expected_paths: vec![],
                 satisfies: vec!["REQ-2".into()],
+                depends_on: vec![],
             }],
         });
         assert!(matches!(invalid, Err(AppError::InvalidInput(_))));
@@ -9762,6 +9823,7 @@ mod tests {
                             acceptance_criteria: vec!["Focused verification passes".into()],
                             expected_paths: vec![],
                             satisfies: vec!["REQ-1".into()],
+                            depends_on: vec![],
                         }],
                     })
                     .expect("structured plan created");

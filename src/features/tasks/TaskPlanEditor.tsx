@@ -7,7 +7,7 @@ import { parseTaskPlanDraft } from "./taskPlanDraft";
 
 type RequirementDraft = { id: string; text: string; kind: string };
 type StepDraft = { title: string; description: string; kind: string; complexity: number;
-  criteria: string; paths: string; satisfies: string };
+  criteria: string; paths: string; satisfies: string; dependsOn: string };
 interface Props {
   sourceArtifact: TaskPhaseArtifactInfo | null;
   versions: TaskPlanVersionInfo[];
@@ -26,7 +26,7 @@ interface Props {
 const requirement = (index: number): RequirementDraft =>
   ({ id: `REQ-${index + 1}`, text: "", kind: "functional" });
 const step = (): StepDraft => ({ title: "", description: "", kind: "implementation",
-  complexity: 2, criteria: "", paths: "", satisfies: "REQ-1" });
+  complexity: 2, criteria: "", paths: "", satisfies: "REQ-1", dependsOn: "" });
 const lines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
 const commaList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 const editRequirements = (draft: TaskPlanDraft): RequirementDraft[] =>
@@ -35,6 +35,7 @@ const editSteps = (draft: TaskPlanDraft): StepDraft[] => draft.steps.map((item) 
   title: item.title, description: item.description, kind: item.kind, complexity: item.complexity,
   criteria: item.acceptanceCriteria.join("\n"), paths: item.expectedPaths.join(", "),
   satisfies: item.satisfies.join(", "),
+  dependsOn: (item.dependsOn ?? []).join(", "),
 }));
 
 export function TaskPlanEditor({ sourceArtifact, versions, loading, error, evaluation, critique,
@@ -74,6 +75,7 @@ export function TaskPlanEditor({ sourceArtifact, versions, loading, error, evalu
     <ol className="task-plan-approved-steps">{approved.steps.map((item) => <li key={item.id}>
       <strong>{item.orderIndex + 1}. {item.title}</strong>
       <span>complexity {item.complexity} · satisfies {item.satisfies.join(", ") || "infrastructure"}</span>
+      <span>depends on {item.dependsOn.join(", ") || "no earlier step"}</span>
       <p>{item.description}</p>
     </li>)}</ol>
   </section>;
@@ -137,6 +139,9 @@ export function TaskPlanEditor({ sourceArtifact, versions, loading, error, evalu
         <input aria-label={`Step ${index + 1} requirements`} value={item.satisfies}
           placeholder="Requirement IDs, comma separated"
           onChange={(event) => updateStep(index, { satisfies: event.target.value })} />
+        <input aria-label={`Step ${index + 1} dependencies`} value={item.dependsOn}
+          placeholder="Earlier step keys, e.g. STEP-1"
+          onChange={(event) => updateStep(index, { dependsOn: event.target.value })} />
         {steps.length > 1 ? <button type="button" onClick={() => {
           setDirty(true); setGenerated(false);
           setSteps((current) => current.filter((_, itemIndex) => itemIndex !== index));
@@ -152,6 +157,7 @@ export function TaskPlanEditor({ sourceArtifact, versions, loading, error, evalu
         title: item.title, description: item.description, kind: item.kind, complexity: item.complexity,
         acceptanceCriteria: lines(item.criteria), expectedPaths: commaList(item.paths),
         satisfies: commaList(item.satisfies),
+        dependsOn: commaList(item.dependsOn),
       })) });
     }}>Save new plan version</button>
     {!sourceArtifact ? <small className="task-helper-card">Save planning evidence before creating

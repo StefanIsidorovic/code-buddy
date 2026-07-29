@@ -139,6 +139,7 @@ mod tests {
                 acceptance_criteria: vec!["Pass".into()],
                 expected_paths: vec![],
                 satisfies: vec!["REQ-1".into()],
+                depends_on: vec![],
             }],
         }
     }
@@ -168,6 +169,7 @@ mod tests {
             acceptance_criteria: vec!["Pass".into()],
             expected_paths: vec!["src/**".into()],
             satisfies: vec!["REQ-1".into()],
+            depends_on: vec![],
         });
         let (verdict, findings) = evaluate(&value);
         assert_eq!(verdict, "flags");
