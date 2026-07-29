@@ -18,6 +18,7 @@
 - Backend command `run_task_wave_evaluation` starts a snapshot-isolated reviewer only for the current settled execution wave and binds its prompt to exact persisted run evidence, approved plan identity and a repository owned by the Task project.
 - Execution automatically invokes that evaluator after all workers launched by one wave settle, shows its immutable recommendation, preserves manual review on failure with explicit retry, and ignores results from a previously selected Task.
 - Structured evaluator output now becomes a per-run review queue linked to exact steps; unknown or duplicate claims are dropped, displayed evidence comes from persisted receipts, and objective blockers cannot be downgraded to pass by the model.
+- Guarded autopilot is an explicit Task-local opt-in: it serially accepts and integrates only grounded safe passes, locks competing manual review while active, resets on Task switch and stops before the next run on the first failure.
 - Planning evidence now reconstructs same-kind streamed chunks exactly, and the strict plan parser can recover already-saved fenced JSON with drain-inserted line breaks; the observed Formily artifact auto-fills after UI reload.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
@@ -33,7 +34,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Define the explicit autopilot review/integration policy: which grounded pass cases may be batch-acknowledged, which always require a user gate, and how authority and rollback remain visible.
+- Run end-to-end recovery scenarios and a direct current Claude Buddy comparison, then close or split the remaining parity gaps with evidence instead of a percentage estimate.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
@@ -46,4 +47,4 @@
 - Wave preview is derived information, not durable execution authority; backend dispatch remains intentionally serial.
 - Tier labels are requirements, not concrete ACP model IDs, until adapters expose a mapping.
 - Preserve the explicit Accept/Reject gate when adding autopilot; automation needs separately visible authority.
-- The review queue is advisory; no verdict currently writes review state or starts integration.
+- Autopilot does not launch later waves or complete Task phases automatically; its current authority is limited to review and integration of the freshly settled wave after explicit opt-in.

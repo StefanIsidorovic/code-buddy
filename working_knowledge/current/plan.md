@@ -235,6 +235,14 @@
 - acceptance criteria: malformed, unknown and duplicate claims are dropped; model evidence cannot replace repository facts; queue ordering prioritizes attention; raw response remains inspectable; Accept/Reject and integration remain explicit.
 - review status: passed after 2 cycles; cycle 1 established the structured grounded queue, while cycle 2 removed model-authored evidence authority and prevented false-pass recommendations from hiding persisted blockers.
 
+#### 37.5e.3. Add explicit guarded review and integration autopilot
+- objective: remove repetitive safe review/integration clicks without allowing model recommendations to mutate repository state by default.
+- status: complete.
+- commit: 5bd581e.
+- result: a Task-local opt-in accepts only grounded pass runs whose persisted receipt is sent, error-free, within scope and verifiable, then integrates them serially; attention and unavailable cases remain manual.
+- acceptance criteria: default is manual; Task switch resets authority; review precedes integration; manual competing actions lock while running; first failure stops before the next run and refreshes durable state; no needs-attention or repository blocker can be auto-accepted.
+- review status: passed after 3 cycles; cycle 1 implemented pure eligibility plus explicit opt-in, cycle 2 locked manual/autopilot races and proved stop-on-first-failure, and cycle 3 extracted orchestration into a dedicated hook to restore frontend architecture limits.
+
 #### 37.4g.1. Repair streamed planning auto-fill
 - objective: preserve structured planning JSON across periodic ACP drains and recover already-saved artifacts corrupted at chunk boundaries.
 - status: complete.
