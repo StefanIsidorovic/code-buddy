@@ -6,6 +6,7 @@
 - The execution panel exposes wave membership and rationale, while explicitly retaining serial runs until isolation/integration is implemented.
 - Backend now has a tested internal primitive for clean-HEAD AIadne branch/worktree creation, rollback and guarded cleanup; it is not yet exposed as a command or connected to ACP dispatch.
 - Step-run receipts now persist one optional write-once isolation descriptor and reject repository verification from any other workspace.
+- Backend command `send_isolated_task_plan_step_prompt` now starts a dedicated ACP candidate in that worktree, records ownership before prompt send, and verifies the exact isolated cwd.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
 - Malformed or legacy prose evidence keeps the manual editor available with rerun guidance; user edits are never replaced without explicit Restore.
@@ -20,7 +21,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5b.3: create a dedicated ACP session in the prepared worktree, record ownership before prompt dispatch, and cleanly fail/retain recovery state when startup or send fails.
+- Begin 37.5c: commit accepted isolated worktree changes with provenance, integrate them serially into the source branch, stop/cleanup the executor, and block conflicts without auto-resolution.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.

@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 7654484 step 37.5b.2: persist isolated step ownership
+- head: 726b06e step 37.5b.3: dispatch owned isolated steps
 - worktree: clean before final working-knowledge synchronization
-- relevant files: deterministic waves, isolated Git lifecycle and durable per-attempt worktree ownership
+- relevant files: deterministic waves, durable worktree ownership and dedicated isolated ACP step dispatch
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5b.2 complete; owned isolated ACP session dispatch next
+- active plan step: 37.5b.3 complete; isolated result integration next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5b.3 starts a dedicated ACP session in an owned worktree, persists ownership before prompt send, and applies pre-send rollback/prompt-failure recovery policy; Rust fmt, 139 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5b.2 persists write-once isolation descriptors on step attempts and binds verification to the exact worktree; Rust fmt, 139 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5b.1 creates clean-HEAD AIadne-owned step worktrees with guarded rollback/cleanup and proves source-checkout isolation; Rust fmt, 139 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5a.2 derives stable dependency/scope-safe execution waves and exposes a non-executing safety preview; frontend audit, typecheck, 312 frontend tests, production build and diff hygiene pass.
