@@ -3535,21 +3535,59 @@ impl ProjectStore {
             ));
         };
 
-        let next_order: Option<i64> = transaction
-            .query_row(
-                "SELECT MIN(steps.order_index) FROM task_plan_steps steps
-                 WHERE steps.plan_version_id = ?1
-                   AND NOT EXISTS (
-                     SELECT 1 FROM task_plan_step_runs runs
-                     WHERE runs.plan_step_id = steps.id AND runs.status = 'accepted'
-                   )",
-                [plan_id],
-                |row| row.get(0),
-            )
-            .map_err(storage_error)?;
-        if next_order != Some(step_order_index) {
+        let plan_steps = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT id, order_index, title, description, kind, complexity,
+                            acceptance_criteria_json, expected_paths_json, satisfies_json,
+                            depends_on_json
+                     FROM task_plan_steps
+                     WHERE plan_version_id = ?1
+                     ORDER BY order_index ASC",
+                )
+                .map_err(storage_error)?;
+            let steps = statement
+                .query_map([plan_id], |row| {
+                    Ok(TaskPlanStepInfo {
+                        id: row.get(0)?,
+                        order_index: row.get(1)?,
+                        title: row.get(2)?,
+                        description: row.get(3)?,
+                        kind: row.get(4)?,
+                        complexity: row.get(5)?,
+                        acceptance_criteria: json_string_list_from_row(row, 6)?,
+                        expected_paths: json_string_list_from_row(row, 7)?,
+                        satisfies: json_string_list_from_row(row, 8)?,
+                        depends_on: json_string_list_from_row(row, 9)?,
+                    })
+                })
+                .map_err(storage_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?;
+            steps
+        };
+        let accepted_step_keys = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT DISTINCT runs.step_order_index
+                     FROM task_plan_step_runs runs
+                     WHERE runs.task_id = ?1 AND runs.plan_version_id = ?2
+                       AND runs.status = 'accepted'",
+                )
+                .map_err(storage_error)?;
+            let keys = statement
+                .query_map(params![task_id, plan_id], |row| row.get::<_, i64>(0))
+                .map_err(storage_error)?
+                .map(|order| order.map(|value| format!("STEP-{}", value + 1)))
+                .collect::<Result<HashSet<_>, _>>()
+                .map_err(storage_error)?;
+            keys
+        };
+        let eligible_step_ids =
+            task_plan::eligible_execution_step_ids(&plan_steps, &accepted_step_keys);
+        if !eligible_step_ids.iter().any(|id| id == step_id) {
             return Err(AppError::InvalidInput(
-                "only the next unaccepted approved plan step may run".into(),
+                "the selected plan step is not eligible in the current execution wave".into(),
             ));
         }
         let pending_exists: bool = transaction
@@ -10377,15 +10415,24 @@ mod tests {
                 instruction: "Duplicate open run".into(),
             })
             .is_err());
-        assert!(store
+        let parallel_second = store
             .begin_task_plan_step_run(CreateTaskPlanStepRunRequest {
                 task_id: task.id.clone(),
                 plan_version_id: plan_id.clone(),
                 plan_step_id: second_step_id.clone(),
                 acp_session_id: "acp-2".into(),
-                instruction: "Skip ahead".into(),
+                instruction: "Run independent step in the same wave".into(),
             })
-            .is_err());
+            .expect("independent same-wave step begins");
+        assert_eq!(parallel_second.attempt, 1);
+        store
+            .finalize_task_plan_step_run(
+                &parallel_second.id,
+                "failed",
+                None,
+                Some("parallel worker offline"),
+            )
+            .expect("parallel failure remains retryable");
         store
             .finalize_task_plan_step_run(&first.id, "failed", None, Some("offline"))
             .expect("failure remains retryable");
@@ -10526,6 +10573,7 @@ mod tests {
                 instruction: "Run only step two".into(),
             })
             .expect("second step now begins");
+        assert_eq!(second.attempt, 2);
         assert_eq!(second.step_order_index, 1);
         assert_eq!(second.model_tier, "high");
         assert!(store
@@ -10587,14 +10635,14 @@ mod tests {
                 instruction: "Retry only step two within scope".into(),
             })
             .expect("rejected run is retryable");
-        assert_eq!(second_retry.attempt, 2);
+        assert_eq!(second_retry.attempt, 3);
         let runs = store
             .list_task_plan_step_runs(&task.id)
             .expect("step runs listed");
-        assert_eq!(runs.len(), 4);
+        assert_eq!(runs.len(), 5);
         assert_eq!(
             runs.iter().map(|run| run.attempt).collect::<Vec<_>>(),
-            vec![1, 2, 1, 2]
+            vec![1, 2, 1, 2, 3]
         );
     }
 

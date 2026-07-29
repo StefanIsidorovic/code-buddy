@@ -15,10 +15,10 @@ pub struct TaskPlanFindingInfo {
 }
 
 pub fn eligible_execution_step_ids(
-    plan: &TaskPlanVersionInfo,
+    steps: &[TaskPlanStepInfo],
     accepted_step_keys: &HashSet<String>,
 ) -> Vec<String> {
-    execution_waves(plan)
+    execution_waves(steps)
         .into_iter()
         .find(|wave| {
             wave.iter()
@@ -31,8 +31,8 @@ pub fn eligible_execution_step_ids(
         .collect()
 }
 
-fn execution_waves(plan: &TaskPlanVersionInfo) -> Vec<Vec<&TaskPlanStepInfo>> {
-    let mut pending = plan.steps.iter().collect::<Vec<_>>();
+fn execution_waves(steps: &[TaskPlanStepInfo]) -> Vec<Vec<&TaskPlanStepInfo>> {
+    let mut pending = steps.iter().collect::<Vec<_>>();
     pending.sort_by_key(|step| step.order_index);
     let mut completed = HashSet::new();
     let mut waves = Vec::new();
@@ -308,15 +308,18 @@ mod tests {
         });
 
         assert_eq!(
-            eligible_execution_step_ids(&value, &HashSet::new()),
+            eligible_execution_step_ids(&value.steps, &HashSet::new()),
             ["step-1", "step-2"]
         );
         assert_eq!(
-            eligible_execution_step_ids(&value, &HashSet::from(["STEP-1".into()])),
+            eligible_execution_step_ids(&value.steps, &HashSet::from(["STEP-1".into()])),
             ["step-2"]
         );
         assert_eq!(
-            eligible_execution_step_ids(&value, &HashSet::from(["STEP-1".into(), "STEP-2".into()])),
+            eligible_execution_step_ids(
+                &value.steps,
+                &HashSet::from(["STEP-1".into(), "STEP-2".into()])
+            ),
             ["step-3", "step-4"]
         );
     }
@@ -339,7 +342,7 @@ mod tests {
         });
 
         assert_eq!(
-            eligible_execution_step_ids(&value, &HashSet::new()),
+            eligible_execution_step_ids(&value.steps, &HashSet::new()),
             ["step-1"]
         );
     }
