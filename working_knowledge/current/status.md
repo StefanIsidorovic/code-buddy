@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: aa4c123 step 37.5c.1: integrate isolated step commits
+- head: b36e854 step 37.5c.2: persist isolated integration state
 - worktree: clean before final working-knowledge synchronization
-- relevant files: deterministic waves, owned isolated ACP dispatch and provenance-backed serial Git integration
+- relevant files: deterministic waves, owned isolated ACP dispatch, provenance-backed serial Git integration and durable integration receipts
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5c.1 complete; durable integration orchestration/status next
+- active plan step: 37.5c.2 complete; reviewed-step integration UX next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5c.2 persists accepted-run-only pending/integrated/conflicted state, successful isolated/source SHAs and cleanup warnings behind a guarded command; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5c.1 lets AIadne commit isolated diffs, attach provenance, integrate serially after source advancement, and abort conflicts without source mutation; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5b.3 starts a dedicated ACP session in an owned worktree, persists ownership before prompt send, and applies pre-send rollback/prompt-failure recovery policy; Rust fmt, 139 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5b.2 persists write-once isolation descriptors on step attempts and binds verification to the exact worktree; Rust fmt, 139 Rust tests, clippy with warnings denied and diff hygiene pass.

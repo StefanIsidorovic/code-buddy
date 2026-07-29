@@ -132,6 +132,24 @@
 - acceptance criteria: agent-created commits are rejected; empty changes are rejected; source advancement with non-overlapping changes integrates; conflicts restore the original clean source HEAD; both successful SHAs are returned and the source commit has provenance.
 - required tests: successful integration after source advancement; provenance note; empty diff; precommitted worktree; conflict abort and retained isolation; Rust fmt/test/clippy and diff hygiene.
 
+#### 37.5c.2. Persist and guard isolated integration
+- objective: make integration outcome durable before releasing the ACP session and owned worktree.
+- status: complete.
+- commit: b36e854.
+- files: src-tauri/src/storage.rs; src-tauri/src/commands.rs; src-tauri/src/lib.rs; related storage tests; working_knowledge/current/*.
+- expected changes: persist pending/integrated/conflicted integration state and both successful SHAs, expose one accepted-run-only command, retain isolation after integration failure, and cleanup only after integrated state is durable.
+- acceptance criteria: only an accepted isolated run can begin once; malformed results are rejected; a Git failure becomes durable conflicted state; success stores both SHAs before cleanup; cleanup failure is reported without rolling back integrated truth.
+- required tests: durable transition validation and SHA round-trip; existing success/conflict Git integration suite; command registration; Rust fmt/test/clippy and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 preserved durable success across cleanup failure and retained isolation on Git failure, while cycle 2 added strict commit-SHA validation and found no schema, migration, source-cleanliness or command-registration regression.
+
+#### 37.5c.3. Expose reviewed-step integration in Execution
+- objective: let the user integrate an accepted isolated step with an understandable status and recovery path.
+- status: planned.
+- files: src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/useTaskStepExecution.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; related tests; working_knowledge/current/*.
+- expected changes: add typed integration fields and gateway command, show Integrate only for accepted isolated runs, surface pending/integrated/conflicted and cleanup-warning states, refresh receipts after completion, and preserve serial execution authority.
+- acceptance criteria: no integration action appears for shared-checkout or unaccepted runs; duplicate clicks are locked; success exposes the integrated commit; conflict remains visible and recoverable; cleanup warning does not mislabel Git integration as failed.
+- required tests: gateway contract; button visibility/locking; success/conflict/cleanup-warning presentation; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.
