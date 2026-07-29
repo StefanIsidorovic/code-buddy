@@ -82,6 +82,7 @@ pub fn run() {
             commands::run_task_plan_critique,
             commands::create_task_agent_report,
             commands::run_task_agent_report,
+            commands::run_task_wave_evaluation,
             commands::list_task_agent_reports,
             commands::list_task_phase_run_receipts,
             commands::link_task_phase_run_events,

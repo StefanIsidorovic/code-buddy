@@ -53,7 +53,7 @@ use crate::{
         TaskStepWorktreeInfo,
     },
 };
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 use tauri::State;
 use uuid::Uuid;
 
@@ -138,6 +138,15 @@ pub struct RunTaskAgentReportResultInfo {
     pub prompt_result: AcpPromptResult,
     pub transcript_session: TranscriptSessionInfo,
     pub report: TaskAgentReportInfo,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunTaskWaveEvaluationRequest {
+    pub task_id: String,
+    pub plan_version_id: String,
+    pub candidate_id: String,
+    pub cwd: PathBuf,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -695,6 +704,43 @@ pub async fn run_task_agent_report(
     let start_manager = Arc::clone(&manager);
     let session = run_acp_task(move || start_manager.start_registry_session(start_request)).await?;
     run_task_agent_report_against_session(manager, store_state.inner(), request, session).await
+}
+
+#[tauri::command]
+pub async fn run_task_wave_evaluation(
+    manager_state: State<'_, Arc<AcpSessionManager>>,
+    store_state: State<'_, ProjectStore>,
+    request: RunTaskWaveEvaluationRequest,
+) -> AppResult<RunTaskAgentReportResultInfo> {
+    let candidate_id = request.candidate_id.trim().to_string();
+    if candidate_id.is_empty() {
+        return Err(AppError::InvalidInput(
+            "wave evaluation requires an ACP candidate".into(),
+        ));
+    }
+    let (task, instruction) = task_wave_evaluator_instruction(store_state.inner(), &request)?;
+    let manager = Arc::clone(manager_state.inner());
+    let start_request = StartAcpRegistrySessionRequest {
+        candidate_id: candidate_id.clone(),
+        cwd: Some(request.cwd.clone()),
+        workspace_isolation: Some(AcpWorkspaceIsolation::SnapshotSandbox),
+    };
+    let start_manager = Arc::clone(&manager);
+    let session = run_acp_task(move || start_manager.start_registry_session(start_request)).await?;
+    run_task_agent_report_with_instruction(
+        manager,
+        store_state.inner(),
+        RunTaskAgentReportRequest {
+            task_id: task.id,
+            phase: "execution".into(),
+            role: "reviewer".into(),
+            candidate_id,
+            cwd: request.cwd,
+        },
+        session,
+        instruction,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1534,6 +1580,20 @@ async fn run_task_agent_report_against_session(
     let role = request.role.trim().to_lowercase();
     validate_task_agent_report_run(&task, &phase, &role)?;
     let instruction = task_agent_report_instruction(&task, &phase, &role);
+    run_task_agent_report_with_instruction(manager, store, request, session, instruction).await
+}
+
+async fn run_task_agent_report_with_instruction(
+    manager: Arc<AcpSessionManager>,
+    store: &ProjectStore,
+    request: RunTaskAgentReportRequest,
+    session: AcpSessionInfo,
+    instruction: String,
+) -> AppResult<RunTaskAgentReportResultInfo> {
+    let task = store.task(&request.task_id)?;
+    let phase = request.phase.trim().to_lowercase();
+    let role = request.role.trim().to_lowercase();
+    validate_task_agent_report_run(&task, &phase, &role)?;
     let agent_session_id = session.agent_session_id.clone().ok_or_else(|| {
         AppError::Acp("secondary ACP session did not return an agent session id".into())
     })?;
@@ -1600,6 +1660,109 @@ fn validate_task_agent_report_run(task: &TaskInfo, phase: &str, role: &str) -> A
         ));
     }
     Ok(())
+}
+
+fn task_wave_evaluator_instruction(
+    store: &ProjectStore,
+    request: &RunTaskWaveEvaluationRequest,
+) -> AppResult<(TaskInfo, String)> {
+    let task = store.task(request.task_id.trim())?;
+    validate_task_agent_report_run(&task, "execution", "reviewer")?;
+    if !store
+        .list_project_repositories(&task.project_id)?
+        .iter()
+        .any(|repository| repository.path == request.cwd)
+    {
+        return Err(AppError::InvalidInput(
+            "wave evaluation repository does not belong to the Task project".into(),
+        ));
+    }
+    let plan = store
+        .list_task_plan_versions(&task.id)?
+        .into_iter()
+        .find(|plan| plan.id == request.plan_version_id.trim() && plan.status == "approved")
+        .ok_or_else(|| {
+            AppError::InvalidInput(
+                "wave evaluation requires the selected Task's approved plan".into(),
+            )
+        })?;
+    let runs = store.list_task_plan_step_runs(&task.id)?;
+    let completed = runs
+        .iter()
+        .filter(|run| {
+            run.status == "accepted"
+                && (run.verification_status.as_deref() == Some("unchanged")
+                    || run.isolation_id.is_none()
+                    || run.integration_status.as_deref() == Some("integrated"))
+        })
+        .map(|run| format!("STEP-{}", run.step_order_index + 1))
+        .collect::<HashSet<_>>();
+    let eligible = crate::task_plan::eligible_execution_step_ids(&plan.steps, &completed);
+    if eligible.is_empty() {
+        return Err(AppError::InvalidInput(
+            "wave evaluation requires an incomplete execution wave".into(),
+        ));
+    }
+    let mut evidence = Vec::new();
+    for step_id in eligible {
+        let step = plan
+            .steps
+            .iter()
+            .find(|step| step.id == step_id)
+            .ok_or_else(|| AppError::InvalidInput("wave step is missing from its plan".into()))?;
+        let run = runs
+            .iter()
+            .filter(|run| run.plan_step_id == step.id)
+            .max_by_key(|run| run.attempt)
+            .ok_or_else(|| {
+                AppError::InvalidInput(
+                    "wave evaluation waits for every current-wave step to run".into(),
+                )
+            })?;
+        if !matches!(run.status.as_str(), "sent" | "failed") {
+            return Err(AppError::InvalidInput(
+                "wave evaluation waits for every current-wave worker to settle".into(),
+            ));
+        }
+        let changed = run
+            .verification_changed_files
+            .iter()
+            .take(12)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+        evidence.push(format!(
+            "- STEP-{order} / {step_id} / run {run_id} / attempt {attempt}\n  \
+             title: {title}\n  status: {status}; verification: {verification}; scope: {scope}; \
+             integration: {integration}\n  changed files: {changed}\n  error: {error}",
+            order = step.order_index + 1,
+            step_id = step.id,
+            run_id = run.id,
+            attempt = run.attempt,
+            title = step.title,
+            status = run.status,
+            verification = run.verification_status.as_deref().unwrap_or("missing"),
+            scope = run.scope_status.as_deref().unwrap_or("missing"),
+            integration = run.integration_status.as_deref().unwrap_or("not_started"),
+            changed = if changed.is_empty() { "none" } else { &changed },
+            error = run.error.as_deref().unwrap_or("none"),
+        ));
+    }
+    let instruction = format!(
+        "Run only as a read-only execution-wave evaluator.\n\
+         Original task: {original}\n\
+         Approved plan: {plan_id}\n\
+         Exact current-wave evidence:\n{evidence}\n\n\
+         Do not modify files, Git state, Task state, reviews, evidence, or integration state.\n\
+         Evaluate only these runs. For each STEP/run pair return PASS or NEEDS_ATTENTION, \
+         cite the exact run id and observed verification/scope evidence, identify worker failures \
+         and missing evidence, then give one overall recommendation. Never claim a check that is \
+         absent above.",
+        original = task.original_prompt.trim(),
+        plan_id = plan.id,
+        evidence = evidence.join("\n"),
+    );
+    Ok((task, instruction))
 }
 
 fn validated_plan_critique_context(
@@ -2053,6 +2216,36 @@ mod tests {
                 .receipt
                 .instruction
                 .contains("Required model tier: small"));
+            let (_, evaluator_instruction) = task_wave_evaluator_instruction(
+                &store,
+                &RunTaskWaveEvaluationRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    candidate_id: "fake-acp".into(),
+                    cwd: project_path.clone(),
+                },
+            )
+            .expect("settled current wave builds evaluator evidence");
+            assert!(evaluator_instruction.contains(&result.receipt.id));
+            assert!(evaluator_instruction.contains("verification: unchanged"));
+            assert!(evaluator_instruction.contains("scope: within_scope"));
+            assert!(evaluator_instruction.contains("STEP-1"));
+            assert!(!evaluator_instruction.contains("STEP-2 /"));
+            assert!(evaluator_instruction.contains("Do not modify files, Git state"));
+            let wrong_evaluator_path = temp_command_project_path("wrong-evaluator-workspace");
+            let evaluator_error = task_wave_evaluator_instruction(
+                &store,
+                &RunTaskWaveEvaluationRequest {
+                    task_id: task.id.clone(),
+                    plan_version_id: plan.id.clone(),
+                    candidate_id: "fake-acp".into(),
+                    cwd: wrong_evaluator_path,
+                },
+            )
+            .expect_err("unregistered evaluator repository rejected");
+            assert!(evaluator_error
+                .to_string()
+                .contains("repository does not belong to the Task project"));
             store
                 .review_task_plan_step_run(ReviewTaskPlanStepRunRequest {
                     task_id: task.id.clone(),
