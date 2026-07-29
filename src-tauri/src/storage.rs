@@ -7,6 +7,7 @@ use crate::synthesis::ProjectInitializationKnowledgeDraft;
 use crate::task::{assess_task_complexity, is_task_complexity_profile};
 use crate::task_plan::{self, TaskPlanFindingInfo};
 use crate::task_plan_critique::{self, TaskPlanCritiqueIssue};
+use crate::task_worktree::TaskStepWorktreeInfo;
 use rusqlite::{params, types::Type, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -467,6 +468,11 @@ pub struct TaskPlanStepRunInfo {
     pub model_tier: String,
     pub model_tier_rationale: String,
     pub expected_paths: Vec<String>,
+    pub isolation_id: Option<String>,
+    pub isolation_repository_path: Option<String>,
+    pub isolation_worktree_path: Option<String>,
+    pub isolation_branch: Option<String>,
+    pub isolation_base_sha: Option<String>,
     pub status: String,
     pub stop_reason: Option<String>,
     pub error: Option<String>,
@@ -3630,6 +3636,57 @@ impl ProjectStore {
         self.task_plan_step_run(run_id)
     }
 
+    pub fn record_task_plan_step_run_isolation(
+        &self,
+        run_id: &str,
+        isolation: &TaskStepWorktreeInfo,
+    ) -> AppResult<TaskPlanStepRunInfo> {
+        let run_id = run_id.trim();
+        let repository_path = isolation.repository_path.to_string_lossy();
+        let worktree_path = isolation.worktree_path.to_string_lossy();
+        let base_sha = isolation.base_sha.trim();
+        if run_id.is_empty()
+            || isolation.isolation_id.trim().is_empty()
+            || !isolation.repository_path.is_absolute()
+            || !isolation.worktree_path.is_absolute()
+            || repository_path == worktree_path
+            || !isolation.branch.starts_with("aiadne/")
+            || !(7..=64).contains(&base_sha.len())
+            || !base_sha
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        {
+            return Err(AppError::InvalidInput(
+                "step isolation descriptor is invalid".into(),
+            ));
+        }
+        let connection = self.connection()?;
+        let changed = connection
+            .execute(
+                "UPDATE task_plan_step_runs SET isolation_id = ?2,
+                 isolation_repository_path = ?3, isolation_worktree_path = ?4,
+                 isolation_branch = ?5, isolation_base_sha = ?6, updated_at = ?7
+                 WHERE id = ?1 AND status = 'pending' AND isolation_id IS NULL",
+                params![
+                    run_id,
+                    isolation.isolation_id.trim(),
+                    repository_path.as_ref(),
+                    worktree_path.as_ref(),
+                    &isolation.branch,
+                    base_sha,
+                    unix_timestamp()?
+                ],
+            )
+            .map_err(storage_error)?;
+        if changed != 1 {
+            return Err(AppError::InvalidInput(
+                "pending step run without isolation is required".into(),
+            ));
+        }
+        drop(connection);
+        self.task_plan_step_run(run_id)
+    }
+
     pub fn record_task_plan_step_run_verification(
         &self,
         run_id: &str,
@@ -3660,18 +3717,26 @@ impl ProjectStore {
             })
             .collect::<AppResult<Vec<_>>>()?;
         let connection = self.connection()?;
-        let expected_paths_json: String = connection
+        let (expected_paths_json, isolation_worktree_path): (String, Option<String>) = connection
             .query_row(
-                "SELECT expected_paths_json FROM task_plan_step_runs
+                "SELECT expected_paths_json, isolation_worktree_path FROM task_plan_step_runs
                  WHERE id = ?1 AND status = 'sent'",
                 [run_id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|_| {
                 AppError::InvalidInput(
                     "sent step run is required for repository verification".into(),
                 )
             })?;
+        if isolation_worktree_path
+            .as_deref()
+            .is_some_and(|expected| expected != workspace_path.trim())
+        {
+            return Err(AppError::InvalidInput(
+                "isolated step verification must use its recorded worktree".into(),
+            ));
+        }
         let expected_paths =
             serde_json::from_str::<Vec<String>>(&expected_paths_json).unwrap_or_default();
         let scope_violations = if status == "unavailable" {
@@ -3862,6 +3927,8 @@ impl ProjectStore {
                 "SELECT id, task_id, plan_version_id, plan_step_id, step_order_index,
                  attempt, acp_session_id, instruction, model_tier, model_tier_rationale,
                  expected_paths_json, status, stop_reason, error,
+                 isolation_id, isolation_repository_path, isolation_worktree_path,
+                 isolation_branch, isolation_base_sha,
                  verification_status, verification_workspace_path,
                  verification_changed_files_json, verification_error,
                  scope_status, scope_violations_json, review_status, review_note,
@@ -3886,10 +3953,15 @@ impl ProjectStore {
                         status: row.get(11)?,
                         stop_reason: row.get(12)?,
                         error: row.get(13)?,
-                        verification_status: row.get(14)?,
-                        verification_workspace_path: row.get(15)?,
+                        isolation_id: row.get(14)?,
+                        isolation_repository_path: row.get(15)?,
+                        isolation_worktree_path: row.get(16)?,
+                        isolation_branch: row.get(17)?,
+                        isolation_base_sha: row.get(18)?,
+                        verification_status: row.get(19)?,
+                        verification_workspace_path: row.get(20)?,
                         verification_changed_files: row
-                            .get::<_, Option<String>>(16)?
+                            .get::<_, Option<String>>(21)?
                             .and_then(|value| {
                                 serde_json::from_str::<Vec<serde_json::Value>>(&value).ok()
                             })
@@ -3901,16 +3973,16 @@ impl ProjectStore {
                                     .map(ToString::to_string)
                             })
                             .collect(),
-                        verification_error: row.get(17)?,
-                        scope_status: row.get(18)?,
+                        verification_error: row.get(22)?,
+                        scope_status: row.get(23)?,
                         scope_violations: row
-                            .get::<_, Option<String>>(19)?
+                            .get::<_, Option<String>>(24)?
                             .and_then(|value| serde_json::from_str(&value).ok())
                             .unwrap_or_default(),
-                        review_status: row.get(20)?,
-                        review_note: row.get(21)?,
-                        created_at: row.get(22)?,
-                        updated_at: row.get(23)?,
+                        review_status: row.get(25)?,
+                        review_note: row.get(26)?,
+                        created_at: row.get(27)?,
+                        updated_at: row.get(28)?,
                     })
                 },
             )
@@ -5040,6 +5112,11 @@ impl ProjectStore {
                     model_tier TEXT NOT NULL CHECK(model_tier IN ('small', 'mid', 'high')),
                     model_tier_rationale TEXT NOT NULL,
                     expected_paths_json TEXT NOT NULL,
+                    isolation_id TEXT,
+                    isolation_repository_path TEXT,
+                    isolation_worktree_path TEXT,
+                    isolation_branch TEXT,
+                    isolation_base_sha TEXT,
                     status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed', 'accepted')),
                     stop_reason TEXT,
                     error TEXT,
@@ -5119,6 +5196,11 @@ impl ProjectStore {
             "TEXT",
         )?;
         for (column, definition) in [
+            ("isolation_id", "TEXT"),
+            ("isolation_repository_path", "TEXT"),
+            ("isolation_worktree_path", "TEXT"),
+            ("isolation_branch", "TEXT"),
+            ("isolation_base_sha", "TEXT"),
             ("verification_status", "TEXT"),
             ("verification_workspace_path", "TEXT"),
             ("verification_changed_files_json", "TEXT"),
@@ -10212,6 +10294,35 @@ mod tests {
             })
             .expect("retry begins");
         assert_eq!(retry.attempt, 2);
+        assert!(retry.isolation_id.is_none());
+        let invalid_isolation = TaskStepWorktreeInfo {
+            isolation_id: "invalid".into(),
+            repository_path: PathBuf::from("relative/source"),
+            worktree_path: PathBuf::from("relative/worktree"),
+            branch: "not-aiadne".into(),
+            base_sha: "not-a-sha".into(),
+        };
+        assert!(store
+            .record_task_plan_step_run_isolation(&retry.id, &invalid_isolation)
+            .is_err());
+        let isolation = TaskStepWorktreeInfo {
+            isolation_id: "isolation-1".into(),
+            repository_path: PathBuf::from("/workspace/source"),
+            worktree_path: PathBuf::from("/workspace/repo"),
+            branch: "aiadne/task-1/step-1/attempt-2-isolation-1".into(),
+            base_sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+        };
+        let isolated = store
+            .record_task_plan_step_run_isolation(&retry.id, &isolation)
+            .expect("isolation recorded");
+        assert_eq!(isolated.isolation_id.as_deref(), Some("isolation-1"));
+        assert_eq!(
+            isolated.isolation_worktree_path.as_deref(),
+            Some("/workspace/repo")
+        );
+        assert!(store
+            .record_task_plan_step_run_isolation(&retry.id, &isolation)
+            .is_err());
         store
             .finalize_task_plan_step_run(&retry.id, "sent", Some("end_turn"), None)
             .expect("retry sent");
@@ -10222,6 +10333,15 @@ mod tests {
                 decision: "accept".into(),
                 note: "No repository verification yet".into(),
             })
+            .is_err());
+        assert!(store
+            .record_task_plan_step_run_verification(
+                &retry.id,
+                "changed",
+                "/workspace/wrong",
+                r#"[{"status":"M","path":"src/first.rs"}]"#,
+                None,
+            )
             .is_err());
         store
             .record_task_plan_step_run_verification(

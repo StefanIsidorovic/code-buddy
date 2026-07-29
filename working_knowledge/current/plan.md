@@ -108,6 +108,14 @@
 - acceptance criteria: dirty source repositories are rejected; identities cannot traverse paths or collide; isolated edits do not affect the source checkout; cleanup refuses non-AIadne paths/branches.
 - required tests: clean creation; branch/base identity; dirty rejection; duplicate identity; checkout isolation; guarded cleanup; Rust fmt/test/clippy and diff hygiene.
 
+#### 37.5b.2. Persist isolated attempt ownership
+- objective: make one step-run receipt the durable owner of its exact worktree and base revision.
+- status: complete pending commit.
+- files: src-tauri/src/storage.rs; working_knowledge/current/*.
+- expected changes: add optional isolation identity/repository/worktree/branch/base fields, migrate legacy rows, record the descriptor once while pending, and bind repository verification to the recorded worktree.
+- acceptance criteria: descriptors round-trip; second or finalized writes fail; invalid descriptors fail without mutation; isolated verification cannot use another workspace; non-isolated legacy runs remain compatible.
+- required tests: write-once round-trip; descriptor validation; wrong-workspace verification; legacy null fields; migration; Rust fmt/test/clippy and diff hygiene.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.
