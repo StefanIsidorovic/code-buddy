@@ -17,7 +17,7 @@
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5d.1 complete; backend-enforced wave eligibility next
+- active plan step: 37.5d.2a complete; connect backend eligibility to atomic run reservation next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5d.2a derives immutable backend execution waves from dependencies and conservative path scopes, keeping later waves closed until the current wave is fully accepted; Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: dirty-source isolation diagnostics 37.5d.1.1 preserve the clean-repository gate while naming up to five blocking paths and giving commit/stash/discard guidance; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: planning auto-fill regression 37.4g.1 reconstructs adjacent streamed response chunks without separators and repairs raw line breaks inside already-saved fenced JSON before strict validation; frontend audit, typecheck, 321 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5d.1 routes structured Execution through a dedicated ACP candidate in an owned worktree, replaces shared-session readiness with candidate/repository prerequisites and removes unrelated shared-session event draining; frontend audit, typecheck, 318 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
