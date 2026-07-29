@@ -170,6 +170,16 @@
 - acceptance criteria: backend never trusts a frontend wave number; unmet dependencies and overlapping/missing scopes serialize; independent ready steps can reserve separate owned worktrees; duplicate/open attempts fail atomically; acceptance and integration remain deterministic.
 - required tests: independent same-wave reservations; dependency block; overlap/missing-scope serialization; duplicate/stale rejection; ordered acceptance/integration compatibility; Rust fmt/test/clippy and diff hygiene.
 
+#### 37.4g.1. Repair streamed planning auto-fill
+- objective: preserve structured planning JSON across periodic ACP drains and recover already-saved artifacts corrupted at chunk boundaries.
+- status: complete.
+- commit: 6c89b5a.
+- files: src/features/tasks/useTaskPhaseWorkflow.ts; src/features/tasks/taskPlanDraft.ts; TaskPlanEditor and related tests; working_knowledge/current/*.
+- expected changes: concatenate adjacent same-kind response chunks exactly, retain semantic separators between different event kinds, and apply a fenced-JSON-only newline repair before the existing strict draft validator.
+- acceptance criteria: split JSON keys remain intact in future prepared evidence; the observed saved artifact auto-fills on reload; ordinary prose and semantically invalid plans remain rejected; manual-edit preservation is unchanged.
+- required tests: split response token reconstruction; raw newline in JSON keys/string values; direct editor auto-fill regression; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 reproduced the defect from the live SQLite artifact and fixed response assembly plus legacy parsing, while cycle 2 proved the UI auto-fills recovered evidence and that strict semantic validation remains authoritative.
+
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
 - status: complete pending commit.

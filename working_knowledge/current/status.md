@@ -10,7 +10,7 @@
 
 ## Repository State
 - branch: new/start
-- head: c7c09c2 step 37.5d.1: route steps through isolation
+- head: 6c89b5a fix: restore streamed planning auto-fill
 - worktree: clean before final working-knowledge synchronization
 - relevant files: deterministic waves, owned isolated ACP dispatch, provenance-backed serial Git integration and durable integration receipts
 
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: planning auto-fill regression 37.4g.1 reconstructs adjacent streamed response chunks without separators and repairs raw line breaks inside already-saved fenced JSON before strict validation; frontend audit, typecheck, 321 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5d.1 routes structured Execution through a dedicated ACP candidate in an owned worktree, replaces shared-session readiness with candidate/repository prerequisites and removes unrelated shared-session event draining; frontend audit, typecheck, 318 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5c.3 adds typed accepted-step integration UX, blocks isolated completion until durable integration, and distinguishes conflict and cleanup warning states; frontend audit, typecheck, 316 frontend tests, production build, Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5c.2 persists accepted-run-only pending/integrated/conflicted state, successful isolated/source SHAs and cleanup warnings behind a guarded command; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.
