@@ -196,11 +196,21 @@
 
 #### 37.5d.3. Launch and monitor one execution wave
 - objective: let the user start all currently eligible independent steps without manually dispatching each one.
-- status: planned.
+- status: complete.
+- commit: 17f655f.
 - files: src/features/tasks/useTaskStepExecution.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; typed gateway/contracts; related tests; working_knowledge/current/*.
 - expected changes: expose the current backend-authorized wave, dispatch eligible steps with bounded concurrency, show per-step queued/running/review/integration state, and preserve explicit acceptance plus serialized integration.
 - acceptance criteria: one action starts every eligible same-wave step; partial startup failure does not erase successful reservations; later waves remain locked; progress and recovery are visible per step.
 - required tests: multi-step launch; partial failure; stale Task switch; retry; later-wave lock; frontend audit/typecheck/full tests/build; Rust gates and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 aligned backend dependency completion with successful isolated integration, while cycle 2 replaced inaccurate all-running display with per-step queued/running states.
+
+#### 37.5e.1. Evaluate a completed wave automatically
+- objective: reduce manual review load by producing one structured evaluator verdict per completed execution wave.
+- status: planned.
+- files: backend secondary-agent report orchestration; execution hook/panel; typed contracts; related tests; working_knowledge/current/*.
+- expected changes: dispatch a read-only evaluator after all wave workers finish, bind findings to exact step receipts and verification, and present pass/needs-attention recommendations without granting mutation or integration authority.
+- acceptance criteria: evaluator cannot edit the repository; every finding names its step/run evidence; partial worker failures remain explicit; user may accept recommendations or review manually.
+- required tests: all-pass wave; mixed failure; stale Task; missing evaluator; provenance binding; frontend and Rust full gates.
 
 #### 37.4g.1. Repair streamed planning auto-fill
 - objective: preserve structured planning JSON across periodic ACP drains and recover already-saved artifacts corrupted at chunk boundaries.

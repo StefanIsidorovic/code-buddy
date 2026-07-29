@@ -17,7 +17,7 @@
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5d.2 complete; user-facing wave launcher and monitor next
+- active plan step: 37.5d.3 complete; automatic read-only wave evaluation next
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5d.3 launches every dispatchable current-wave step with bounded concurrency three, shows queued/running per-step state, preserves partial success, keeps later waves locked through integration, and retains composition boundaries; frontend audit, typecheck, 323 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5d.2b enforces scheduler eligibility inside atomic step-run reservation, permits independent same-wave runs, retains duplicate/retry/review/integration gates, and removes synthetic plan metadata from the transaction boundary; Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5d.2a derives immutable backend execution waves from dependencies and conservative path scopes, keeping later waves closed until the current wave is fully accepted; Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: dirty-source isolation diagnostics 37.5d.1.1 preserve the clean-repository gate while naming up to five blocking paths and giving commit/stash/discard guidance; Rust fmt, 141 Rust tests, clippy with warnings denied and diff hygiene pass.

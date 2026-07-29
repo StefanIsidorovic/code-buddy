@@ -13,6 +13,7 @@
 - User-facing Run step now always dispatches through `send_isolated_task_plan_step_prompt` with the selected ACP candidate and registered repository; the shared-checkout step command is backend-only legacy compatibility.
 - Dirty source repositories remain blocked before isolation, but the error now lists up to five blocking paths and gives explicit commit, stash or discard guidance.
 - Backend derives immutable dependency/scope-safe execution waves inside atomic run reservation; independent same-wave runs may coexist while later waves and duplicate open attempts remain blocked.
+- Execution now starts every dispatchable current-wave step from one action with concurrency three, exposes queued/running state per step, preserves partial successes, and keeps later waves locked until isolated acceptance is integrated.
 - Planning evidence now reconstructs same-kind streamed chunks exactly, and the strict plan parser can recover already-saved fenced JSON with drain-inserted line breaks; the observed Formily artifact auto-fills after UI reload.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
@@ -28,7 +29,7 @@
 - Frontend audit, typecheck, 308 frontend tests, production build and diff hygiene pass; the unchanged backend remains at 136 passing Rust tests and clean clippy.
 
 ## Next Step
-- Begin 37.5d.3: add a user-facing wave launcher and per-step monitor that dispatches every eligible independent step with bounded concurrency.
+- Begin 37.5e.1: run one read-only, evidence-bound evaluator after a wave settles and surface pass/needs-attention recommendations without automatic mutation or integration.
 
 ## Commands To Re-Run
 - `npm run frontend:audit`: enforce frontend boundaries and App ceiling.
