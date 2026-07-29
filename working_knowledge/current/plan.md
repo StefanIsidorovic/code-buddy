@@ -174,17 +174,33 @@
 
 #### 37.5d.2. Persist backend wave eligibility
 - objective: make parallel-ready membership a backend-enforced execution authority instead of a frontend preview.
-- status: in progress; deterministic scheduler complete, atomic reservation integration next.
+- status: complete.
+- commits: 787ff90; a2b7b27.
 - files: src-tauri/src/storage.rs; src-tauri/src/task_plan.rs; src-tauri/src/commands.rs; related tests; working_knowledge/current/*.
 - expected changes: derive dependency/scope-safe ready steps from the approved immutable plan, permit concurrent pending runs only inside the same eligible wave, reject stale or overlapping reservations, and retain serialized review/integration order.
 - acceptance criteria: backend never trusts a frontend wave number; unmet dependencies and overlapping/missing scopes serialize; independent ready steps can reserve separate owned worktrees; duplicate/open attempts fail atomically; acceptance and integration remain deterministic.
 - required tests: independent same-wave reservations; dependency block; overlap/missing-scope serialization; duplicate/stale rejection; ordered acceptance/integration compatibility; Rust fmt/test/clippy and diff hygiene.
+- review status: passed after 2 implementation slices; immutable wave derivation prevents partial acceptance from opening later waves, and atomic storage reservation permits independent same-wave runs while retaining duplicate, retry, review and integration gates.
 
 ##### 37.5d.2a. Derive immutable backend waves
 - status: complete.
 - commit: 787ff90.
 - result: backend derives stable dependency/scope-safe waves from the approved plan and exposes only the first wave not fully accepted; partial acceptance cannot open a later wave.
 - review status: passed after 2 cycles; cycle 1 found premature next-wave eligibility after partial acceptance, and cycle 2 found no remaining dependency, overlap, missing-scope or ordering regression.
+
+##### 37.5d.2b. Enforce atomic wave reservations
+- status: complete.
+- commit: a2b7b27.
+- result: `begin_task_plan_step_run` derives authority from the approved plan inside its transaction; independent same-wave runs may coexist, while later waves and duplicate open attempts remain rejected.
+- review status: passed after 2 cycles; cycle 1 proved parallel reservation and retry compatibility, while cycle 2 removed synthetic plan metadata from the storage boundary.
+
+#### 37.5d.3. Launch and monitor one execution wave
+- objective: let the user start all currently eligible independent steps without manually dispatching each one.
+- status: planned.
+- files: src/features/tasks/useTaskStepExecution.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; typed gateway/contracts; related tests; working_knowledge/current/*.
+- expected changes: expose the current backend-authorized wave, dispatch eligible steps with bounded concurrency, show per-step queued/running/review/integration state, and preserve explicit acceptance plus serialized integration.
+- acceptance criteria: one action starts every eligible same-wave step; partial startup failure does not erase successful reservations; later waves remain locked; progress and recovery are visible per step.
+- required tests: multi-step launch; partial failure; stale Task switch; retry; later-wave lock; frontend audit/typecheck/full tests/build; Rust gates and diff hygiene.
 
 #### 37.4g.1. Repair streamed planning auto-fill
 - objective: preserve structured planning JSON across periodic ACP drains and recover already-saved artifacts corrupted at chunk boundaries.
