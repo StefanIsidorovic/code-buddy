@@ -29,6 +29,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
   const [error, setError] = useState<string | null>(null);
   const [waveEvaluation, setWaveEvaluation] = useState<WaveEvaluationState | null>(null);
   const requestId = useRef(0);
+  const continuedWaveKey = useRef<string | null>(null);
   const taskIdRef = useRef(task?.id ?? null);
   taskIdRef.current = task?.id ?? null;
   const autopilot = useTaskAutopilot({
@@ -59,6 +60,7 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
     setDispatchStates({});
     setCleanupWarnings({});
     setWaveEvaluation(null);
+    continuedWaveKey.current = null;
     if (task) void refresh();
     else requestId.current += 1;
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -158,6 +160,16 @@ export function useTaskStepExecution({ task, plan, candidateId, repositoryPath }
       setDispatchStates({});
     }
   }
+
+  useEffect(() => {
+    if (!task || !plan || !autopilot.enabled || autopilot.state !== "completed"
+      || loading || !currentWave || !waveSteps.length || runBlockedReason) return;
+    const key = `${task.id}:${plan.id}:${currentWave.number}`;
+    if (continuedWaveKey.current === key) return;
+    continuedWaveKey.current = key;
+    void dispatchWave();
+  }, [autopilot.enabled, autopilot.state, currentWave?.number, loading, plan?.id,
+    runBlockedReason, task?.id, waveSteps.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function review(runId: string, decision: "accept" | "reject", note: string) {
     if (!task || !note.trim()) return;

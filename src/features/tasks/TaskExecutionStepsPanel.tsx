@@ -52,7 +52,8 @@ export function TaskExecutionStepsPanel({ plan, runs, currentWave, waveSteps, ne
         Guarded autopilot for this Task
       </label>
       <small>Opt-in. Automatically accepts and serially integrates only grounded pass runs with
-        available within-scope repository verification. Stops on the first failure.</small>
+        available within-scope repository verification, then continues with the next safe wave.
+        Stops on the first failure; phase completion remains explicit.</small>
       {autopilotMessage ? <span role={autopilotState === "stopped" ? "alert" : "status"}>
         {autopilotMessage}
       </span> : null}
