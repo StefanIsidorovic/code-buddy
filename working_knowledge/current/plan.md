@@ -144,11 +144,21 @@
 
 #### 37.5c.3. Expose reviewed-step integration in Execution
 - objective: let the user integrate an accepted isolated step with an understandable status and recovery path.
-- status: planned.
+- status: complete.
+- commit: 9337160.
 - files: src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/useTaskStepExecution.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; related tests; working_knowledge/current/*.
 - expected changes: add typed integration fields and gateway command, show Integrate only for accepted isolated runs, surface pending/integrated/conflicted and cleanup-warning states, refresh receipts after completion, and preserve serial execution authority.
 - acceptance criteria: no integration action appears for shared-checkout or unaccepted runs; duplicate clicks are locked; success exposes the integrated commit; conflict remains visible and recoverable; cleanup warning does not mislabel Git integration as failed.
 - required tests: gateway contract; button visibility/locking; success/conflict/cleanup-warning presentation; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy and diff hygiene.
+- review status: passed after 2 cycles; cycle 1 kept integration state in the feature hook, blocked isolated step completion until integration and separated Git success from cleanup warning, while cycle 2 corrected premature parallel-scheduler wording and exposed the retained isolation path for conflict recovery.
+
+#### 37.5d.1. Route Execution through owned isolated dispatch
+- objective: make the user-facing step workflow create the isolated receipts that the integration gate consumes.
+- status: planned.
+- files: src/types/domain.ts; src/lib/tauriGateway.ts; src/features/tasks/useTaskStepExecution.ts; src/features/tasks/TaskExecutionStepsPanel.tsx; src/App.tsx; related tests; working_knowledge/current/*.
+- expected changes: dispatch the next approved step with ACP candidate and registered repository identity, return executor-session ownership and isolated verification, keep the shared-checkout command as a legacy backend path, and explain when isolation prerequisites are missing.
+- acceptance criteria: normal structured Execution never mutates the shared checkout; successful UI runs carry isolation identity; missing candidate/repository blocks with actionable copy; review then integration unlocks the next step; stale Task results remain ignored.
+- required tests: isolated command payload/result; prerequisite lock; receipt identity; review/integration sequence; stale response; frontend audit/typecheck/full tests/build; Rust fmt/test/clippy and diff hygiene.
 
 ### 36.1. Make Task Activity summary-first
 - objective: replace the equal-weight Activity dashboard with one understandable Task result and progressive disclosure for secondary detail.
