@@ -204,6 +204,13 @@
 - required tests: multi-step launch; partial failure; stale Task switch; retry; later-wave lock; frontend audit/typecheck/full tests/build; Rust gates and diff hygiene.
 - review status: passed after 2 cycles; cycle 1 aligned backend dependency completion with successful isolated integration, while cycle 2 replaced inaccurate all-running display with per-step queued/running states.
 
+#### 37.5d.3.1. Complete verified no-change steps
+- objective: treat accepted, within-scope `unchanged` verification as a valid execution result without inventing a Git commit or conflict.
+- status: complete.
+- commit: 0180535.
+- result: no-change evidence completes scheduler/UI gates, the integration action performs session/worktree cleanup, legacy empty-diff conflicts recover, and UI reports no changes required.
+- review status: passed after 2 cycles; cycle 1 added durable no-change completion and recovery, while cycle 2 ensured cleanup is marked once without displaying a fake commit SHA.
+
 #### 37.5e.1. Evaluate a completed wave automatically
 - objective: reduce manual review load by producing one structured evaluator verdict per completed execution wave.
 - status: planned.

@@ -14,6 +14,7 @@
 - Dirty source repositories remain blocked before isolation, but the error now lists up to five blocking paths and gives explicit commit, stash or discard guidance.
 - Backend derives immutable dependency/scope-safe execution waves inside atomic run reservation; independent same-wave runs may coexist while later waves and duplicate open attempts remain blocked.
 - Execution now starts every dispatchable current-wave step from one action with concurrency three, exposes queued/running state per step, preserves partial successes, and keeps later waves locked until isolated acceptance is integrated.
+- Accepted within-scope `unchanged` verification is a completed no-change result; the integration action now cleans its isolation without creating a commit and recovers previously recorded empty-diff conflicts.
 - Planning evidence now reconstructs same-kind streamed chunks exactly, and the strict plan parser can recover already-saved fenced JSON with drain-inserted line breaks; the observed Formily artifact auto-fills after UI reload.
 - Plan items 37.4a–g are committed through `c5e8e9c`.
 - New planning runs end with a strict JSON plan block; once that response is saved as planning evidence, a pristine structured-plan editor fills automatically.
