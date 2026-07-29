@@ -10,14 +10,14 @@
 
 ## Repository State
 - branch: new/start
-- head: 5bd581e step 37.5e.3: add guarded task autopilot
+- head: 1d2a39f step 37.5e.4: continue guarded autopilot across waves
 - worktree: clean before final working-knowledge synchronization
-- relevant files: deterministic waves, owned isolated ACP dispatch, provenance-backed serial Git integration and durable integration receipts
+- relevant files: deterministic parallel waves, grounded evaluation, guarded cross-wave continuation, provenance-backed serial Git integration and durable conflict recovery
 
 ## Current Task
 - request: evolve Task workflow toward structured steps, small-model routing, evaluation, critique and safe parallel work
 - phase: in progress
-- active plan step: 37.5e.3 complete; end-to-end recovery and Claude Buddy comparison next
+- active plan step: 37.5e.4 complete; source-backed Claude Buddy comparison recorded
 
 ## Risks And Constraints
 - Durable sent receipts remain the audit source; the feature-local successful-run signal only bridges delayed or empty receipt refresh.
@@ -28,6 +28,7 @@
 - Task work requires same-project approved Summary plus at least one active published Knowledge Unit at both UI and storage boundaries.
 
 ## Last Verification
+- 2026-07-29: plan item 37.5e.4 continues explicit guarded autopilot across dependency waves exactly once, stops and reloads durable state on integration conflict, and documents the direct local Claude Buddy comparison; frontend audit, typecheck, 343 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5e.3 adds explicit Task-local guarded autopilot for grounded safe passes, serial review/integration, manual-action locking, Task reset and stop-on-first-failure recovery; frontend audit, typecheck, 341 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5e.2 grounds structured evaluator recommendations to known unique run IDs, displays only persisted receipt evidence, prioritizes attention and prevents objective blockers from being mislabeled pass; frontend audit, typecheck, 333 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
 - 2026-07-29: plan item 37.5e.1 automatically evaluates each freshly settled execution wave in a read-only snapshot, shows recommendation/retry state, preserves worker results on evaluator failure and rejects stale Task results; frontend audit, typecheck, 329 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.

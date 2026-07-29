@@ -2,6 +2,14 @@
 
 ## Active Plan
 
+### 37.5e.4. Continue guarded autopilot across execution waves
+- objective: remove the remaining safe-wave click while retaining receipt-grounded review, serial integration and explicit phase authority.
+- status: complete; committed as 1d2a39f.
+- result: after a fully grounded wave is reviewed and integrated, the opted-in Task autopilot starts the next dependency-safe wave exactly once; review or integration failure stops continuation and reloads durable recovery state.
+- acceptance criteria: no default mutation authority; no duplicate wave dispatch; Task/plan identity remains bound; first failure stops; integration conflict remains visible with retained isolation; phase completion stays explicit.
+- verification: frontend audit, typecheck, 343 frontend tests, production build, Rust fmt, 143 Rust tests, clippy with warnings denied and diff hygiene pass.
+- comparison: `working_knowledge/current/claude-buddy-comparison.md` records the source-backed matrix and remaining gaps; core single-repository Task-loop parity is reached, but universal superiority is not claimed.
+
 ### 37.1. Establish versioned structured Task plans
 - objective: make planning output machine-readable so evaluation, critique and step execution can operate on explicit requirements and implementation steps instead of parsing prose.
 - status: complete; committed as 8daafa9.
